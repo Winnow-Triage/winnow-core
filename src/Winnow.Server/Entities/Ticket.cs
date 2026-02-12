@@ -14,4 +14,6 @@ public class Ticket
     public int? CriticalityScore { get; set; } // 1-10
     public string? CriticalityReasoning { get; set; }
     public byte[]? Embedding { get; set; }
+    public string? StackTraceHash { get; set; }
+    public string? MetadataJson { get; set; } // Stores Dictionary<string, object>
 }

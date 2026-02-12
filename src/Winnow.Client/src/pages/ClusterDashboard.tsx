@@ -54,6 +54,8 @@ export default function ClusterDashboard() {
         staleTime: 60 * 1000,
     });
 
+
+
     if (isLoading) return <div>Loading tickets...</div>;
 
     const clusters = tickets?.filter(t => !t.parentTicketId && t.status !== 'Duplicate') || [];

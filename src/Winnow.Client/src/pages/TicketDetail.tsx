@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import { useParams, Link, useNavigate } from 'react-router-dom';
@@ -8,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, ExternalLink, MessageSquare, Clock, AlertCircle, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useState } from 'react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -48,6 +48,7 @@ interface TicketDetailData {
     confidenceScore?: number;
     criticalityScore?: number;
     criticalityReasoning?: string;
+    metadataJson?: string;
     evidence: RelatedTicket[];
 }
 
@@ -391,6 +392,31 @@ export default function TicketDetail() {
                                 </span>
                                 <span>0</span>
                             </div>
+                            {ticket.metadataJson && (
+                                <>
+                                    <Separator />
+                                    <div className="flex flex-col gap-2">
+                                        <span className="text-muted-foreground flex items-center gap-2">
+                                            <Sparkles className="h-3 w-3" /> Game Metadata
+                                        </span>
+                                        <div className="bg-muted/50 p-2 rounded-md grid grid-cols-2 gap-x-4 gap-y-1">
+                                            {(() => {
+                                                try {
+                                                    const metadata = JSON.parse(ticket.metadataJson);
+                                                    return Object.entries(metadata).map(([key, value]) => (
+                                                        <React.Fragment key={key}>
+                                                            <span className="text-xs font-medium text-muted-foreground uppercase">{key}</span>
+                                                            <span className="text-xs text-right font-mono">{String(value)}</span>
+                                                        </React.Fragment>
+                                                    ));
+                                                } catch (e) {
+                                                    return <span className="text-xs text-red-500">Error parsing metadata</span>;
+                                                }
+                                            })()}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </CardContent>
                     </Card>
 

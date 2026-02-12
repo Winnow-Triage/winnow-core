@@ -31,6 +31,7 @@ public class EmbeddingService : IEmbeddingService, IDisposable
                 _session = new InferenceSession(_modelPath, sessionOptions);
 
                 var vocabPath = Path.Combine(_modelDir, "vocab.txt");
+
                 if (File.Exists(vocabPath))
                 {
                     try
@@ -40,7 +41,7 @@ public class EmbeddingService : IEmbeddingService, IDisposable
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Failed to create WordPieceTokenizer.");
+                        _logger.LogError(ex, "Failed to create WordPieceTokenizer from vocab.txt.");
                     }
                 }
 
@@ -71,21 +72,27 @@ public class EmbeddingService : IEmbeddingService, IDisposable
 
         try
         {
-            // 1. Tokenize
-            var tokenList = _tokenizer.EncodeToIds(text);
-            var tokenIds = tokenList.Select(x => (long)x).ToArray();
+            // Lowercase is critical for uncased models (like MiniLM)
+            text = text.ToLowerInvariant();
 
-            if (tokenIds.Length > 512)
-            {
-                tokenIds = tokenIds.Take(512).ToArray();
-            }
+            // 1. Tokenize and wrap with BERT special tokens
+            var rawIds = _tokenizer.EncodeToIds(text).Select(x => (long)x).ToList();
+            var tokenIdsList = new List<long> { 101 }; // [CLS]
+            tokenIdsList.AddRange(rawIds);
+            if (tokenIdsList.Count < 512) tokenIdsList.Add(102); // [SEP]
+
+            var tokenIds = tokenIdsList.Take(512).ToArray();
 
             // 2. Prepare Inputs using DenseTensor
             // Shape: [1, seq_len]
             var dimensions = new[] { 1, tokenIds.Length };
 
             var inputIdsTensor = new DenseTensor<long>(tokenIds, dimensions);
-            var attentionMaskTensor = new DenseTensor<long>(Enumerable.Repeat(1L, tokenIds.Length).ToArray(), dimensions);
+
+            // Skip ID 0 (usually [PAD] in tokenizer, though vocab.txt said 100 for this specific one, 0 is safer fallback)
+            // also skip 100 specifically if we saw it being used for padding in logs.
+            var attentionMaskData = tokenIds.Select(id => (id == 0 || id == 100) ? 0L : 1L).ToArray();
+            var attentionMaskTensor = new DenseTensor<long>(attentionMaskData, dimensions);
             var tokenTypeIdsTensor = new DenseTensor<long>(Enumerable.Repeat(0L, tokenIds.Length).ToArray(), dimensions);
 
             var inputs = new List<NamedOnnxValue>
@@ -99,30 +106,46 @@ public class EmbeddingService : IEmbeddingService, IDisposable
             using var results = _session.Run(inputs);
 
             // 4. Extract Output
-            // Assuming the first output is the hidden state or embedding
-            // For all-MiniLM-L6-v2, output[0] is usually 'last_hidden_state' [1, seq_len, 384]
-            // We need to confirm if model output is float. Usually yes.
-
+            // For sentence-transformers/all-MiniLM-L6-v2, output[0] is 'last_hidden_state' [1, seq_len, 384]
             var outputTensor = results.First().AsTensor<float>();
 
-            // Mean Pooling
+            // MEAN POOLING: Average all non-special tokens (standard for sentence-transformers)
             int hiddenSize = 384;
             int seqLen = tokenIds.Length;
-
             var pooled = new float[hiddenSize];
+            int validTokenCount = 0;
+
             for (int i = 0; i < seqLen; i++)
             {
+                // Skip [PAD] (0/100), [CLS] (101), [SEP] (102)
+                if (tokenIds[i] == 0 || tokenIds[i] == 100 || tokenIds[i] == 101 || tokenIds[i] == 102) continue;
+
+                validTokenCount++;
                 for (int j = 0; j < hiddenSize; j++)
                 {
-                    // Access tensor: [0, i, j]
                     pooled[j] += outputTensor[0, i, j];
                 }
             }
 
-            // Normalize
-            for (int i = 0; i < hiddenSize; i++)
+            if (validTokenCount > 0)
             {
-                pooled[i] /= seqLen;
+                for (int i = 0; i < hiddenSize; i++)
+                {
+                    pooled[i] /= validTokenCount;
+                }
+            }
+
+            _logger.LogInformation("Embedding generated for text (len={TextLen}). ValidTokens: {Actual}, First5Tokens: {Tokens}, First5Embed: {Embed}",
+                text.Length, validTokenCount, string.Join(",", tokenIds.Take(5)), string.Join(",", pooled.Take(5)));
+
+            // 4. L2 Normalize
+            float norm = 0;
+            for (int i = 0; i < hiddenSize; i++) norm += pooled[i] * pooled[i];
+            norm = (float)Math.Sqrt(norm);
+
+            if (norm > 1e-6) // Avoid divide by zero
+            {
+                for (int i = 0; i < hiddenSize; i++) pooled[i] /= norm;
             }
 
             return Task.FromResult(pooled);

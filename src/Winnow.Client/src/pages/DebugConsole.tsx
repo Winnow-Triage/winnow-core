@@ -5,13 +5,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlayCircle, AlertTriangle } from 'lucide-react';
+import { PlayCircle, AlertTriangle, Sparkles, RefreshCw } from 'lucide-react';
 
 export default function DebugConsole() {
     const [count, setCount] = useState(5);
     const [topic, setTopic] = useState("Login Failure");
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
+
+    // LLM Mock Gen State
+    const [mockCount, setMockCount] = useState(10);
+    const [scenario, setScenario] = useState("A series of login issues where users receive 'Invalid Credentials' but know their password is correct.");
+    const [isMockLoading, setIsMockLoading] = useState(false);
+    const [mockMessage, setMockMessage] = useState<string | null>(null);
 
     const handleSimulate = async () => {
         setIsLoading(true);
@@ -27,6 +33,20 @@ export default function DebugConsole() {
         }
     };
 
+    const handleGenerateMock = async () => {
+        setIsMockLoading(true);
+        setMockMessage(null);
+        try {
+            const { data } = await api.post('/tickets/generate-mock', { count: mockCount, scenario });
+            setMockMessage(data.message);
+        } catch (error) {
+            console.error(error);
+            setMockMessage("Failed to generate mock tickets.");
+        } finally {
+            setIsMockLoading(false);
+        }
+    };
+
     return (
         <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full p-4">
             <h1 className="text-2xl font-bold tracking-tight text-red-500 flex items-center gap-2">
@@ -39,9 +59,54 @@ export default function DebugConsole() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Traffic Simulator</CardTitle>
+                        <CardTitle className="flex items-center gap-2">
+                            <Sparkles className="h-5 w-5 text-amber-500" /> AI Mock Generator
+                        </CardTitle>
                         <CardDescription>
-                            Generate synthetic tickets to test AI clustering and pipeline throughput.
+                            Use the LLM to generate realistic, high-quality support tickets based on a specific scenario.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-4">
+                        <div className="grid w-full items-center gap-1.5">
+                            <Label htmlFor="scenario">Scenario Context</Label>
+                            <Input
+                                id="scenario"
+                                placeholder="Describe the situation..."
+                                value={scenario}
+                                onChange={(e) => setScenario(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="grid w-full max-w-sm items-center gap-1.5">
+                            <Label htmlFor="mockCount">Number of Tickets</Label>
+                            <Input
+                                type="number"
+                                id="mockCount"
+                                value={mockCount}
+                                onChange={(e) => setMockCount(parseInt(e.target.value))}
+                                min={1}
+                                max={20}
+                            />
+                        </div>
+
+                        <Button onClick={handleGenerateMock} disabled={isMockLoading} className="mt-2" variant="outline">
+                            {isMockLoading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                            {isMockLoading ? "Generating..." : "Generate LLM Tickets"}
+                        </Button>
+
+                        {mockMessage && (
+                            <div className="p-2 bg-muted rounded text-sm font-mono mt-2 animate-in fade-in border-l-2 border-amber-500">
+                                {mockMessage}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Basic Traffic Simulator</CardTitle>
+                        <CardDescription>
+                            Generate synthetic templates to stress test backend pipeline throughput.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-4">

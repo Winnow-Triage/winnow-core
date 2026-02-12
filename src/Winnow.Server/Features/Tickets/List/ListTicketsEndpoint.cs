@@ -4,7 +4,7 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Tickets.List;
 
-public record TicketDto(Guid Id, string Title, string Description, string Status, DateTime CreatedAt, Guid? ParentTicketId, float? ConfidenceScore, int? CriticalityScore);
+public record TicketDto(Guid Id, string Title, string Description, string Status, DateTime CreatedAt, Guid? ParentTicketId, float? ConfidenceScore, int? CriticalityScore, string? MetadataJson);
 
 public class ListTicketsEndpoint(WinnowDbContext dbContext) : EndpointWithoutRequest<List<TicketDto>>
 {
@@ -29,7 +29,7 @@ public class ListTicketsEndpoint(WinnowDbContext dbContext) : EndpointWithoutReq
         };
 
         var tickets = await query
-            .Select(t => new TicketDto(t.Id, t.Title, t.Description, t.Status, t.CreatedAt, t.ParentTicketId, t.ConfidenceScore, t.CriticalityScore))
+            .Select(t => new TicketDto(t.Id, t.Title, t.Description, t.Status, t.CreatedAt, t.ParentTicketId, t.ConfidenceScore, t.CriticalityScore, t.MetadataJson))
             .ToListAsync(ct);
 
         await Send.OkAsync(tickets, ct);

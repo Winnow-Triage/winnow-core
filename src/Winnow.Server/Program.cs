@@ -67,6 +67,13 @@ builder.Services.AddMassTransit(x =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
+    // For SQLite, EnsureCreated is enough for now
+    db.Database.EnsureCreated();
+}
+
 app.UseMiddleware<TenantMiddleware>();
 
 app.UseAuthorization();

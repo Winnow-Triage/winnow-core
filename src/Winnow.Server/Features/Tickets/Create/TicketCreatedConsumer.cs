@@ -1,3 +1,4 @@
+using System.Linq;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Integrations;
@@ -25,8 +26,9 @@ public class TicketCreatedConsumer(
         var ticket = await dbContext.Tickets.FindAsync([context.Message.TicketId], context.CancellationToken);
         if (ticket == null) return;
 
-        // 3. Generate Embedding (Float array)
-        var embeddingFloats = await embeddingService.GetEmbeddingAsync(ticket.Description);
+        // 3. Generate Embedding (Simpler content for better matching)
+        var contentToEmbed = $"{ticket.Title}\n{ticket.Description}";
+        var embeddingFloats = await embeddingService.GetEmbeddingAsync(contentToEmbed);
 
         // 4. Convert to BLOB for SQLite (Raw Byte Copy)
         var embeddingBytes = new byte[embeddingFloats.Length * sizeof(float)];
@@ -34,70 +36,76 @@ public class TicketCreatedConsumer(
 
         ticket.Embedding = embeddingBytes;
 
-        // 5. Ensure Vector Table (Idempotent, but ideally move to Startup)
-        // We do this raw SQL because EF Core doesn't know about "VIRTUAL TABLE USING vec0"
+        // 5. Ensure Vector Table
         await dbContext.Database.ExecuteSqlRawAsync(
-            "CREATE VIRTUAL TABLE IF NOT EXISTS vec_tickets USING vec0(embedding float[384]);",
+            "CREATE VIRTUAL TABLE IF NOT EXISTS vec_tickets USING vec0(embedding float[384] distance_metric=cosine);",
             context.CancellationToken);
 
-        // 6. Save the Ticket FIRST (to get a valid Row ID)
+        // 6. Vector Search (Skip if already matched by StackHash)
+        if (ticket.Status != "Duplicate (StackHash)")
+        {
+            const double DistanceThreshold = 0.3;
+
+            // Build dynamic filter based on "Critical" Metadata (e.g., Level, BuildVersion)
+            // For now, let's filter by Level if it exists.
+            string metadataFilter = "";
+            var parameters = new List<object> { embeddingBytes };
+
+            if (context.Message.Metadata != null && context.Message.Metadata.TryGetValue("Level", out var levelVal))
+            {
+                metadataFilter = "AND json_extract(t.MetadataJson, '$.Level') = {1}";
+                parameters.Add(levelVal.ToString()!);
+            }
+
+            var sql = $@"
+                SELECT t.Id, t.ParentTicketId, v.distance
+                FROM vec_tickets v
+                JOIN Tickets t ON v.rowid = t.rowid
+                WHERE v.embedding MATCH {{0}}
+                  {metadataFilter}
+                  AND k = 5
+                ORDER BY distance
+            ";
+
+            var searchResults = await dbContext.Database
+                .SqlQueryRaw<TicketMatch>(sql, parameters.ToArray())
+                .ToListAsync(context.CancellationToken);
+
+            if (searchResults.Any())
+            {
+                var bestMatch = searchResults[0];
+                logger.LogInformation("Best match for ticket {Id}: {MatchId} with distance {Dist}",
+                    ticket.Id, bestMatch.Id, bestMatch.Distance);
+
+                if (bestMatch.Distance <= DistanceThreshold)
+                {
+                    logger.LogInformation("Grouping Ticket {Id} with Parent {ParentId} (Distance: {Dist})",
+                        ticket.Id, bestMatch.ParentTicketId ?? bestMatch.Id, bestMatch.Distance);
+
+                    ticket.ParentTicketId = bestMatch.ParentTicketId ?? bestMatch.Id;
+                    ticket.Status = "Duplicate";
+                    ticket.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                }
+            }
+        }
+
+        if (ticket.Status != "Duplicate")
+        {
+            logger.LogInformation("New Unique Ticket {Id}. Exporting to downstream.", ticket.Id);
+            await exporter.ExportTicketAsync(ticket.Title, ticket.Description, context.CancellationToken);
+            ticket.Status = "Exported";
+        }
+
+        // 7. Save the Ticket (and parent assignment if any)
         await dbContext.SaveChangesAsync(context.CancellationToken);
 
-        // 7. Sync to Vector Index
-        // Note: We cast the parameter to BLOB to ensure SQLite treats it as raw bytes
-        // We MUST use the internal rowid from the Tickets table, NOT the Guid Id
+        // 8. Sync to Vector Index
         await dbContext.Database.ExecuteSqlRawAsync(@"
             INSERT INTO vec_tickets(rowid, embedding)
             SELECT rowid, {0}
             FROM Tickets
             WHERE Id = {1}
         ", embeddingBytes, ticket.Id);
-
-        // 8. Vector Search (The "Magic" Step)
-        // We use a projection to get the 'distance' back from the virtual table
-        // sqlite-vec distance is 'Cosine Distance' (lower is better).
-        // 0.3 distance ~= 0.7 similarity.
-        const double DistanceThreshold = 0.3;
-
-        var match = await dbContext.Database
-            .SqlQueryRaw<TicketMatch>(@"
-                SELECT t.Id, t.ParentTicketId, v.distance
-                FROM vec_tickets v
-                JOIN Tickets t ON v.rowid = t.rowid
-                WHERE v.embedding MATCH {0}
-                  AND k = 2  -- Get top 2 (The ticket itself is #1, we want #2)
-                ORDER BY distance
-            ", embeddingBytes)
-            .Where(m => m.Id != ticket.Id) // Filter out self-match
-            .FirstOrDefaultAsync(context.CancellationToken);
-
-        if (match != null && match.Distance <= DistanceThreshold)
-        {
-            logger.LogInformation("Grouping Ticket {Id} with Parent {ParentId} (Distance: {Dist})",
-                ticket.Id, match.ParentTicketId ?? match.Id, match.Distance);
-
-            ticket.ParentTicketId = match.ParentTicketId ?? match.Id;
-            ticket.Status = "Duplicate";
-
-            // Calculate Confidence Score (Distance is 0..1+, where 0 is identical)
-            // We clamp it to 0..1 for checking
-            var confidence = Math.Max(0, 1.0 - match.Distance);
-            ticket.ConfidenceScore = (float)confidence;
-
-            // Optimization: We don't export duplicates
-            await dbContext.SaveChangesAsync(context.CancellationToken);
-        }
-        else
-        {
-            logger.LogInformation("New Unique Ticket {Id}. Exporting to downstream.", ticket.Id);
-
-            // Export logic
-            await exporter.ExportTicketAsync(ticket.Title, ticket.Description, context.CancellationToken);
-            // ticket.ExternalId = exportId;
-            ticket.Status = "Exported";
-
-            await dbContext.SaveChangesAsync(context.CancellationToken);
-        }
     }
 }
 

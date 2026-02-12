@@ -23,6 +23,7 @@ public class GetTicketResponse
     public int? CriticalityScore { get; set; }
     public string? CriticalityReasoning { get; set; }
     public string? ParentTicketTitle { get; set; }
+    public string? MetadataJson { get; set; }
 
     // For now, let's include children simple IDs/Titles if it is a parent
     public List<RelatedTicketDto> Evidence { get; set; } = [];
@@ -110,6 +111,7 @@ public class GetTicketEndpoint(WinnowDbContext db) : Endpoint<GetTicketRequest, 
             CriticalityScore = ticket.CriticalityScore,
             CriticalityReasoning = ticket.CriticalityReasoning,
             ParentTicketTitle = parentTicketTitle,
+            MetadataJson = ticket.MetadataJson,
             Evidence = evidence
         }, ct);
     }

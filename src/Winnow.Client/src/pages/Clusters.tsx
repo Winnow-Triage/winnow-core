@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import {
     Table,
@@ -9,10 +9,11 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
-import { LayoutDashboard } from 'lucide-react';
+import { LayoutDashboard, Merge, RefreshCw } from 'lucide-react';
 
 interface Ticket {
     id: string;
@@ -26,8 +27,11 @@ interface Ticket {
 export default function Clusters() {
     const [search, setSearch] = useState('');
     const [sortBy, setSortBy] = useState<'size' | 'criticality' | 'newest'>('size');
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [isMerging, setIsMerging] = useState(false);
+    const queryClient = useQueryClient();
 
-    const { data: tickets, isLoading } = useQuery<Ticket[]>({
+    const { data: tickets, isLoading, refetch } = useQuery<Ticket[]>({
         queryKey: ['tickets'],
         queryFn: async () => {
             const { data } = await api.get('/tickets');
@@ -61,6 +65,29 @@ export default function Clusters() {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
+    const handleMerge = async () => {
+        if (selectedIds.length < 2) return;
+
+        setIsMerging(true);
+        try {
+            const [targetId, ...sourceIds] = selectedIds;
+            await api.post(`/tickets/${targetId}/merge`, { id: targetId, sourceIds });
+            await queryClient.invalidateQueries({ queryKey: ['tickets'] });
+            await refetch();
+            setSelectedIds([]);
+        } catch (e) {
+            console.error("Failed to merge clusters", e);
+        } finally {
+            setIsMerging(false);
+        }
+    };
+
+    const toggleSelection = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
     return (
         <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between">
@@ -68,7 +95,19 @@ export default function Clusters() {
                     <LayoutDashboard className="h-6 w-6 text-muted-foreground" />
                     <h1 className="text-3xl font-bold tracking-tight">Active Clusters</h1>
                 </div>
-                <div className="flex items-center gap-4 w-1/2 justify-end">
+                <div className="flex items-center gap-4 w-2/3 justify-end">
+                    {selectedIds.length >= 2 && (
+                        <Button
+                            variant="default"
+                            size="sm"
+                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                            onClick={handleMerge}
+                            disabled={isMerging}
+                        >
+                            {isMerging ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Merge className="h-4 w-4" />}
+                            Merge {selectedIds.length} Clusters
+                        </Button>
+                    )}
                     <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground whitespace-nowrap">Sort by:</span>
                         <select
@@ -81,7 +120,7 @@ export default function Clusters() {
                             <option value="newest">Newest</option>
                         </select>
                     </div>
-                    <div className="w-1/2">
+                    <div className="w-1/3">
                         <Input
                             placeholder="Search clusters..."
                             value={search}
@@ -95,6 +134,7 @@ export default function Clusters() {
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead className="w-[40px]"></TableHead>
                             <TableHead>Cluster Title</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Criticality</TableHead>
@@ -105,17 +145,26 @@ export default function Clusters() {
                     <TableBody>
                         {isLoading ? (
                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">Loading...</TableCell>
+                                <TableCell colSpan={6} className="h-24 text-center">Loading...</TableCell>
                             </TableRow>
                         ) : sortedClusters.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">No clusters found.</TableCell>
+                                <TableCell colSpan={6} className="h-24 text-center">No clusters found.</TableCell>
                             </TableRow>
                         ) : (
                             sortedClusters.map((ticket) => {
                                 const childCount = clusterMap.get(ticket.id) || 0;
+                                const isSelected = selectedIds.includes(ticket.id);
                                 return (
-                                    <TableRow key={ticket.id}>
+                                    <TableRow key={ticket.id} className={isSelected ? 'bg-muted/50' : ''}>
+                                        <TableCell>
+                                            <input
+                                                type="checkbox"
+                                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                                checked={isSelected}
+                                                onChange={() => toggleSelection(ticket.id)}
+                                            />
+                                        </TableCell>
                                         <TableCell className="font-medium">
                                             <Link to={`/tickets/${ticket.id}`} className="hover:underline block font-semibold">
                                                 {ticket.title}
@@ -140,7 +189,7 @@ export default function Clusters() {
                                         <TableCell>{new Date(ticket.createdAt).toLocaleDateString()}</TableCell>
                                         <TableCell className="text-right">
                                             <Badge variant={childCount > 0 ? "default" : "secondary"}>
-                                                {childCount + 1} {/* +1 for the parent itself */}
+                                                {childCount + 1}
                                             </Badge>
                                         </TableCell>
                                     </TableRow>
