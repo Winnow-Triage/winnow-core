@@ -6,6 +6,18 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, ExternalLink, MessageSquare, Clock, AlertCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { useState } from 'react';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface RelatedTicket {
     id: string;
@@ -22,12 +34,20 @@ interface TicketDetailData {
     createdAt: string;
     parentTicketId?: string;
     parentTicketTitle?: string;
+    assignedTo?: string;
     evidence: RelatedTicket[];
 }
 
 export default function TicketDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const [assignee, setAssignee] = useState('');
+    const [confirmAction, setConfirmAction] = useState<{
+        isOpen: boolean;
+        title: string;
+        description: string;
+        action: () => Promise<void>;
+    }>({ isOpen: false, title: '', description: '', action: async () => { } });
 
     const { data: ticket, isLoading, error } = useQuery<TicketDetailData>({
         queryKey: ['ticket', id],
@@ -54,9 +74,61 @@ export default function TicketDetail() {
                         <Badge variant={ticket.status === 'Exported' ? 'default' : 'secondary'}>
                             {ticket.status}
                         </Badge>
+                        {ticket.assignedTo && <Badge className="bg-blue-600">Assigned to: {ticket.assignedTo}</Badge>}
                     </div>
                 </div>
-                <div className="ml-auto flex gap-2">
+                <div className="ml-auto flex items-center gap-2">
+                    <div className="flex w-full max-w-sm items-center space-x-2">
+                        <Input
+                            placeholder={ticket.assignedTo ? "Reassign..." : "Assign to..."}
+                            value={assignee}
+                            onChange={(e) => setAssignee(e.target.value)}
+                            className="w-32 h-8"
+                        />
+                        <Button
+                            className="h-8"
+                            disabled={!assignee}
+                            onClick={async () => {
+                                await api.post(`/tickets/${ticket.id}/assign`, { assignedTo: assignee });
+                                window.location.reload();
+                            }}
+                        >
+                            Assign
+                        </Button>
+                        {ticket.assignedTo && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 text-red-500 hover:text-red-700"
+                                onClick={() => {
+                                    setConfirmAction({
+                                        isOpen: true,
+                                        title: 'Unassign Ticket?',
+                                        description: 'Are you sure you want to unassign this ticket?',
+                                        action: async () => {
+                                            await api.post(`/tickets/${ticket.id}/assign`, { assignedTo: null });
+                                            window.location.reload();
+                                        }
+                                    });
+                                }}
+                            >
+                                Unassign
+                            </Button>
+                        )}
+                    </div>
+                    <Button variant="outline" onClick={() => {
+                        setConfirmAction({
+                            isOpen: true,
+                            title: 'Close Cluster?',
+                            description: 'Are you sure you want to CLOSE ALL tickets in this cluster? This action cannot be easily undone.',
+                            action: async () => {
+                                await api.post(`/tickets/${ticket.id}/close-cluster`, {});
+                                window.location.reload();
+                            }
+                        });
+                    }}>
+                        Close Cluster
+                    </Button>
                     <Button variant="outline">
                         <ExternalLink className="mr-2 h-4 w-4" />
                         Open in External System
@@ -77,11 +149,31 @@ export default function TicketDetail() {
                             It has been merged into <Link to={`/tickets/${ticket.parentTicketId}`} className="underline font-medium break-all">{ticket.parentTicketTitle || ticket.parentTicketId}</Link>.
                         </p>
                     </div>
-                    <Button variant="ghost" size="sm" asChild className="shrink-0 hover:bg-amber-200 dark:hover:bg-amber-800/50">
-                        <Link to={`/tickets/${ticket.parentTicketId}`}>
-                            View Original Correct Ticket
-                        </Link>
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="shrink-0 hover:bg-amber-200 dark:hover:bg-amber-800/50 text-amber-800 dark:text-amber-200"
+                            onClick={() => {
+                                setConfirmAction({
+                                    isOpen: true,
+                                    title: 'Ungroup Ticket?',
+                                    description: 'Are you sure you want to ungroup this ticket? It will be treated as specific unique issue.',
+                                    action: async () => {
+                                        await api.post(`/tickets/${ticket.id}/ungroup`, {});
+                                        window.location.reload();
+                                    }
+                                });
+                            }}
+                        >
+                            Ungroup
+                        </Button>
+                        <Button variant="ghost" size="sm" asChild className="shrink-0 hover:bg-amber-200 dark:hover:bg-amber-800/50">
+                            <Link to={`/tickets/${ticket.parentTicketId}`}>
+                                View Original Correct Ticket
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
             )}
 
@@ -171,6 +263,23 @@ export default function TicketDetail() {
                     </Card>
                 </div>
             </div>
+
+            <AlertDialog open={confirmAction.isOpen} onOpenChange={(open: boolean) => {
+                if (!open) setConfirmAction({ ...confirmAction, isOpen: false });
+            }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{confirmAction.title}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {confirmAction.description}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmAction.action}>Confirm</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
