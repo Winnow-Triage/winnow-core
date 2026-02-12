@@ -31,6 +31,7 @@ export default function Clusters() {
             const { data } = await api.get('/tickets');
             return data;
         },
+        staleTime: 60 * 1000,
     });
 
     // A "Cluster" is a Parent Ticket (no parentTicketId) or a ticket that has become a parent.

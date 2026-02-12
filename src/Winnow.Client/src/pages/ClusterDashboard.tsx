@@ -39,6 +39,7 @@ export default function ClusterDashboard() {
             const { data } = await api.get('/tickets');
             return data;
         },
+        staleTime: 60 * 1000, // Data is fresh for 1 minute
     });
 
     if (isLoading) return <div>Loading tickets...</div>;
