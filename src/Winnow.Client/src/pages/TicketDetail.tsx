@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -41,6 +41,7 @@ interface TicketDetailData {
 export default function TicketDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const [assignee, setAssignee] = useState('');
     const [confirmAction, setConfirmAction] = useState<{
         isOpen: boolean;
@@ -90,7 +91,8 @@ export default function TicketDetail() {
                             disabled={!assignee}
                             onClick={async () => {
                                 await api.post(`/tickets/${ticket.id}/assign`, { assignedTo: assignee });
-                                window.location.reload();
+                                queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+                                queryClient.invalidateQueries({ queryKey: ['tickets'] });
                             }}
                         >
                             Assign
@@ -107,7 +109,8 @@ export default function TicketDetail() {
                                         description: 'Are you sure you want to unassign this ticket?',
                                         action: async () => {
                                             await api.post(`/tickets/${ticket.id}/assign`, { assignedTo: null });
-                                            window.location.reload();
+                                            queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+                                            queryClient.invalidateQueries({ queryKey: ['tickets'] });
                                         }
                                     });
                                 }}
@@ -123,7 +126,8 @@ export default function TicketDetail() {
                             description: 'Are you sure you want to CLOSE ALL tickets in this cluster? This action cannot be easily undone.',
                             action: async () => {
                                 await api.post(`/tickets/${ticket.id}/close-cluster`, {});
-                                window.location.reload();
+                                queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+                                queryClient.invalidateQueries({ queryKey: ['tickets'] });
                             }
                         });
                     }}>
@@ -161,7 +165,8 @@ export default function TicketDetail() {
                                     description: 'Are you sure you want to ungroup this ticket? It will be treated as specific unique issue.',
                                     action: async () => {
                                         await api.post(`/tickets/${ticket.id}/ungroup`, {});
-                                        window.location.reload();
+                                        queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+                                        queryClient.invalidateQueries({ queryKey: ['tickets'] });
                                     }
                                 });
                             }}
