@@ -46,6 +46,8 @@ interface TicketDetailData {
     assignedTo?: string;
     summary?: string;
     confidenceScore?: number;
+    criticalityScore?: number;
+    criticalityReasoning?: string;
     evidence: RelatedTicket[];
 }
 
@@ -209,10 +211,30 @@ export default function TicketDetail() {
                     {ticket.evidence.length > 0 && (
                         <Card className="border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-lg font-semibold flex items-center gap-2 text-purple-900 dark:text-purple-100">
-                                    <Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                                    AI Cluster Summary
-                                </CardTitle>
+                                <div className="flex flex-col gap-1">
+                                    <CardTitle className="text-lg font-semibold flex items-center gap-2 text-purple-900 dark:text-purple-100">
+                                        <Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                                        AI Cluster Summary
+                                    </CardTitle>
+                                    {ticket.criticalityScore && (
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="outline" className={`
+                                                ${ticket.criticalityScore >= 8 ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800' :
+                                                    ticket.criticalityScore >= 5 ? 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800' :
+                                                        'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'}
+                                            `}>
+                                                Criticality: {ticket.criticalityScore}/10
+                                            </Badge>
+                                            {ticket.criticalityReasoning && (
+                                                <span className="text-xs text-muted-foreground" title={ticket.criticalityReasoning}>
+                                                    {ticket.criticalityReasoning.length > 60
+                                                        ? ticket.criticalityReasoning.substring(0, 60) + '...'
+                                                        : ticket.criticalityReasoning}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                                 {!ticket.summary ? (
                                     <Button
                                         size="sm"
@@ -224,6 +246,7 @@ export default function TicketDetail() {
                                             try {
                                                 await api.post(`/tickets/${ticket.id}/generate-summary`, {});
                                                 queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+                                                queryClient.invalidateQueries({ queryKey: ['tickets'] });
                                             } catch (e) {
                                                 console.error("Failed to generate summary", e);
                                             } finally {
@@ -255,6 +278,7 @@ export default function TicketDetail() {
                                                     try {
                                                         await api.post(`/tickets/${ticket.id}/generate-summary`, {});
                                                         await queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+                                                        await queryClient.invalidateQueries({ queryKey: ['tickets'] });
                                                     } catch (e) {
                                                         console.error("Failed to regenerate summary", e);
                                                     } finally {

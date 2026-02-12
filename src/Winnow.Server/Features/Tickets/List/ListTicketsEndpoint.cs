@@ -4,7 +4,7 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Tickets.List;
 
-public record TicketDto(Guid Id, string Title, string Description, string Status, DateTime CreatedAt, Guid? ParentTicketId, float? ConfidenceScore);
+public record TicketDto(Guid Id, string Title, string Description, string Status, DateTime CreatedAt, Guid? ParentTicketId, float? ConfidenceScore, int? CriticalityScore);
 
 public class ListTicketsEndpoint(WinnowDbContext dbContext) : EndpointWithoutRequest<List<TicketDto>>
 {
@@ -16,10 +16,20 @@ public class ListTicketsEndpoint(WinnowDbContext dbContext) : EndpointWithoutReq
 
     public override async Task HandleAsync(CancellationToken ct)
     {
-        var tickets = await dbContext.Tickets
-            .AsNoTracking()
-            .OrderByDescending(t => t.CreatedAt)
-            .Select(t => new TicketDto(t.Id, t.Title, t.Description, t.Status, t.CreatedAt, t.ParentTicketId, t.ConfidenceScore))
+        string sort = HttpContext.Request.Query["sort"].ToString();
+        if (string.IsNullOrEmpty(sort)) sort = "newest";
+
+        var query = dbContext.Tickets.AsNoTracking();
+
+        query = sort switch
+        {
+            "criticality" => query.OrderByDescending(t => t.CriticalityScore).ThenByDescending(t => t.CreatedAt),
+            "confidence" => query.OrderByDescending(t => t.ConfidenceScore).ThenByDescending(t => t.CreatedAt),
+            _ => query.OrderByDescending(t => t.CreatedAt)
+        };
+
+        var tickets = await query
+            .Select(t => new TicketDto(t.Id, t.Title, t.Description, t.Status, t.CreatedAt, t.ParentTicketId, t.ConfidenceScore, t.CriticalityScore))
             .ToListAsync(ct);
 
         await Send.OkAsync(tickets, ct);

@@ -37,9 +37,11 @@ public class GenerateClusterSummaryEndpoint(WinnowDbContext db, IClusterSummaryS
             .Where(t => t.ParentTicketId == ticket.Id)
             .ToListAsync(ct);
 
-        var summary = await _summaryService.GenerateSummaryAsync(relatedTickets, ct);
+        var result = await _summaryService.GenerateSummaryAsync(relatedTickets, ct);
 
-        ticket.Summary = summary;
+        ticket.Summary = result.Summary;
+        ticket.CriticalityScore = result.CriticalityScore;
+        ticket.CriticalityReasoning = result.CriticalityReasoning;
 
         await _db.SaveChangesAsync(ct);
 

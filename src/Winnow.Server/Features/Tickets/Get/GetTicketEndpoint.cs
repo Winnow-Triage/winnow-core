@@ -20,6 +20,8 @@ public class GetTicketResponse
     public string? AssignedTo { get; set; }
     public string? Summary { get; set; }
     public float? ConfidenceScore { get; set; }
+    public int? CriticalityScore { get; set; }
+    public string? CriticalityReasoning { get; set; }
     public string? ParentTicketTitle { get; set; }
 
     // For now, let's include children simple IDs/Titles if it is a parent
@@ -105,6 +107,8 @@ public class GetTicketEndpoint(WinnowDbContext db) : Endpoint<GetTicketRequest, 
             AssignedTo = ticket.AssignedTo,
             Summary = ticket.Summary,
             ConfidenceScore = ticket.ConfidenceScore,
+            CriticalityScore = ticket.CriticalityScore,
+            CriticalityReasoning = ticket.CriticalityReasoning,
             ParentTicketTitle = parentTicketTitle,
             Evidence = evidence
         }, ct);
