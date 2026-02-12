@@ -9,7 +9,7 @@ namespace Winnow.Server.Features.Tickets.Create;
 
 public class TicketCreatedConsumer(
     WinnowDbContext dbContext,
-    ITicketExporter exporter,
+    Winnow.Server.Infrastructure.Integrations.ExporterFactory exporterFactory,
     ILogger<TicketCreatedConsumer> logger,
     ITenantContext tenantContext,
     Services.Ai.IEmbeddingService embeddingService) : IConsumer<TicketCreatedEvent>
@@ -21,6 +21,9 @@ public class TicketCreatedConsumer(
         {
             concreteContext.TenantId = context.Message.TenantId;
         }
+
+        // Now that TenantId is set, we can get the correct exporter
+        var exporter = exporterFactory.GetExporter();
 
         // 2. Load Ticket
         var ticket = await dbContext.Tickets.FindAsync([context.Message.TicketId], context.CancellationToken);
