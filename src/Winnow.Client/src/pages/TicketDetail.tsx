@@ -237,10 +237,7 @@ export default function TicketDetail() {
                                     title: 'Accept Suggested Match?',
                                     description: `Are you sure you want to merge this ticket into "${ticket.suggestedParentTitle || 'the suggested parent'}"?`,
                                     action: async () => {
-                                        await api.post(`/tickets/merge`, {
-                                            sourceTicketIds: [ticket.id],
-                                            targetTicketId: ticket.suggestedParentId
-                                        });
+                                        await api.post(`/tickets/${ticket.id}/accept-suggestion`, {});
                                         queryClient.invalidateQueries({ queryKey: ['ticket', id] });
                                         queryClient.invalidateQueries({ queryKey: ['tickets'] });
                                     }
@@ -254,9 +251,12 @@ export default function TicketDetail() {
                             size="sm"
                             className="text-blue-800 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-800/50"
                             onClick={async () => {
-                                // For now, just clear it locally or we'd need a "Dismiss" endpoint
-                                // Let's just pretend we dismiss it for now
-                                console.log("Dismissed");
+                                try {
+                                    await api.post(`/tickets/${ticket.id}/dismiss-suggestion`, {});
+                                    queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+                                } catch (e) {
+                                    console.error("Failed to dismiss suggestion", e);
+                                }
                             }}
                         >
                             Dismiss
