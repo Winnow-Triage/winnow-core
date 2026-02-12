@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Link } from 'react-router-dom';
 
 interface Ticket {
     id: string;
@@ -128,8 +129,12 @@ export default function ClusterDashboard() {
                             </TableHeader>
                             <TableBody>
                                 {tickets?.slice(0, 5).map((ticket) => (
-                                    <TableRow key={ticket.id}>
-                                        <TableCell className="font-medium truncate max-w-[150px]">{ticket.title}</TableCell>
+                                    <TableRow key={ticket.id} className="cursor-pointer hover:bg-muted/50">
+                                        <TableCell className="font-medium truncate max-w-[150px]">
+                                            <Link to={`/tickets/${ticket.id}`} className="block w-full h-full">
+                                                {ticket.title}
+                                            </Link>
+                                        </TableCell>
                                         <TableCell>
                                             <Badge variant={ticket.status === 'Exported' ? 'default' : 'secondary'}>
                                                 {ticket.status}
