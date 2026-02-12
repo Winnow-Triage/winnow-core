@@ -17,10 +17,6 @@ builder.Services.AddTransient<ITicketExporter>(sp => sp.GetRequiredService<Winno
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<Winnow.Server.Services.Ai.IEmbeddingService, Winnow.Server.Services.Ai.EmbeddingService>();
 
-var integrationSettings = new IntegrationSettings();
-builder.Configuration.GetSection("IntegrationSettings").Bind(integrationSettings);
-builder.Services.AddSingleton(integrationSettings);
-
 
 var llmSettings = new Winnow.Server.Infrastructure.Configuration.LlmSettings();
 builder.Configuration.GetSection("LlmSettings").Bind(llmSettings);
