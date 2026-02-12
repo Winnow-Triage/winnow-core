@@ -1,0 +1,91 @@
+# ========================
+# 1. Standard .NET
+# ========================
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.suo
+*.userprefs
+# DO NOT IGNORE *.sln - We need that!
+
+# ========================
+# 2. Node.js / React (Winnow.Client)
+# ========================
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies & Build
+node_modules/
+dist/
+dist-ssr/
+
+# Local Environment Overrides
+*.local
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ========================
+# 3. Databases (CRITICAL)
+# ========================
+# Ignore all SQLite database files anywhere in the repo
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# Ignore the physical DB files in the Data folder, but keep the folder
+src/Winnow.Server/Data/*
+!src/Winnow.Server/Data/.gitkeep
+
+# ========================
+# 4. AI & Large Binary Files
+# ========================
+# Ignore the model files
+*.onnx
+
+# Folder: AiModels (Plural - matches your intention)
+src/Winnow.Server/AiModels/*
+!src/Winnow.Server/AiModels/.gitkeep
+!src/Winnow.Server/AiModels/tokenizer.json
+!src/Winnow.Server/AiModels/vocab.txt
+
+# Folder: AiModel (Singular - matches your screenshot)
+# Keeping this just in case you haven't renamed it yet.
+src/Winnow.Server/AiModel/*
+!src/Winnow.Server/AiModel/.gitkeep
+!src/Winnow.Server/AiModel/tokenizer.json
+!src/Winnow.Server/AiModel/vocab.txt
+
+# Native vector extensions
+vec0.dll
+vec0.so
+vec0.dylib
+
+# ========================
+# 5. OS & IDE Clutter
+# ========================
+.DS_Store
+Thumbs.db
+.idea/
+
+# VS Code - Keep settings/launch config if you want to share them
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# ========================
+# 6. Secrets
+# ========================
+appsettings.Development.json
+appsettings.Local.json
