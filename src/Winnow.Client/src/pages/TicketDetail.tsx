@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +27,7 @@ interface TicketDetailData {
 
 export default function TicketDetail() {
     const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
 
     const { data: ticket, isLoading, error } = useQuery<TicketDetailData>({
         queryKey: ['ticket', id],
@@ -44,10 +45,8 @@ export default function TicketDetail() {
         <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
             {/* Header / Navigation */}
             <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" asChild>
-                    <Link to="/">
-                        <ArrowLeft className="h-4 w-4" />
-                    </Link>
+                <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+                    <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
                     <div className="flex items-center gap-2">

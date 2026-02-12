@@ -1,4 +1,4 @@
-import { Ticket, LayoutDashboard, Settings, Inbox } from "lucide-react"
+import { Ticket, LayoutDashboard, Settings, Inbox, Layers } from "lucide-react"
 import { Link } from "react-router-dom"
 import {
     Sidebar,
@@ -17,19 +17,24 @@ import {
 // Menu items.
 const items = [
     {
-        title: "Triage Queue",
-        url: "/triage",
-        icon: Inbox,
-    },
-    {
-        title: "Clusters",
-        url: "/clusters",
+        title: "Cluster Dashboard",
+        url: "/",
         icon: LayoutDashboard,
     },
     {
         title: "All Tickets",
         url: "/tickets",
         icon: Ticket,
+    },
+    {
+        title: "Clusters",
+        url: "/clusters",
+        icon: Layers,
+    },
+    {
+        title: "Debug Console",
+        url: "/debug",
+        icon: Inbox,
     },
     {
         title: "Settings",

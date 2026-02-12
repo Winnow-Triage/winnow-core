@@ -5,6 +5,8 @@ import Layout from './components/Layout'
 import ClusterDashboard from './pages/ClusterDashboard'
 import TicketDetail from './pages/TicketDetail'
 import DebugConsole from './pages/DebugConsole'
+import AllTickets from './pages/AllTickets'
+import Clusters from './pages/Clusters'
 
 export default function App() {
   return (
@@ -20,9 +22,9 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Layout />}>
               <Route index element={<ClusterDashboard />} />
-              <Route path="tickets" element={<div>All Tickets (Coming Soon)</div>} />
+              <Route path="tickets" element={<AllTickets />} />
               <Route path="tickets/:id" element={<TicketDetail />} />
-              <Route path="clusters" element={<div>Clusters (Coming Soon)</div>} />
+              <Route path="clusters" element={<Clusters />} />
               <Route path="debug" element={<DebugConsole />} />
               <Route path="settings" element={<div>Settings (Coming Soon)</div>} />
             </Route>
