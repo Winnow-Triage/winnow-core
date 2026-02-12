@@ -17,6 +17,15 @@ builder.Services.AddDbContext<WinnowDbContext>(); // Configuration happens in On
 builder.Services.AddFastEndpoints();
 builder.Services.SwaggerDocument();
 builder.Services.AddAuthorization();
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
 builder.Services.AddMassTransit(x =>
 {
@@ -33,6 +42,7 @@ var app = builder.Build();
 app.UseMiddleware<TenantMiddleware>();
 
 app.UseAuthorization();
+app.UseCors();
 app.UseFastEndpoints();
 app.UseSwaggerGen();
 
