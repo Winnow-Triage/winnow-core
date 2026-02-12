@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import ReactMarkdown from 'react-markdown';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -18,6 +19,14 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, RotateCw, Trash2 } from 'lucide-react';
 
 interface RelatedTicket {
     id: string;
@@ -46,6 +55,7 @@ export default function TicketDetail() {
     const queryClient = useQueryClient();
     const [assignee, setAssignee] = useState('');
     const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+    const [isClearingSummary, setIsClearingSummary] = useState(false);
     const [confirmAction, setConfirmAction] = useState<{
         isOpen: boolean;
         title: string;
@@ -203,7 +213,7 @@ export default function TicketDetail() {
                                     <Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                                     AI Cluster Summary
                                 </CardTitle>
-                                {!ticket.summary && (
+                                {!ticket.summary ? (
                                     <Button
                                         size="sm"
                                         variant="outline"
@@ -221,14 +231,79 @@ export default function TicketDetail() {
                                             }
                                         }}
                                     >
-                                        {isGeneratingSummary ? 'Generating...' : 'Generate AI Summary'}
+                                        {isGeneratingSummary ? (
+                                            <>
+                                                <Sparkles className="mr-2 h-3 w-3 animate-spin" />
+                                                Generating...
+                                            </>
+                                        ) : (
+                                            'Generate AI Summary'
+                                        )}
                                     </Button>
+                                ) : (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-purple-700 dark:text-purple-300">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem
+                                                disabled={isGeneratingSummary || isClearingSummary}
+                                                onClick={async () => {
+                                                    setIsGeneratingSummary(true);
+                                                    try {
+                                                        await api.post(`/tickets/${ticket.id}/generate-summary`, {});
+                                                        await queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+                                                    } catch (e) {
+                                                        console.error("Failed to regenerate summary", e);
+                                                    } finally {
+                                                        setIsGeneratingSummary(false);
+                                                    }
+                                                }}
+                                            >
+                                                <RotateCw className={`mr-2 h-4 w-4 ${isGeneratingSummary ? 'animate-spin' : ''}`} />
+                                                Regenerate Summary
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                                className="text-red-600 focus:text-red-600"
+                                                disabled={isGeneratingSummary || isClearingSummary}
+                                                onClick={async () => {
+                                                    setIsClearingSummary(true);
+                                                    try {
+                                                        await api.post(`/tickets/${ticket.id}/clear-summary`, {});
+                                                        await queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+                                                    } catch (e) {
+                                                        console.error("Failed to clear summary", e);
+                                                    } finally {
+                                                        setIsClearingSummary(false);
+                                                    }
+                                                }}
+                                            >
+                                                {isClearingSummary ? (
+                                                    <RotateCw className="mr-2 h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                )}
+                                                Clear Summary
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 )}
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="relative min-h-[100px]">
+                                {isGeneratingSummary && ticket.summary && (
+                                    <div className="absolute inset-0 bg-white/80 dark:bg-slate-950/80 flex items-center justify-center z-10 backdrop-blur-[1px] rounded-b-xl transition-all duration-300">
+                                        <div className="flex flex-col items-center gap-2 text-purple-600 dark:text-purple-400 animate-in fade-in zoom-in duration-300">
+                                            <Sparkles className="h-6 w-6 animate-spin" />
+                                            <span className="font-medium text-sm">Regenerating summary...</span>
+                                        </div>
+                                    </div>
+                                )}
                                 {ticket.summary ? (
-                                    <div className="prose dark:prose-invert max-w-none text-purple-900 dark:text-purple-100">
-                                        <p className="whitespace-pre-wrap italic">{ticket.summary}</p>
+                                    <div className="prose dark:prose-invert max-w-none text-purple-900 dark:text-purple-100 prose-headings:text-purple-900 dark:prose-headings:text-purple-100 prose-strong:text-purple-900 dark:prose-strong:text-purple-100">
+                                        <ReactMarkdown>{ticket.summary}</ReactMarkdown>
                                     </div>
                                 ) : (
                                     <div className="text-sm text-muted-foreground italic">
