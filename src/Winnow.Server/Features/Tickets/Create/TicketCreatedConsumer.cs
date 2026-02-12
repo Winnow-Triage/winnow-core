@@ -86,6 +86,14 @@ public class TicketCreatedConsumer(
                     ticket.Status = "Duplicate";
                     ticket.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
                 }
+                else if (bestMatch.Distance <= 0.6) // Soft Threshold
+                {
+                    logger.LogInformation("Suggesting Match for Ticket {Id} with Potential Parent {ParentId} (Distance: {Dist})",
+                        ticket.Id, bestMatch.ParentTicketId ?? bestMatch.Id, bestMatch.Distance);
+
+                    ticket.SuggestedParentId = bestMatch.ParentTicketId ?? bestMatch.Id;
+                    ticket.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                }
             }
         }
 

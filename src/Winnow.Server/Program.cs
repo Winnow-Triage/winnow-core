@@ -1,6 +1,7 @@
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using MassTransit;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.SemanticKernel;
 using Winnow.Integrations;
 using Winnow.Server.Infrastructure.Configuration;
@@ -70,8 +71,35 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
-    // For SQLite, EnsureCreated is enough for now
     db.Database.EnsureCreated();
+
+    // SQLite multi-tenancy: Apply schema changes to ALL tenant databases
+    var dataDir = Path.Combine(builder.Environment.ContentRootPath, "Data");
+    if (Directory.Exists(dataDir))
+    {
+        var dbFiles = Directory.GetFiles(dataDir, "*.db");
+        foreach (var dbFile in dbFiles)
+        {
+            var connectionString = $"Data Source={dbFile}";
+
+            var optionsBuilder = new DbContextOptionsBuilder<WinnowDbContext>();
+            optionsBuilder.UseSqlite(connectionString);
+
+            using var tenantDb = new WinnowDbContext(optionsBuilder.Options, null!);
+
+            try
+            {
+                tenantDb.Database.ExecuteSqlRaw("ALTER TABLE Tickets ADD COLUMN SuggestedParentId TEXT;");
+            }
+            catch { /* Column likely already exists */ }
+
+            try
+            {
+                tenantDb.Database.ExecuteSqlRaw("ALTER TABLE Tickets ADD COLUMN SuggestedConfidenceScore REAL;");
+            }
+            catch { /* Column likely already exists */ }
+        }
+    }
 }
 
 app.UseMiddleware<TenantMiddleware>();

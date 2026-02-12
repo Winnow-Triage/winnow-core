@@ -36,29 +36,37 @@ public class GenerateMockTicketsEndpoint(
 
             Each ticket must have a Title and a Description.
             Return the result as a JSON array of objects with "title" and "description" properties.
+            IMPORTANT: String values MUST be on a single line. Use literal \n (backslash + n) for any newlines inside strings.
             
             Example output format:
             [
-              { "title": "Example Issue", "description": "Steps to reproduce..." }
+              { "title": "Example Issue", "description": "Line 1\\nLine 2" }
             ]
             """;
 
         var result = await kernel.InvokePromptAsync(prompt, cancellationToken: ct);
         var json = result.ToString();
 
-        // 1. Sanitize JSON (LLMs often wrap in markdown code blocks)
-        if (json.Contains("```json"))
+        // 1. Sanitize JSON (LLMs often wrap in markdown code blocks or add prefixes)
+        int firstBracket = json.IndexOf('[');
+        int lastBracket = json.LastIndexOf(']');
+
+        if (firstBracket != -1 && lastBracket != -1 && lastBracket > firstBracket)
         {
-            json = json.Split("```json")[1].Split("```")[0].Trim();
+            json = json.Substring(firstBracket, lastBracket - firstBracket + 1);
         }
-        else if (json.Contains("```"))
+        else
         {
-            json = json.Split("```")[1].Split("```")[0].Trim();
+            logger.LogWarning("LLM output did not contain a valid JSON array: {Json}", json);
         }
 
         try
         {
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                AllowTrailingCommas = true
+            };
             var mockTickets = JsonSerializer.Deserialize<List<MockTicketDto>>(json, options);
 
             if (mockTickets == null)

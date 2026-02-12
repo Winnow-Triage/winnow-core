@@ -43,6 +43,9 @@ interface TicketDetailData {
     createdAt: string;
     parentTicketId?: string;
     parentTicketTitle?: string;
+    suggestedParentId?: string;
+    suggestedConfidenceScore?: number;
+    suggestedParentTitle?: string;
     assignedTo?: string;
     summary?: string;
     confidenceScore?: number;
@@ -200,6 +203,62 @@ export default function TicketDetail() {
                             <Link to={`/tickets/${ticket.parentTicketId}`}>
                                 View Original Correct Ticket
                             </Link>
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* Suggested Match Alert */}
+            {!ticket.parentTicketId && ticket.suggestedParentId && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-center gap-3">
+                    <Sparkles className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-semibold">Suggested Match Found</h4>
+                            <Badge variant="outline" className="bg-white/50 dark:bg-black/20 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400">
+                                {ticket.suggestedConfidenceScore !== undefined && ticket.suggestedConfidenceScore !== null
+                                    ? `${(ticket.suggestedConfidenceScore * 100).toFixed(0)}% Similarity`
+                                    : 'Similarity: N/A'}
+                            </Badge>
+                        </div>
+                        <p className="text-sm opacity-90">
+                            This ticket looks very similar to <Link to={`/tickets/${ticket.suggestedParentId}`} className="underline font-medium break-all">{ticket.suggestedParentTitle || ticket.suggestedParentId}</Link>.
+                        </p>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="default"
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={async () => {
+                                setConfirmAction({
+                                    isOpen: true,
+                                    title: 'Accept Suggested Match?',
+                                    description: `Are you sure you want to merge this ticket into "${ticket.suggestedParentTitle || 'the suggested parent'}"?`,
+                                    action: async () => {
+                                        await api.post(`/tickets/merge`, {
+                                            sourceTicketIds: [ticket.id],
+                                            targetTicketId: ticket.suggestedParentId
+                                        });
+                                        queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+                                        queryClient.invalidateQueries({ queryKey: ['tickets'] });
+                                    }
+                                });
+                            }}
+                        >
+                            Accept Suggestion
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-blue-800 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-800/50"
+                            onClick={async () => {
+                                // For now, just clear it locally or we'd need a "Dismiss" endpoint
+                                // Let's just pretend we dismiss it for now
+                                console.log("Dismissed");
+                            }}
+                        >
+                            Dismiss
                         </Button>
                     </div>
                 </div>

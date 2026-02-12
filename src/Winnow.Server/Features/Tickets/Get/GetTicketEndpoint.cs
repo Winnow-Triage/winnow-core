@@ -23,6 +23,9 @@ public class GetTicketResponse
     public int? CriticalityScore { get; set; }
     public string? CriticalityReasoning { get; set; }
     public string? ParentTicketTitle { get; set; }
+    public Guid? SuggestedParentId { get; set; }
+    public float? SuggestedConfidenceScore { get; set; }
+    public string? SuggestedParentTitle { get; set; }
     public string? MetadataJson { get; set; }
 
     // For now, let's include children simple IDs/Titles if it is a parent
@@ -89,12 +92,21 @@ public class GetTicketEndpoint(WinnowDbContext db) : Endpoint<GetTicketRequest, 
         string? parentTicketTitle = null;
         if (ticket.ParentTicketId != null)
         {
-            var parent = await db.Tickets
+            parentTicketTitle = await db.Tickets
                 .AsNoTracking()
                 .Where(t => t.Id == ticket.ParentTicketId)
                 .Select(t => t.Title)
                 .FirstOrDefaultAsync(ct);
-            parentTicketTitle = parent;
+        }
+
+        string? suggestedParentTitle = null;
+        if (ticket.SuggestedParentId != null)
+        {
+            suggestedParentTitle = await db.Tickets
+                .AsNoTracking()
+                .Where(t => t.Id == ticket.SuggestedParentId)
+                .Select(t => t.Title)
+                .FirstOrDefaultAsync(ct);
         }
 
         await Send.OkAsync(new GetTicketResponse
@@ -111,6 +123,9 @@ public class GetTicketEndpoint(WinnowDbContext db) : Endpoint<GetTicketRequest, 
             CriticalityScore = ticket.CriticalityScore,
             CriticalityReasoning = ticket.CriticalityReasoning,
             ParentTicketTitle = parentTicketTitle,
+            SuggestedParentId = ticket.SuggestedParentId,
+            SuggestedConfidenceScore = ticket.SuggestedConfidenceScore,
+            SuggestedParentTitle = suggestedParentTitle,
             MetadataJson = ticket.MetadataJson,
             Evidence = evidence
         }, ct);

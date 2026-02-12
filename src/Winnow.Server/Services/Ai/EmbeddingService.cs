@@ -70,92 +70,105 @@ public class EmbeddingService : IEmbeddingService, IDisposable
             return Task.FromResult(MockEmbedding());
         }
 
-        try
+        // Offload the heavy CPU work to a background thread to keep the Request Thread free
+        return Task.Run(() =>
         {
-            // Lowercase is critical for uncased models (like MiniLM)
-            text = text.ToLowerInvariant();
-
-            // 1. Tokenize and wrap with BERT special tokens
-            var rawIds = _tokenizer.EncodeToIds(text).Select(x => (long)x).ToList();
-            var tokenIdsList = new List<long> { 101 }; // [CLS]
-            tokenIdsList.AddRange(rawIds);
-            if (tokenIdsList.Count < 512) tokenIdsList.Add(102); // [SEP]
-
-            var tokenIds = tokenIdsList.Take(512).ToArray();
-
-            // 2. Prepare Inputs using DenseTensor
-            // Shape: [1, seq_len]
-            var dimensions = new[] { 1, tokenIds.Length };
-
-            var inputIdsTensor = new DenseTensor<long>(tokenIds, dimensions);
-
-            // Skip ID 0 (usually [PAD] in tokenizer, though vocab.txt said 100 for this specific one, 0 is safer fallback)
-            // also skip 100 specifically if we saw it being used for padding in logs.
-            var attentionMaskData = tokenIds.Select(id => (id == 0 || id == 100) ? 0L : 1L).ToArray();
-            var attentionMaskTensor = new DenseTensor<long>(attentionMaskData, dimensions);
-            var tokenTypeIdsTensor = new DenseTensor<long>(Enumerable.Repeat(0L, tokenIds.Length).ToArray(), dimensions);
-
-            var inputs = new List<NamedOnnxValue>
+            try
             {
+                text = text.ToLowerInvariant();
+
+                // 1. Tokenize
+                // Note: EncodeToIds does NOT add special tokens by default in this library
+                var rawIds = _tokenizer.EncodeToIds(text).Select(x => (long)x).ToList();
+
+                // 2. Truncate & Construct (Safe Method)
+                // Max capacity = 512. We need 2 slots for [CLS] and [SEP].
+                // So we can take at most 510 real tokens.
+                int maxContentTokens = 512 - 2;
+
+                var tokenIdsList = new List<long>(512);
+                tokenIdsList.Add(101); // [CLS]
+                tokenIdsList.AddRange(rawIds.Take(maxContentTokens)); // Truncate content, not the whole list
+                tokenIdsList.Add(102); // [SEP] Always add this at the end
+
+                // 3. Pad to 512 (Optional, but usually good for dense tensors)
+                // Or just keep dynamic length. MiniLM handles dynamic length fine.
+                // Let's stick to your dynamic approach (dimensions = [1, length]) which is faster.
+                var tokenIds = tokenIdsList.ToArray();
+
+                var dimensions = new[] { 1, tokenIds.Length };
+                var inputIdsTensor = new DenseTensor<long>(tokenIds, dimensions);
+
+                // 4. Attention Mask (CORRECTED)
+                // 0 = Mask (Ignore), 1 = Pay Attention
+                // ONLY mask ID 0 ([PAD]). DO NOT mask 100 ([UNK]).
+                var attentionMaskData = tokenIds.Select(id => id == 0 ? 0L : 1L).ToArray();
+                var attentionMaskTensor = new DenseTensor<long>(attentionMaskData, dimensions);
+
+                // Token Types are always 0 for single sentences
+                var tokenTypeIdsTensor = new DenseTensor<long>(new long[tokenIds.Length], dimensions);
+
+                var inputs = new List<NamedOnnxValue>
+                {
                 NamedOnnxValue.CreateFromTensor("input_ids", inputIdsTensor),
                 NamedOnnxValue.CreateFromTensor("attention_mask", attentionMaskTensor),
                 NamedOnnxValue.CreateFromTensor("token_type_ids", tokenTypeIdsTensor)
-            };
+                };
 
-            // 3. Run Inference
-            using var results = _session.Run(inputs);
+                using var results = _session.Run(inputs);
+                var outputTensor = results.First().AsTensor<float>();
 
-            // 4. Extract Output
-            // For sentence-transformers/all-MiniLM-L6-v2, output[0] is 'last_hidden_state' [1, seq_len, 384]
-            var outputTensor = results.First().AsTensor<float>();
+                // 5. Mean Pooling (CORRECTED)
+                int hiddenSize = 384;
+                var pooled = new float[hiddenSize];
+                int validTokenCount = 0;
 
-            // MEAN POOLING: Average all non-special tokens (standard for sentence-transformers)
-            int hiddenSize = 384;
-            int seqLen = tokenIds.Length;
-            var pooled = new float[hiddenSize];
-            int validTokenCount = 0;
-
-            for (int i = 0; i < seqLen; i++)
-            {
-                // Skip [PAD] (0/100), [CLS] (101), [SEP] (102)
-                if (tokenIds[i] == 0 || tokenIds[i] == 100 || tokenIds[i] == 101 || tokenIds[i] == 102) continue;
-
-                validTokenCount++;
-                for (int j = 0; j < hiddenSize; j++)
+                for (int i = 0; i < tokenIds.Length; i++)
                 {
-                    pooled[j] += outputTensor[0, i, j];
-                }
-            }
+                    // Strict Mean Pooling:
+                    // Only skip Padding (0). 
+                    // Standard SBERT usually INCLUDES [CLS] and [SEP] in the average.
+                    // If you want to be strict about "content only", skipping 101/102 is fine,
+                    // BUT definitely do NOT skip 100 ([UNK]).
+                    if (tokenIds[i] == 0) continue;
 
-            if (validTokenCount > 0)
-            {
-                for (int i = 0; i < hiddenSize; i++)
+                    // Optional: If you strictly want content words only, uncomment this:
+                    // if (tokenIds[i] == 101 || tokenIds[i] == 102) continue;
+
+                    validTokenCount++;
+                    for (int j = 0; j < hiddenSize; j++)
+                    {
+                        pooled[j] += outputTensor[0, i, j];
+                    }
+                }
+
+                // Average
+                if (validTokenCount > 0)
                 {
-                    pooled[i] /= validTokenCount;
+                    for (int i = 0; i < hiddenSize; i++)
+                    {
+                        pooled[i] /= validTokenCount;
+                    }
                 }
+
+                // 6. Normalize
+                float norm = 0;
+                for (int i = 0; i < hiddenSize; i++) norm += pooled[i] * pooled[i];
+                norm = (float)Math.Sqrt(norm);
+
+                if (norm > 1e-6)
+                {
+                    for (int i = 0; i < hiddenSize; i++) pooled[i] /= norm;
+                }
+
+                return pooled;
             }
-
-            _logger.LogInformation("Embedding generated for text (len={TextLen}). ValidTokens: {Actual}, First5Tokens: {Tokens}, First5Embed: {Embed}",
-                text.Length, validTokenCount, string.Join(",", tokenIds.Take(5)), string.Join(",", pooled.Take(5)));
-
-            // 4. L2 Normalize
-            float norm = 0;
-            for (int i = 0; i < hiddenSize; i++) norm += pooled[i] * pooled[i];
-            norm = (float)Math.Sqrt(norm);
-
-            if (norm > 1e-6) // Avoid divide by zero
+            catch (Exception ex)
             {
-                for (int i = 0; i < hiddenSize; i++) pooled[i] /= norm;
+                _logger.LogError(ex, "Embedding generation failed.");
+                return MockEmbedding();
             }
-
-            return Task.FromResult(pooled);
-
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error generating embedding. Falling back to mock.");
-            return Task.FromResult(MockEmbedding());
-        }
+        });
     }
 
     private float[] MockEmbedding()
@@ -164,7 +177,7 @@ public class EmbeddingService : IEmbeddingService, IDisposable
         var embedding = new float[384];
         for (int i = 0; i < embedding.Length; i++)
         {
-            embedding[i] = (float)rng.NextDouble();
+            embedding[i] = (float)(rng.NextDouble() * 2 - 1);
         }
         return embedding;
     }
