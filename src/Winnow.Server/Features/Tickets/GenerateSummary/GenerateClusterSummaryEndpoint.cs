@@ -11,9 +11,10 @@ public class GenerateClusterSummaryRequest
     public Guid Id { get; set; }
 }
 
-public class GenerateClusterSummaryEndpoint(WinnowDbContext db) : Endpoint<GenerateClusterSummaryRequest, ActionResponse>
+public class GenerateClusterSummaryEndpoint(WinnowDbContext db, IClusterSummaryService summaryService) : Endpoint<GenerateClusterSummaryRequest, ActionResponse>
 {
     private readonly WinnowDbContext _db = db;
+    private readonly IClusterSummaryService _summaryService = summaryService;
 
     public override void Configure()
     {
@@ -30,10 +31,15 @@ public class GenerateClusterSummaryEndpoint(WinnowDbContext db) : Endpoint<Gener
             return;
         }
 
-        // Simulating AI delay
-        await Task.Delay(1500, ct);
+        // Fetch related tickets (evidence) to provide context for the summary
+        var relatedTickets = await _db.Tickets
+            .AsNoTracking()
+            .Where(t => t.ParentTicketId == ticket.Id)
+            .ToListAsync(ct);
 
-        ticket.Summary = "🤖 (AI Placeholder) This cluster appears to be related to a recurring issue with the payment gateway timeouts observed in the last 24 hours. Recommended action: Check downstream service logs.";
+        var summary = await _summaryService.GenerateSummaryAsync(relatedTickets, ct);
+
+        ticket.Summary = summary;
 
         await _db.SaveChangesAsync(ct);
 

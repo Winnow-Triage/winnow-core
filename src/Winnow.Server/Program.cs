@@ -11,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddTransient<ITicketExporter, TrelloExporter>();
 builder.Services.AddSingleton<Winnow.Server.Services.Ai.IEmbeddingService, Winnow.Server.Services.Ai.EmbeddingService>();
+builder.Services.AddScoped<Winnow.Server.Features.Tickets.GenerateSummary.IClusterSummaryService, Winnow.Server.Features.Tickets.GenerateSummary.PlaceholderSummaryService>();
 
 builder.Services.AddDbContext<WinnowDbContext>(); // Configuration happens in OnConfiguring dynamically
 
