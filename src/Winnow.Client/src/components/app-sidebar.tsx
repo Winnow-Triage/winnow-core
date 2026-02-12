@@ -1,0 +1,71 @@
+import { Ticket, LayoutDashboard, Settings, Inbox } from "lucide-react"
+import { Link } from "react-router-dom"
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup,
+    SidebarGroupContent,
+    SidebarGroupLabel,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    SidebarRail,
+    SidebarTrigger,
+} from "@/components/ui/sidebar"
+
+// Menu items.
+const items = [
+    {
+        title: "Triage Queue",
+        url: "/triage",
+        icon: Inbox,
+    },
+    {
+        title: "Clusters",
+        url: "/clusters",
+        icon: LayoutDashboard,
+    },
+    {
+        title: "All Tickets",
+        url: "/tickets",
+        icon: Ticket,
+    },
+    {
+        title: "Settings",
+        url: "/settings",
+        icon: Settings,
+    },
+]
+
+export function AppSidebar() {
+    return (
+        <Sidebar collapsible="icon" variant="inset">
+            <SidebarContent>
+                <SidebarGroup>
+                    <SidebarGroupLabel>Winnow Triage</SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            {items.map((item) => (
+                                <SidebarMenuItem key={item.title}>
+                                    <SidebarMenuButton asChild>
+                                        <Link to={item.url}>
+                                            <item.icon />
+                                            <span>{item.title}</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            ))}
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+            </SidebarContent>
+            <SidebarFooter>
+                <div className="flex w-full items-center justify-center p-2">
+                    <SidebarTrigger className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                </div>
+            </SidebarFooter>
+            <SidebarRail />
+        </Sidebar>
+    )
+}
