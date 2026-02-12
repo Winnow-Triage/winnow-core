@@ -11,8 +11,8 @@ using Winnow.Server.Infrastructure.Persistence;
 namespace Winnow.Server.Migrations
 {
     [DbContext(typeof(WinnowDbContext))]
-    [Migration("20260212045512_AddAssignedToTicket")]
-    partial class AddAssignedToTicket
+    [Migration("20260212054323_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -44,6 +44,9 @@ namespace Winnow.Server.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Summary")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Title")

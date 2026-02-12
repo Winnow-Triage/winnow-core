@@ -18,6 +18,7 @@ public class GetTicketResponse
     public DateTimeOffset CreatedAt { get; set; }
     public Guid? ParentTicketId { get; set; }
     public string? AssignedTo { get; set; }
+    public string? Summary { get; set; }
     public string? ParentTicketTitle { get; set; }
 
     // For now, let's include children simple IDs/Titles if it is a parent
@@ -101,6 +102,7 @@ public class GetTicketEndpoint(WinnowDbContext db) : Endpoint<GetTicketRequest, 
             CreatedAt = ticket.CreatedAt,
             ParentTicketId = ticket.ParentTicketId,
             AssignedTo = ticket.AssignedTo,
+            Summary = ticket.Summary,
             ParentTicketTitle = parentTicketTitle,
             Evidence = evidence
         }, ct);

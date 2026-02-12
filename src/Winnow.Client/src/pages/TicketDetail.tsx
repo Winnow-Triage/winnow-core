@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, ExternalLink, MessageSquare, Clock, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ExternalLink, MessageSquare, Clock, AlertCircle, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import {
@@ -35,6 +35,7 @@ interface TicketDetailData {
     parentTicketId?: string;
     parentTicketTitle?: string;
     assignedTo?: string;
+    summary?: string;
     evidence: RelatedTicket[];
 }
 
@@ -43,6 +44,7 @@ export default function TicketDetail() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [assignee, setAssignee] = useState('');
+    const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
     const [confirmAction, setConfirmAction] = useState<{
         isOpen: boolean;
         title: string;
@@ -185,6 +187,48 @@ export default function TicketDetail() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Main Content: Master Description */}
                 <div className="md:col-span-2 flex flex-col gap-6">
+                    {/* AI Summary Section */}
+                    <Card className="border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-lg font-semibold flex items-center gap-2 text-purple-900 dark:text-purple-100">
+                                <Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                                AI Cluster Summary
+                            </CardTitle>
+                            {!ticket.summary && (
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 border-purple-200 dark:border-purple-700 hover:bg-purple-100 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300"
+                                    disabled={isGeneratingSummary}
+                                    onClick={async () => {
+                                        setIsGeneratingSummary(true);
+                                        try {
+                                            await api.post(`/tickets/${ticket.id}/generate-summary`, {});
+                                            queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+                                        } catch (e) {
+                                            console.error("Failed to generate summary", e);
+                                        } finally {
+                                            setIsGeneratingSummary(false);
+                                        }
+                                    }}
+                                >
+                                    {isGeneratingSummary ? 'Generating...' : 'Generate AI Summary'}
+                                </Button>
+                            )}
+                        </CardHeader>
+                        <CardContent>
+                            {ticket.summary ? (
+                                <div className="prose dark:prose-invert max-w-none text-purple-900 dark:text-purple-100">
+                                    <p className="whitespace-pre-wrap italic">{ticket.summary}</p>
+                                </div>
+                            ) : (
+                                <div className="text-sm text-muted-foreground italic">
+                                    No AI summary generated yet. Click the button to analyze this cluster.
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-xl">Master Description</CardTitle>

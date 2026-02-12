@@ -9,5 +9,6 @@ public class Ticket
     public string Status { get; set; } = "New";
     public Guid? ParentTicketId { get; set; }
     public string? AssignedTo { get; set; }
+    public string? Summary { get; set; } // AI-generated summary of the cluster
     public byte[]? Embedding { get; set; }
 }
