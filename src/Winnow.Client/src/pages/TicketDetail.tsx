@@ -36,6 +36,7 @@ interface TicketDetailData {
     parentTicketTitle?: string;
     assignedTo?: string;
     summary?: string;
+    confidenceScore?: number;
     evidence: RelatedTicket[];
 }
 
@@ -150,7 +151,14 @@ export default function TicketDetail() {
                 <div className="bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-center gap-3">
                     <AlertCircle className="h-5 w-5" />
                     <div className="flex-1">
-                        <h4 className="font-semibold">This ticket is a duplicate</h4>
+                        <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-semibold">This ticket is a duplicate</h4>
+                            <Badge variant="outline" className={`bg-white/50 dark:bg-black/20 border-amber-300 dark:border-amber-700 ${ticket.confidenceScore && ticket.confidenceScore > 0.8 ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                                {ticket.confidenceScore !== undefined && ticket.confidenceScore !== null
+                                    ? `${(ticket.confidenceScore * 100).toFixed(0)}% Match Confidence`
+                                    : 'Confidence: N/A'}
+                            </Badge>
+                        </div>
                         <p className="text-sm opacity-90">
                             It has been merged into <Link to={`/tickets/${ticket.parentTicketId}`} className="underline font-medium break-all">{ticket.parentTicketTitle || ticket.parentTicketId}</Link>.
                         </p>

@@ -79,6 +79,11 @@ public class TicketCreatedConsumer(
             ticket.ParentTicketId = match.ParentTicketId ?? match.Id;
             ticket.Status = "Duplicate";
 
+            // Calculate Confidence Score (Distance is 0..1+, where 0 is identical)
+            // We clamp it to 0..1 for checking
+            var confidence = Math.Max(0, 1.0 - match.Distance);
+            ticket.ConfidenceScore = (float)confidence;
+
             // Optimization: We don't export duplicates
             await dbContext.SaveChangesAsync(context.CancellationToken);
         }

@@ -10,5 +10,6 @@ public class Ticket
     public Guid? ParentTicketId { get; set; }
     public string? AssignedTo { get; set; }
     public string? Summary { get; set; } // AI-generated summary of the cluster
+    public float? ConfidenceScore { get; set; } // 0.0 - 1.0 (1.0 = High Confidence, 0.0 = Low)
     public byte[]? Embedding { get; set; }
 }
