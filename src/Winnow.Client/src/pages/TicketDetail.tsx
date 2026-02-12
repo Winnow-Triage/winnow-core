@@ -33,6 +33,7 @@ interface RelatedTicket {
     title: string;
     status: string;
     createdAt: string;
+    confidenceScore?: number;
 }
 
 interface TicketDetailData {
@@ -267,14 +268,14 @@ export default function TicketDetail() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Main Content: Master Description */}
                 <div className="md:col-span-2 flex flex-col gap-6">
-                    {/* AI Summary Section - Only for Clusters (Parents with children) */}
-                    {ticket.evidence.length > 0 && (
+                    {/* AI Summary Section - Show if summary exists or if it's a cluster parent */}
+                    {(ticket.summary || ticket.criticalityScore || ticket.evidence.length > 0) && (
                         <Card className="border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <div className="flex flex-col gap-1">
                                     <CardTitle className="text-lg font-semibold flex items-center gap-2 text-purple-900 dark:text-purple-100">
                                         <Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                                        AI Cluster Summary
+                                        AI Perspective
                                     </CardTitle>
                                     {ticket.criticalityScore && (
                                         <div className="flex items-center gap-2">
@@ -320,7 +321,7 @@ export default function TicketDetail() {
                                                 Generating...
                                             </>
                                         ) : (
-                                            'Generate AI Summary'
+                                            'Analyze with AI'
                                         )}
                                     </Button>
                                 ) : (
@@ -391,7 +392,7 @@ export default function TicketDetail() {
                                     </div>
                                 ) : (
                                     <div className="text-sm text-muted-foreground italic">
-                                        No AI summary generated yet. Click the button to analyze this cluster.
+                                        No AI summary generated yet. Click the button to analyze this issue.
                                     </div>
                                 )}
                             </CardContent>
@@ -435,7 +436,7 @@ export default function TicketDetail() {
                                 <span className="text-muted-foreground flex items-center gap-2">
                                     <Clock className="h-3 w-3" /> Created
                                 </span>
-                                <span>{new Date(ticket.createdAt).toLocaleString()}</span>
+                                <span className="text-right">{new Date(ticket.createdAt).toLocaleString()}</span>
                             </div>
                             <Separator />
                             <div className="flex justify-between">
@@ -492,10 +493,19 @@ export default function TicketDetail() {
                                     {ticket.evidence.map(child => (
                                         <li key={child.id} className="p-2 border rounded-md hover:bg-muted/50 transition-colors">
                                             <Link to={`/tickets/${child.id}`} className="block">
-                                                <div className="font-medium text-sm truncate">{child.title}</div>
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div className="font-medium text-sm truncate">{child.title}</div>
+                                                    {child.confidenceScore !== undefined && child.confidenceScore !== null && (
+                                                        <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                                                            {(child.confidenceScore * 100).toFixed(0)}% Sim
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div className="text-xs text-muted-foreground flex justify-between mt-1">
                                                     <span>{new Date(child.createdAt).toLocaleDateString()}</span>
-                                                    <Badge variant="outline" className="text-[10px] h-4 px-1">{child.status}</Badge>
+                                                    <div className="flex gap-1">
+                                                        <Badge variant="outline" className="text-[10px] h-4 px-1">{child.status}</Badge>
+                                                    </div>
                                                 </div>
                                             </Link>
                                         </li>

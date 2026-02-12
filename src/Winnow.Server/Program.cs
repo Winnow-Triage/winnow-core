@@ -13,7 +13,6 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddScoped<Winnow.Server.Infrastructure.Integrations.ExporterFactory>();
-builder.Services.AddTransient<ITicketExporter>(sp => sp.GetRequiredService<Winnow.Server.Infrastructure.Integrations.ExporterFactory>().GetExporter());
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<Winnow.Server.Services.Ai.IEmbeddingService, Winnow.Server.Services.Ai.EmbeddingService>();
 

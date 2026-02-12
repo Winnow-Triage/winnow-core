@@ -38,6 +38,7 @@ public class RelatedTicketDto
     public string Title { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; set; }
+    public float? ConfidenceScore { get; set; }
 }
 
 public class GetTicketEndpoint(WinnowDbContext db) : Endpoint<GetTicketRequest, GetTicketResponse>
@@ -77,7 +78,8 @@ public class GetTicketEndpoint(WinnowDbContext db) : Endpoint<GetTicketRequest, 
                     Id = t.Id,
                     Title = t.Title,
                     Status = t.Status,
-                    CreatedAt = t.CreatedAt
+                    CreatedAt = t.CreatedAt,
+                    ConfidenceScore = t.ConfidenceScore
                 })
                 .ToListAsync(ct);
 

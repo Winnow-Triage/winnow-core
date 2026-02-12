@@ -23,7 +23,7 @@ public class TicketCreatedConsumer(
         }
 
         // Now that TenantId is set, we can get the correct exporter
-        var exporter = exporterFactory.GetExporter();
+        var exporter = await exporterFactory.GetExporterAsync(context.CancellationToken);
 
         // 2. Load Ticket
         var ticket = await dbContext.Tickets.FindAsync([context.Message.TicketId], context.CancellationToken);
@@ -45,78 +45,105 @@ public class TicketCreatedConsumer(
             context.CancellationToken);
 
         // 6. Vector Search (Skip if already matched by StackHash)
-        if (ticket.Status != "Duplicate (StackHash)")
+        if (ticket.Status != "Duplicate" && ticket.Status != "Duplicate (StackHash)")
         {
-            const double DistanceThreshold = 0.3;
-
-            // Build dynamic filter based on "Critical" Metadata (e.g., Level, BuildVersion)
-            // For now, let's filter by Level if it exists.
-            string metadataFilter = "";
+            const double DistanceThreshold = 0.35;
             var parameters = new List<object> { embeddingBytes };
 
-            if (context.Message.Metadata != null && context.Message.Metadata.TryGetValue("Level", out var levelVal))
-            {
-                metadataFilter = "AND json_extract(t.MetadataJson, '$.Level') = {1}";
-                parameters.Add(levelVal.ToString()!);
-            }
-
-            var sql = $@"
-                SELECT t.Id, t.ParentTicketId, v.distance
+            // Single-pass raw SQL join is the most reliable for hidden rowids in SQLite + sqlite-vec
+            var sql = @"
+                SELECT t.Id, t.ParentTicketId, v.distance as Distance
                 FROM vec_tickets v
                 JOIN Tickets t ON v.rowid = t.rowid
-                WHERE v.embedding MATCH {{0}}
-                  {metadataFilter}
-                  AND k = 5
-                ORDER BY distance
+                WHERE v.embedding MATCH {0}
+                  AND k = 50
+                ORDER BY v.distance ASC
             ";
 
             var searchResults = await dbContext.Database
                 .SqlQueryRaw<TicketMatch>(sql, parameters.ToArray())
                 .ToListAsync(context.CancellationToken);
 
-            if (searchResults.Any())
+            logger.LogInformation("Vector search for ticket {Id} found {Count} potential matches.", ticket.Id, searchResults.Count);
+
+            if (searchResults.Count > 0)
             {
-                var bestMatch = searchResults[0];
-                logger.LogInformation("Best match for ticket {Id}: {MatchId} with distance {Dist}",
-                    ticket.Id, bestMatch.Id, bestMatch.Distance);
+                // 1. Filter out self
+                var validMatches = searchResults.Where(m => m.Id != ticket.Id).ToList();
 
-                if (bestMatch.Distance <= DistanceThreshold)
+                if (validMatches.Count > 0)
                 {
-                    logger.LogInformation("Grouping Ticket {Id} with Parent {ParentId} (Distance: {Dist})",
-                        ticket.Id, bestMatch.ParentTicketId ?? bestMatch.Id, bestMatch.Distance);
+                    // 2. Find the best candidate
+                    // We prefer to link to a PARENT (where ParentTicketId is null) if possible.
+                    // But obviously, we can't ignore a 0.0 distance match just because it's a child.
 
-                    ticket.ParentTicketId = bestMatch.ParentTicketId ?? bestMatch.Id;
-                    ticket.Status = "Duplicate";
-                    ticket.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
-                }
-                else if (bestMatch.Distance <= 0.6) // Soft Threshold
-                {
-                    logger.LogInformation("Suggesting Match for Ticket {Id} with Potential Parent {ParentId} (Distance: {Dist})",
-                        ticket.Id, bestMatch.ParentTicketId ?? bestMatch.Id, bestMatch.Distance);
+                    // Strategy: Take the top 3 matches. If any of them is a Parent, pick that one. 
+                    // Otherwise, pick the closest one.
+                    var topCandidates = validMatches.Take(3).ToList();
 
-                    ticket.SuggestedParentId = bestMatch.ParentTicketId ?? bestMatch.Id;
-                    ticket.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                    var bestMatch = topCandidates.FirstOrDefault(m => m.ParentTicketId == null)
+                                    ?? topCandidates.First();
+
+                    // 3. Resolve the Target ID
+                    // If we matched a Child, we want to link to its Parent (Grandparent logic)
+                    // If we matched a Parent, we link to it directly.
+                    var targetParentId = bestMatch.ParentTicketId ?? bestMatch.Id;
+
+                    logger.LogInformation("Best match is {MatchId} (Dist: {Dist}). Resolved Target Parent: {TargetId}",
+                        bestMatch.Id, bestMatch.Distance, targetParentId);
+
+                    if (bestMatch.Distance <= DistanceThreshold)
+                    {
+                        logger.LogInformation("Grouping {Id} -> {TargetId} (Dist: {Dist})",
+                            ticket.Id, targetParentId, bestMatch.Distance);
+
+                        ticket.ParentTicketId = targetParentId;
+                        ticket.Status = "Duplicate";
+                        ticket.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                    }
+                    else if (bestMatch.Distance <= 0.55)
+                    {
+                        logger.LogInformation("Suggesting {Id} -> {TargetId} (Dist: {Dist})",
+                            ticket.Id, targetParentId, bestMatch.Distance);
+
+                        ticket.SuggestedParentId = targetParentId;
+                        ticket.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                    }
                 }
             }
         }
+        else if (ticket.Status == "Duplicate (StackHash)" && ticket.ConfidenceScore == null)
+        {
+            ticket.ConfidenceScore = 1.0f;
+        }
 
-        if (ticket.Status != "Duplicate")
+        if (ticket.Status != "Duplicate" && ticket.Status != "Duplicate (StackHash)" && ticket.Status != "Exported")
         {
             logger.LogInformation("New Unique Ticket {Id}. Exporting to downstream.", ticket.Id);
-            await exporter.ExportTicketAsync(ticket.Title, ticket.Description, context.CancellationToken);
-            ticket.Status = "Exported";
+            try
+            {
+                await exporter.ExportTicketAsync(ticket.Title, ticket.Description, context.CancellationToken);
+                ticket.Status = "Exported";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to export ticket {Id}", ticket.Id);
+            }
         }
 
         // 7. Save the Ticket (and parent assignment if any)
         await dbContext.SaveChangesAsync(context.CancellationToken);
 
         // 8. Sync to Vector Index
-        await dbContext.Database.ExecuteSqlRawAsync(@"
+        var affected = await dbContext.Database.ExecuteSqlRawAsync(@"
             INSERT INTO vec_tickets(rowid, embedding)
             SELECT rowid, {0}
             FROM Tickets
             WHERE Id = {1}
         ", embeddingBytes, ticket.Id);
+
+        logger.LogInformation("Ticket {Id} synced to vector index. Content length: {Bytes}. Affected rows: {Aff}.",
+            ticket.Id, embeddingBytes.Length, affected);
     }
 }
 

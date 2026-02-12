@@ -49,6 +49,10 @@ public class EmbeddingService : IEmbeddingService, IDisposable
                 {
                     _logger.LogWarning("Tokenizer vocab not found or failed to load in {Dir}. Using Mock.", _modelDir);
                 }
+                else
+                {
+                    _logger.LogInformation("EmbeddingService: Successfully loaded ONNX model and Tokenizer from {Dir}", _modelDir);
+                }
             }
             else
             {
@@ -67,6 +71,7 @@ public class EmbeddingService : IEmbeddingService, IDisposable
     {
         if (_session == null || _tokenizer == null)
         {
+            _logger.LogWarning("EmbeddingService: Using MOCK embedding (Model={Model}, Tokenizer={Tok})", _session != null, _tokenizer != null);
             return Task.FromResult(MockEmbedding());
         }
 
@@ -78,63 +83,42 @@ public class EmbeddingService : IEmbeddingService, IDisposable
                 text = text.ToLowerInvariant();
 
                 // 1. Tokenize
-                // Note: EncodeToIds does NOT add special tokens by default in this library
                 var rawIds = _tokenizer.EncodeToIds(text).Select(x => (long)x).ToList();
+                _logger.LogDebug("EmbeddingService: Tokenized {Len} chars into {Count} tokens.", text.Length, rawIds.Count);
 
                 // 2. Truncate & Construct (Safe Method)
-                // Max capacity = 512. We need 2 slots for [CLS] and [SEP].
-                // So we can take at most 510 real tokens.
                 int maxContentTokens = 512 - 2;
-
                 var tokenIdsList = new List<long>(512);
                 tokenIdsList.Add(101); // [CLS]
-                tokenIdsList.AddRange(rawIds.Take(maxContentTokens)); // Truncate content, not the whole list
-                tokenIdsList.Add(102); // [SEP] Always add this at the end
+                tokenIdsList.AddRange(rawIds.Take(maxContentTokens));
+                tokenIdsList.Add(102); // [SEP]
 
-                // 3. Pad to 512 (Optional, but usually good for dense tensors)
-                // Or just keep dynamic length. MiniLM handles dynamic length fine.
-                // Let's stick to your dynamic approach (dimensions = [1, length]) which is faster.
                 var tokenIds = tokenIdsList.ToArray();
-
                 var dimensions = new[] { 1, tokenIds.Length };
                 var inputIdsTensor = new DenseTensor<long>(tokenIds, dimensions);
 
-                // 4. Attention Mask (CORRECTED)
-                // 0 = Mask (Ignore), 1 = Pay Attention
-                // ONLY mask ID 0 ([PAD]). DO NOT mask 100 ([UNK]).
                 var attentionMaskData = tokenIds.Select(id => id == 0 ? 0L : 1L).ToArray();
                 var attentionMaskTensor = new DenseTensor<long>(attentionMaskData, dimensions);
-
-                // Token Types are always 0 for single sentences
                 var tokenTypeIdsTensor = new DenseTensor<long>(new long[tokenIds.Length], dimensions);
 
                 var inputs = new List<NamedOnnxValue>
                 {
-                NamedOnnxValue.CreateFromTensor("input_ids", inputIdsTensor),
-                NamedOnnxValue.CreateFromTensor("attention_mask", attentionMaskTensor),
-                NamedOnnxValue.CreateFromTensor("token_type_ids", tokenTypeIdsTensor)
+                    NamedOnnxValue.CreateFromTensor("input_ids", inputIdsTensor),
+                    NamedOnnxValue.CreateFromTensor("attention_mask", attentionMaskTensor),
+                    NamedOnnxValue.CreateFromTensor("token_type_ids", tokenTypeIdsTensor)
                 };
 
                 using var results = _session.Run(inputs);
                 var outputTensor = results.First().AsTensor<float>();
 
-                // 5. Mean Pooling (CORRECTED)
+                // 5. Mean Pooling
                 int hiddenSize = 384;
                 var pooled = new float[hiddenSize];
                 int validTokenCount = 0;
 
                 for (int i = 0; i < tokenIds.Length; i++)
                 {
-                    // Strict Mean Pooling:
-                    // Only skip Padding (0). 
-                    // Standard SBERT usually INCLUDES [CLS] and [SEP] in the average.
-                    // If you want to be strict about "content only", skipping 101/102 is fine,
-                    // BUT definitely do NOT skip 100 ([UNK]).
                     if (tokenIds[i] == 0) continue;
-
-                    // Optional: If you strictly want content words only, uncomment this:
-                    // if (tokenIds[i] == 101 || tokenIds[i] == 102) continue;
-
                     validTokenCount++;
                     for (int j = 0; j < hiddenSize; j++)
                     {
@@ -142,13 +126,9 @@ public class EmbeddingService : IEmbeddingService, IDisposable
                     }
                 }
 
-                // Average
                 if (validTokenCount > 0)
                 {
-                    for (int i = 0; i < hiddenSize; i++)
-                    {
-                        pooled[i] /= validTokenCount;
-                    }
+                    for (int i = 0; i < hiddenSize; i++) pooled[i] /= validTokenCount;
                 }
 
                 // 6. Normalize
