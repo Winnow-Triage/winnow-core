@@ -128,15 +128,23 @@ export default function ClusterDashboard() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {tickets?.slice(0, 5).map((ticket) => (
+                                {tickets?.slice(0, 10).map((ticket) => (
                                     <TableRow key={ticket.id} className="cursor-pointer hover:bg-muted/50">
-                                        <TableCell className="font-medium truncate max-w-[150px]">
-                                            <Link to={`/tickets/${ticket.id}`} className="block w-full h-full">
+                                        <TableCell className="font-medium truncate max-w-[200px]">
+                                            <Link to={`/tickets/${ticket.id}`} className="block w-full h-full hover:underline">
                                                 {ticket.title}
                                             </Link>
+                                            {ticket.parentTicketId && (
+                                                <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                                    <span>↳ Duplicate of</span>
+                                                    <Link to={`/tickets/${ticket.parentTicketId}`} className="text-primary hover:underline font-mono">
+                                                        {ticket.parentTicketId.substring(0, 8)}...
+                                                    </Link>
+                                                </div>
+                                            )}
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant={ticket.status === 'Exported' ? 'default' : 'secondary'}>
+                                            <Badge variant={ticket.status === 'Exported' ? 'default' : ticket.status === 'Duplicate' ? 'secondary' : 'outline'}>
                                                 {ticket.status}
                                             </Badge>
                                         </TableCell>

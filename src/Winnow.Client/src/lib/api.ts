@@ -6,7 +6,7 @@ export const api = axios.create({
 
 // Add tenant interceptor if needed later
 api.interceptors.request.use((config) => {
-    // For now, hardcode or read from localStorage
-    // config.headers['X-Tenant-ID'] = '...';
+    // For local dev, let's pretend we are Tenant-A
+    config.headers['X-Tenant-ID'] = 'Tenant-A';
     return config;
 });

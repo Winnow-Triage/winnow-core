@@ -4,6 +4,7 @@ import { Route, Routes } from "react-router-dom" // Assuming these imports are n
 import Layout from './components/Layout'
 import ClusterDashboard from './pages/ClusterDashboard'
 import TicketDetail from './pages/TicketDetail'
+import DebugConsole from './pages/DebugConsole'
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
               <Route path="tickets" element={<div>All Tickets (Coming Soon)</div>} />
               <Route path="tickets/:id" element={<TicketDetail />} />
               <Route path="clusters" element={<div>Clusters (Coming Soon)</div>} />
+              <Route path="debug" element={<DebugConsole />} />
               <Route path="settings" element={<div>Settings (Coming Soon)</div>} />
             </Route>
           </Routes>

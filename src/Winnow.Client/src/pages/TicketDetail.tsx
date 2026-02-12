@@ -21,6 +21,7 @@ interface TicketDetailData {
     status: string;
     createdAt: string;
     parentTicketId?: string;
+    parentTicketTitle?: string;
     evidence: RelatedTicket[];
 }
 
@@ -66,6 +67,24 @@ export default function TicketDetail() {
                     </Button>
                 </div>
             </div>
+
+            {/* Duplicate Alert */}
+            {ticket.parentTicketId && (
+                <div className="bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-center gap-3">
+                    <AlertCircle className="h-5 w-5" />
+                    <div className="flex-1">
+                        <h4 className="font-semibold">This ticket is a duplicate</h4>
+                        <p className="text-sm opacity-90">
+                            It has been merged into <Link to={`/tickets/${ticket.parentTicketId}`} className="underline font-medium break-all">{ticket.parentTicketTitle || ticket.parentTicketId}</Link>.
+                        </p>
+                    </div>
+                    <Button variant="ghost" size="sm" asChild className="shrink-0 hover:bg-amber-200 dark:hover:bg-amber-800/50">
+                        <Link to={`/tickets/${ticket.parentTicketId}`}>
+                            View Original Correct Ticket
+                        </Link>
+                    </Button>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Main Content: Master Description */}

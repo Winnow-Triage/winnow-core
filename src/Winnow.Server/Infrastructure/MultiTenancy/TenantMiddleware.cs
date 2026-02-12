@@ -6,17 +6,24 @@ public class TenantMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext context, ITenantContext tenantContext)
     {
-        // simplistic subdomain parsing: tenant.winnow.app
-        var host = context.Request.Host.Host;
-        var parts = host.Split('.');
-
-        if (parts.Length > 0 && parts[0] != "localhost" && !System.Net.IPAddress.TryParse(host, out _))
+        // 1. Check Header First (Preferred for API/Dev)
+        if (context.Request.Headers.TryGetValue("X-Tenant-ID", out var tenantId))
         {
-            // Assumes format: {tenant}.domain.com or just {tenant} for local testing via hosts file
-            // For localhost, we might default to null (default.db)
-            if (parts[0] != "www")
+            ((TenantContext)tenantContext).TenantId = tenantId;
+        }
+        else
+        {
+            // 2. Check Hostname
+            var host = context.Request.Host.Host;
+            var parts = host.Split('.');
+
+            if (parts.Length > 0 && parts[0] != "localhost" && !System.Net.IPAddress.TryParse(host, out _))
             {
-                ((TenantContext)tenantContext).TenantId = parts[0];
+                // Assumes format: {tenant}.domain.com
+                if (parts[0] != "www")
+                {
+                    ((TenantContext)tenantContext).TenantId = parts[0];
+                }
             }
         }
 
