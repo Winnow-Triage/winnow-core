@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Winnow SDK Test</title>
+</head>
+
+<body>
+    <h1>Winnow SDK Test Page</h1>
+    <p>Use the floating button in the bottom right to report a bug.</p>
+
+    <button onclick="console.error('Test Error Log', { details: 'Something broke' })">Trigger Error Log</button>
+    <button onclick="console.warn('Test Warning Log')">Trigger Warning Log</button>
+
+    <!-- Simulating the IIFE build inclusion -->
+    <script src="./dist/winnow.iife.js"></script>
+    <script>
+        Winnow.init({
+            apiKey: 'secret-key',
+            apiUrl: 'http://localhost:5294',
+            tenantId: 'Tenant-A' // Updated for demo
+        });
+    </script>
+</body>
+
+</html>

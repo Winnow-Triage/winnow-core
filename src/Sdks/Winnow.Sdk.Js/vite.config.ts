@@ -8,7 +8,7 @@ export default defineConfig({
             entry: resolve(__dirname, 'src/main.ts'),
             name: 'Winnow',
             // the proper extensions will be added
-            fileName: 'winnow.iife',
+            fileName: 'winnow',
             formats: ['iife']
         },
     },
