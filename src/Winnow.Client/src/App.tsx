@@ -10,6 +10,7 @@ import TicketDetail from "@/pages/TicketDetail"
 import DebugConsole from './pages/DebugConsole'
 import AllTickets from './pages/AllTickets'
 import Clusters from './pages/Clusters'
+import Settings from './pages/Settings'
 
 import { Toaster } from "sonner"
 
@@ -39,7 +40,7 @@ export default function App() {
                 <Route path="tickets/:id" element={<TicketDetail />} />
                 <Route path="clusters" element={<Clusters />} />
                 <Route path="debug" element={<DebugConsole />} />
-                <Route path="settings" element={<div>Settings (Coming Soon)</div>} />
+                <Route path="settings" element={<Settings />} />
               </Route>
             </Routes>
           </div>

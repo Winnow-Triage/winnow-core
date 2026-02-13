@@ -32,7 +32,15 @@ public class ExportTicketEndpoint(WinnowDbContext db, ExporterFactory exporterFa
         
         try
         {
-            await exporter.ExportTicketAsync(ticket.Title, ticket.Description, ct);
+            var descriptionToExport = string.IsNullOrWhiteSpace(ticket.Summary) 
+                ? ticket.Description 
+                : $"## AI Perspective\n{ticket.Summary}\n\n## Original Description\n{ticket.Description}";
+
+            // Add Backlink
+            var backlink = $"http://localhost:5173/tickets/{ticket.Id}";
+            descriptionToExport += $"\n\n---\n[View in Winnow]({backlink})";
+
+            await exporter.ExportTicketAsync(ticket.Title, descriptionToExport, ct);
             
             ticket.Status = "Exported";
             await db.SaveChangesAsync(ct);

@@ -114,6 +114,22 @@ using (var scope = app.Services.CreateScope())
                 tenantDb.Database.ExecuteSqlRaw("ALTER TABLE Tickets ADD COLUMN SuggestedConfidenceScore REAL;");
             }
             catch { /* Column likely already exists */ }
+
+            try
+            {
+                tenantDb.Database.ExecuteSqlRaw(@"
+                    CREATE TABLE IF NOT EXISTS ""IntegrationConfigs"" (
+                        ""Id"" TEXT NOT NULL CONSTRAINT ""PK_IntegrationConfigs"" PRIMARY KEY,
+                        ""Provider"" TEXT NOT NULL,
+                        ""SettingsJson"" TEXT NOT NULL,
+                        ""IsActive"" INTEGER NOT NULL
+                    );
+                ");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to create IntegrationConfigs table: {ex.Message}");
+            }
         }
     }
 }

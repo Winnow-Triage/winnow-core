@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, ExternalLink, MessageSquare, Clock, AlertCircle, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { toast } from "sonner";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -572,9 +573,20 @@ function ExportMenu({ ticketId, onExport }: { ticketId: string, onExport: () => 
             await api.post(`/tickets/${ticketId}/export`, { configId });
         },
         onSuccess: () => {
+            toast.success("Ticket exported successfully");
             onExport();
             // Trigger a refetch to show updated status
             queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] });
+        },
+        onError: (error: any) => { // Using any for simplicity with axios error
+            const fullMsg = error.response?.data?.error || error.message || "Unknown error";
+            // Clean up the message if it's the standard "Export failed: ..." prefix from backend
+            const displayMsg = fullMsg.replace(/^Export failed: /, '');
+
+            toast.error("Export Failed", {
+                description: displayMsg,
+                duration: 5000,
+            });
         }
     });
 

@@ -16,32 +16,24 @@ public class ExporterFactory(
     public async Task<ITicketExporter> GetExporterAsync(CancellationToken ct = default)
     {
         // Default behavior: Pick the first active one (or null)
-        try
-        {
-            var config = await dbContext.IntegrationConfigs
-                .AsNoTracking()
-                .Where(c => c.IsActive)
-                .FirstOrDefaultAsync(ct);
+        var config = await dbContext.IntegrationConfigs
+            .AsNoTracking()
+            .Where(c => c.IsActive)
+            .FirstOrDefaultAsync(ct);
 
-            if (config == null) return new NullExporter();
-            return CreateExporterFromConfig(config);
-        }
-        catch { return new NullExporter(); }
+        if (config == null) return new NullExporter();
+        return CreateExporterFromConfig(config);
     }
 
     public async Task<ITicketExporter> GetExporterByIdAsync(Guid configId, CancellationToken ct = default)
     {
-        try
-        {
-            var config = await dbContext.IntegrationConfigs
-                .AsNoTracking()
-                .Where(c => c.Id == configId && c.IsActive)
-                .FirstOrDefaultAsync(ct);
+        var config = await dbContext.IntegrationConfigs
+            .AsNoTracking()
+            .Where(c => c.Id == configId && c.IsActive)
+            .FirstOrDefaultAsync(ct);
 
-            if (config == null) return new NullExporter();
-            return CreateExporterFromConfig(config);
-        }
-        catch { return new NullExporter(); }
+        if (config == null) throw new KeyNotFoundException($"Integration config {configId} not found");
+        return CreateExporterFromConfig(config);
     }
 
     private ITicketExporter CreateExporterFromConfig(IntegrationConfig config)
@@ -54,38 +46,29 @@ public class ExporterFactory(
             "github" => CreateGitHubExporter(config.SettingsJson, client, options),
             "trello" => CreateTrelloExporter(config.SettingsJson, client, options),
             "jira" => CreateJiraExporter(config.SettingsJson, client, options),
-            _ => new NullExporter()
+            _ => new NullExporter() // Or throw?
         };
     }
 
     private ITicketExporter CreateGitHubExporter(string json, HttpClient client, JsonSerializerOptions options)
     {
-        try
-        {
-            var s = JsonSerializer.Deserialize<GitHubSettings>(json, options);
-            return s == null ? new NullExporter() : new GitHubExporter(client, s.ApiKey, s.Owner, s.Repo);
-        }
-        catch { return new NullExporter(); }
+        var s = JsonSerializer.Deserialize<GitHubSettings>(json, options);
+        if (s == null) throw new InvalidOperationException("Failed to deserialize GitHub settings");
+        return new GitHubExporter(client, s.ApiKey, s.Owner, s.Repo);
     }
 
     private ITicketExporter CreateTrelloExporter(string json, HttpClient client, JsonSerializerOptions options)
     {
-        try
-        {
-            var s = JsonSerializer.Deserialize<TrelloSettings>(json, options);
-            return s == null ? new NullExporter() : new TrelloExporter(client, s.ApiKey, s.Token, s.ListId);
-        }
-        catch { return new NullExporter(); }
+        var s = JsonSerializer.Deserialize<TrelloSettings>(json, options);
+        if (s == null) throw new InvalidOperationException("Failed to deserialize Trello settings");
+        return new TrelloExporter(client, s.ApiKey, s.Token, s.ListId);
     }
 
     private ITicketExporter CreateJiraExporter(string json, HttpClient client, JsonSerializerOptions options)
     {
-        try
-        {
-            var s = JsonSerializer.Deserialize<JiraSettings>(json, options);
-            return s == null ? new NullExporter() : new JiraExporter(client, s.BaseUrl, s.UserEmail, s.ApiToken, s.ProjectKey);
-        }
-        catch { return new NullExporter(); }
+        var s = JsonSerializer.Deserialize<JiraSettings>(json, options);
+        if (s == null) throw new InvalidOperationException("Failed to deserialize Jira settings");
+        return new JiraExporter(client, s.BaseUrl, s.UserEmail, s.ApiToken, s.ProjectKey);
     }
 }
 

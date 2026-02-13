@@ -12,9 +12,27 @@ public class TrelloExporter(HttpClient httpClient, string apiKey, string token, 
 {
     public async Task ExportTicketAsync(string title, string description, CancellationToken cancellationToken)
     {
-        var url = $"https://api.trello.com/1/cards?idList={listId}&key={apiKey}&token={token}&name={Uri.EscapeDataString(title)}&desc={Uri.EscapeDataString(description)}";
-        var response = await httpClient.PostAsync(url, null, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        // 1. Keep Auth in the URL (Standard Trello practice)
+        var url = $"https://api.trello.com/1/cards?key={apiKey}&token={token}";
+
+        // 2. Put the Data in the Body (No length limits, safer encoding)
+        var payload = new
+        {
+            idList = listId,
+            name = title,
+            desc = description,
+            pos = "top" // Optional: Puts new bugs at the top of the list
+        };
+
+        // 3. Send as JSON
+        var response = await httpClient.PostAsJsonAsync(url, payload, cancellationToken);
+        
+        if (!response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            // Log this content! Trello usually returns a helpful message like "invalid value for idList"
+            throw new HttpRequestException($"Trello Export Failed ({response.StatusCode}): {content}");
+        }
     }
 }
 
@@ -30,7 +48,11 @@ public class GitHubExporter(HttpClient httpClient, string apiKey, string owner, 
             new { title, body = description },
             cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException($"GitHub Export Failed ({response.StatusCode}): {content}");
+        }
     }
 }
 
@@ -67,6 +89,10 @@ public class JiraExporter(HttpClient httpClient, string baseUrl, string userEmai
             },
             cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException($"Jira Export Failed ({response.StatusCode}): {content}");
+        }
     }
 }
