@@ -13,6 +13,8 @@ import Clusters from './pages/Clusters'
 
 import { Toaster } from "sonner"
 
+import { ModeToggle } from "@/components/mode-toggle"
+
 export default function App() {
   return (
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
@@ -23,6 +25,9 @@ export default function App() {
             <SidebarTrigger className="-ml-1" />
             <div className="w-[1px] h-4 bg-border mx-2" />
             <span className="font-medium">Winnow Triage</span>
+            <div className="ml-auto flex items-center gap-2">
+              <ModeToggle />
+            </div>
           </header>
           <div className="flex flex-1 flex-col gap-4 p-4">
             <Routes>

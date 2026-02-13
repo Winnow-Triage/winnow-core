@@ -13,7 +13,6 @@ import {
     SidebarRail,
     SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { ModeToggle } from "@/components/mode-toggle"
 
 // Menu items.
 const items = [
@@ -69,7 +68,6 @@ export function AppSidebar() {
             <SidebarFooter>
                 <div className="flex w-full items-center justify-between p-2 gap-2">
                     <SidebarTrigger className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                    <ModeToggle />
                 </div>
             </SidebarFooter>
             <SidebarRail />
