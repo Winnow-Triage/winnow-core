@@ -55,6 +55,8 @@ else
 builder.Services.AddScoped<Winnow.Server.Services.Ai.IDuplicateChecker, Winnow.Server.Services.Ai.OllamaDuplicateChecker>();
 builder.Services.AddSingleton<Winnow.Server.Services.Ai.INegativeMatchCache, Winnow.Server.Services.Ai.NegativeMatchCache>();
 
+builder.Services.AddScoped<Winnow.Server.Features.Dashboard.IDashboardService, Winnow.Server.Features.Dashboard.DashboardService>();
+
 builder.Services.AddDbContext<WinnowDbContext>(); // Configuration happens in OnConfiguring dynamically
 
 builder.Services.AddFastEndpoints();

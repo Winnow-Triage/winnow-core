@@ -1,0 +1,37 @@
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { GitPullRequest } from "lucide-react"
+
+interface PendingDecisionsCardProps {
+    count: number
+}
+
+export function PendingDecisionsCard({ count }: PendingDecisionsCardProps) {
+    return (
+        <Card className="h-full flex flex-col justify-between bg-blue-50 border-gray-200 text-gray-900 shadow-sm dark:bg-blue-900/20 dark:border-white/10 dark:text-white dark:shadow-none transition-colors duration-200">
+            <div>
+                <CardHeader className="pb-2 border-b border-gray-200/50 dark:border-white/10">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2 text-blue-700 dark:text-primary">
+                        <GitPullRequest className="w-4 h-4" />
+                        Pending Decisions
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                    <div className="text-3xl font-bold">{count}</div>
+                    <p className="text-xs text-blue-600/80 dark:text-muted-foreground mt-1">
+                        Suggestions waiting for human confirmation.
+                    </p>
+                </CardContent>
+            </div>
+            <CardFooter>
+                <Button
+                    className="w-full h-8 text-xs bg-white border-blue-200 text-blue-600 hover:bg-blue-50 dark:bg-transparent dark:border-blue-500 dark:text-blue-500 dark:hover:bg-blue-500/10 transition-colors"
+                    variant="outline"
+                    disabled={count === 0}
+                >
+                    Review {count} Suggestions
+                </Button>
+            </CardFooter>
+        </Card>
+    )
+}
