@@ -270,6 +270,13 @@ public class ClusterRefinementJob(
                 SuggestionPath:
                 if (bestMatch.Distance <= SuggestThreshold)
                 {
+                    // Check Negative Cache before suggesting
+                    if (negativeCache.IsKnownMismatch(tenantId, leaderA.Id, bestMatch.Id))
+                    {
+                        logger.LogDebug("Janitor [{TenantId}]: Skipping known sugggestion mismatch {A} -> {B} (Cache Hit).", tenantId, leaderA.Id, bestMatch.Id);
+                        continue;
+                    }
+
                     // Suggestions don't strictly need Oldest Wins but it helps stability
                     var ticketA = await db.Tickets.FindAsync([leaderA.Id], ct);
                     if (ticketA != null && ticketA.SuggestedParentId == null)
