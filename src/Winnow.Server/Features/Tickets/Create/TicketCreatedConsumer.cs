@@ -14,7 +14,8 @@ public class TicketCreatedConsumer(
     ILogger<TicketCreatedConsumer> logger,
     ITenantContext tenantContext,
     Services.Ai.IEmbeddingService embeddingService,
-    Services.Ai.IDuplicateChecker duplicateChecker) : IConsumer<TicketCreatedEvent>
+    Services.Ai.IDuplicateChecker duplicateChecker,
+    Services.Ai.INegativeMatchCache negativeCache) : IConsumer<TicketCreatedEvent>
 {
     public async Task Consume(ConsumeContext<TicketCreatedEvent> context)
     {
@@ -135,41 +136,57 @@ public class TicketCreatedConsumer(
                         else if (bestMatch.Distance <= DistanceThreshold)
                         {
                             // Verify Track: Ambiguous match, verify with LLM.
-                            var parentTicket = await dbContext.Tickets.FindAsync([bestMatch.Id], context.CancellationToken);
-                            if (parentTicket != null)
+
+                            // 1. Check Negative Cache
+                            if (negativeCache.IsKnownMismatch(context.Message.TenantId, ticket.Id, bestMatch.Id))
                             {
-                                var areDuplicates = await duplicateChecker.AreDuplicatesAsync(
-                                    ticket.Title, ticket.Description,
-                                    parentTicket.Title, parentTicket.Description!,
-                                    context.CancellationToken);
-
-                                if (areDuplicates)
+                                logger.LogInformation("Skipping known mismatch {Id} -> {TargetId}", ticket.Id, bestMatch.Id);
+                            }
+                            else
+                            {
+                                var parentTicket = await dbContext.Tickets.FindAsync([bestMatch.Id], context.CancellationToken);
+                                if (parentTicket != null)
                                 {
-                                    logger.LogInformation("Grouping {Id} -> {TargetId} (LLM Verified, Dist: {Dist:F3})",
-                                        ticket.Id, targetParentId, bestMatch.Distance);
+                                    var areDuplicates = await duplicateChecker.AreDuplicatesAsync(
+                                        ticket.Title, ticket.Description,
+                                        parentTicket.Title, parentTicket.Description!,
+                                        context.CancellationToken);
 
-                                    ticket.ParentTicketId = targetParentId;
-                                    ticket.Status = "Duplicate";
-                                    ticket.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
-                                }
-                                else
-                                {
-                                    logger.LogWarning("Semantic Gatekeeper VETOED match between {Id} and {TargetId} (Dist: {Dist:F3}). Downgrading to Suggestion.",
-                                        ticket.Id, targetParentId, bestMatch.Distance);
+                                    if (areDuplicates)
+                                    {
+                                        logger.LogInformation("Grouping {Id} -> {TargetId} (LLM Verified, Dist: {Dist:F3})",
+                                            ticket.Id, targetParentId, bestMatch.Distance);
 
-                                    // Downgrade to Suggestion
-                                    ticket.SuggestedParentId = targetParentId;
-                                    ticket.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                                        ticket.ParentTicketId = targetParentId;
+                                        ticket.Status = "Duplicate";
+                                        ticket.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                                    }
+                                    else
+                                    {
+                                        logger.LogWarning("Semantic Gatekeeper VETOED match between {Id} and {TargetId} (Dist: {Dist:F3}). Downgrading to Suggestion.",
+                                            ticket.Id, targetParentId, bestMatch.Distance);
+
+                                        // Cache the mismatch
+                                        negativeCache.MarkAsMismatch(context.Message.TenantId, ticket.Id, targetParentId);
+
+                                        // Downgrade to Suggestion
+                                        ticket.SuggestedParentId = targetParentId;
+                                        ticket.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                                    }
                                 }
                             }
                         }
                         else if (bestMatch.Distance <= 0.55)
                         {
-                            logger.LogInformation("Suggesting {Id} -> {TargetId} (Centroid Suggest, Dist: {Dist:F3})",
-                                ticket.Id, targetParentId, bestMatch.Distance);
+                            // Check Negative Cache
+                            if (!negativeCache.IsKnownMismatch(context.Message.TenantId, ticket.Id, bestMatch.Id))
+                            {
+                                logger.LogInformation("Suggesting {Id} -> {TargetId} (Centroid Suggest, Dist: {Dist:F3})",
+                                    ticket.Id, targetParentId, bestMatch.Distance);
 
-                            ticket.SuggestedParentId = targetParentId;
-                            ticket.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                                ticket.SuggestedParentId = targetParentId;
+                                ticket.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                            }
                         }
                     }
                 }

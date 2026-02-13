@@ -223,8 +223,8 @@ public class ClusterRefinementJob(
                         {
                             logger.LogDebug("Janitor [{TenantId}]: Skipping known mismatch {A} -> {B} (Cache Hit).", tenantId, leaderA.Id, targetTicket.Id);
                             
-                            // Downgrade to Suggestion immediately without checking LLM
-                            goto SuggestionPath;
+                            // Skip entirely if known mismatch
+                            continue;
                         }
 
                         // Verify with LLM
