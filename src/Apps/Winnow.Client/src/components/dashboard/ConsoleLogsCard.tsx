@@ -48,8 +48,8 @@ export function ConsoleLogsCard({ logs }: ConsoleLogsCardProps) {
                                     {new Date(log.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 })}
                                 </span>
                                 <span className={`shrink-0 ${log.level === 'error' ? 'text-red-500' :
-                                        log.level === 'warn' ? 'text-amber-500' :
-                                            'text-blue-400'
+                                    log.level === 'warn' ? 'text-amber-500' :
+                                        'text-blue-400'
                                     }`}>
                                     {log.level === 'error' ? <AlertCircle className="h-3 w-3 inline mr-1" /> :
                                         log.level === 'warn' ? <AlertTriangle className="h-3 w-3 inline mr-1" /> :

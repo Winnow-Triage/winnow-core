@@ -3,6 +3,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
+import { formatTimeAgo } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -282,6 +283,26 @@ export default function TicketDetail() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Main Content: Master Description */}
                 <div className="md:col-span-2 flex flex-col gap-6">
+                    {/* Header Section */}
+                    <div className="flex flex-col gap-2">
+                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight">
+                            {ticket.title}
+                        </h1>
+                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                            <span>
+                                Authored by {(() => {
+                                    try {
+                                        const meta = ticket.metadataJson ? JSON.parse(ticket.metadataJson) : {};
+                                        return meta.user || meta.author || meta.username || 'Unassigned';
+                                    } catch {
+                                        return 'Unassigned';
+                                    }
+                                })()}
+                            </span>
+                            <span>•</span>
+                            <span>{formatTimeAgo(ticket.createdAt)}</span>
+                        </div>
+                    </div>
                     {/* AI Summary Section - Show if summary exists or if it's a cluster parent */}
                     {(ticket.summary || ticket.criticalityScore || ticket.evidence.length > 0) && (
                         <Card className="border-purple-200 dark:border-purple-500/30 bg-purple-50/50 dark:bg-[#160d33] shadow-xl shadow-purple-500/5 dark:shadow-purple-500/10 relative overflow-hidden group transition-all duration-300">
@@ -430,12 +451,11 @@ export default function TicketDetail() {
                         </Card>
                     )}
 
+
+
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-xl">Master Description</CardTitle>
-                            <CardDescription>
-                                Consolidated view of the issue.
-                            </CardDescription>
+                            <CardTitle className="text-lg">User Description</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="prose dark:prose-invert max-w-none">
@@ -488,7 +508,7 @@ export default function TicketDetail() {
                                     <Separator />
                                     <div className="flex flex-col gap-2">
                                         <span className="text-muted-foreground flex items-center gap-2">
-                                            <Sparkles className="h-3 w-3" /> Game Metadata
+                                            <Sparkles className="h-3 w-3" /> Session Context
                                         </span>
                                         <div className="bg-muted/50 p-2 rounded-md grid grid-cols-2 gap-x-4 gap-y-1">
                                             {(() => {
@@ -551,15 +571,17 @@ export default function TicketDetail() {
             </div>
 
             {/* Console Logs Section - Full Width */}
-            {ticket.metadataJson && (() => {
-                try {
-                    const metadata = JSON.parse(ticket.metadataJson);
-                    if (metadata.logs) {
-                        return <ConsoleLogsCard logs={metadata.logs} />;
-                    }
-                } catch { return null; }
-                return null;
-            })()}
+            {
+                ticket.metadataJson && (() => {
+                    try {
+                        const metadata = JSON.parse(ticket.metadataJson);
+                        if (metadata.logs) {
+                            return <ConsoleLogsCard logs={metadata.logs} />;
+                        }
+                    } catch { return null; }
+                    return null;
+                })()
+            }
 
             <AlertDialog open={confirmAction.isOpen} onOpenChange={(open: boolean) => {
                 if (!open) setConfirmAction({ ...confirmAction, isOpen: false });
@@ -577,7 +599,7 @@ export default function TicketDetail() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </div >
     );
 }
 
