@@ -10,8 +10,7 @@ namespace Winnow.Server.Infrastructure.Integrations;
 
 public class ExporterFactory(
     IHttpClientFactory httpClientFactory,
-    WinnowDbContext dbContext,
-    ITenantContext tenantContext)
+    WinnowDbContext dbContext)
 {
     public async Task<ITicketExporter> GetExporterAsync(CancellationToken ct = default)
     {
@@ -74,8 +73,8 @@ public class ExporterFactory(
 
 public class NullExporter : ITicketExporter
 {
-    public Task ExportTicketAsync(string title, string description, CancellationToken cancellationToken)
+    public Task<string> ExportTicketAsync(string title, string description, CancellationToken cancellationToken)
     {
-        return Task.CompletedTask;
+        return Task.FromResult(string.Empty);
     }
 }

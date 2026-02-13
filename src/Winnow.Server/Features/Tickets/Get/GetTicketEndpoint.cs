@@ -27,6 +27,7 @@ public class GetTicketResponse
     public float? SuggestedConfidenceScore { get; set; }
     public string? SuggestedParentTitle { get; set; }
     public string? MetadataJson { get; set; }
+    public string? ExternalUrl { get; set; }
 
     // For now, let's include children simple IDs/Titles if it is a parent
     public List<RelatedTicketDto> Evidence { get; set; } = [];
@@ -129,6 +130,7 @@ public class GetTicketEndpoint(WinnowDbContext db) : Endpoint<GetTicketRequest, 
             SuggestedConfidenceScore = ticket.SuggestedConfidenceScore,
             SuggestedParentTitle = suggestedParentTitle,
             MetadataJson = ticket.MetadataJson,
+            ExternalUrl = ticket.ExternalUrl,
             Evidence = evidence
         }, ct);
     }

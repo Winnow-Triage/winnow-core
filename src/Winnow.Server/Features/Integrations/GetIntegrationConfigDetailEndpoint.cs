@@ -7,7 +7,7 @@ using System.Text.Json;
 
 namespace Winnow.Server.Features.Integrations;
 
-public class GetIntegrationConfigDetailEndpoint(WinnowDbContext db, ITenantContext tenantContext) : EndpointWithoutRequest<UpsertIntegrationConfigRequest>
+public class GetIntegrationConfigDetailEndpoint(WinnowDbContext db) : EndpointWithoutRequest<UpsertIntegrationConfigRequest>
 {
     public override void Configure()
     {

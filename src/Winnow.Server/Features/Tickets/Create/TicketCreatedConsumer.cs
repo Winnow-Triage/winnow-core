@@ -138,7 +138,8 @@ public class TicketCreatedConsumer(
                             // Verify Track: Ambiguous match, verify with LLM.
 
                             // 1. Check Negative Cache
-                            if (negativeCache.IsKnownMismatch(context.Message.TenantId, ticket.Id, bestMatch.Id))
+                            if (!string.IsNullOrEmpty(context.Message.TenantId) && 
+                                negativeCache.IsKnownMismatch(context.Message.TenantId, ticket.Id, bestMatch.Id))
                             {
                                 logger.LogInformation("Skipping known mismatch {Id} -> {TargetId}", ticket.Id, bestMatch.Id);
                             }
@@ -167,7 +168,10 @@ public class TicketCreatedConsumer(
                                             ticket.Id, targetParentId, bestMatch.Distance);
 
                                         // Cache the mismatch
-                                        negativeCache.MarkAsMismatch(context.Message.TenantId, ticket.Id, targetParentId);
+                                        if (!string.IsNullOrEmpty(context.Message.TenantId))
+                                        {
+                                            negativeCache.MarkAsMismatch(context.Message.TenantId, ticket.Id, targetParentId);
+                                        }
 
                                         // Downgrade to Suggestion
                                         ticket.SuggestedParentId = targetParentId;
@@ -179,7 +183,8 @@ public class TicketCreatedConsumer(
                         else if (bestMatch.Distance <= 0.55)
                         {
                             // Check Negative Cache
-                            if (!negativeCache.IsKnownMismatch(context.Message.TenantId, ticket.Id, bestMatch.Id))
+                            if (!string.IsNullOrEmpty(context.Message.TenantId) && 
+                                !negativeCache.IsKnownMismatch(context.Message.TenantId, ticket.Id, bestMatch.Id))
                             {
                                 logger.LogInformation("Suggesting {Id} -> {TargetId} (Centroid Suggest, Dist: {Dist:F3})",
                                     ticket.Id, targetParentId, bestMatch.Distance);

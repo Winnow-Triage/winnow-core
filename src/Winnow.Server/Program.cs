@@ -117,6 +117,12 @@ using (var scope = app.Services.CreateScope())
 
             try
             {
+                tenantDb.Database.ExecuteSqlRaw("ALTER TABLE Tickets ADD COLUMN ExternalUrl TEXT;");
+            }
+            catch { /* Column likely already exists */ }
+
+            try
+            {
                 tenantDb.Database.ExecuteSqlRaw(@"
                     CREATE TABLE IF NOT EXISTS ""IntegrationConfigs"" (
                         ""Id"" TEXT NOT NULL CONSTRAINT ""PK_IntegrationConfigs"" PRIMARY KEY,

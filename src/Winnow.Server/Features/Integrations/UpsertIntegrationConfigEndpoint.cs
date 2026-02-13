@@ -16,7 +16,7 @@ public class UpsertIntegrationConfigRequest
     public bool IsActive { get; set; } = true;
 }
 
-public class UpsertIntegrationConfigEndpoint(WinnowDbContext db, ITenantContext tenantContext) : Endpoint<UpsertIntegrationConfigRequest, IntegrationConfig>
+public class UpsertIntegrationConfigEndpoint(WinnowDbContext db) : Endpoint<UpsertIntegrationConfigRequest, IntegrationConfig>
 {
     public override void Configure()
     {

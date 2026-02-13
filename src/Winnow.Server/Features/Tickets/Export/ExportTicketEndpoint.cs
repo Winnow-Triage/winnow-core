@@ -9,6 +9,11 @@ public class ExportTicketRequest
     public Guid ConfigId { get; set; }
 }
 
+public class ExportTicketResponse
+{
+    public string ExternalUrl { get; set; } = string.Empty;
+}
+
 public class ExportTicketEndpoint(WinnowDbContext db, ExporterFactory exporterFactory) : Endpoint<ExportTicketRequest>
 {
     public override void Configure()
@@ -36,16 +41,16 @@ public class ExportTicketEndpoint(WinnowDbContext db, ExporterFactory exporterFa
                 ? ticket.Description 
                 : $"## AI Perspective\n{ticket.Summary}\n\n## Original Description\n{ticket.Description}";
 
-            // Add Backlink
             var backlink = $"http://localhost:5173/tickets/{ticket.Id}";
             descriptionToExport += $"\n\n---\n[View in Winnow]({backlink})";
 
-            await exporter.ExportTicketAsync(ticket.Title, descriptionToExport, ct);
+            var externalUrl = await exporter.ExportTicketAsync(ticket.Title, descriptionToExport, ct);
             
             ticket.Status = "Exported";
+            ticket.ExternalUrl = externalUrl;
             await db.SaveChangesAsync(ct);
 
-            await Send.OkAsync(ct);
+            await Send.OkAsync(new ExportTicketResponse { ExternalUrl = externalUrl }, ct);
         }
         catch (Exception ex)
         {

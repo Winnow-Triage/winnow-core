@@ -5,12 +5,12 @@ namespace Winnow.Integrations;
 
 public interface ITicketExporter
 {
-    Task ExportTicketAsync(string title, string description, CancellationToken cancellationToken);
+    Task<string> ExportTicketAsync(string title, string description, CancellationToken cancellationToken);
 }
 
 public class TrelloExporter(HttpClient httpClient, string apiKey, string token, string listId) : ITicketExporter
 {
-    public async Task ExportTicketAsync(string title, string description, CancellationToken cancellationToken)
+    public async Task<string> ExportTicketAsync(string title, string description, CancellationToken cancellationToken)
     {
         // 1. Keep Auth in the URL (Standard Trello practice)
         var url = $"https://api.trello.com/1/cards?key={apiKey}&token={token}";
@@ -33,12 +33,17 @@ public class TrelloExporter(HttpClient httpClient, string apiKey, string token, 
             // Log this content! Trello usually returns a helpful message like "invalid value for idList"
             throw new HttpRequestException($"Trello Export Failed ({response.StatusCode}): {content}");
         }
+
+        var result = await response.Content.ReadFromJsonAsync<TrelloCardResponse>(cancellationToken: cancellationToken);
+        return result?.ShortUrl ?? "https://trello.com";
     }
+
+    private class TrelloCardResponse { public required string ShortUrl { get; set; } }
 }
 
 public class GitHubExporter(HttpClient httpClient, string apiKey, string owner, string repo) : ITicketExporter
 {
-    public async Task ExportTicketAsync(string title, string description, CancellationToken cancellationToken)
+    public async Task<string> ExportTicketAsync(string title, string description, CancellationToken cancellationToken)
     {
         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Winnow-App");
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
@@ -53,12 +58,17 @@ public class GitHubExporter(HttpClient httpClient, string apiKey, string owner, 
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
             throw new HttpRequestException($"GitHub Export Failed ({response.StatusCode}): {content}");
         }
+
+        var result = await response.Content.ReadFromJsonAsync<GitHubIssueResponse>(cancellationToken: cancellationToken);
+        return result?.HtmlUrl ?? $"https://github.com/{owner}/{repo}/issues";
     }
+
+    private class GitHubIssueResponse { [System.Text.Json.Serialization.JsonPropertyName("html_url")] public required string HtmlUrl { get; set; } }
 }
 
 public class JiraExporter(HttpClient httpClient, string baseUrl, string userEmail, string apiToken, string projectKey) : ITicketExporter
 {
-    public async Task ExportTicketAsync(string title, string description, CancellationToken cancellationToken)
+    public async Task<string> ExportTicketAsync(string title, string description, CancellationToken cancellationToken)
     {
         var authValue = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{userEmail}:{apiToken}"));
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", authValue);
@@ -94,5 +104,10 @@ public class JiraExporter(HttpClient httpClient, string baseUrl, string userEmai
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
             throw new HttpRequestException($"Jira Export Failed ({response.StatusCode}): {content}");
         }
+
+        var result = await response.Content.ReadFromJsonAsync<JiraIssueResponse>(cancellationToken: cancellationToken);
+        return $"{baseUrl.TrimEnd('/')}/browse/{result?.Key}";
     }
+
+    private class JiraIssueResponse { public required string Key { get; set; } }
 }

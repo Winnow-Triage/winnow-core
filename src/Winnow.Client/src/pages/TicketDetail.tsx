@@ -54,6 +54,7 @@ interface TicketDetailData {
     criticalityScore?: number;
     criticalityReasoning?: string;
     metadataJson?: string;
+    externalUrl?: string;
     evidence: RelatedTicket[];
 }
 
@@ -154,14 +155,24 @@ export default function TicketDetail() {
                     }}>
                         Close Cluster
                     </Button>
-                    <Button variant="outline">
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        Open in External System
-                    </Button>
-                    <ExportMenu ticketId={ticket.id} onExport={() => {
-                        queryClient.invalidateQueries({ queryKey: ['ticket', id] });
-                        queryClient.invalidateQueries({ queryKey: ['tickets'] });
-                    }} />
+                    {/* External Link Button - Only visible if URL exists */}
+                    {ticket.externalUrl && (
+                        <Button variant="outline" asChild>
+                            <a href={ticket.externalUrl} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                Open in External System
+                            </a>
+                        </Button>
+                    )}
+
+                    <ExportMenu
+                        ticketId={ticket.id}
+                        isExported={ticket.status === 'Exported'}
+                        onExport={() => {
+                            queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+                            queryClient.invalidateQueries({ queryKey: ['tickets'] });
+                        }}
+                    />
                 </div>
             </div>
 
@@ -556,7 +567,7 @@ export default function TicketDetail() {
     );
 }
 
-function ExportMenu({ ticketId, onExport }: { ticketId: string, onExport: () => void }) {
+function ExportMenu({ ticketId, onExport, isExported }: { ticketId: string, onExport: () => void, isExported: boolean }) {
     const { data: integrations } = useQuery<{ id: string, provider: string, name: string }[]>({
         queryKey: ['integrations'],
         queryFn: async () => {
@@ -589,6 +600,14 @@ function ExportMenu({ ticketId, onExport }: { ticketId: string, onExport: () => 
             });
         }
     });
+
+    if (isExported) {
+        return (
+            <Button variant="ghost" disabled title="Already exported">
+                Exported
+            </Button>
+        );
+    }
 
     if (!integrations || integrations.length === 0) return (
         <Button variant="ghost" disabled title="No integration configured">

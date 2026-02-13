@@ -8,7 +8,7 @@ namespace Winnow.Server.Features.Integrations;
 
 public record IntegrationConfigDto(Guid Id, string Provider, string Name);
 
-public class GetIntegrationConfigsEndpoint(WinnowDbContext db, ITenantContext tenantContext) : EndpointWithoutRequest<List<IntegrationConfigDto>>
+public class GetIntegrationConfigsEndpoint(WinnowDbContext db) : EndpointWithoutRequest<List<IntegrationConfigDto>>
 {
     public override void Configure()
     {

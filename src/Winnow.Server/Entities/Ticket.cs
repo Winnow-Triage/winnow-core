@@ -17,5 +17,6 @@ public class Ticket
     public string? CriticalityReasoning { get; set; }
     public byte[]? Embedding { get; set; }
     public string? StackTraceHash { get; set; }
+    public string? ExternalUrl { get; set; } // Link to external issue tracker
     public string? MetadataJson { get; set; } // Stores Dictionary<string, object>
 }
