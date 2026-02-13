@@ -13,7 +13,8 @@ public class TicketCreatedConsumer(
     Winnow.Server.Infrastructure.Integrations.ExporterFactory exporterFactory,
     ILogger<TicketCreatedConsumer> logger,
     ITenantContext tenantContext,
-    Services.Ai.IEmbeddingService embeddingService) : IConsumer<TicketCreatedEvent>
+    Services.Ai.IEmbeddingService embeddingService,
+    Services.Ai.IDuplicateChecker duplicateChecker) : IConsumer<TicketCreatedEvent>
 {
     public async Task Consume(ConsumeContext<TicketCreatedEvent> context)
     {
@@ -121,14 +122,46 @@ public class TicketCreatedConsumer(
                         // Hierarchy Guard: Ensure we always link to the absolute ROOT
                         var targetParentId = await dbContext.ResolveUltimateMasterAsync(bestMatch.Id, context.CancellationToken);
 
-                        if (bestMatch.Distance <= DistanceThreshold)
+                        if (bestMatch.Distance <= 0.15)
                         {
-                            logger.LogInformation("Grouping {Id} -> {TargetId} (Centroid Match, Dist: {Dist:F3})",
+                            // Fast Track: Very close match, trust vector blindly.
+                            logger.LogInformation("Grouping {Id} -> {TargetId} (High Confidence, Dist: {Dist:F3})",
                                 ticket.Id, targetParentId, bestMatch.Distance);
 
                             ticket.ParentTicketId = targetParentId;
                             ticket.Status = "Duplicate";
                             ticket.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                        }
+                        else if (bestMatch.Distance <= DistanceThreshold)
+                        {
+                            // Verify Track: Ambiguous match, verify with LLM.
+                            var parentTicket = await dbContext.Tickets.FindAsync([bestMatch.Id], context.CancellationToken);
+                            if (parentTicket != null)
+                            {
+                                var areDuplicates = await duplicateChecker.AreDuplicatesAsync(
+                                    ticket.Title, ticket.Description,
+                                    parentTicket.Title, parentTicket.Description!,
+                                    context.CancellationToken);
+
+                                if (areDuplicates)
+                                {
+                                    logger.LogInformation("Grouping {Id} -> {TargetId} (LLM Verified, Dist: {Dist:F3})",
+                                        ticket.Id, targetParentId, bestMatch.Distance);
+
+                                    ticket.ParentTicketId = targetParentId;
+                                    ticket.Status = "Duplicate";
+                                    ticket.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                                }
+                                else
+                                {
+                                    logger.LogWarning("Semantic Gatekeeper VETOED match between {Id} and {TargetId} (Dist: {Dist:F3}). Downgrading to Suggestion.",
+                                        ticket.Id, targetParentId, bestMatch.Distance);
+
+                                    // Downgrade to Suggestion
+                                    ticket.SuggestedParentId = targetParentId;
+                                    ticket.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                                }
+                            }
                         }
                         else if (bestMatch.Distance <= 0.55)
                         {

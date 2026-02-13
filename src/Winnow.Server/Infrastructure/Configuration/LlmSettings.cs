@@ -11,6 +11,7 @@ public class OllamaSettings
 {
     public string Endpoint { get; set; } = "http://localhost:11434";
     public string ModelId { get; set; } = "llama3";
+    public string GatekeeperModelId { get; set; } = "phi3";
 }
 
 public class OpenAiSettings

@@ -28,6 +28,13 @@ if (llmSettings.Provider == "Ollama")
     builder.Services.AddOllamaChatCompletion(
         modelId: llmSettings.Ollama.ModelId,
         endpoint: new Uri(llmSettings.Ollama.Endpoint));
+
+    // Secondary model for fast gatekeeping (phi3/gemma)
+    builder.Services.AddOllamaChatCompletion(
+        serviceId: "Gatekeeper",
+        modelId: llmSettings.Ollama.GatekeeperModelId,
+        endpoint: new Uri(llmSettings.Ollama.Endpoint));
+
     builder.Services.AddScoped<Winnow.Server.Features.Tickets.GenerateSummary.IClusterSummaryService, Winnow.Server.Features.Tickets.GenerateSummary.SemanticKernelClusterSummaryService>();
 }
 else if (llmSettings.Provider == "OpenAI")
@@ -42,6 +49,9 @@ else
 {
     builder.Services.AddScoped<Winnow.Server.Features.Tickets.GenerateSummary.IClusterSummaryService, Winnow.Server.Features.Tickets.GenerateSummary.PlaceholderSummaryService>();
 }
+
+// Always register the duplicate checker (It handles fail-safe internally)
+builder.Services.AddScoped<Winnow.Server.Services.Ai.IDuplicateChecker, Winnow.Server.Services.Ai.OllamaDuplicateChecker>();
 
 builder.Services.AddDbContext<WinnowDbContext>(); // Configuration happens in OnConfiguring dynamically
 
