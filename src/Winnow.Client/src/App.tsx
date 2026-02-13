@@ -3,11 +3,15 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { Route, Routes } from "react-router-dom"
 import { ThemeProvider } from "@/components/theme-provider"
 import Layout from './components/Layout'
-import ClusterDashboard from './pages/ClusterDashboard'
-import TicketDetail from './pages/TicketDetail'
+import Dashboard from "@/pages/Dashboard"
+import ClusterDashboard from "@/pages/ClusterDashboard"
+import ReviewSuggestions from "@/pages/ReviewSuggestions"
+import TicketDetail from "@/pages/TicketDetail"
 import DebugConsole from './pages/DebugConsole'
 import AllTickets from './pages/AllTickets'
 import Clusters from './pages/Clusters'
+
+import { Toaster } from "sonner"
 
 export default function App() {
   return (
@@ -24,6 +28,8 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Layout />}>
                 <Route index element={<ClusterDashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/triage/review" element={<ReviewSuggestions />} />
                 <Route path="tickets" element={<AllTickets />} />
                 <Route path="tickets/:id" element={<TicketDetail />} />
                 <Route path="clusters" element={<Clusters />} />
@@ -34,6 +40,7 @@ export default function App() {
           </div>
         </SidebarInset>
       </SidebarProvider>
+      <Toaster />
     </ThemeProvider>
   )
 }

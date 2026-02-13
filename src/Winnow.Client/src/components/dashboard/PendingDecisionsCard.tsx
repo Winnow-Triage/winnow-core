@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { GitPullRequest } from "lucide-react"
+import { Link } from "react-router-dom"
 
 interface PendingDecisionsCardProps {
     count: number
@@ -24,13 +25,15 @@ export function PendingDecisionsCard({ count }: PendingDecisionsCardProps) {
                 </CardContent>
             </div>
             <CardFooter>
-                <Button
-                    className="w-full h-8 text-xs bg-white border-blue-200 text-blue-600 hover:bg-blue-50 dark:bg-transparent dark:border-blue-500 dark:text-blue-500 dark:hover:bg-blue-500/10 transition-colors"
-                    variant="outline"
-                    disabled={count === 0}
-                >
-                    Review {count} Suggestions
-                </Button>
+                <Link to="/triage/review" className="w-full">
+                    <Button
+                        className="w-full h-8 text-xs bg-white border-blue-200 text-blue-600 hover:bg-blue-50 dark:bg-transparent dark:border-blue-500 dark:text-blue-500 dark:hover:bg-blue-500/10 transition-colors"
+                        variant="outline"
+                        disabled={count === 0}
+                    >
+                        Review {count} Suggestions
+                    </Button>
+                </Link>
             </CardFooter>
         </Card>
     )
