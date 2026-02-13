@@ -93,27 +93,38 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         }
 
         // 3. Volume History (Bucketed by Hour for last 24h)
-        // SQLite doesn't have great date truncation functions in standardized SQL, 
-        // so we might pull raw timestamps for last 24h and aggregate in memory if volume is low,
-        // OR use strftime('%Y-%m-%d %H:00:00', CreatedAt)
-        
+        // Group raw data in memory
         var historyRaw = await db.Tickets
+            .AsNoTracking()
             .Where(t => t.CreatedAt >= yesterday)
             .Select(t => new { t.CreatedAt, IsDuplicate = t.ParentTicketId != null })
             .ToListAsync(ct);
 
-        var history = historyRaw
+        var grouped = historyRaw
             .GroupBy(t => new { t.CreatedAt.Date, t.CreatedAt.Hour })
-            .Select(g => new VolumeMetricDto(
-                new DateTime(g.Key.Date.Year, g.Key.Date.Month, g.Key.Date.Day, g.Key.Hour, 0, 0, DateTimeKind.Utc),
-                g.Count(x => !x.IsDuplicate),
-                g.Count(x => x.IsDuplicate)
-            ))
-            .OrderBy(h => h.Timestamp)
-            .ToList();
+            .ToDictionary(
+                g => new DateTime(g.Key.Date.Year, g.Key.Date.Month, g.Key.Date.Day, g.Key.Hour, 0, 0, DateTimeKind.Utc),
+                g => new { Unique = g.Count(x => !x.IsDuplicate), Duplicate = g.Count(x => x.IsDuplicate) }
+            );
 
-        // Fill gaps if needed (optional, UI can handle sparse data or we can pad here)
-        // For now return as is.
+        // Zero-fill for the last 24 hours
+        var history = new List<VolumeMetricDto>();
+        var now = DateTime.UtcNow;
+        // Floor to current hour
+        var currentHour = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0, DateTimeKind.Utc);
+        
+        for (int i = 23; i >= 0; i--)
+        {
+            var timeSlot = currentHour.AddHours(-i);
+            if (grouped.TryGetValue(timeSlot, out var data))
+            {
+                history.Add(new VolumeMetricDto(timeSlot, data.Unique, data.Duplicate));
+            }
+            else
+            {
+                history.Add(new VolumeMetricDto(timeSlot, 0, 0));
+            }
+        }
 
         return new DashboardMetricsDto(triageMetrics, trendingDtos, history);
     }
