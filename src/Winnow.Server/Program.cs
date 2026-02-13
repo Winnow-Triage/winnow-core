@@ -14,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddScoped<Winnow.Server.Infrastructure.Integrations.ExporterFactory>();
 builder.Services.AddHttpClient();
+builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<Winnow.Server.Services.Ai.IEmbeddingService, Winnow.Server.Services.Ai.EmbeddingService>();
 builder.Services.AddHostedService<Winnow.Server.Infrastructure.Scheduling.ClusterRefinementJob>();
 
@@ -52,6 +53,7 @@ else
 
 // Always register the duplicate checker (It handles fail-safe internally)
 builder.Services.AddScoped<Winnow.Server.Services.Ai.IDuplicateChecker, Winnow.Server.Services.Ai.OllamaDuplicateChecker>();
+builder.Services.AddSingleton<Winnow.Server.Services.Ai.INegativeMatchCache, Winnow.Server.Services.Ai.NegativeMatchCache>();
 
 builder.Services.AddDbContext<WinnowDbContext>(); // Configuration happens in OnConfiguring dynamically
 

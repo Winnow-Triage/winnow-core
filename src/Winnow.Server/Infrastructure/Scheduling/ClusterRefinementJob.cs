@@ -113,6 +113,13 @@ public class ClusterRefinementJob(
         int suggestCount = 0;
         var processedIds = new HashSet<Guid>();
         var mergeMap = new Dictionary<Guid, Guid>(); // Track merges in THIS cycle to avoid loops
+        
+        // Resolve Singleton services from the OUTER scope (Singleton) via constructor injection if possible, 
+        // or just resolve from the scope provider since they are Singletons/Scoped appropriately.
+        // Actually, IDuplicateChecker is Scoped (per request/scope), INegativeMatchCache is Singleton.
+        // We can resolve both from the current scope.
+        var duplicateChecker = scope.ServiceProvider.GetRequiredService<Winnow.Server.Services.Ai.IDuplicateChecker>();
+        var negativeCache = scope.ServiceProvider.GetRequiredService<Winnow.Server.Services.Ai.INegativeMatchCache>();
 
         foreach (var leaderA in recentLeaders)
         {
@@ -193,7 +200,7 @@ public class ClusterRefinementJob(
                 // Otherwise, A remains the master and B should merge into A when it's B's turn.
                 var targetTicket = await db.Tickets.AsNoTracking()
                     .Where(t => t.Id == bestMatch.Id)
-                    .Select(t => new { t.Id, t.CreatedAt })
+                    .Select(t => new { t.Id, t.Title, t.Description, t.CreatedAt })
                     .FirstOrDefaultAsync(ct);
 
                 if (targetTicket == null) continue;
@@ -206,6 +213,34 @@ public class ClusterRefinementJob(
                         logger.LogDebug("Janitor [{TenantId}]: Possible merge {A} -> {B} skipped (Oldest Wins: {A} is older).",
                             tenantId, leaderA.Id, targetTicket.Id, leaderA.Id);
                         continue;
+                    }
+
+                    // SEMANTIC GATEKEEPER CHECK (0.15 - 0.35 range)
+                    if (bestMatch.Distance > 0.15)
+                    {
+                        // Check Negative Cache first!
+                        if (negativeCache.IsKnownMismatch(tenantId, leaderA.Id, targetTicket.Id))
+                        {
+                            logger.LogDebug("Janitor [{TenantId}]: Skipping known mismatch {A} -> {B} (Cache Hit).", tenantId, leaderA.Id, targetTicket.Id);
+                            
+                            // Downgrade to Suggestion immediately without checking LLM
+                            goto SuggestionPath;
+                        }
+
+                        // Verify with LLM
+                        var areDuplicates = await duplicateChecker.AreDuplicatesAsync(
+                            leaderA.Title, leaderA.Description!,
+                            targetTicket.Title, targetTicket.Description!,
+                            ct);
+
+                        if (!areDuplicates)
+                        {
+                            logger.LogInformation("Janitor [{TenantId}]: Semantic Gatekeeper VETOED merge {A} -> {B}. Caching negative match.", tenantId, leaderA.Id, targetTicket.Id);
+                            negativeCache.MarkAsMismatch(tenantId, leaderA.Id, targetTicket.Id);
+                            
+                            // Downgrade to Suggestion
+                            goto SuggestionPath;
+                        }
                     }
 
                     logger.LogInformation("Janitor [{TenantId}]: CLUSTER MERGE! {LeaderA} -> {ClusterLeader} (Centroid Match, Dist: {Dist:F3})",
@@ -229,8 +264,11 @@ public class ClusterRefinementJob(
                         processedIds.Add(leaderA.Id);
                         mergeMap[leaderA.Id] = bestMatch.Id; // Record the merge for transitive resolution in this cycle
                     }
+                    continue; // Skip suggestion path if merged
                 }
-                else if (bestMatch.Distance <= SuggestThreshold)
+
+                SuggestionPath:
+                if (bestMatch.Distance <= SuggestThreshold)
                 {
                     // Suggestions don't strictly need Oldest Wins but it helps stability
                     var ticketA = await db.Tickets.FindAsync([leaderA.Id], ct);

@@ -7,10 +7,15 @@ namespace Winnow.Server.Services.Ai;
 
 public class OllamaDuplicateChecker(
     [FromKeyedServices("Gatekeeper")] IChatCompletionService chatService,
+    Winnow.Server.Infrastructure.Configuration.LlmSettings settings,
     ILogger<OllamaDuplicateChecker> logger) : IDuplicateChecker
 {
     public async Task<bool> AreDuplicatesAsync(string titleA, string descA, string titleB, string descB, CancellationToken ct)
     {
+        // Debug Log to confirm we are using the correct model configuration
+        logger.LogInformation("Semantic Gatekeeper: Checking duplicates using model '{ModelId}' (Provider: {Provider})", 
+            settings.Ollama.GatekeeperModelId, settings.Provider);
+
         try
         {
             var prompt = $@"
