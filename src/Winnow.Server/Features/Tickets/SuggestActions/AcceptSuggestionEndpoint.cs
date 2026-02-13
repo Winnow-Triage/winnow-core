@@ -1,4 +1,5 @@
 using FastEndpoints;
+using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
 
@@ -33,8 +34,25 @@ public class AcceptSuggestionEndpoint(WinnowDbContext db) : Endpoint<AcceptSugge
             return;
         }
 
-        // Apply the suggestion
-        ticket.ParentTicketId = ticket.SuggestedParentId;
+        // Hierarchy Guard: Resolve target to its ultimate master
+        var target = await db.Tickets
+            .AsNoTracking()
+            .Where(t => t.Id == ticket.SuggestedParentId)
+            .Select(t => new { t.Id, t.ParentTicketId })
+            .FirstOrDefaultAsync(ct);
+
+        var ultimateParentId = target?.ParentTicketId ?? ticket.SuggestedParentId.Value;
+
+        // Prevent linking to self
+        if (ultimateParentId == ticket.Id)
+        {
+            AddError("Cannot accept suggestion: Circular reference detected.");
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+
+        // Apply the suggestion (Link to Master)
+        ticket.ParentTicketId = ultimateParentId;
         ticket.Status = "Duplicate";
         ticket.ConfidenceScore = ticket.SuggestedConfidenceScore;
 

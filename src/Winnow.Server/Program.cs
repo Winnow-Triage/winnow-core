@@ -15,6 +15,7 @@ builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddScoped<Winnow.Server.Infrastructure.Integrations.ExporterFactory>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<Winnow.Server.Services.Ai.IEmbeddingService, Winnow.Server.Services.Ai.EmbeddingService>();
+builder.Services.AddHostedService<Winnow.Server.Infrastructure.Scheduling.ClusterRefinementJob>();
 
 
 var llmSettings = new Winnow.Server.Infrastructure.Configuration.LlmSettings();

@@ -73,41 +73,70 @@ public class TicketCreatedConsumer(
 
                 if (validMatches.Count > 0)
                 {
-                    // 2. Find the best candidate
-                    // We prefer to link to a PARENT (where ParentTicketId is null) if possible.
-                    // But obviously, we can't ignore a 0.0 distance match just because it's a child.
+                    // 2. Identify candidate clusters (based on ultimate parents of top matches)
+                    var topMatchIds = validMatches.Take(10).Select(m => m.Id).ToList();
+                    var clusterMap = await dbContext.Tickets
+                        .AsNoTracking()
+                        .Where(t => topMatchIds.Contains(t.Id))
+                        .Select(t => new { t.Id, t.ParentTicketId })
+                        .ToDictionaryAsync(t => t.Id, t => t.ParentTicketId ?? t.Id, context.CancellationToken);
 
-                    // Strategy: Take the top 3 matches. If any of them is a Parent, pick that one. 
-                    // Otherwise, pick the closest one.
-                    var topCandidates = validMatches.Take(3).ToList();
+                    var candidateClusterIds = validMatches.Take(10)
+                        .Select(m => clusterMap[m.Id])
+                        .Distinct()
+                        .ToList();
 
-                    var bestMatch = topCandidates.FirstOrDefault(m => m.ParentTicketId == null)
-                                    ?? topCandidates.First();
+                    ClusterMatch? bestMatch = null;
 
-                    // 3. Resolve the Target ID
-                    // If we matched a Child, we want to link to its Parent (Grandparent logic)
-                    // If we matched a Parent, we link to it directly.
-                    var targetParentId = bestMatch.ParentTicketId ?? bestMatch.Id;
-
-                    logger.LogInformation("Best match is {MatchId} (Dist: {Dist}). Resolved Target Parent: {TargetId}",
-                        bestMatch.Id, bestMatch.Distance, targetParentId);
-
-                    if (bestMatch.Distance <= DistanceThreshold)
+                    foreach (var clusterId in candidateClusterIds)
                     {
-                        logger.LogInformation("Grouping {Id} -> {TargetId} (Dist: {Dist})",
-                            ticket.Id, targetParentId, bestMatch.Distance);
+                        // Fetch all members of this cluster to calculate centroid
+                        var members = await dbContext.Tickets
+                            .AsNoTracking()
+                            .Where(t => t.Id == clusterId || t.ParentTicketId == clusterId)
+                            .Select(t => t.Embedding)
+                            .Where(e => e != null)
+                            .ToListAsync(context.CancellationToken);
 
-                        ticket.ParentTicketId = targetParentId;
-                        ticket.Status = "Duplicate";
-                        ticket.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                        if (members.Count == 0) continue;
+
+                        // Calculate Centroid (Average Vector)
+                        var centroid = CalculateCentroid(members);
+
+                        // Calculate Distance to Centroid
+                        var centroidDist = CalculateCosineDistance(embeddingFloats, centroid);
+
+                        logger.LogInformation("Centroid Test: Cluster {ClusterId} has {Count} members. Distance: {Dist:F3}",
+                            clusterId, members.Count, centroidDist);
+
+                        if (bestMatch == null || centroidDist < bestMatch.Distance)
+                        {
+                            bestMatch = new ClusterMatch(clusterId, null, centroidDist);
+                        }
                     }
-                    else if (bestMatch.Distance <= 0.55)
-                    {
-                        logger.LogInformation("Suggesting {Id} -> {TargetId} (Dist: {Dist})",
-                            ticket.Id, targetParentId, bestMatch.Distance);
 
-                        ticket.SuggestedParentId = targetParentId;
-                        ticket.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                    if (bestMatch != null && bestMatch.Id != ticket.Id)
+                    {
+                        // Hierarchy Guard: Ensure we always link to a ROOT and avoid cycles
+                        var targetParentId = bestMatch.Id;
+
+                        if (bestMatch.Distance <= DistanceThreshold)
+                        {
+                            logger.LogInformation("Grouping {Id} -> {TargetId} (Centroid Match, Dist: {Dist:F3})",
+                                ticket.Id, targetParentId, bestMatch.Distance);
+
+                            ticket.ParentTicketId = targetParentId;
+                            ticket.Status = "Duplicate";
+                            ticket.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                        }
+                        else if (bestMatch.Distance <= 0.55)
+                        {
+                            logger.LogInformation("Suggesting {Id} -> {TargetId} (Centroid Suggest, Dist: {Dist:F3})",
+                                ticket.Id, targetParentId, bestMatch.Distance);
+
+                            ticket.SuggestedParentId = targetParentId;
+                            ticket.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                        }
                     }
                 }
             }
@@ -145,7 +174,39 @@ public class TicketCreatedConsumer(
         logger.LogInformation("Ticket {Id} synced to vector index. Content length: {Bytes}. Affected rows: {Aff}.",
             ticket.Id, embeddingBytes.Length, affected);
     }
+
+    private float[] CalculateCentroid(List<byte[]?> embeddings)
+    {
+        var validOnes = embeddings.Where(e => e != null).Cast<byte[]>().ToList();
+        if (validOnes.Count == 0) return Array.Empty<float>();
+
+        int length = validOnes[0].Length / sizeof(float);
+        float[] centroid = new float[length];
+        foreach (var bytes in validOnes)
+        {
+            for (int i = 0; i < length; i++)
+            {
+                centroid[i] += BitConverter.ToSingle(bytes, i * sizeof(float));
+            }
+        }
+        for (int i = 0; i < length; i++) centroid[i] /= validOnes.Count;
+        return centroid;
+    }
+
+    private double CalculateCosineDistance(float[] a, float[] b)
+    {
+        float dot = 0, ma = 0, mb = 0;
+        for (int i = 0; i < a.Length; i++)
+        {
+            dot += a[i] * b[i];
+            ma += a[i] * a[i];
+            mb += b[i] * b[i];
+        }
+        if (ma == 0 || mb == 0) return 1.0;
+        return 1.0 - (dot / (Math.Sqrt(ma) * Math.Sqrt(mb)));
+    }
 }
 
 // Helper Record for the Raw SQL Query
 internal record TicketMatch(Guid Id, Guid? ParentTicketId, double Distance);
+internal record ClusterMatch(Guid Id, Guid? ParentTicketId, double Distance);
