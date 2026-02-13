@@ -46,7 +46,7 @@ const items = [
 
 export function AppSidebar() {
     return (
-        <Sidebar collapsible="icon" variant="inset">
+        <Sidebar collapsible="icon" variant="sidebar">
             <SidebarContent>
                 <SidebarGroup>
                     <SidebarGroupLabel>Winnow Triage</SidebarGroupLabel>
