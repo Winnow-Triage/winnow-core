@@ -270,14 +270,14 @@ export default function TicketDetail() {
                 <div className="md:col-span-2 flex flex-col gap-6">
                     {/* AI Summary Section - Show if summary exists or if it's a cluster parent */}
                     {(ticket.summary || ticket.criticalityScore || ticket.evidence.length > 0) && (
-                        <Card className="border-purple-500/30 bg-[#160d33] dark:bg-[#160d33] shadow-2xl shadow-purple-500/10 relative overflow-hidden group transition-all duration-300">
+                        <Card className="border-purple-200 dark:border-purple-500/30 bg-purple-50/50 dark:bg-[#160d33] shadow-xl shadow-purple-500/5 dark:shadow-purple-500/10 relative overflow-hidden group transition-all duration-300">
                             {/* Inner Glow Border Overlay */}
-                            <div className="absolute inset-0 z-0 pointer-events-none border border-transparent bg-gradient-to-br from-purple-500/10 via-transparent to-indigo-500/10 rounded-xl transition-opacity opacity-20 group-hover:opacity-100" />
+                            <div className="absolute inset-0 z-0 pointer-events-none border border-transparent bg-gradient-to-br from-purple-500/5 via-transparent to-indigo-500/5 dark:from-purple-500/10 dark:to-indigo-500/10 rounded-xl transition-opacity opacity-100" />
 
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
                                 <div className="flex flex-col gap-1">
-                                    <CardTitle className="text-xl font-bold flex items-center gap-2 tracking-tight text-white dark:text-white">
-                                        <Sparkles className="h-5 w-5 text-purple-400 fill-purple-500/20 animate-spin-slow" />
+                                    <CardTitle className="text-xl font-bold flex items-center gap-2 tracking-tight text-purple-900 dark:text-white">
+                                        <Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400 fill-purple-500/20 animate-spin-slow" />
                                         AI Perspective
                                     </CardTitle>
                                     {ticket.criticalityScore && (
@@ -382,31 +382,32 @@ export default function TicketDetail() {
                             </CardHeader>
                             <CardContent className="relative min-h-[120px] z-10 pt-4">
                                 {isGeneratingSummary && ticket.summary && (
-                                    <div className="absolute inset-0 bg-[#0f0a1f] flex items-center justify-center z-20 rounded-b-xl transition-all duration-300">
-                                        <div className="flex flex-col items-center gap-3 text-white animate-in fade-in zoom-in duration-500">
+                                    <div className="absolute inset-0 bg-white/50 dark:bg-[#0f0a1f] flex items-center justify-center z-20 rounded-b-xl transition-all duration-300 backdrop-blur-sm">
+                                        <div className="flex flex-col items-center gap-3 text-purple-900 dark:text-white animate-in fade-in zoom-in duration-500">
                                             <div className="relative">
-                                                <Sparkles className="h-8 w-8 text-purple-400 animate-spin-slow" />
-                                                <RotateCw className="h-8 w-8 absolute inset-0 text-purple-400 animate-spin opacity-40" />
+                                                <Sparkles className="h-8 w-8 text-purple-600 dark:text-purple-400 animate-spin-slow" />
+                                                <RotateCw className="h-8 w-8 absolute inset-0 text-purple-600 dark:text-purple-400 animate-spin opacity-40" />
                                             </div>
-                                            <span className="font-bold text-sm tracking-widest uppercase text-purple-200">Analyzing Data...</span>
+                                            <span className="font-bold text-sm tracking-widest uppercase text-purple-700 dark:text-purple-200">Analyzing Data...</span>
                                         </div>
                                     </div>
                                 )}
                                 {ticket.summary ? (
-                                    <div className="prose prose-invert max-w-none 
-                                        text-purple-50 
-                                        prose-headings:text-purple-100 
-                                        prose-strong:text-white 
+                                    <div className="prose prose-sm max-w-none 
+                                        text-purple-900 dark:text-purple-50 
+                                        prose-headings:text-purple-900 dark:prose-headings:text-purple-100 
+                                        prose-strong:text-purple-950 dark:prose-strong:text-white 
+                                        prose-a:text-purple-700 dark:prose-a:text-purple-300
                                         relative z-10">
                                         <ReactMarkdown>{ticket.summary}</ReactMarkdown>
                                     </div>
                                 ) : (
                                     <div className="flex flex-col items-center justify-center py-8 gap-4 text-center">
-                                        <div className="p-4 bg-purple-900/30 rounded-full animate-pulse">
-                                            <Sparkles className="h-8 w-8 text-purple-400" />
+                                        <div className="p-4 bg-purple-100 dark:bg-purple-900/30 rounded-full animate-pulse">
+                                            <Sparkles className="h-8 w-8 text-purple-600 dark:text-purple-400" />
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-sm font-semibold text-purple-200">No AI Insight Available</p>
+                                            <p className="text-sm font-semibold text-purple-900 dark:text-purple-200">No AI Insight Available</p>
                                             <p className="text-xs text-muted-foreground max-w-[240px]">This ticket has not been analyzed yet. Run the AI perspective to generate a cluster-wide summary.</p>
                                         </div>
                                     </div>
