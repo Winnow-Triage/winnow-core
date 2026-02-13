@@ -47,7 +47,7 @@ export default function ReviewSuggestions() {
 
     const acceptMutation = useMutation({
         mutationFn: async (id: string) => {
-            await api.post(`/tickets/${id}/accept-suggestion`)
+            await api.post(`/tickets/${id}/accept-suggestion`, {})
         },
         onSuccess: () => {
             toast.success("Merged into cluster")
