@@ -28,6 +28,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, RotateCw, Trash2 } from 'lucide-react';
+import { ConsoleLogsCard } from '@/components/dashboard/ConsoleLogsCard';
 
 interface RelatedTicket {
     id: string;
@@ -493,12 +494,14 @@ export default function TicketDetail() {
                                             {(() => {
                                                 try {
                                                     const metadata = JSON.parse(ticket.metadataJson);
-                                                    return Object.entries(metadata).map(([key, value]) => (
-                                                        <React.Fragment key={key}>
-                                                            <span className="text-xs font-medium text-muted-foreground uppercase">{key}</span>
-                                                            <span className="text-xs text-right font-mono">{String(value)}</span>
-                                                        </React.Fragment>
-                                                    ));
+                                                    return Object.entries(metadata)
+                                                        .filter(([key]) => key !== 'logs' && key !== 'context') // Filter logs and generic context if redundant
+                                                        .map(([key, value]) => (
+                                                            <React.Fragment key={key}>
+                                                                <span className="text-xs font-medium text-muted-foreground uppercase">{key}</span>
+                                                                <span className="text-xs text-right font-mono truncate" title={String(value)}>{String(value)}</span>
+                                                            </React.Fragment>
+                                                        ));
                                                 } catch (e) {
                                                     return <span className="text-xs text-red-500">Error parsing metadata</span>;
                                                 }
@@ -546,6 +549,17 @@ export default function TicketDetail() {
                     </Card>
                 </div>
             </div>
+
+            {/* Console Logs Section - Full Width */}
+            {ticket.metadataJson && (() => {
+                try {
+                    const metadata = JSON.parse(ticket.metadataJson);
+                    if (metadata.logs) {
+                        return <ConsoleLogsCard logs={metadata.logs} />;
+                    }
+                } catch { return null; }
+                return null;
+            })()}
 
             <AlertDialog open={confirmAction.isOpen} onOpenChange={(open: boolean) => {
                 if (!open) setConfirmAction({ ...confirmAction, isOpen: false });
