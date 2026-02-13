@@ -20,7 +20,7 @@ export function WinnowGauge({ percent, hoursSaved }: WinnowGaugeProps) {
                 </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col items-center justify-center pt-4">
-                <div className="relative w-48 h-24 overflow-hidden mb-4">
+                <div className="relative w-48 h-24 overflow-hidden mb-2">
                     {/* Background Arc */}
                     <div className="absolute top-0 left-0 w-48 h-48 rounded-full border-[12px] border-muted bg-transparent"></div>
                     {/* Active Arc - Simplified CSS for now, or use SVG */}
@@ -37,11 +37,13 @@ export function WinnowGauge({ percent, hoursSaved }: WinnowGaugeProps) {
                         />
                     </svg>
 
-                    <div className="text-center -mt-8">
+                    <div className="text-center -mt-10">
                         <div className="text-4xl font-bold">{Math.round(percent * 100)}%</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest mt-1">
-                            Noise Filtered
-                        </div>
+                    </div>
+                </div>
+                <div className="text-center -mt-2 mb-4">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest font-medium">
+                        Noise Filtered
                     </div>
                 </div>
 
