@@ -197,6 +197,7 @@ public class TicketCreatedConsumer(
             ticket.ConfidenceScore = 1.0f;
         }
 
+        /* Auto-Export Disabled in favor of Manual Export Workflow
         if (ticket.Status != "Duplicate" && ticket.Status != "Duplicate (StackHash)" && ticket.Status != "Exported")
         {
             logger.LogInformation("New Unique Ticket {Id}. Exporting to downstream.", ticket.Id);
@@ -210,6 +211,7 @@ public class TicketCreatedConsumer(
                 logger.LogError(ex, "Failed to export ticket {Id}", ticket.Id);
             }
         }
+        */
 
         // 7. Save the Ticket (and parent assignment if any)
         await dbContext.SaveChangesAsync(context.CancellationToken);

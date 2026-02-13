@@ -15,36 +15,47 @@ public class ExporterFactory(
 {
     public async Task<ITicketExporter> GetExporterAsync(CancellationToken ct = default)
     {
-        // 1. Resolve Tenant context
-        var tenantId = tenantContext.TenantId ?? "default";
-
+        // Default behavior: Pick the first active one (or null)
         try
         {
-            // 2. Query the database for an active integration config
-            // Use try-catch because in SQLite, if the table doesn't exist yet, this will throw.
             var config = await dbContext.IntegrationConfigs
                 .AsNoTracking()
                 .Where(c => c.IsActive)
                 .FirstOrDefaultAsync(ct);
 
             if (config == null) return new NullExporter();
-
-            var client = httpClientFactory.CreateClient("Exporter");
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-            return config.Provider.ToLowerInvariant() switch
-            {
-                "github" => CreateGitHubExporter(config.SettingsJson, client, options),
-                "trello" => CreateTrelloExporter(config.SettingsJson, client, options),
-                "jira" => CreateJiraExporter(config.SettingsJson, client, options),
-                _ => new NullExporter()
-            };
+            return CreateExporterFromConfig(config);
         }
-        catch (Exception)
+        catch { return new NullExporter(); }
+    }
+
+    public async Task<ITicketExporter> GetExporterByIdAsync(Guid configId, CancellationToken ct = default)
+    {
+        try
         {
-            // If table doesn't exist or other DB error, fallback to Null
-            return new NullExporter();
+            var config = await dbContext.IntegrationConfigs
+                .AsNoTracking()
+                .Where(c => c.Id == configId && c.IsActive)
+                .FirstOrDefaultAsync(ct);
+
+            if (config == null) return new NullExporter();
+            return CreateExporterFromConfig(config);
         }
+        catch { return new NullExporter(); }
+    }
+
+    private ITicketExporter CreateExporterFromConfig(IntegrationConfig config)
+    {
+        var client = httpClientFactory.CreateClient("Exporter");
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+        return config.Provider.ToLowerInvariant() switch
+        {
+            "github" => CreateGitHubExporter(config.SettingsJson, client, options),
+            "trello" => CreateTrelloExporter(config.SettingsJson, client, options),
+            "jira" => CreateJiraExporter(config.SettingsJson, client, options),
+            _ => new NullExporter()
+        };
     }
 
     private ITicketExporter CreateGitHubExporter(string json, HttpClient client, JsonSerializerOptions options)

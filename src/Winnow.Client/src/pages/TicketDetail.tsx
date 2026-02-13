@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
@@ -157,9 +157,10 @@ export default function TicketDetail() {
                         <ExternalLink className="mr-2 h-4 w-4" />
                         Open in External System
                     </Button>
-                    <Button>
-                        Export to Trello
-                    </Button>
+                    <ExportMenu ticketId={ticket.id} onExport={() => {
+                        queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+                        queryClient.invalidateQueries({ queryKey: ['tickets'] });
+                    }} />
                 </div>
             </div>
 
@@ -551,5 +552,66 @@ export default function TicketDetail() {
                 </AlertDialogContent>
             </AlertDialog>
         </div>
+    );
+}
+
+function ExportMenu({ ticketId, onExport }: { ticketId: string, onExport: () => void }) {
+    const { data: integrations } = useQuery<{ id: string, provider: string, name: string }[]>({
+        queryKey: ['integrations'],
+        queryFn: async () => {
+            const { data } = await api.get('/integrations');
+            return data;
+        },
+        retry: false
+    });
+
+    const queryClient = useQueryClient();
+
+    const exportMutation = useMutation({
+        mutationFn: async (configId: string) => {
+            await api.post(`/tickets/${ticketId}/export`, { configId });
+        },
+        onSuccess: () => {
+            onExport();
+            // Trigger a refetch to show updated status
+            queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] });
+        }
+    });
+
+    if (!integrations || integrations.length === 0) return (
+        <Button variant="ghost" disabled title="No integration configured">
+            Export Unavailable
+        </Button>
+    );
+
+    if (integrations.length === 1) {
+        return (
+            <Button
+                onClick={() => exportMutation.mutate(integrations[0].id)}
+                disabled={exportMutation.isPending}
+            >
+                {exportMutation.isPending ? 'Exporting...' : `Export to ${integrations[0].provider}`}
+            </Button>
+        );
+    }
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button disabled={exportMutation.isPending}>
+                    {exportMutation.isPending ? 'Exporting...' : 'Export To...'}
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                {integrations.map(config => (
+                    <DropdownMenuItem
+                        key={config.id}
+                        onClick={() => exportMutation.mutate(config.id)}
+                    >
+                        Export to {config.name}
+                    </DropdownMenuItem>
+                ))}
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }
