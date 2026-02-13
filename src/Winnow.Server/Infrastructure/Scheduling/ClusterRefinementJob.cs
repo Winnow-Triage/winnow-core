@@ -135,23 +135,31 @@ public class ClusterRefinementJob(
                 .ToDictionaryAsync(t => t.Id, t => new { t.ParentTicketId, t.CreatedAt }, ct);
 
             // Group by ultimate parent
-            var clusterGroups = matches
+            var clusterGroupsRaw = matches
                 .Select(m =>
                 {
                     var info = parentInfo[m.Id];
-                    var ultimateParentId = info.ParentTicketId ?? m.Id;
+                    var currentParentId = info.ParentTicketId ?? m.Id;
 
                     // Trace forward if the parent was merged in THIS cycle
-                    while (mergeMap.TryGetValue(ultimateParentId, out var nextParent))
+                    while (mergeMap.TryGetValue(currentParentId, out var nextParent))
                     {
-                        ultimateParentId = nextParent;
+                        currentParentId = nextParent;
                     }
 
-                    return new { m.Id, m.Title, m.Distance, UltimateParentId = ultimateParentId };
+                    return new { Match = m, UltimateParentId = currentParentId };
                 })
                 .Where(m => m.UltimateParentId != leaderA.Id) // Don't match self
                 .GroupBy(m => m.UltimateParentId)
                 .ToList();
+
+            var clusterGroups = new List<(Guid Key, List<TicketMatch> Items)>();
+            foreach (var group in clusterGroupsRaw)
+            {
+                // DEEP RESOLUTION: Ensure the group key itself is a true root in the DB
+                var trueRootId = await db.ResolveUltimateMasterAsync(group.Key, ct);
+                clusterGroups.Add((trueRootId, group.Select(g => g.Match).ToList()));
+            }
 
             ClusterMatch? bestMatch = null;
             float[] leaderAFloats = BytesToFloats(leaderA.Embedding);
@@ -175,7 +183,7 @@ public class ClusterRefinementJob(
 
                 if (bestMatch == null || centroidDist < bestMatch.Distance)
                 {
-                    bestMatch = new ClusterMatch(clusterId, group.First().Title, centroidDist);
+                    bestMatch = new ClusterMatch(clusterId, group.Items.First().Title, centroidDist);
                 }
             }
 

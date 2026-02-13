@@ -34,14 +34,8 @@ public class AcceptSuggestionEndpoint(WinnowDbContext db) : Endpoint<AcceptSugge
             return;
         }
 
-        // Hierarchy Guard: Resolve target to its ultimate master
-        var target = await db.Tickets
-            .AsNoTracking()
-            .Where(t => t.Id == ticket.SuggestedParentId)
-            .Select(t => new { t.Id, t.ParentTicketId })
-            .FirstOrDefaultAsync(ct);
-
-        var ultimateParentId = target?.ParentTicketId ?? ticket.SuggestedParentId.Value;
+        // Hierarchy Guard: Resolve target to ultimate master to prevent chains
+        var ultimateParentId = await db.ResolveUltimateMasterAsync(ticket.SuggestedParentId.Value, ct);
 
         // Prevent linking to self
         if (ultimateParentId == ticket.Id)

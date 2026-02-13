@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Winnow.Integrations;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Infrastructure.Scheduling;
 
 namespace Winnow.Server.Features.Tickets.Create;
 
@@ -117,8 +118,8 @@ public class TicketCreatedConsumer(
 
                     if (bestMatch != null && bestMatch.Id != ticket.Id)
                     {
-                        // Hierarchy Guard: Ensure we always link to a ROOT and avoid cycles
-                        var targetParentId = bestMatch.Id;
+                        // Hierarchy Guard: Ensure we always link to the absolute ROOT
+                        var targetParentId = await dbContext.ResolveUltimateMasterAsync(bestMatch.Id, context.CancellationToken);
 
                         if (bestMatch.Distance <= DistanceThreshold)
                         {
