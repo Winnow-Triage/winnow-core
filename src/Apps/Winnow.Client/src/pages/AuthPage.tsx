@@ -11,26 +11,76 @@ export default function AuthPage() {
     const navigate = useNavigate()
     const [isSignUp, setIsSignUp] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+    const API_URL = "http://localhost:5294";
 
     useEffect(() => {
         setIsSignUp(location.pathname === '/signup')
     }, [location.pathname])
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsLoading(true)
+        setError(null)
 
-        // "Hollow" Action
-        localStorage.setItem('user', 'demo')
+        // Note: Inputs in the form need 'name' attributes for FormData to work
+        const email = (document.getElementById('email') as HTMLInputElement).value;
+        const password = (document.getElementById('password') as HTMLInputElement).value;
+        const nameInput = document.getElementById('name') as HTMLInputElement;
+        const fullName = nameInput ? nameInput.value : "";
 
-        setTimeout(() => {
-            setIsLoading(false)
-            if (isSignUp) {
-                navigate('/setup')
-            } else {
-                navigate('/dashboard')
+        try {
+            const endpoint = isSignUp ? "/auth/register" : "/auth/login";
+            const payload = isSignUp
+                ? { email, password, fullName }
+                : { email, password };
+
+            const response = await fetch(`${API_URL}${endpoint}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                let errorMessage = errorData.message || `Authentication failed: ${response.statusText}`;
+
+                // Parse ValidationProblemDetails 'errors' object
+                if (errorData.errors) {
+                    const validationErrors = Object.values(errorData.errors).flat();
+                    if (validationErrors.length > 0) {
+                        errorMessage = validationErrors.join(' ');
+                    }
+                }
+
+                throw new Error(errorMessage);
             }
-        }, 800)
+
+            const data = await response.json();
+
+            // Store Auth Data
+            localStorage.setItem("authToken", data.token);
+            // Also keep 'user' for legacy/compatibility if needed, but store rich object
+            localStorage.setItem("user", JSON.stringify({
+                id: data.userId,
+                email: data.email,
+                name: data.fullName,
+                defaultProjectId: data.defaultProjectId
+            }));
+
+            // Navigation
+            if (isSignUp) {
+                navigate('/setup');
+            } else {
+                navigate('/dashboard');
+            }
+
+        } catch (err: any) {
+            console.error("Auth Error:", err);
+            setError(err.message || "Something went wrong. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
     }
 
     const toggleMode = () => {
@@ -140,6 +190,12 @@ export default function AuthPage() {
                                 <Input id="name" placeholder="John Doe" required />
                             </div>
                         )}
+
+                        {error && (
+                            <div className="p-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 rounded-md animate-prev-slide-in-right">
+                                {error}
+                            </div>
+                        )}
                         <div className="space-y-2">
                             <Label htmlFor="email">Email</Label>
                             <Input id="email" type="email" placeholder="name@example.com" required />
@@ -147,6 +203,11 @@ export default function AuthPage() {
                         <div className="space-y-2">
                             <Label htmlFor="password">Password</Label>
                             <Input id="password" type="password" required />
+                            {isSignUp && (
+                                <p className="text-xs text-muted-foreground">
+                                    Minimum 6 characters. Requires upper & lower case letters, a digit, and a non-alphanumeric character (e.g., !, @, #).
+                                </p>
+                            )}
                         </div>
 
                         <Button
