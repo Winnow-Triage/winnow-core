@@ -9,7 +9,7 @@ export function Hero() {
                     Duplicate Bug Reports.
                 </h1>
                 <p className="max-w-[750px] text-lg text-muted-foreground sm:text-xl">
-                    Winnow uses AI to instantly group, analyze, and triage user feedback from your web apps.
+                    Winnow uses AI to instantly group, analyze, and triage user feedback from your apps.
                     Catch issues before they flood your inbox.
                 </p>
                 <div className="flex gap-4 mt-4">
