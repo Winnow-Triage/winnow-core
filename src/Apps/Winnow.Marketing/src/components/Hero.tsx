@@ -1,4 +1,5 @@
 import { MoveRight } from 'lucide-react';
+import { LightboxImage } from './ui/LightboxImage';
 
 export function Hero() {
     return (
@@ -37,15 +38,17 @@ export function Hero() {
 
                     {/* Image Content */}
                     <div className="aspect-[16/9] w-full bg-slate-100 dark:bg-slate-900">
-                        <img
+                        <LightboxImage
                             src="/triage-dashboard-light.png"
                             alt="Winnow Dashboard Light Mode"
-                            className="w-full h-auto rounded-b-xl object-cover dark:hidden"
+                            className="w-full h-auto dark:hidden rounded-b-xl"
+                            imageClassName="rounded-b-xl object-cover"
                         />
-                        <img
+                        <LightboxImage
                             src="/triage-dashboard-dark.png"
                             alt="Winnow Dashboard Dark Mode"
-                            className="w-full h-auto rounded-b-xl object-cover hidden dark:block"
+                            className="w-full h-auto hidden dark:block rounded-b-xl"
+                            imageClassName="rounded-b-xl object-cover"
                         />
                     </div>
                 </div>

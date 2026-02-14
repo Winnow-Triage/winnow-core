@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { LightboxImage } from './ui/LightboxImage';
 
 interface DeepDiveRowProps {
     title: ReactNode;
@@ -54,19 +55,19 @@ function DeepDiveRow({
                     <div className="bg-slate-100 dark:bg-slate-950 flex items-center justify-center relative">
                         {imageDarkSrc ? (
                             <>
-                                <img
+                                <LightboxImage
                                     src={imageSrc}
                                     alt={imageAlt}
                                     className="w-full h-auto dark:hidden"
                                 />
-                                <img
+                                <LightboxImage
                                     src={imageDarkSrc}
                                     alt={imageAlt}
                                     className="w-full h-auto hidden dark:block"
                                 />
                             </>
                         ) : (
-                            <img
+                            <LightboxImage
                                 src={imageSrc}
                                 alt={imageAlt}
                                 className="w-full h-auto"
