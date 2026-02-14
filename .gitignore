@@ -35,8 +35,15 @@ dist-ssr/
 .env.test.local
 .env.production.local
 
+
 # ========================
-# 3. Databases (CRITICAL)
+# 3. Go
+# ========================
+*/bin/
+*/dist/
+
+# ========================
+# 4. Databases (CRITICAL)
 # ========================
 # Ignore all SQLite database files anywhere in the repo
 *.db
@@ -49,7 +56,7 @@ src/Winnow.Server/Data/*
 !src/Winnow.Server/Data/.gitkeep
 
 # ========================
-# 4. AI & Large Binary Files
+# 5. AI & Large Binary Files
 # ========================
 # Ignore the model files
 *.onnx
@@ -73,7 +80,7 @@ vec0.so
 vec0.dylib
 
 # ========================
-# 5. OS & IDE Clutter
+# 6. OS & IDE Clutter
 # ========================
 .DS_Store
 Thumbs.db
@@ -86,7 +93,7 @@ Thumbs.db
 !.vscode/tasks.json
 
 # ========================
-# 6. Secrets
+# 7. Secrets
 # ========================
 appsettings.Development.json
 appsettings.Local.json
