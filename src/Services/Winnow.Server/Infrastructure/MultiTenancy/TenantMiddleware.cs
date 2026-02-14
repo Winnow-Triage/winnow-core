@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Infrastructure.MultiTenancy;
@@ -8,6 +9,7 @@ namespace Winnow.Server.Infrastructure.MultiTenancy;
 public class TenantMiddleware(RequestDelegate next)
 {
     private static readonly ConcurrentDictionary<string, bool> _initializedTenants = new();
+    private static readonly SemaphoreSlim _migrationLock = new(1, 1);
 
     public async Task InvokeAsync(HttpContext context, ITenantContext tenantContext, WinnowDbContext dbContext)
     {
@@ -36,8 +38,19 @@ public class TenantMiddleware(RequestDelegate next)
         var currentTenantId = tenantContext.TenantId ?? "default";
         if (!_initializedTenants.ContainsKey(currentTenantId))
         {
-            await dbContext.Database.EnsureCreatedAsync();
-            _initializedTenants.TryAdd(currentTenantId, true);
+            await _migrationLock.WaitAsync();
+            try
+            {
+                if (!_initializedTenants.ContainsKey(currentTenantId))
+                {
+                    await dbContext.Database.MigrateAsync();
+                    _initializedTenants.TryAdd(currentTenantId, true);
+                }
+            }
+            finally
+            {
+                _migrationLock.Release();
+            }
         }
 
         await next(context);

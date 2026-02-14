@@ -1,10 +1,11 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Entities;
 using Winnow.Server.Infrastructure.MultiTenancy;
 
 namespace Winnow.Server.Infrastructure.Persistence;
 
-public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantContext tenantContext) : DbContext(options)
+public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantContext tenantContext) : IdentityDbContext<ApplicationUser>(options)
 {
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -52,4 +53,5 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
 
     public DbSet<Ticket> Tickets { get; set; } = null!;
     public DbSet<IntegrationConfig> IntegrationConfigs { get; set; } = null!;
+    public DbSet<Project> Projects { get; set; } = null!;
 }

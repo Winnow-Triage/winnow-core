@@ -11,6 +11,8 @@
     <PackageReference Include="FastEndpoints" Version="7.2.0" />
     <PackageReference Include="FastEndpoints.Swagger" Version="7.2.0" />
     <PackageReference Include="MassTransit" Version="8.3.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.12" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -27,8 +29,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Winnow.Sdk\Winnow.Sdk.csproj" />
-    <ProjectReference Include="..\Winnow.Integrations\Winnow.Integrations.csproj" />
+    <ProjectReference Include="../../Sdks/Winnow.Sdk.DotNet/Winnow.Sdk.csproj" />
+    <ProjectReference Include="../Winnow.Integrations/Winnow.Integrations.csproj" />
   </ItemGroup>
 
   <ItemGroup>

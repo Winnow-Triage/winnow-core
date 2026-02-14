@@ -7,6 +7,7 @@ using Winnow.Integrations;
 using Winnow.Server.Infrastructure.Configuration;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -59,6 +60,31 @@ builder.Services.AddScoped<Winnow.Server.Features.Dashboard.IDashboardService, W
 
 builder.Services.AddDbContext<WinnowDbContext>(); // Configuration happens in OnConfiguring dynamically
 
+builder.Services.AddIdentity<Winnow.Server.Entities.ApplicationUser, Microsoft.AspNetCore.Identity.IdentityRole>()
+    .AddEntityFrameworkStores<WinnowDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidAudience = jwtSettings["Audience"],
+        IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
+            System.Text.Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? "super_secret_key_at_least_32_chars_long_for_safety"))
+    };
+});
+
 builder.Services.AddFastEndpoints();
 builder.Services.SwaggerDocument();
 builder.Services.AddAuthorization();
@@ -87,7 +113,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
-    db.Database.EnsureCreated();
+    db.Database.Migrate();
 
     // SQLite multi-tenancy: Apply schema changes to ALL tenant databases
     var dataDir = Path.Combine(builder.Environment.ContentRootPath, "Data");
@@ -142,6 +168,7 @@ using (var scope = app.Services.CreateScope())
 
 app.UseMiddleware<TenantMiddleware>();
 
+app.UseAuthentication();
 app.UseAuthorization();
 app.UseStaticFiles();
 app.UseCors();
