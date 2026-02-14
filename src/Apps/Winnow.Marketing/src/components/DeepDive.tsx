@@ -88,7 +88,7 @@ export function DeepDive() {
                 {/* Row 1: Intelligence */}
                 <DeepDiveRow
                     title={<>Your Triage Assistant, <br /><span className="text-primary">Not Just a Log.</span></>}
-                    description='Most tools dump raw logs on you. Winnow uses Vector AI (Phi-3 and MiniLM) to analyze the semantic meaning of errors, grouping "Login Failed" and "Auth Error" into the same cluster automatically.'
+                    description='Most tools dump raw logs on you. Winnow uses Vector AI (Phi-3 and MiniLM) to analyze the semantic meaning of errors, like grouping "Login Failed" and "Auth Error" into the same cluster automatically.'
                     imageSrc="/clusters-dashboard-light.png"
                     imageDarkSrc="/clusters-dashboard-dark.png"
                     imageAlt="Cluster View"
