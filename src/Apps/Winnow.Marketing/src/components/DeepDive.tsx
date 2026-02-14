@@ -1,4 +1,4 @@
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Trello, Github, KanbanSquare } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { LightboxImage } from './ui/LightboxImage';
 
@@ -136,6 +136,31 @@ export function DeepDive() {
                         <div className="flex items-center text-sm font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-1 rounded-full border border-amber-200 dark:border-amber-800">
                             <span className="w-2 h-2 rounded-full bg-amber-500 mr-2 animate-pulse"></span>
                             Human in the Loop
+                        </div>
+                    </div>
+                </DeepDiveRow>
+
+                {/* Row 4: Integrations */}
+                <DeepDiveRow
+                    title={<>Don't Change <br /><span className="text-primary">Your Workflow.</span></>}
+                    description="Winnow isn't another project management tool. It's the filter. Once you've triaged a cluster, export it to Trello, Jira, or GitHub with a single click. We send the logs, the context, and the summary right to your engineers."
+                    imageSrc="/triage-export-light.png"
+                    imageDarkSrc="/triage-export-dark.png"
+                    imageAlt="Export to Trello Action"
+                    reverse={true}
+                >
+                    <div className="flex items-center gap-6 text-slate-400">
+                        <div className="flex flex-col items-center gap-2 hover:text-[#0079BF] transition-colors">
+                            <Trello className="h-8 w-8" />
+                            <span className="text-xs font-medium">Trello</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-2 hover:text-[#0052CC] transition-colors">
+                            <KanbanSquare className="h-8 w-8" />
+                            <span className="text-xs font-medium">Jira</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-2 hover:text-black dark:hover:text-white transition-colors">
+                            <Github className="h-8 w-8" />
+                            <span className="text-xs font-medium">GitHub</span>
                         </div>
                     </div>
                 </DeepDiveRow>
