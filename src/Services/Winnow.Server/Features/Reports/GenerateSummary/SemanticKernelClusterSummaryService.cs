@@ -14,6 +14,7 @@ public class SemanticKernelClusterSummaryService(Kernel kernel) : IClusterSummar
         if (reportList.Count == 0) return new ClusterSummaryResult("No reports to summarize.", null, null);
 
         var sb = new StringBuilder();
+        var count = reportList.Count;
         sb.AppendLine("Here are the reports in this cluster:");
         foreach (var report in reportList)
         {
@@ -39,16 +40,16 @@ public class SemanticKernelClusterSummaryService(Kernel kernel) : IClusterSummar
             - **10 (Critical)**: Total system outage, major data loss, critical security breach (PII exposure), or widespread/catastrophic financial corruption.
             - **8-9 (High)**: Core functionality failures (e.g., Login, Payments, Checkout, Data Sync), financial impact to individuals (e.g., double-charging), or severe performance degradation. **Assign these even if only one report is present.**
             - **5-7 (Medium)**: Broken features with workarounds, major usability hurdles, or recurring regressions that impact workflow.
-            - **1-4 (Low)**: Cosmetic issues, typos, minor functional bugs with easy workarounds, or general information requests.
+            - **1-4 (Low)**: Cosmetic issues, typos, minor functional bugs with easy workarounds, UI alignment or spacing issues, or general information requests.
 
             Provide your response in the following JSON format ONLY:
             {
                 "summary": "Markdown string here...",
-                "criticalityScore": 5,
+                "criticalityScore": <int>,
                 "criticalityReasoning": "Concise explanation for the assigned score based on the rubric above, explaining the SEVERITY of the issue type."
             }
 
-            Reports:
+            Reports ({{count}}):
             {{sb}}
             """;
 
