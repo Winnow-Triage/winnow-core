@@ -4,11 +4,11 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{F161D62E-8757-4DD2-8D27-F072947FFAE1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Winnow.Server", "src\Winnow.Server\Winnow.Server.csproj", "{0ACD684E-9F59-45CF-A5B3-7B7013B93ABB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Winnow.Server", "src\Services\Winnow.Server\Winnow.Server.csproj", "{0ACD684E-9F59-45CF-A5B3-7B7013B93ABB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Winnow.Sdk", "src\Winnow.Sdk\Winnow.Sdk.csproj", "{EB1569D4-D55B-4A6E-A418-21EE699A79C1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Winnow.Sdk", "src\Sdks\Winnow.Sdk.DotNet\Winnow.Sdk.csproj", "{EB1569D4-D55B-4A6E-A418-21EE699A79C1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Winnow.Integrations", "src\Winnow.Integrations\Winnow.Integrations.csproj", "{D33331E7-247D-47B0-ACD3-A0B7A626A68A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Winnow.Integrations", "src\Services\Winnow.Integrations\Winnow.Integrations.csproj", "{D33331E7-247D-47B0-ACD3-A0B7A626A68A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
