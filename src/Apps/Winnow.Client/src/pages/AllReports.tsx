@@ -15,6 +15,7 @@ import { useState } from 'react';
 
 interface Report {
     id: string;
+    title: string;
     message: string;
     status: string;
     createdAt: string;
@@ -35,7 +36,8 @@ export default function AllReports() {
     });
 
     const filteredReports = reports?.filter(t =>
-        t.message.toLowerCase().includes(search.toLowerCase()) ||
+        t.title?.toLowerCase().includes(search.toLowerCase()) ||
+        t.message?.toLowerCase().includes(search.toLowerCase()) ||
         t.status.toLowerCase().includes(search.toLowerCase())
     ) || [];
 
@@ -76,7 +78,7 @@ export default function AllReports() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="cursor-pointer" onClick={() => handleSort('message')}>Message</TableHead>
+                            <TableHead className="cursor-pointer" onClick={() => handleSort('title')}>Title</TableHead>
                             <TableHead className="cursor-pointer" onClick={() => handleSort('status')}>Status</TableHead>
                             <TableHead className="cursor-pointer" onClick={() => handleSort('createdAt')}>Created</TableHead>
                             <TableHead>Cluster</TableHead>
@@ -97,7 +99,7 @@ export default function AllReports() {
                                 <TableRow key={report.id}>
                                     <TableCell className="font-medium">
                                         <Link to={`/reports/${report.id}`} className="hover:underline block">
-                                            {report.message}
+                                            {report.title || report.message}
                                         </Link>
                                     </TableCell>
                                     <TableCell>

@@ -4,6 +4,7 @@ public class Report
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid ProjectId { get; set; } // Foreign Key
+    public string Title { get; set; } = default!;
     public string Message { get; set; } = default!;
     public string? StackTrace { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

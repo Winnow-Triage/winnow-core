@@ -40,6 +40,14 @@ public class GenerateClusterSummaryEndpoint(WinnowDbContext db, IClusterSummaryS
         
         var result = await summaryService.GenerateSummaryAsync(relatedReports, ct);
 
+        if (result.IsError)
+        {
+            Logger.LogWarning("AI summary generation failed for report {ReportId}: {Error}", req.Id, result.Summary);
+            HttpContext.Response.StatusCode = 500;
+            await Send.OkAsync(new ActionResponse { Message = "AI summary generation failed. Please try again." }, ct);
+            return;
+        }
+
         report.Summary = result.Summary;
         report.CriticalityScore = result.CriticalityScore;
         report.CriticalityReasoning = result.CriticalityReasoning;

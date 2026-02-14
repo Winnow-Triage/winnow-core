@@ -132,47 +132,26 @@ using (var scope = app.Services.CreateScope())
 
             try
             {
-                tenantDb.Database.ExecuteSqlRaw("ALTER TABLE Reports ADD COLUMN SuggestedParentId TEXT;");
-            }
-            catch { /* Column likely already exists */ }
+                tenantDb.Database.Migrate();
 
-            try
-            {
-                tenantDb.Database.ExecuteSqlRaw("ALTER TABLE Reports ADD COLUMN SuggestedConfidenceScore REAL;");
-            }
-            catch { /* Column likely already exists */ }
+                // Seed a placeholder user first to avoid FK constraint failure
+                tenantDb.Database.ExecuteSqlRaw(@"
+                    INSERT OR IGNORE INTO AspNetUsers (Id, UserName, NormalizedUserName, Email, EmailConfirmed, PasswordHash, SecurityStamp, ConcurrencyStamp, PhoneNumberConfirmed, TwoFactorEnabled, LockoutEnabled, AccessFailedCount, FullName, CreatedAt)
+                    VALUES ('00000000-0000-0000-0000-000000000001', 'system@winnow.com', 'SYSTEM@WINNOW.COM', 'system@winnow.com', 1, 'AQAAAAIAAYagAAAAEJ...', 'stamp', 'stamp', 0, 0, 0, 0, 'System User', '2024-01-01');
+                ");
 
-            try
-            {
-                tenantDb.Database.ExecuteSqlRaw("ALTER TABLE Reports ADD COLUMN ExternalUrl TEXT;");
-            }
-            catch { /* Column likely already exists */ }
+                tenantDb.Database.ExecuteSqlRaw(@"
+                    INSERT OR IGNORE INTO Projects (Id, Name, ApiKey, CreatedAt, OwnerId)
+                    VALUES ('00000000-0000-0000-0000-000000000001', 'Default Project', 'secret-key', '2024-01-01', '00000000-0000-0000-0000-000000000001');
+                ");
 
-            try
-            {
+                // Ensure vec_reports exists (virtual tables are not in migrations)
                 tenantDb.Database.ExecuteSqlRaw("CREATE VIRTUAL TABLE IF NOT EXISTS vec_reports USING vec0(embedding float[384] distance_metric=cosine);");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to create vec_reports table for tenant {dbFile}: {ex.Message}");
+                Console.WriteLine($"Failed to migrate/seed tenant database {dbFile}: {ex.Message}");
             }
-
-            try
-            {
-                tenantDb.Database.ExecuteSqlRaw(@"
-                    CREATE TABLE IF NOT EXISTS ""IntegrationConfigs"" (
-                        ""Id"" TEXT NOT NULL CONSTRAINT ""PK_IntegrationConfigs"" PRIMARY KEY,
-                        ""Provider"" TEXT NOT NULL,
-                        ""SettingsJson"" TEXT NOT NULL,
-                        ""IsActive"" INTEGER NOT NULL
-                    );
-                ");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to create IntegrationConfigs table: {ex.Message}");
-            }
-
         }
     }
 }

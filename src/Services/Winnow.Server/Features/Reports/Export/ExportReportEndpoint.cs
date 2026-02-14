@@ -44,7 +44,7 @@ public class ExportReportEndpoint(WinnowDbContext db, ExporterFactory exporterFa
             var backlink = $"http://localhost:5173/reports/{report.Id}";
             contentToExport += $"\n\n---\n[View in Winnow]({backlink})";
 
-            var externalUrl = await exporter.ExportTicketAsync(report.Message, contentToExport ?? "", ct);
+            var externalUrl = await exporter.ExportTicketAsync(report.Title, contentToExport ?? "", ct);
             
             report.Status = "Exported";
             report.ExternalUrl = externalUrl;

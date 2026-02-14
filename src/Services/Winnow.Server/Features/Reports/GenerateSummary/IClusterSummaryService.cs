@@ -2,7 +2,7 @@ using Winnow.Server.Entities;
 
 namespace Winnow.Server.Features.Reports.GenerateSummary;
 
-public record ClusterSummaryResult(string Summary, int? CriticalityScore, string? CriticalityReasoning);
+public record ClusterSummaryResult(string Summary, int? CriticalityScore, string? CriticalityReasoning, bool IsError = false);
 
 public interface IClusterSummaryService
 {

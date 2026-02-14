@@ -34,13 +34,13 @@ public class GenerateMockReportsEndpoint(
             Generate {{req.Count}} realistic technical support reports for a software application.
             Scenario context: {{req.Scenario ?? "General SaaS application issues"}}
 
-            Each report must have a Message and a StackTrace (or more details).
-            Return the result as a JSON array of objects with "message" and "stackTrace" properties.
+            Each report must have a Title, User description.
+            Return the result as a JSON array of objects with "title", "message" properties.
             IMPORTANT: String values MUST be on a single line. Use literal \n (backslash + n) for any newlines inside strings.
             
             Example output format:
             [
-              { "message": "Example Issue", "stackTrace": "Line 1\\nLine 2" }
+              { "title": "Example Issue", "message": "Example Issue"}
             ]
             """;
 
@@ -73,8 +73,8 @@ public class GenerateMockReportsEndpoint(
             {
                 var report = new Report
                 {
+                    Title = dt.Title,
                     Message = dt.Message,
-                    StackTrace = dt.StackTrace,
                     Status = "New",
                     CreatedAt = DateTime.UtcNow
                 };
@@ -85,8 +85,8 @@ public class GenerateMockReportsEndpoint(
                 await publishEndpoint.Publish(new ReportCreatedEvent
                 {
                     ReportId = report.Id,
+                    Title = report.Title,
                     Message = report.Message,
-                    StackTrace = report.StackTrace,
                     CreatedAt = report.CreatedAt,
                     ProjectId = Guid.Empty // Mock reports might not have a real project
                 }, ct);
@@ -102,5 +102,5 @@ public class GenerateMockReportsEndpoint(
         }
     }
 
-    private record MockReportDto(string Message, string StackTrace);
+    private record MockReportDto(string Title, string Message);
 }

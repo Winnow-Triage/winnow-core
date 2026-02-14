@@ -5,7 +5,8 @@ using Winnow.Server.Infrastructure.Persistence;
 namespace Winnow.Server.Features.Reports.List;
 
 public record ReportDto(
-    Guid Id, 
+    Guid Id,
+    string Title,
     string Message, 
     string? StackTrace, 
     string Status, 
@@ -39,7 +40,8 @@ public class ListReportsEndpoint(WinnowDbContext dbContext) : EndpointWithoutReq
 
         var reports = await query
             .Select(r => new ReportDto(
-                r.Id, 
+                r.Id,
+                r.Title,
                 r.Message, 
                 r.StackTrace, 
                 r.Status, 

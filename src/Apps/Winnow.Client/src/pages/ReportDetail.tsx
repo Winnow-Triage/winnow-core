@@ -41,6 +41,7 @@ interface RelatedReport {
 
 interface ReportDetailData {
     id: string;
+    title: string;
     message: string;
     stackTrace: string;
     status: string;
@@ -286,7 +287,7 @@ export default function ReportDetail() {
                     {/* Header Section */}
                     <div className="flex flex-col gap-2">
                         <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight">
-                            {report.message}
+                            {report.title}
                         </h1>
                         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                             <span>
@@ -459,7 +460,7 @@ export default function ReportDetail() {
                         </CardHeader>
                         <CardContent>
                             <div className="prose dark:prose-invert max-w-none">
-                                <p className="whitespace-pre-wrap">{report.stackTrace}</p>
+                                <p className="whitespace-pre-wrap">{report.message}</p>
                             </div>
                         </CardContent>
                     </Card>

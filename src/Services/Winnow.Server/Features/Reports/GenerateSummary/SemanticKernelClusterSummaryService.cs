@@ -17,7 +17,8 @@ public class SemanticKernelClusterSummaryService(Kernel kernel) : IClusterSummar
         sb.AppendLine("Here are the reports in this cluster:");
         foreach (var report in reportList)
         {
-            sb.AppendLine($"- R-{report.Id.ToString()[..8]}: {report.Message}");
+            sb.AppendLine($"- R-{report.Id.ToString()[..8]}: {report.Title}");
+            sb.AppendLine($"  Description: {report.Message}");
             sb.AppendLine($"  StackTrace: {report.StackTrace}");
             sb.AppendLine();
         }
@@ -81,7 +82,7 @@ public class SemanticKernelClusterSummaryService(Kernel kernel) : IClusterSummar
         }
         catch (Exception ex)
         {
-            return new ClusterSummaryResult($"Failed to generate summary. Error: {ex.Message}", null, null);
+            return new ClusterSummaryResult($"Failed to generate summary. Error: {ex.Message}", null, null, IsError: true);
         }
     }
 

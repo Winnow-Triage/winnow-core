@@ -12,6 +12,7 @@ public class GetReportRequest
 public class GetReportResponse
 {
     public Guid Id { get; set; }
+    public string Title { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
     public string? StackTrace { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
@@ -108,6 +109,7 @@ public class GetReportEndpoint(WinnowDbContext db) : Endpoint<GetReportRequest, 
         await Send.OkAsync(new GetReportResponse
         {
             Id = report.Id,
+            Title = report.Title,
             Message = report.Message,
             StackTrace = report.StackTrace,
             Status = report.Status,

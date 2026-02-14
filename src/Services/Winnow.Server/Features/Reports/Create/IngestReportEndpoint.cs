@@ -12,6 +12,7 @@ namespace Winnow.Server.Features.Reports.Create;
 
 public class IngestReportRequest
 {
+    public string Title { get; set; } = default!;
     public string Message { get; set; } = default!;
     public string? StackTrace { get; set; }
     public Dictionary<string, object>? Metadata { get; set; }
@@ -21,7 +22,8 @@ public class IngestReportValidator : Validator<IngestReportRequest>
 {
     public IngestReportValidator()
     {
-        RuleFor(x => x.Message).NotEmpty().MaximumLength(2000); 
+        RuleFor(x => x.Title).NotEmpty().MaximumLength(500);
+        RuleFor(x => x.Message).NotEmpty().MaximumLength(5000); 
     }
 }
 
@@ -29,6 +31,7 @@ public record ReportCreatedEvent
 {
     public Guid ReportId { get; init; }
     public Guid ProjectId { get; init; }
+    public string Title { get; init; } = default!;
     public string Message { get; init; } = default!;
     public string? StackTrace { get; init; }
     public DateTime CreatedAt { get; init; }
@@ -82,7 +85,7 @@ public class IngestReportEndpoint(
         }
 
         // 1. Generate Embedding
-        var textToEmbed = $"{req.Message}\n{req.StackTrace}";
+        var textToEmbed = $"{req.Title}\n{req.Message}";
         var embeddingFloats = await embeddingService.GetEmbeddingAsync(textToEmbed);
         var embeddingBytes = new byte[embeddingFloats.Length * sizeof(float)];
         Buffer.BlockCopy(embeddingFloats, 0, embeddingBytes, 0, embeddingBytes.Length);
@@ -90,6 +93,7 @@ public class IngestReportEndpoint(
         var report = new Report
         {
             ProjectId = project.Id,
+            Title = req.Title,
             Message = req.Message,
             StackTrace = req.StackTrace,
             Metadata = req.Metadata != null ? JsonSerializer.Serialize(req.Metadata) : null,
@@ -108,6 +112,7 @@ public class IngestReportEndpoint(
         {
             ReportId = report.Id,
             ProjectId = project.Id,
+            Title = report.Title,
             Message = report.Message,
             StackTrace = report.StackTrace,
             CreatedAt = report.CreatedAt,

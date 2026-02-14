@@ -140,12 +140,12 @@ public class ReportCreatedConsumer(
         await dbContext.SaveChangesAsync(context.CancellationToken);
 
         // Sync to Vector Index
-        await dbContext.Database.ExecuteSqlRawAsync(@"
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($@"
             INSERT OR REPLACE INTO vec_reports(rowid, embedding)
-            SELECT rowid, {0}
+            SELECT rowid, {report.Embedding}
             FROM Reports
-            WHERE Id = {1}
-        ", report.Embedding, report.Id);
+            WHERE Id = {report.Id}
+        ");
         
         logger.LogDebug("ReportMatching: Synchronized report {Id} to vector index.", report.Id);
     }

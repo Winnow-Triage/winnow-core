@@ -50,7 +50,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
             var clusterIds = trending.Select(t => t.ClusterId).ToList();
             var clusterInfos = await db.Reports
                 .Where(t => clusterIds.Contains(t.Id))
-                .Select(t => new { t.Id, t.Message, t.Status })
+                .Select(t => new { t.Id, t.Title, t.Status })
                 .ToDictionaryAsync(t => t.Id, ct);
             
             var counts = await db.Reports
@@ -68,7 +68,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
 
                     trendingDtos.Add(new TrendingClusterDto(
                         t.ClusterId.Value,
-                        info.Message,
+                        info.Title,
                         info.Status,
                         total,
                         t.Velocity,

@@ -17,6 +17,7 @@ import { LayoutDashboard, Merge, RefreshCw } from 'lucide-react';
 
 interface Report {
     id: string;
+    title: string;
     message: string;
     status: string;
     createdAt: string;
@@ -49,7 +50,7 @@ export default function Clusters() {
     });
 
     const clusters = reports?.filter(t => !t.parentReportId && (
-        t.message.toLowerCase().includes(search.toLowerCase())
+        (t.title || t.message || '').toLowerCase().includes(search.toLowerCase())
     )) || [];
 
     // Sort based on selected metric
@@ -167,7 +168,7 @@ export default function Clusters() {
                                         </TableCell>
                                         <TableCell className="font-medium">
                                             <Link to={`/reports/${report.id}`} className="hover:underline block font-semibold">
-                                                {report.message}
+                                                {report.title || report.message}
                                             </Link>
                                         </TableCell>
                                         <TableCell>
