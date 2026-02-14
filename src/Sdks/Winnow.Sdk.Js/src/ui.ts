@@ -218,7 +218,7 @@ export function initUI(config: WinnowConfig) {
 
         const payload = {
             Title: title,
-            Description: description,
+            Message: description,
             Metadata: {
                 ...context,
                 sdkVersion: '0.0.1'
@@ -235,7 +235,7 @@ export function initUI(config: WinnowConfig) {
                 headers['X-Tenant-Id'] = config.tenantId;
             }
 
-            const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/tickets`, {
+            const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/api/reports`, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify(payload)
