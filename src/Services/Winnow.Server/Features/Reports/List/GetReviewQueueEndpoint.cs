@@ -6,11 +6,13 @@ namespace Winnow.Server.Features.Reports.List;
 
 public record ReviewItemDto(
     Guid ReportId,
+    string ReportTitle,
     string ReportMessage,
     string? ReportStackTrace,
     string ReportAssignedTo,
     DateTime ReportCreatedAt,
     Guid SuggestedParentId,
+    string SuggestedParentTitle,
     string SuggestedParentMessage,
     string? SuggestedParentStackTrace,
     float? ConfidenceScore
@@ -35,11 +37,13 @@ public class GetReviewQueueEndpoint(WinnowDbContext db) : EndpointWithoutRequest
             .OrderByDescending(x => x.Report.SuggestedConfidenceScore)
             .Select(x => new ReviewItemDto(
                 x.Report.Id,
+                x.Report.Title,
                 x.Report.Message,
                 x.Report.StackTrace,
                 x.Report.AssignedTo ?? "Unassigned",
                 x.Report.CreatedAt,
                 x.Parent.Id,
+                x.Parent.Title,
                 x.Parent.Message,
                 x.Parent.StackTrace,
                 x.Report.SuggestedConfidenceScore

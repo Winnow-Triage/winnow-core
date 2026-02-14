@@ -88,7 +88,7 @@ public class ClusterRefinementJob(
             try
             {
                 logger.LogInformation("Janitor [{TenantId}]: Generating missing embedding for report {Id}", tenantId, leader.Id);
-                var text = $"{leader.Message}\n{leader.StackTrace}";
+                var text = $"{leader.Title}\n{leader.Message}\n{leader.StackTrace}";
                 var embeddingFloats = await embeddingService.GetEmbeddingAsync(text);
                 var embeddingBytes = new byte[embeddingFloats.Length * sizeof(float)];
                 Buffer.BlockCopy(embeddingFloats, 0, embeddingBytes, 0, embeddingBytes.Length);
@@ -180,7 +180,7 @@ public class ClusterRefinementJob(
 
                 if (bestMatch == null || centroidDist < bestMatch.Distance)
                 {
-                    bestMatch = new ClusterMatch(clusterId, group.Items.First().Message, centroidDist);
+                    bestMatch = new ClusterMatch(clusterId, group.Items.First().Title, centroidDist);
                 }
             }
 
@@ -188,7 +188,7 @@ public class ClusterRefinementJob(
             {
                 var targetReport = await db.Reports.AsNoTracking()
                     .Where(t => t.Id == bestMatch.Id)
-                    .Select(t => new { t.Id, t.Message, t.StackTrace, t.CreatedAt })
+                    .Select(t => new { t.Id, t.Title, t.Message, t.StackTrace, t.CreatedAt })
                     .FirstOrDefaultAsync(ct);
 
                 if (targetReport == null) continue;
@@ -208,8 +208,8 @@ public class ClusterRefinementJob(
                         }
 
                         var areDuplicates = await duplicateChecker.AreDuplicatesAsync(
-                            leaderA.Message, leaderA.StackTrace!,
-                            targetReport.Message, targetReport.StackTrace!,
+                            leaderA.Title, leaderA.Message,
+                            targetReport.Title, targetReport.Message,
                             ct);
 
                         if (!areDuplicates)
@@ -329,7 +329,7 @@ public class ClusterRefinementJob(
     private async Task<List<ReportMatch>> FindMatchesInDb(WinnowDbContext db, Report target, double threshold, CancellationToken ct)
     {
         var sql = @"
-            SELECT t.Id, t.Message, t.CreatedAt, v.distance as Distance
+            SELECT t.Id, t.Title, t.Message, t.CreatedAt, v.distance as Distance
             FROM vec_reports v
             JOIN Reports t ON v.rowid = t.rowid
             WHERE v.embedding MATCH {0}
@@ -382,6 +382,6 @@ public class ClusterRefinementJob(
         return 1.0 - (dot / (Math.Sqrt(ma) * Math.Sqrt(mb)));
     }
 
-    private record ReportMatch(Guid Id, string Message, DateTime CreatedAt, double Distance);
-    private record ClusterMatch(Guid Id, string Message, double Distance);
+    private record ReportMatch(Guid Id, string Title, string Message, DateTime CreatedAt, double Distance);
+    private record ClusterMatch(Guid Id, string Title, double Distance);
 }

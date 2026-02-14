@@ -41,11 +41,12 @@ public class SimulateTrafficEndpoint(
         for (int i = 0; i < req.Count; i++)
         {
             var template = templates[random.Next(templates.Count)];
-            var message = template.Title + $" {random.Next(1000, 9999)}";
+            var title = $"{template.Title} {random.Next(1000, 9999)}";
 
             var report = new Entities.Report
             {
-                Message = message,
+                Title = title,
+                Message = template.Description,
                 StackTrace = template.Description,
                 CreatedAt = DateTime.UtcNow,
                 Status = "New",
@@ -58,6 +59,7 @@ public class SimulateTrafficEndpoint(
             {
                 ReportId = report.Id,
                 ProjectId = report.ProjectId,
+                Title = report.Title,
                 Message = report.Message,
                 StackTrace = report.StackTrace,
                 CreatedAt = report.CreatedAt

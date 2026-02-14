@@ -11,11 +11,13 @@ import { cn } from "@/lib/utils"
 
 interface ReviewItem {
     reportId: string
+    reportTitle: string
     reportMessage: string
     reportStackTrace: string
     reportAssignedTo: string
     reportCreatedAt: string
     suggestedParentId: string
+    suggestedParentTitle: string
     suggestedParentMessage: string
     suggestedParentStackTrace: string
     confidenceScore: number
@@ -119,7 +121,7 @@ export default function ReviewSuggestions() {
                             </span>
                         </div>
                         <CardTitle className="mt-2 text-xl leading-tight">
-                            {currentItem.reportMessage}
+                            {currentItem.reportTitle}
                         </CardTitle>
                         <div className="text-sm text-muted-foreground mt-1">
                             Assigned to {currentItem.reportAssignedTo}
@@ -127,6 +129,7 @@ export default function ReviewSuggestions() {
                     </CardHeader>
                     <CardContent className="flex-1 overflow-y-auto pt-6">
                         <div className="prose prose-sm dark:prose-invert max-w-none">
+                            <p className="mb-4 text-sm text-muted-foreground">{currentItem.reportMessage}</p>
                             <p className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
                                 {currentItem.reportStackTrace}
                             </p>
@@ -153,7 +156,7 @@ export default function ReviewSuggestions() {
                             </Badge>
                         </div>
                         <CardTitle className="mt-2 text-xl leading-tight">
-                            {currentItem.suggestedParentMessage}
+                            {currentItem.suggestedParentTitle}
                         </CardTitle>
                         <div className="text-sm text-muted-foreground mt-1">
                             Existing Cluster Leader
@@ -161,6 +164,7 @@ export default function ReviewSuggestions() {
                     </CardHeader>
                     <CardContent className="flex-1 overflow-y-auto pt-6">
                         <div className="prose prose-sm dark:prose-invert max-w-none">
+                            <p className="mb-4 text-sm text-muted-foreground">{currentItem.suggestedParentMessage}</p>
                             <p className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
                                 {currentItem.suggestedParentStackTrace}
                             </p>

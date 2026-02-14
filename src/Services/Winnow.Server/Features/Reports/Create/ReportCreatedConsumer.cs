@@ -115,8 +115,8 @@ public class ReportCreatedConsumer(
                             if (parentReport != null)
                             {
                                 var areDuplicates = await duplicateChecker.AreDuplicatesAsync(
-                                    report.Message, report.StackTrace ?? "",
-                                    parentReport.Message, parentReport.StackTrace ?? "",
+                                    report.Title, report.Message,
+                                    parentReport.Title, parentReport.Message,
                                     context.CancellationToken);
 
                                 if (areDuplicates)
