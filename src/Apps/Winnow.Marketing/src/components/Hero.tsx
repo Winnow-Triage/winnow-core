@@ -38,12 +38,12 @@ export function Hero() {
                     {/* Image Content */}
                     <div className="aspect-[16/9] w-full bg-slate-100 dark:bg-slate-900">
                         <img
-                            src="/dashboard-mockup-light.png"
+                            src="/triage-dashboard-light.png"
                             alt="Winnow Dashboard Light Mode"
                             className="w-full h-auto rounded-b-xl object-cover dark:hidden"
                         />
                         <img
-                            src="/dashboard-mockup-dark.png"
+                            src="/triage-dashboard-dark.png"
                             alt="Winnow Dashboard Dark Mode"
                             className="w-full h-auto rounded-b-xl object-cover hidden dark:block"
                         />
