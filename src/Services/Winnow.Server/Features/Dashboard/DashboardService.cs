@@ -8,31 +8,22 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
     public async Task<DashboardMetricsDto> GetDashboardMetricsAsync(CancellationToken ct)
     {
         // 1. Triage Metrics
-        // Total Tickets
-        var totalTickets = await db.Tickets.CountAsync(ct);
+        var totalReports = await db.Reports.CountAsync(ct);
 
-        // Active Clusters (Roots that have children OR are marked as Open/Active)
-        // A cluster leader is a ticket with ParentTicketId == null.
-        // But "Active Cluster" usually means a leader that HAS children (duplicates).
-        // Let's define "Active Clusters" as unique issues (Leaders).
-        var activeClusters = await db.Tickets
-            .CountAsync(t => t.ParentTicketId == null && t.Status != "Closed" && t.Status != "Duplicate", ct);
+        var activeClusters = await db.Reports
+            .CountAsync(t => t.ParentReportId == null && t.Status != "Closed" && t.Status != "Duplicate", ct);
 
-        // Pending Reviews (Suggestions)
-        // Tickets that have a suggested parent but are NOT yet assigned/resolved
-        var pendingReviews = await db.Tickets
+        var pendingReviews = await db.Reports
             .CountAsync(t => t.SuggestedParentId != null && t.Status != "Duplicate" && t.Status != "Closed", ct);
 
-        // Noise Ratio
-        double noiseRatio = totalTickets > 0 
-            ? 1.0 - ((double)activeClusters / totalTickets) 
+        double noiseRatio = totalReports > 0 
+            ? 1.0 - ((double)activeClusters / totalReports) 
             : 0;
 
-        // Time Saved: (Total - Active) * 5 minutes / 60
-        int hoursSaved = (int)((totalTickets - activeClusters) * 5.0 / 60.0);
+        int hoursSaved = (int)((totalReports - activeClusters) * 5.0 / 60.0);
 
         var triageMetrics = new TriageMetricsDto(
-            totalTickets,
+            totalReports,
             activeClusters,
             noiseRatio,
             pendingReviews,
@@ -41,10 +32,9 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         // 2. Trending Clusters (Last 24 hours)
         var yesterday = DateTime.UtcNow.AddHours(-24);
         
-        // Find clusters that have received the most duplicates in the last 24h
-        var trending = await db.Tickets
-            .Where(t => t.CreatedAt >= yesterday && t.ParentTicketId != null)
-            .GroupBy(t => t.ParentTicketId)
+        var trending = await db.Reports
+            .Where(t => t.CreatedAt >= yesterday && t.ParentReportId != null)
+            .GroupBy(t => t.ParentReportId)
             .Select(g => new 
             {
                 ClusterId = g.Key,
@@ -58,17 +48,14 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         if (trending.Count > 0)
         {
             var clusterIds = trending.Select(t => t.ClusterId).ToList();
-            var clusterInfos = await db.Tickets
+            var clusterInfos = await db.Reports
                 .Where(t => clusterIds.Contains(t.Id))
-                .Select(t => new { t.Id, t.Title, t.Status })
+                .Select(t => new { t.Id, t.Message, t.Status })
                 .ToDictionaryAsync(t => t.Id, ct);
             
-            // Also get total counts for these clusters
-            // This might be expensive if table is huge, but for top 5 it's okay-ish to run separate inputs or join
-            // Let's do a fast count
-            var counts = await db.Tickets
-                .Where(t => clusterIds.Contains(t.ParentTicketId) && t.ParentTicketId != null)
-                .GroupBy(t => t.ParentTicketId)
+            var counts = await db.Reports
+                .Where(t => clusterIds.Contains(t.ParentReportId) && t.ParentReportId != null)
+                .GroupBy(t => t.ParentReportId)
                 .Select(g => new { ClusterId = g.Key!.Value, Total = g.Count() })
                 .ToDictionaryAsync(g => g.ClusterId, ct);
 
@@ -77,27 +64,25 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
                 if (t.ClusterId.HasValue && clusterInfos.TryGetValue(t.ClusterId.Value, out var info))
                 {
                     int total = counts.TryGetValue(t.ClusterId.Value, out var c) ? c.Total : 0;
-                    // Add +1 for the leader itself
                     total += 1; 
 
                     trendingDtos.Add(new TrendingClusterDto(
                         t.ClusterId.Value,
-                        info.Title,
+                        info.Message,
                         info.Status,
                         total,
                         t.Velocity,
-                        t.Velocity > 10 // Hot threshold
+                        t.Velocity > 10 
                     ));
                 }
             }
         }
 
-        // 3. Volume History (Bucketed by Hour for last 24h)
-        // Group raw data in memory
-        var historyRaw = await db.Tickets
+        // 3. Volume History (Bucketed by Hour)
+        var historyRaw = await db.Reports
             .AsNoTracking()
             .Where(t => t.CreatedAt >= yesterday)
-            .Select(t => new { t.CreatedAt, IsDuplicate = t.ParentTicketId != null })
+            .Select(t => new { t.CreatedAt, IsDuplicate = t.ParentReportId != null })
             .ToListAsync(ct);
 
         var grouped = historyRaw
@@ -107,10 +92,8 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
                 g => new { Unique = g.Count(x => !x.IsDuplicate), Duplicate = g.Count(x => x.IsDuplicate) }
             );
 
-        // Zero-fill for the last 24 hours
         var history = new List<VolumeMetricDto>();
         var now = DateTime.UtcNow;
-        // Floor to current hour
         var currentHour = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0, DateTimeKind.Utc);
         
         for (int i = 23; i >= 0; i--)

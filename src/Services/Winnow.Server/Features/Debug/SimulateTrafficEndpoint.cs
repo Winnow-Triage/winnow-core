@@ -1,6 +1,6 @@
 using FastEndpoints;
 using MassTransit;
-using Winnow.Server.Features.Tickets.Create;
+using Winnow.Server.Features.Reports.Create;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 
@@ -31,52 +31,49 @@ public class SimulateTrafficEndpoint(
 
     public override async Task HandleAsync(SimulateTrafficRequest req, CancellationToken ct)
     {
-        // Removed hardcoded tenant check. We rely on Middleware now.
-        // var contextTenant = tenantContext.TenantId; 
-
         var templates = GetTemplates(req.Topic);
         var random = new Random();
 
-        // Ensure DB exists
         await dbContext.Database.EnsureCreatedAsync(ct);
 
-        var ticketsToPublish = new List<TicketCreatedEvent>();
+        var reportsToPublish = new List<ReportCreatedEvent>();
 
         for (int i = 0; i < req.Count; i++)
         {
             var template = templates[random.Next(templates.Count)];
-            var title = template.Title + $" {random.Next(1000, 9999)}";
+            var message = template.Title + $" {random.Next(1000, 9999)}";
 
-            var ticket = new Entities.Ticket
+            var report = new Entities.Report
             {
-                Title = title,
-                Description = template.Description,
+                Message = message,
+                StackTrace = template.Description,
                 CreatedAt = DateTime.UtcNow,
-                Status = "New"
+                Status = "New",
+                ProjectId = Guid.Empty // Debug reports might not have a real project
             };
 
-            dbContext.Tickets.Add(ticket);
+            dbContext.Reports.Add(report);
 
-            ticketsToPublish.Add(new TicketCreatedEvent
+            reportsToPublish.Add(new ReportCreatedEvent
             {
-                TicketId = ticket.Id,
-                TenantId = tenantContext.TenantId, // Use the actual context!
-                Title = ticket.Title,
-                Description = ticket.Description,
-                CreatedAt = ticket.CreatedAt
+                ReportId = report.Id,
+                ProjectId = report.ProjectId,
+                Message = report.Message,
+                StackTrace = report.StackTrace,
+                CreatedAt = report.CreatedAt
             });
         }
 
         await dbContext.SaveChangesAsync(ct);
 
-        foreach (var evt in ticketsToPublish)
+        foreach (var evt in reportsToPublish)
         {
             await publishEndpoint.Publish(evt, ct);
         }
 
         await Send.OkAsync(new SimulateTrafficResponse
         {
-            Message = $"Simulated {req.Count} tickets for topic '{req.Topic}' (Tenant: {tenantContext.TenantId})",
+            Message = $"Simulated {req.Count} reports for topic '{req.Topic}' (Tenant: {tenantContext.TenantId})",
             Count = req.Count
         }, cancellation: ct);
     }
@@ -109,7 +106,7 @@ public class SimulateTrafficEndpoint(
                 ("Invoice not generated", "Monthly invoice failed to generate."),
                 ("Currency conversion error", "Wrong currency symbol displayed in checkout.")
             },
-            _ => new() // Default / Generic
+            _ => new() 
             {
                 ("System Error", "Generic system error occurred."),
                 ("Feature Request", "User wants dark mode."),

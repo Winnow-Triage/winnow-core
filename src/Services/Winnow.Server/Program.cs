@@ -37,7 +37,7 @@ if (llmSettings.Provider == "Ollama")
         modelId: llmSettings.Ollama.GatekeeperModelId,
         endpoint: new Uri(llmSettings.Ollama.Endpoint));
 
-    builder.Services.AddScoped<Winnow.Server.Features.Tickets.GenerateSummary.IClusterSummaryService, Winnow.Server.Features.Tickets.GenerateSummary.SemanticKernelClusterSummaryService>();
+    builder.Services.AddScoped<Winnow.Server.Features.Reports.GenerateSummary.IClusterSummaryService, Winnow.Server.Features.Reports.GenerateSummary.SemanticKernelClusterSummaryService>();
 }
 else if (llmSettings.Provider == "OpenAI")
 {
@@ -45,11 +45,11 @@ else if (llmSettings.Provider == "OpenAI")
     builder.Services.AddOpenAIChatCompletion(
         modelId: llmSettings.OpenAI.ModelId,
         apiKey: llmSettings.OpenAI.ApiKey);
-    builder.Services.AddScoped<Winnow.Server.Features.Tickets.GenerateSummary.IClusterSummaryService, Winnow.Server.Features.Tickets.GenerateSummary.SemanticKernelClusterSummaryService>();
+    builder.Services.AddScoped<Winnow.Server.Features.Reports.GenerateSummary.IClusterSummaryService, Winnow.Server.Features.Reports.GenerateSummary.SemanticKernelClusterSummaryService>();
 }
 else
 {
-    builder.Services.AddScoped<Winnow.Server.Features.Tickets.GenerateSummary.IClusterSummaryService, Winnow.Server.Features.Tickets.GenerateSummary.PlaceholderSummaryService>();
+    builder.Services.AddScoped<Winnow.Server.Features.Reports.GenerateSummary.IClusterSummaryService, Winnow.Server.Features.Reports.GenerateSummary.PlaceholderSummaryService>();
 }
 
 // Always register the duplicate checker (It handles fail-safe internally)
@@ -100,7 +100,7 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddMassTransit(x =>
 {
-    x.AddConsumer<Winnow.Server.Features.Tickets.Create.TicketCreatedConsumer>();
+    x.AddConsumer<Winnow.Server.Features.Reports.Create.ReportCreatedConsumer>();
     x.UsingInMemory((context, cfg) =>
     {
         cfg.ConfigureEndpoints(context);
@@ -113,6 +113,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
+
     db.Database.Migrate();
 
     // SQLite multi-tenancy: Apply schema changes to ALL tenant databases
@@ -131,19 +132,19 @@ using (var scope = app.Services.CreateScope())
 
             try
             {
-                tenantDb.Database.ExecuteSqlRaw("ALTER TABLE Tickets ADD COLUMN SuggestedParentId TEXT;");
+                tenantDb.Database.ExecuteSqlRaw("ALTER TABLE Reports ADD COLUMN SuggestedParentId TEXT;");
             }
             catch { /* Column likely already exists */ }
 
             try
             {
-                tenantDb.Database.ExecuteSqlRaw("ALTER TABLE Tickets ADD COLUMN SuggestedConfidenceScore REAL;");
+                tenantDb.Database.ExecuteSqlRaw("ALTER TABLE Reports ADD COLUMN SuggestedConfidenceScore REAL;");
             }
             catch { /* Column likely already exists */ }
 
             try
             {
-                tenantDb.Database.ExecuteSqlRaw("ALTER TABLE Tickets ADD COLUMN ExternalUrl TEXT;");
+                tenantDb.Database.ExecuteSqlRaw("ALTER TABLE Reports ADD COLUMN ExternalUrl TEXT;");
             }
             catch { /* Column likely already exists */ }
 

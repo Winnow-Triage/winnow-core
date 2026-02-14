@@ -6,7 +6,7 @@ public record DashboardMetricsDto(
     List<VolumeMetricDto> VolumeHistory);
 
 public record TriageMetricsDto(
-    int TotalTickets,
+    int TotalReports,
     int ActiveClusters,
     double NoiseReductionRatio,
     int PendingReviews,
@@ -16,8 +16,8 @@ public record TrendingClusterDto(
     Guid ClusterId,
     string Title,
     string Status,
-    int TicketCount,
-    int Velocity, // New tickets in last X hours
+    int ReportCount,
+    int Velocity, // New reports in last X hours
     bool IsHot);
 
 public record VolumeMetricDto(

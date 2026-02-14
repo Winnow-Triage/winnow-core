@@ -48,15 +48,15 @@ export default function ProjectSetup() {
     useEffect(() => {
         if (connectionState === 'success') return
 
-        const checkTickets = async () => {
+        const checkReports = async () => {
             try {
                 // Determine API URL (assuming Winnow.Server is on localhost:5294 based on launchSettings)
-                const apiUrl = "http://localhost:5294/tickets"
+                const apiUrl = "http://localhost:5294/reports"
 
                 const response = await fetch(apiUrl)
                 if (response.ok) {
-                    const tickets = await response.json()
-                    if (Array.isArray(tickets) && tickets.length > 0) {
+                    const reports = await response.json()
+                    if (Array.isArray(reports) && reports.length > 0) {
                         setConnectionState('success')
                     }
                 }
@@ -66,10 +66,10 @@ export default function ProjectSetup() {
         }
 
         // Initial check
-        checkTickets()
+        checkReports()
 
         // Poll every 3 seconds
-        const interval = setInterval(checkTickets, 3000)
+        const interval = setInterval(checkReports, 3000)
         return () => clearInterval(interval)
     }, [connectionState])
 

@@ -9,21 +9,16 @@ namespace Winnow.Server.Infrastructure.Persistence;
 
 public static class HierarchyExtensions
 {
-    /// <summary>
-    /// Resolves the ultimate root master for a given ticket.
-    /// If the ticket is already a master, returns its own ID.
-    /// Supports recursive traversal to ensure we always hit the top-level root.
-    /// </summary>
-    public static async Task<Guid> ResolveUltimateMasterAsync(this WinnowDbContext db, Guid ticketId, CancellationToken ct = default)
+    public static async Task<Guid> ResolveUltimateMasterAsync(this WinnowDbContext db, Guid reportId, CancellationToken ct = default)
     {
-        var currentId = ticketId;
+        var currentId = reportId;
 
         while (true)
         {
-            var parentId = await db.Tickets
+            var parentId = await db.Reports
                 .AsNoTracking()
                 .Where(t => t.Id == currentId)
-                .Select(t => t.ParentTicketId)
+                .Select(t => t.ParentReportId)
                 .FirstOrDefaultAsync(ct);
 
             if (parentId == null)
@@ -31,7 +26,6 @@ public static class HierarchyExtensions
                 return currentId;
             }
 
-            // Detect self-reference to prevent infinite loops even if data is corrupt
             if (parentId == currentId)
             {
                 return currentId;

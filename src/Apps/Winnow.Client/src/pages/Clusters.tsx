@@ -15,12 +15,12 @@ import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { LayoutDashboard, Merge, RefreshCw } from 'lucide-react';
 
-interface Ticket {
+interface Report {
     id: string;
-    title: string;
+    message: string;
     status: string;
     createdAt: string;
-    parentTicketId?: string;
+    parentReportId?: string;
     criticalityScore?: number;
 }
 
@@ -31,10 +31,10 @@ export default function Clusters() {
     const [isMerging, setIsMerging] = useState(false);
     const queryClient = useQueryClient();
 
-    const { data: tickets, isLoading, refetch } = useQuery<Ticket[]>({
-        queryKey: ['tickets'],
+    const { data: reports, isLoading, refetch } = useQuery<Report[]>({
+        queryKey: ['reports'],
         queryFn: async () => {
-            const { data } = await api.get('/tickets');
+            const { data } = await api.get('/reports');
             return data;
         },
         staleTime: 60 * 1000,
@@ -42,14 +42,14 @@ export default function Clusters() {
 
     // We need to count children to be useful.
     const clusterMap = new Map<string, number>();
-    tickets?.forEach(t => {
-        if (t.parentTicketId) {
-            clusterMap.set(t.parentTicketId, (clusterMap.get(t.parentTicketId) || 0) + 1);
+    reports?.forEach(t => {
+        if (t.parentReportId) {
+            clusterMap.set(t.parentReportId, (clusterMap.get(t.parentReportId) || 0) + 1);
         }
     });
 
-    const clusters = tickets?.filter(t => !t.parentTicketId && (
-        t.title.toLowerCase().includes(search.toLowerCase())
+    const clusters = reports?.filter(t => !t.parentReportId && (
+        t.message.toLowerCase().includes(search.toLowerCase())
     )) || [];
 
     // Sort based on selected metric
@@ -71,8 +71,8 @@ export default function Clusters() {
         setIsMerging(true);
         try {
             const [targetId, ...sourceIds] = selectedIds;
-            await api.post(`/tickets/${targetId}/merge`, { id: targetId, sourceIds });
-            await queryClient.invalidateQueries({ queryKey: ['tickets'] });
+            await api.post(`/reports/${targetId}/merge`, { id: targetId, sourceIds });
+            await queryClient.invalidateQueries({ queryKey: ['reports'] });
             await refetch();
             setSelectedIds([]);
         } catch (e) {
@@ -139,7 +139,7 @@ export default function Clusters() {
                             <TableHead>Status</TableHead>
                             <TableHead>Criticality</TableHead>
                             <TableHead>Created</TableHead>
-                            <TableHead className="text-right">Related Tickets</TableHead>
+                            <TableHead className="text-right">Related Reports</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -152,41 +152,41 @@ export default function Clusters() {
                                 <TableCell colSpan={6} className="h-24 text-center">No clusters found.</TableCell>
                             </TableRow>
                         ) : (
-                            sortedClusters.map((ticket) => {
-                                const childCount = clusterMap.get(ticket.id) || 0;
-                                const isSelected = selectedIds.includes(ticket.id);
+                            sortedClusters.map((report) => {
+                                const childCount = clusterMap.get(report.id) || 0;
+                                const isSelected = selectedIds.includes(report.id);
                                 return (
-                                    <TableRow key={ticket.id} className={isSelected ? 'bg-muted/50' : ''}>
+                                    <TableRow key={report.id} className={isSelected ? 'bg-muted/50' : ''}>
                                         <TableCell>
                                             <input
                                                 type="checkbox"
                                                 className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                                                 checked={isSelected}
-                                                onChange={() => toggleSelection(ticket.id)}
+                                                onChange={() => toggleSelection(report.id)}
                                             />
                                         </TableCell>
                                         <TableCell className="font-medium">
-                                            <Link to={`/tickets/${ticket.id}`} className="hover:underline block font-semibold">
-                                                {ticket.title}
+                                            <Link to={`/reports/${report.id}`} className="hover:underline block font-semibold">
+                                                {report.message}
                                             </Link>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant="outline">{ticket.status}</Badge>
+                                            <Badge variant="outline">{report.status}</Badge>
                                         </TableCell>
                                         <TableCell>
-                                            {ticket.criticalityScore ? (
+                                            {report.criticalityScore ? (
                                                 <Badge variant="outline" className={`
-                                                    ${ticket.criticalityScore >= 8 ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30' :
-                                                        ticket.criticalityScore >= 5 ? 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30' :
+                                                    ${report.criticalityScore >= 8 ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30' :
+                                                        report.criticalityScore >= 5 ? 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30' :
                                                             'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30'}
                                                 `}>
-                                                    {ticket.criticalityScore}/10
+                                                    {report.criticalityScore}/10
                                                 </Badge>
                                             ) : (
                                                 <span className="text-xs text-muted-foreground italic">Pending...</span>
                                             )}
                                         </TableCell>
-                                        <TableCell>{new Date(ticket.createdAt).toLocaleDateString()}</TableCell>
+                                        <TableCell>{new Date(report.createdAt).toLocaleDateString()}</TableCell>
                                         <TableCell className="text-right">
                                             <Badge variant={childCount > 0 ? "default" : "secondary"}>
                                                 {childCount + 1}

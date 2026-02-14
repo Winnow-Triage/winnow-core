@@ -51,7 +51,7 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         }
     }
 
-    public DbSet<Ticket> Tickets { get; set; } = null!;
+    public DbSet<Report> Reports { get; set; } = null!;
     public DbSet<IntegrationConfig> IntegrationConfigs { get; set; } = null!;
     public DbSet<Project> Projects { get; set; } = null!;
 }

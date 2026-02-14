@@ -5,7 +5,7 @@ import { Flame, ArrowUpRight } from "lucide-react"
 interface Cluster {
     clusterId: string
     title: string
-    ticketCount: number
+    reportCount: number
     velocity: number
     isHot: boolean
 }
@@ -32,7 +32,7 @@ export function HottestClustersList({ clusters }: HottestClustersListProps) {
                                 <p className="text-sm font-medium leading-none truncate max-w-[200px] text-gray-900 dark:text-white">{cluster.title}</p>
                                 {cluster.isHot && <Badge variant="destructive" className="text-[10px] h-4 px-1">HOT</Badge>}
                             </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{cluster.ticketCount} Total Reports</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{cluster.reportCount} Total Reports</p>
                         </div>
                         <div className="flex items-center gap-1 text-green-500 text-xs font-medium bg-green-500/10 px-2 py-1 rounded">
                             <ArrowUpRight className="w-3 h-3" />

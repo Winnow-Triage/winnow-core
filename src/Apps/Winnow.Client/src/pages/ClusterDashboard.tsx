@@ -12,7 +12,7 @@ import { TimeSavedCard } from "@/components/dashboard/TimeSavedCard"
 // DTO types matching backend
 interface DashboardMetrics {
     triage: {
-        totalTickets: number
+        totalReports: number
         activeClusters: number
         noiseReductionRatio: number
         pendingReviews: number
@@ -22,7 +22,7 @@ interface DashboardMetrics {
         clusterId: string
         title: string
         status: string
-        ticketCount: number
+        reportCount: number
         velocity: number
         isHot: boolean
     }[]

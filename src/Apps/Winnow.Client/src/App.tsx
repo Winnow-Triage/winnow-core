@@ -5,9 +5,9 @@ import { ThemeProvider } from "@/components/theme-provider"
 import Layout from './components/Layout'
 import ClusterDashboard from "@/pages/ClusterDashboard"
 import ReviewSuggestions from "@/pages/ReviewSuggestions"
-import TicketDetail from "@/pages/TicketDetail"
+import ReportDetail from "@/pages/ReportDetail"
 import DebugConsole from './pages/DebugConsole'
-import AllTickets from './pages/AllTickets'
+import AllReports from './pages/AllReports'
 import Clusters from './pages/Clusters'
 import Settings from './pages/Settings'
 import ProjectSetup from './pages/ProjectSetup'
@@ -46,8 +46,8 @@ export default function App() {
                       <Route index element={<Navigate to="/dashboard" replace />} />
                       <Route path="/dashboard" element={<ClusterDashboard />} />
                       <Route path="/triage/review" element={<ReviewSuggestions />} />
-                      <Route path="tickets" element={<AllTickets />} />
-                      <Route path="tickets/:id" element={<TicketDetail />} />
+                      <Route path="reports" element={<AllReports />} />
+                      <Route path="reports/:id" element={<ReportDetail />} />
                       <Route path="clusters" element={<Clusters />} />
                       <Route path="debug" element={<DebugConsole />} />
                       <Route path="settings" element={<Settings />} />

@@ -10,14 +10,14 @@ import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/utils"
 
 interface ReviewItem {
-    ticketId: string
-    ticketTitle: string
-    ticketDescription: string
-    ticketAuthor: string
-    ticketCreatedAt: string
+    reportId: string
+    reportMessage: string
+    reportStackTrace: string
+    reportAssignedTo: string
+    reportCreatedAt: string
     suggestedParentId: string
-    suggestedParentTitle: string
-    suggestedParentDescription: string
+    suggestedParentMessage: string
+    suggestedParentStackTrace: string
     confidenceScore: number
 }
 
@@ -29,7 +29,7 @@ export default function ReviewSuggestions() {
     const { data: queue, isLoading, error } = useQuery<ReviewItem[]>({
         queryKey: ["reviewQueue"],
         queryFn: async () => {
-            const res = await api.get("/tickets/review-queue")
+            const res = await api.get("/reports/review-queue")
             return res.data
         }
     })
@@ -38,7 +38,7 @@ export default function ReviewSuggestions() {
 
     const dismissMutation = useMutation({
         mutationFn: async ({ id, reject }: { id: string, reject: boolean }) => {
-            await api.post(`/tickets/${id}/dismiss-suggestion`, { rejectMatch: reject })
+            await api.post(`/reports/${id}/dismiss-suggestion`, { rejectMatch: reject })
         },
         onSuccess: () => {
             handleNext()
@@ -47,7 +47,7 @@ export default function ReviewSuggestions() {
 
     const acceptMutation = useMutation({
         mutationFn: async (id: string) => {
-            await api.post(`/tickets/${id}/accept-suggestion`, {})
+            await api.post(`/reports/${id}/accept-suggestion`, {})
         },
         onSuccess: () => {
             toast.success("Merged into cluster")
@@ -115,20 +115,20 @@ export default function ReviewSuggestions() {
                         <div className="flex items-center justify-between">
                             <Badge className="bg-blue-500 text-white hover:bg-blue-600">New Report</Badge>
                             <span className="text-xs text-muted-foreground">
-                                {new Date(currentItem.ticketCreatedAt).toLocaleDateString()}
+                                {new Date(currentItem.reportCreatedAt).toLocaleDateString()}
                             </span>
                         </div>
                         <CardTitle className="mt-2 text-xl leading-tight">
-                            {currentItem.ticketTitle}
+                            {currentItem.reportMessage}
                         </CardTitle>
                         <div className="text-sm text-muted-foreground mt-1">
-                            Authored by {currentItem.ticketAuthor}
+                            Assigned to {currentItem.reportAssignedTo}
                         </div>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-y-auto pt-6">
                         <div className="prose prose-sm dark:prose-invert max-w-none">
                             <p className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
-                                {currentItem.ticketDescription}
+                                {currentItem.reportStackTrace}
                             </p>
                         </div>
                     </CardContent>
@@ -153,7 +153,7 @@ export default function ReviewSuggestions() {
                             </Badge>
                         </div>
                         <CardTitle className="mt-2 text-xl leading-tight">
-                            {currentItem.suggestedParentTitle}
+                            {currentItem.suggestedParentMessage}
                         </CardTitle>
                         <div className="text-sm text-muted-foreground mt-1">
                             Existing Cluster Leader
@@ -162,7 +162,7 @@ export default function ReviewSuggestions() {
                     <CardContent className="flex-1 overflow-y-auto pt-6">
                         <div className="prose prose-sm dark:prose-invert max-w-none">
                             <p className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
-                                {currentItem.suggestedParentDescription}
+                                {currentItem.suggestedParentStackTrace}
                             </p>
                         </div>
                     </CardContent>
@@ -176,7 +176,7 @@ export default function ReviewSuggestions() {
                         variant="destructive"
                         size="lg"
                         className="w-40 gap-2"
-                        onClick={() => dismissMutation.mutate({ id: currentItem.ticketId, reject: true })}
+                        onClick={() => dismissMutation.mutate({ id: currentItem.reportId, reject: true })}
                         disabled={dismissMutation.isPending || acceptMutation.isPending}
                     >
                         <XCircle className="w-4 h-4" />
@@ -194,7 +194,7 @@ export default function ReviewSuggestions() {
                     <Button
                         size="lg"
                         className="w-40 gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0"
-                        onClick={() => acceptMutation.mutate(currentItem.ticketId)}
+                        onClick={() => acceptMutation.mutate(currentItem.reportId)}
                         disabled={dismissMutation.isPending || acceptMutation.isPending}
                     >
                         <Check className="w-4 h-4" />

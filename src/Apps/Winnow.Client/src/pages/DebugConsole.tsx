@@ -37,11 +37,11 @@ export default function DebugConsole() {
         setIsMockLoading(true);
         setMockMessage(null);
         try {
-            const { data } = await api.post('/tickets/generate-mock', { count: mockCount, scenario });
+            const { data } = await api.post('/reports/generate-mock', { count: mockCount, scenario });
             setMockMessage(data.message);
         } catch (error) {
             console.error(error);
-            setMockMessage("Failed to generate mock tickets.");
+            setMockMessage("Failed to generate mock reports.");
         } finally {
             setIsMockLoading(false);
         }
@@ -63,7 +63,7 @@ export default function DebugConsole() {
                             <Sparkles className="h-5 w-5 text-amber-500" /> AI Mock Generator
                         </CardTitle>
                         <CardDescription>
-                            Use the LLM to generate realistic, high-quality support tickets based on a specific scenario.
+                            Use the LLM to generate realistic, high-quality support reports based on a specific scenario.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-4">
@@ -78,7 +78,7 @@ export default function DebugConsole() {
                         </div>
 
                         <div className="grid w-full max-w-sm items-center gap-1.5">
-                            <Label htmlFor="mockCount">Number of Tickets</Label>
+                            <Label htmlFor="mockCount">Number of Reports</Label>
                             <Input
                                 type="number"
                                 id="mockCount"
@@ -91,7 +91,7 @@ export default function DebugConsole() {
 
                         <Button onClick={handleGenerateMock} disabled={isMockLoading} className="mt-2" variant="outline">
                             {isMockLoading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                            {isMockLoading ? "Generating..." : "Generate LLM Tickets"}
+                            {isMockLoading ? "Generating..." : "Generate LLM Reports"}
                         </Button>
 
                         {mockMessage && (
@@ -126,7 +126,7 @@ export default function DebugConsole() {
                         </div>
 
                         <div className="grid w-full max-w-sm items-center gap-1.5">
-                            <Label htmlFor="count">Number of Tickets</Label>
+                            <Label htmlFor="count">Number of Reports</Label>
                             <Input
                                 type="number"
                                 id="count"
