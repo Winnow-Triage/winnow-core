@@ -1,12 +1,9 @@
 import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
-import { Hero } from './components/Hero';
-import { Features } from './components/Features';
-import { HowItWorks } from './components/HowItWorks';
-import { Playground } from './components/Playground';
 import { Footer } from './components/Footer';
-import { DeepDive } from './components/DeepDive';
-import { Integration } from './components/Integration';
+import { Landing } from './pages/Landing';
+import { Pricing } from './pages/Pricing';
 
 // Declare Winnow on window object
 declare global {
@@ -46,17 +43,12 @@ function App() {
   return (
     <div className="min-h-screen bg-background font-sans antialiased">
       <Navbar />
-
-
-
-      <main>
-        <Hero />
-        <Features />
-        <DeepDive />
-        <Integration />
-        <HowItWorks />
-        <Playground />
-      </main>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/pricing" element={<Pricing />} />
+        </Routes>
+      </BrowserRouter>
       <Footer />
     </div>
   )

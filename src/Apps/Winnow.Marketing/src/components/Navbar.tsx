@@ -41,6 +41,12 @@ export function Navbar() {
                     </div>
                     <nav className="flex items-center space-x-4">
                         <a
+                            href="/pricing"
+                            className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+                        >
+                            Pricing
+                        </a>
+                        <a
                             href="/docs"
                             className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
                         >

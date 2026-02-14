@@ -20,7 +20,7 @@ export function Footer() {
                             <li><a href="#" className="hover:text-white transition-colors">Features</a></li>
                             <li><a href="#" className="hover:text-white transition-colors">Integrations</a></li>
                             <li><a href="#" className="hover:text-white transition-colors">SDK Documentation</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Pricing</a></li>
+                            <li><a href="/pricing" className="hover:text-white transition-colors">Pricing</a></li>
                         </ul>
                     </div>
 
