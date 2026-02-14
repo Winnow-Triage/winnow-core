@@ -19,9 +19,14 @@ public class GenerateMockReportsEndpoint(
     Kernel kernel,
     WinnowDbContext db,
     IPublishEndpoint publishEndpoint,
-    ITenantContext tenantContext,
     ILogger<GenerateMockReportsEndpoint> logger) : Endpoint<GenerateMockReportsRequest>
 {
+    private static readonly JsonSerializerOptions options = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        AllowTrailingCommas = true
+    };
+
     public override void Configure()
     {
         Post("/reports/generate-mock");
@@ -57,18 +62,7 @@ public class GenerateMockReportsEndpoint(
 
         try
         {
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-                AllowTrailingCommas = true
-            };
-            var mockReports = JsonSerializer.Deserialize<List<MockReportDto>>(json, options);
-
-            if (mockReports == null)
-            {
-                throw new Exception("Failed to deserialize mock reports.");
-            }
-
+            var mockReports = JsonSerializer.Deserialize<List<MockReportDto>>(json, options) ?? throw new Exception("Failed to deserialize mock reports.");
             foreach (var dt in mockReports)
             {
                 var report = new Report
