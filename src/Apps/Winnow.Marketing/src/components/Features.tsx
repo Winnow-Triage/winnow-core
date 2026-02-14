@@ -32,16 +32,16 @@ export function Features() {
                     {features.map((feature, index) => (
                         <div
                             key={index}
-                            className="group relative overflow-hidden rounded-2xl border bg-background p-8 transition-all hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-primary/5"
+                            className="group relative flex flex-col items-center text-center overflow-hidden rounded-2xl p-8 transition-all hover:-translate-y-1"
                         >
                             {/* Hover Glow Effect */}
-                            <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/5 opacity-0 transition-opacity group-hover:opacity-100 blur-3xl" />
+                            <div className="absolute -inset-full top-0 block h-full w-1/2 -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-40 group-hover:animate-shine" />
 
-                            <div className={`mb-4 inline-flex rounded-lg ${feature.bg} p-3`}>
-                                <feature.icon className={`h-6 w-6 ${feature.color}`} />
+                            <div className={`mb-6 inline-flex rounded-2xl ${feature.bg} p-4`}>
+                                <feature.icon className={`h-12 w-12 ${feature.color}`} />
                             </div>
-                            <h3 className="mb-2 text-xl font-bold tracking-tight">{feature.title}</h3>
-                            <p className="text-muted-foreground leading-relaxed">
+                            <h3 className="mb-3 text-2xl font-bold tracking-tight">{feature.title}</h3>
+                            <p className="text-muted-foreground leading-relaxed text-lg">
                                 {feature.description}
                             </p>
                         </div>
