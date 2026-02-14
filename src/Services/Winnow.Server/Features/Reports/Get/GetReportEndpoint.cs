@@ -30,6 +30,7 @@ public class GetReportResponse
     public float? SuggestedConfidenceScore { get; set; }
     public string? SuggestedParentMessage { get; set; } // Was SuggestedParentTitle
     public string? Metadata { get; set; }
+    public string? Screenshot { get; set; }
     public string? ExternalUrl { get; set; }
 
     public List<RelatedReportDto> Evidence { get; set; } = [];
@@ -125,6 +126,7 @@ public class GetReportEndpoint(WinnowDbContext db) : Endpoint<GetReportRequest, 
             SuggestedConfidenceScore = report.SuggestedConfidenceScore,
             SuggestedParentMessage = suggestedParentMessage,
             Metadata = report.Metadata,
+            Screenshot = report.Screenshot,
             ExternalUrl = report.ExternalUrl,
             Evidence = evidence
         }, ct);

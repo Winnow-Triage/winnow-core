@@ -15,6 +15,7 @@ public class IngestReportRequest
     public string Title { get; set; } = default!;
     public string Message { get; set; } = default!;
     public string? StackTrace { get; set; }
+    public string? Screenshot { get; set; }
     public Dictionary<string, object>? Metadata { get; set; }
 }
 
@@ -96,6 +97,7 @@ public class IngestReportEndpoint(
             Title = req.Title,
             Message = req.Message,
             StackTrace = req.StackTrace,
+            Screenshot = req.Screenshot,
             Metadata = req.Metadata != null ? JsonSerializer.Serialize(req.Metadata) : null,
             CreatedAt = DateTime.UtcNow,
             Embedding = embeddingBytes,

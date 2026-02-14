@@ -5,14 +5,135 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Winnow SDK Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 0 20px;
+            color: #1f2937;
+        }
+
+        h1 {
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 2rem;
+        }
+
+        fieldset {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        legend {
+            font-weight: 600;
+            padding: 0 0.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            box-sizing: border-box;
+        }
+
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            border: 1px solid #d1d5db;
+            background: white;
+            color: #374151;
+        }
+
+        button:hover {
+            background: #f3f4f6;
+        }
+
+        .sensitive-section {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .sensitive-section h3 {
+            margin-top: 0;
+            color: #92400e;
+        }
+    </style>
 </head>
 
 <body>
     <h1>Winnow SDK Test Page</h1>
-    <p>Use the floating button in the bottom right to report a bug.</p>
+    <p class="subtitle">Use the floating button in the bottom right to report a bug. The screenshot will automatically
+        redact sensitive fields.</p>
 
-    <button onclick="console.error('Test Error Log', { details: 'Something broke' })">Trigger Error Log</button>
-    <button onclick="console.warn('Test Warning Log')">Trigger Warning Log</button>
+    <fieldset>
+        <legend>🧪 Sample Form (inputs will be masked)</legend>
+        <label>Username</label>
+        <input type="text" placeholder="john_doe" value="james.stubbington" />
+
+        <label>Email Address</label>
+        <input type="email" placeholder="user@example.com" value="james@winnow.dev" />
+
+        <label>Password</label>
+        <input type="password" value="supersecretpassword123" />
+
+        <label>Phone Number</label>
+        <input type="tel" placeholder="+1 555-1234" value="+1 (555) 867-5309" />
+
+        <label>Preferred Plan</label>
+        <select>
+            <option>Free Tier</option>
+            <option selected>Pro ($49/mo)</option>
+            <option>Enterprise (Custom)</option>
+        </select>
+
+        <label>Notes</label>
+        <textarea rows="3">These are some private notes that should be redacted in the screenshot.</textarea>
+    </fieldset>
+
+    <div class="sensitive-section">
+        <h3>🔒 Sensitive Data Zone (<code>.winnow-sensitive</code>)</h3>
+        <p class="winnow-sensitive">SSN: 123-45-6789 — This text will be replaced with [REDACTED].</p>
+        <div class="winnow-sensitive" style="padding: 12px; background: white; border-radius: 6px; margin-top: 0.5rem;">
+            <p><strong>Credit Card:</strong> 4242-4242-4242-4242</p>
+            <p><strong>Exp:</strong> 12/28 &nbsp; <strong>CVV:</strong> 321</p>
+            <p>This container will be blurred in the screenshot.</p>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button onclick="console.error('Test Error Log', { details: 'Something broke' })">Trigger Error Log</button>
+        <button onclick="console.warn('Test Warning Log')">Trigger Warning Log</button>
+    </div>
 
     <!-- Simulating the IIFE build inclusion -->
     <script src="./dist/winnow.iife.js"></script>
@@ -20,7 +141,7 @@
         Winnow.init({
             apiKey: 'secret-key',
             apiUrl: 'http://localhost:5294',
-            tenantId: 'Tenant-A' // Updated for demo
+            tenantId: 'Tenant-A'
         });
     </script>
 </body>

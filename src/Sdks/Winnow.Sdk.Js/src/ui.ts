@@ -1,4 +1,5 @@
 import { getContext } from './recorder';
+import { captureSafeScreenshot } from './screenshot';
 
 export interface WinnowConfig {
     apiKey: string;
@@ -60,9 +61,11 @@ export function initUI(config: WinnowConfig) {
         .winnow-modal {
             background: white;
             padding: 24px;
-            border-radius: 8px;
-            width: 400px;
+            border-radius: 12px;
+            width: 560px;
             max-width: 90vw;
+            max-height: 85vh;
+            overflow-y: auto;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
             font-family: system-ui, -apple-system, sans-serif;
             color: #1f2937;
@@ -128,6 +131,121 @@ export function initUI(config: WinnowConfig) {
             animation: spin 1s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Screenshot Preview */
+        .winnow-screenshot-section {
+            margin-bottom: 1rem;
+        }
+        .winnow-screenshot-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        .winnow-screenshot-preview {
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            position: relative;
+            background: #f9fafb;
+        }
+        .winnow-screenshot-preview img {
+            width: 100%;
+            height: auto;
+            display: block;
+            max-height: 250px;
+            object-fit: contain;
+        }
+        .winnow-screenshot-preview.removed {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+        .winnow-screenshot-preview img {
+            cursor: zoom-in;
+        }
+        .winnow-screenshot-badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: help;
+        }
+        .winnow-screenshot-badge:hover::after {
+            content: 'Form inputs, passwords, and elements marked .winnow-sensitive have been automatically redacted from this screenshot.';
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 6px;
+            background: #1f2937;
+            color: white;
+            font-size: 0.7rem;
+            padding: 8px 10px;
+            border-radius: 6px;
+            width: 220px;
+            line-height: 1.4;
+            z-index: 10;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            pointer-events: none;
+        }
+        .winnow-lightbox {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10001;
+            cursor: zoom-out;
+            animation: winnow-fade-in 0.15s ease;
+        }
+        .winnow-lightbox img {
+            max-width: 90vw;
+            max-height: 90vh;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        @keyframes winnow-fade-in { from { opacity: 0; } to { opacity: 1; } }
+        .winnow-screenshot-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .winnow-screenshot-btn {
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid #d1d5db;
+            background: white;
+            color: #374151;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .winnow-screenshot-btn:hover {
+            background: #f3f4f6;
+        }
+        .winnow-screenshot-btn.active {
+            background: #fef2f2;
+            border-color: #fca5a5;
+            color: #dc2626;
+        }
+        .winnow-screenshot-loading {
+            padding: 2rem;
+            text-align: center;
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
     `;
     shadow.appendChild(style);
 
@@ -143,7 +261,7 @@ export function initUI(config: WinnowConfig) {
     overlay.innerHTML = `
         <div class="winnow-modal">
             <div id="winnow-view-form">
-                <div class="winnow-title">Report a Bug</div>
+                <div class="winnow-title">Report an Issue</div>
                 <form id="winnow-form">
                     <div class="winnow-form-group">
                         <label class="winnow-label">Title</label>
@@ -152,6 +270,32 @@ export function initUI(config: WinnowConfig) {
                     <div class="winnow-form-group">
                         <label class="winnow-label">Description</label>
                         <textarea name="description" class="winnow-textarea" placeholder="Steps to reproduce..." required></textarea>
+                    </div>
+                    <div class="winnow-screenshot-section" id="winnow-screenshot-section">
+                        <div class="winnow-screenshot-header">
+                            <span class="winnow-label" style="margin-bottom: 0;">Screenshot Preview</span>
+                        </div>
+                        <div id="winnow-screenshot-container">
+                            <div class="winnow-screenshot-loading" id="winnow-screenshot-loading">
+                                <div class="winnow-spinner" style="margin: 0 auto 0.5rem;"></div>
+                                Capturing screenshot...
+                            </div>
+                            <div class="winnow-screenshot-preview" id="winnow-screenshot-preview" style="display: none;">
+                                <span class="winnow-screenshot-badge">Privacy-masked</span>
+                                <img id="winnow-screenshot-img" alt="Page screenshot (inputs redacted)" />
+                            </div>
+                        </div>
+                        <div class="winnow-screenshot-actions">
+                            <button type="button" class="winnow-screenshot-btn" id="winnow-toggle-screenshot">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                Remove Screenshot
+                            </button>
+                            <label class="winnow-screenshot-btn" id="winnow-replace-screenshot-label">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                Replace Image
+                                <input type="file" accept="image/*" id="winnow-replace-input" style="display: none;" />
+                            </label>
+                        </div>
                     </div>
                     <div class="winnow-actions">
                         <button type="button" class="winnow-btn winnow-btn-secondary" id="winnow-cancel">Cancel</button>
@@ -175,33 +319,124 @@ export function initUI(config: WinnowConfig) {
     `;
     shadow.appendChild(overlay);
 
-    // Helpers to toggle views
+    // Query elements from shadow DOM
     const viewForm = overlay.querySelector('#winnow-view-form') as HTMLDivElement;
     const viewSuccess = overlay.querySelector('#winnow-view-success') as HTMLDivElement;
     const form = overlay.querySelector('#winnow-form') as HTMLFormElement;
+    const screenshotSection = overlay.querySelector('#winnow-screenshot-section') as HTMLDivElement;
+    const screenshotLoading = overlay.querySelector('#winnow-screenshot-loading') as HTMLDivElement;
+    const screenshotPreview = overlay.querySelector('#winnow-screenshot-preview') as HTMLDivElement;
+    const screenshotImg = overlay.querySelector('#winnow-screenshot-img') as HTMLImageElement;
+    const toggleScreenshotBtn = overlay.querySelector('#winnow-toggle-screenshot') as HTMLButtonElement;
+    const replaceInput = overlay.querySelector('#winnow-replace-input') as HTMLInputElement;
+
+    // State
+    let currentScreenshot: string | null = null;
+    let screenshotIncluded = true;
 
     const resetView = () => {
         viewForm.style.display = 'block';
         viewSuccess.style.display = 'none';
         form.reset();
+        currentScreenshot = null;
+        screenshotIncluded = true;
+        toggleScreenshotBtn.classList.remove('active');
+        toggleScreenshotBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            Remove Screenshot`;
+        screenshotPreview.classList.remove('removed');
+        screenshotPreview.style.display = 'none';
+        screenshotLoading.style.display = 'block';
     };
 
-    // Event Listeners
-    fab.addEventListener('click', () => {
+    // FAB click: capture screenshot first, then open modal
+    fab.addEventListener('click', async () => {
         resetView();
+
+
+        // Start capture
+        try {
+            const dataUrl = await captureSafeScreenshot();
+            currentScreenshot = dataUrl;
+
+            if (dataUrl) {
+                screenshotImg.src = dataUrl;
+                screenshotLoading.style.display = 'none';
+                screenshotPreview.style.display = 'block';
+            } else {
+                screenshotLoading.innerHTML = '<span style="color: #9ca3af;">Screenshot unavailable</span>';
+                screenshotSection.style.display = 'none';
+            }
+        } catch {
+            screenshotLoading.innerHTML = '<span style="color: #9ca3af;">Screenshot unavailable</span>';
+            screenshotSection.style.display = 'none';
+        }
         overlay.classList.add('open');
     });
 
+    // Toggle screenshot inclusion
+    toggleScreenshotBtn.addEventListener('click', () => {
+        screenshotIncluded = !screenshotIncluded;
+        if (screenshotIncluded) {
+            toggleScreenshotBtn.classList.remove('active');
+            toggleScreenshotBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                Remove Screenshot`;
+            screenshotPreview.classList.remove('removed');
+        } else {
+            toggleScreenshotBtn.classList.add('active');
+            toggleScreenshotBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 9l6 6m0-6l-6 6"/></svg>
+                Screenshot Removed`;
+            screenshotPreview.classList.add('removed');
+        }
+    });
+
+    // Replace image via file upload
+    replaceInput.addEventListener('change', () => {
+        const file = replaceInput.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            currentScreenshot = reader.result as string;
+            screenshotImg.src = currentScreenshot;
+            screenshotIncluded = true;
+            screenshotPreview.classList.remove('removed');
+            toggleScreenshotBtn.classList.remove('active');
+            toggleScreenshotBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                Remove Screenshot`;
+            // Update badge
+            const badge = screenshotPreview.querySelector('.winnow-screenshot-badge') as HTMLSpanElement;
+            if (badge) badge.textContent = 'User-provided';
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // Click-to-expand lightbox
+    screenshotImg.addEventListener('click', () => {
+        if (!currentScreenshot || !screenshotIncluded) return;
+        const lightbox = document.createElement('div');
+        lightbox.className = 'winnow-lightbox';
+        lightbox.innerHTML = `<img src="${currentScreenshot}" alt="Screenshot (expanded)" />`;
+        lightbox.addEventListener('click', () => lightbox.remove());
+        shadow.appendChild(lightbox);
+    });
+
+    // Cancel
     const cancelBtn = overlay.querySelector('#winnow-cancel') as HTMLButtonElement;
     cancelBtn.addEventListener('click', () => {
         overlay.classList.remove('open');
     });
 
+    // Close success
     const closeSuccessBtn = overlay.querySelector('#winnow-close-success') as HTMLButtonElement;
     closeSuccessBtn.addEventListener('click', () => {
         overlay.classList.remove('open');
     });
 
+    // Submit
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const submitBtn = form.querySelector('#winnow-submit') as HTMLButtonElement;
@@ -216,14 +451,19 @@ export function initUI(config: WinnowConfig) {
 
         const context = getContext();
 
-        const payload = {
+        const payload: Record<string, unknown> = {
             Title: title,
             Message: description,
             Metadata: {
                 ...context,
-                sdkVersion: '0.0.1'
+                sdkVersion: '0.1.0'
             }
         };
+
+        // Include screenshot if available and not removed
+        if (screenshotIncluded && currentScreenshot) {
+            payload.Screenshot = currentScreenshot;
+        }
 
         try {
             const headers: Record<string, string> = {
