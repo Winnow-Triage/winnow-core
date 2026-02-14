@@ -66,6 +66,11 @@ public class ClusterRefinementJob(
 
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
+        // Ensure vector table exists for this tenant
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS vec_reports USING vec0(embedding float[384] distance_metric=cosine);",
+            ct);
+
         var recentLeaders = await db.Reports
             .AsNoTracking()
             .Where(t => t.ParentReportId == null

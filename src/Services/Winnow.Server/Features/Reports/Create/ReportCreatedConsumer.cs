@@ -11,39 +11,37 @@ namespace Winnow.Server.Features.Reports.Create;
 
 public class ReportCreatedConsumer(
     WinnowDbContext dbContext,
-    Winnow.Server.Infrastructure.Integrations.ExporterFactory exporterFactory,
     ILogger<ReportCreatedConsumer> logger,
     ITenantContext tenantContext,
-    Services.Ai.IEmbeddingService embeddingService,
-    Services.Ai.IDuplicateChecker duplicateChecker,
-    Services.Ai.INegativeMatchCache negativeCache) : IConsumer<ReportCreatedEvent>
+    Services.Ai.IDuplicateChecker duplicateChecker) : IConsumer<ReportCreatedEvent>
 {
     public async Task Consume(ConsumeContext<ReportCreatedEvent> context)
     {
+        logger.LogInformation("ReportCreatedConsumer: Consuming message for report {Id} (Tenant: {Tenant})", 
+            context.Message.ReportId, context.Message.TenantId);
+
+        if (tenantContext is TenantContext concreteContext)
+        {
+            concreteContext.TenantId = context.Message.TenantId;
+        }
+
         // 1. Load Report
         var report = await dbContext.Reports.FindAsync([context.Message.ReportId], context.CancellationToken);
         if (report == null) return;
 
-        // 2. Generate Embedding
-        var contentToEmbed = $"{report.Message}\n{report.StackTrace}";
-        var embeddingFloats = await embeddingService.GetEmbeddingAsync(contentToEmbed);
-
-        // 3. Convert to BLOB
-        var embeddingBytes = new byte[embeddingFloats.Length * sizeof(float)];
-        Buffer.BlockCopy(embeddingFloats, 0, embeddingBytes, 0, embeddingBytes.Length);
-
-        report.Embedding = embeddingBytes;
-
-        // 4. Ensure Vector Table
+        // 2. Ensure Vector Table
         await dbContext.Database.ExecuteSqlRawAsync(
             "CREATE VIRTUAL TABLE IF NOT EXISTS vec_reports USING vec0(embedding float[384] distance_metric=cosine);",
             context.CancellationToken);
 
-        // 5. Vector Search
-        if (report.Status != "Duplicate" && report.Status != "Duplicate (StackHash)")
+        // 3. Vector Search
+        if (report.Embedding != null && report.Status != "Duplicate" && report.Status != "Duplicate (StackHash)")
         {
+            var embeddingFloats = new float[report.Embedding.Length / sizeof(float)];
+            Buffer.BlockCopy(report.Embedding, 0, embeddingFloats, 0, report.Embedding.Length);
+            
             const double DistanceThreshold = 0.35;
-            var parameters = new List<object> { embeddingBytes };
+            var parameters = new List<object> { report.Embedding };
 
             var sql = @"
                 SELECT t.Id, t.ParentReportId as ParentId, v.distance as Distance
@@ -58,6 +56,8 @@ public class ReportCreatedConsumer(
             var searchResults = await dbContext.Database
                 .SqlQueryRaw<ReportMatch>(sql, parameters.ToArray())
                 .ToListAsync(context.CancellationToken);
+
+            logger.LogInformation("ReportMatching: Found {Count} potential matches for report {Id}", searchResults.Count, report.Id);
 
             if (searchResults.Count > 0)
             {
@@ -141,11 +141,13 @@ public class ReportCreatedConsumer(
 
         // Sync to Vector Index
         await dbContext.Database.ExecuteSqlRawAsync(@"
-            INSERT INTO vec_reports(rowid, embedding)
+            INSERT OR REPLACE INTO vec_reports(rowid, embedding)
             SELECT rowid, {0}
             FROM Reports
             WHERE Id = {1}
-        ", embeddingBytes, report.Id);
+        ", report.Embedding, report.Id);
+        
+        logger.LogDebug("ReportMatching: Synchronized report {Id} to vector index.", report.Id);
     }
 
     private float[] CalculateCentroid(List<byte[]?> embeddings)

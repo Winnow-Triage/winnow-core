@@ -150,6 +150,15 @@ using (var scope = app.Services.CreateScope())
 
             try
             {
+                tenantDb.Database.ExecuteSqlRaw("CREATE VIRTUAL TABLE IF NOT EXISTS vec_reports USING vec0(embedding float[384] distance_metric=cosine);");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to create vec_reports table for tenant {dbFile}: {ex.Message}");
+            }
+
+            try
+            {
                 tenantDb.Database.ExecuteSqlRaw(@"
                     CREATE TABLE IF NOT EXISTS ""IntegrationConfigs"" (
                         ""Id"" TEXT NOT NULL CONSTRAINT ""PK_IntegrationConfigs"" PRIMARY KEY,
@@ -163,6 +172,7 @@ using (var scope = app.Services.CreateScope())
             {
                 Console.WriteLine($"Failed to create IntegrationConfigs table: {ex.Message}");
             }
+
         }
     }
 }

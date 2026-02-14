@@ -1,11 +1,11 @@
 #!/bin/bash
 echo "Posting error report to Winnow..."
-curl -X POST http://localhost:5294/tickets \
+curl -X POST http://localhost:5294/api/reports \
   -H "Content-Type: application/json" \
   -H "X-Winnow-Key: secret-key" \
+  -H "X-Tenant-ID: Tenant-A" \
   -d '{
-    "title": "Critical Payment Failure",
-    "description": "Payment gateway timed out during checkout.",
+    "message": "Critical Payment Failure",
     "stackTrace": "System.TimeoutException: The operation has timed out.\n   at Winnow.Payments.Gateway.ProcessAsync(PaymentRequest req)\n   at Winnow.Controllers.CheckoutController.SubmitOrder(OrderDto order)",
     "metadata": {
         "userId": "user_123",

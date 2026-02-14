@@ -3,7 +3,9 @@ using FastEndpoints;
 using FluentValidation;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Winnow.Server.Entities;
+using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Reports.Create;
@@ -31,6 +33,7 @@ public record ReportCreatedEvent
     public string? StackTrace { get; init; }
     public DateTime CreatedAt { get; init; }
     public string? Metadata { get; init; }
+    public string? TenantId { get; init; }
 }
 
 public record IngestReportResponse
@@ -40,7 +43,9 @@ public record IngestReportResponse
 
 public class IngestReportEndpoint(
     IPublishEndpoint publishEndpoint,
-    WinnowDbContext dbContext) : Endpoint<IngestReportRequest, IngestReportResponse>
+    Winnow.Server.Services.Ai.IEmbeddingService embeddingService,
+    WinnowDbContext dbContext,
+    ILogger<IngestReportEndpoint> logger) : Endpoint<IngestReportRequest, IngestReportResponse>
 {
     public override void Configure()
     {
@@ -76,6 +81,12 @@ public class IngestReportEndpoint(
             return;
         }
 
+        // 1. Generate Embedding
+        var textToEmbed = $"{req.Message}\n{req.StackTrace}";
+        var embeddingFloats = await embeddingService.GetEmbeddingAsync(textToEmbed);
+        var embeddingBytes = new byte[embeddingFloats.Length * sizeof(float)];
+        Buffer.BlockCopy(embeddingFloats, 0, embeddingBytes, 0, embeddingBytes.Length);
+
         var report = new Report
         {
             ProjectId = project.Id,
@@ -83,11 +94,15 @@ public class IngestReportEndpoint(
             StackTrace = req.StackTrace,
             Metadata = req.Metadata != null ? JsonSerializer.Serialize(req.Metadata) : null,
             CreatedAt = DateTime.UtcNow,
+            Embedding = embeddingBytes,
             ClusterId = null 
         };
 
         dbContext.Reports.Add(report);
         await dbContext.SaveChangesAsync(ct);
+
+        logger.LogInformation("IngestReportEndpoint: Publishing ReportCreatedEvent for report {Id} (Tenant: {Tenant})", 
+            report.Id, ((TenantContext)dbContext.GetService<ITenantContext>()).TenantId);
 
         await publishEndpoint.Publish(new ReportCreatedEvent
         {
@@ -96,7 +111,8 @@ public class IngestReportEndpoint(
             Message = report.Message,
             StackTrace = report.StackTrace,
             CreatedAt = report.CreatedAt,
-            Metadata = report.Metadata
+            Metadata = report.Metadata,
+            TenantId = ((TenantContext)dbContext.GetService<ITenantContext>()).TenantId
         }, ct);
 
         await Send.AcceptedAtAsync("GetReport", new { id = report.Id }, new IngestReportResponse { Id = report.Id });
