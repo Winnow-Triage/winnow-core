@@ -5,6 +5,7 @@ import { Features } from './components/Features';
 import { HowItWorks } from './components/HowItWorks';
 import { Playground } from './components/Playground';
 import { Footer } from './components/Footer';
+import { DeepDive } from './components/DeepDive';
 
 // Declare Winnow on window object
 declare global {
@@ -44,9 +45,13 @@ function App() {
   return (
     <div className="min-h-screen bg-background font-sans antialiased">
       <Navbar />
+
+
+
       <main>
         <Hero />
         <Features />
+        <DeepDive />
         <HowItWorks />
         <Playground />
       </main>
