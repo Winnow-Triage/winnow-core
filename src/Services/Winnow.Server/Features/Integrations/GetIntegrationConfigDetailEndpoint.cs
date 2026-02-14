@@ -39,7 +39,7 @@ public class GetIntegrationConfigDetailEndpoint(WinnowDbContext db) : EndpointWi
         await Send.OkAsync(response, ct);
     }
 
-    private string MaskSecrets(string provider, string json)
+    private static string MaskSecrets(string provider, string json)
     {
         try
         {
