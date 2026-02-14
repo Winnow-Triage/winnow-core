@@ -4,7 +4,7 @@ import { useState } from 'react';
 const steps = [
     {
         title: "Capture",
-        description: "Add the 2kb SDK to your app. We catch errors, rage clicks, and network fails automatically.",
+        description: "Winnow sits quietly in your app, listening for crashes, rage clicks, and failed network requests. Zero config required.",
         icon: Code,
         color: "text-blue-500",
         bg: "bg-blue-100 dark:bg-blue-900/20"
@@ -53,55 +53,7 @@ export function HowItWorks() {
                             {steps[0].description}
                         </p>
 
-                        {/* Code Window */}
-                        <div className="w-full max-w-[320px] mx-auto text-left rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl bg-slate-950">
-                            {/* Tabs */}
-                            <div className="flex border-b border-slate-800 bg-slate-900/50">
-                                <button
-                                    onClick={() => setActiveTab('js')}
-                                    className={`px-4 py-2 text-xs font-medium transition-colors ${activeTab === 'js' ? 'bg-slate-800 text-blue-400 border-t-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
-                                >
-                                    JavaScript
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('csharp')}
-                                    className={`px-4 py-2 text-xs font-medium transition-colors ${activeTab === 'csharp' ? 'bg-slate-800 text-purple-400 border-t-2 border-purple-400' : 'text-slate-500 hover:text-slate-300'}`}
-                                >
-                                    C# / .NET
-                                </button>
-                            </div>
 
-                            {/* Code Content */}
-                            <div className="p-4 bg-slate-950 font-mono text-xs overflow-x-auto">
-                                {activeTab === 'js' ? (
-                                    <>
-                                        <span className="text-purple-400">import</span> {'{'} <span className="text-yellow-300">Winnow</span> {'}'} <span className="text-purple-400">from</span> <span className="text-green-400">'@winnow/sdk'</span>;
-                                        <br />
-                                        <br />
-                                        <span className="text-purple-400">Winnow</span>.<span className="text-blue-400">init</span>({'{'}
-                                        <div className="pl-4">
-                                            <span className="text-slate-300">apiKey</span>: <span className="text-green-400">"..."</span>
-                                        </div>
-                                        {'}'});
-                                    </>
-                                ) : (
-                                    <>
-                                        <span className="text-blue-400">using</span> <span className="text-slate-300">Winnow.Sdk</span>;
-                                        <br />
-                                        <br />
-                                        <span className="text-purple-400">Winnow</span>.<span className="text-blue-400">Start</span>(
-                                        <div className="pl-4">
-                                            <span className="text-blue-400">new</span> <span className="text-emerald-300">WinnowConfig</span> {'{'}
-                                            <div className="pl-4">
-                                                <span className="text-slate-300">ApiKey</span> = <span className="text-green-400">"..."</span>
-                                            </div>
-                                            {'}'}
-                                        </div>
-                                        );
-                                    </>
-                                )}
-                            </div>
-                        </div>
 
                         {/* Mobile Arrow */}
                         <div className="mt-8 md:hidden text-slate-300 dark:text-slate-600">

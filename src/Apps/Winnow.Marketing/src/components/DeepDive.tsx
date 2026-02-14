@@ -92,6 +92,57 @@ export function DeepDive() {
                     </div>
                 </div>
             </div>
-        </section>
+
+            {/* Row 3: Trust (Text Left, Image Right) */}
+            <div className="flex flex-col md:flex-row items-center gap-12 mt-20 md:mt-32">
+                <div className="flex-1 space-y-6">
+                    <h2 className="text-3xl font-bold tracking-tighter md:text-4xl text-slate-900 dark:text-slate-50">
+                        Trust, but <span className="text-amber-500">Verify.</span>
+                    </h2>
+                    <p className="text-lg text-muted-foreground leading-relaxed">
+                        We know AI hallucinates. That's why Winnow gives you a 'Tinder-style' review interface.
+                        Swipe left to reject a bad merge, swipe right to confirm a cluster.
+                        You are always the pilot; AI is just the co-pilot.
+                    </p>
+                    <div className="pt-4 flex items-center space-x-4">
+                        <div className="flex items-center text-sm font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-1 rounded-full border border-amber-200 dark:border-amber-800">
+                            <span className="w-2 h-2 rounded-full bg-amber-500 mr-2 animate-pulse"></span>
+                            Human in the Loop
+                        </div>
+                    </div>
+                </div>
+                <div className="flex-1 w-full">
+                    <div className="relative rounded-xl shadow-2xl overflow-hidden border border-amber-200 dark:border-amber-900/50 bg-white dark:bg-slate-900">
+                        {/* Browser Chrome (Warning Theme) */}
+                        <div className="h-8 border-b border-amber-100 dark:border-amber-900/30 bg-amber-50 dark:bg-slate-800 flex items-center px-4 space-x-2">
+                            <div className="h-3 w-3 rounded-full bg-slate-300 dark:bg-slate-600"></div>
+                            <div className="h-3 w-3 rounded-full bg-slate-300 dark:bg-slate-600"></div>
+                        </div>
+                        <div className="aspect-[4/3] bg-slate-100 dark:bg-slate-950 flex items-center justify-center relative p-8">
+                            {/* Visual Mockup of Review Card */}
+                            <div className="w-full max-w-sm bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Suggested Merge</span>
+                                    <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 px-2 py-0.5 rounded-full">98% Match</span>
+                                </div>
+                                <div className="space-y-3 mb-6">
+                                    <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded w-3/4"></div>
+                                    <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded w-full"></div>
+                                    <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded w-5/6"></div>
+                                </div>
+                                <div className="flex justify-between gap-4">
+                                    <button className="flex-1 py-2 rounded-md border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm font-medium">
+                                        Reject
+                                    </button>
+                                    <button className="flex-1 py-2 rounded-md bg-green-500 hover:bg-green-600 text-white shadow-md transition-colors text-sm font-medium">
+                                        Confirm
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section >
     );
 }

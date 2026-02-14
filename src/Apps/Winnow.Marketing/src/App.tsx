@@ -6,6 +6,7 @@ import { HowItWorks } from './components/HowItWorks';
 import { Playground } from './components/Playground';
 import { Footer } from './components/Footer';
 import { DeepDive } from './components/DeepDive';
+import { Integration } from './components/Integration';
 
 // Declare Winnow on window object
 declare global {
@@ -52,6 +53,7 @@ function App() {
         <Hero />
         <Features />
         <DeepDive />
+        <Integration />
         <HowItWorks />
         <Playground />
       </main>
