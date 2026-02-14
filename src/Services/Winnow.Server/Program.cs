@@ -143,6 +143,7 @@ using (var scope = app.Services.CreateScope())
 app.UseMiddleware<TenantMiddleware>();
 
 app.UseAuthorization();
+app.UseStaticFiles();
 app.UseCors();
 app.UseFastEndpoints();
 app.UseSwaggerGen();
