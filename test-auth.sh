@@ -48,6 +48,15 @@ PROJECTS_RESPONSE=$(curl -s -X GET "$API_URL/projects" \
 
 echo "Projects: $PROJECTS_RESPONSE"
 
+echo -e "\n4. Creating New Project..."
+CREATE_PROJECT_RESPONSE=$(curl -s -X POST "$API_URL/projects" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "New Project"
+  }')
+echo "Create Response: $CREATE_PROJECT_RESPONSE"
+
 if [[ $PROJECTS_RESPONSE == *"id"* ]]; then
     echo -e "\nSUCCESS: Authentication and Authorization working!"
 else
