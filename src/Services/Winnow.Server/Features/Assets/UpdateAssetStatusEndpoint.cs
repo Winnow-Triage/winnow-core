@@ -7,40 +7,28 @@ namespace Winnow.Server.Features.Assets;
 
 public class UpdateAssetStatusRequest
 {
-    public Guid AssetId { get; set; }
+    public string S3Key { get; set; } = default!;
     public string Status { get; set; } = default!; // "Clean", "Infected", "Failed"
-    public string? CleanS3Key { get; set; } // New key after Bouncer moves to clean bucket
+    public string? NewS3Key { get; set; } // New key after Bouncer moves to clean bucket
 }
 
 public class UpdateAssetStatusEndpoint(
     WinnowDbContext dbContext,
-    IConfiguration config,
     ILogger<UpdateAssetStatusEndpoint> logger) : Endpoint<UpdateAssetStatusRequest>
 {
     public override void Configure()
     {
-        Put("/api/internal/assets/{AssetId}/status");
-        AllowAnonymous(); // Protected by API key check below
+        Post("/api/internal/assets/status");
+        AllowAnonymous(); // TODO: Lock down with X-Bouncer-Secret header
         Description(b => b.WithName("UpdateAssetStatus"));
     }
 
     public override async Task HandleAsync(UpdateAssetStatusRequest req, CancellationToken ct)
     {
-        // Verify internal API key
-        var expectedKey = config["InternalApiKey"];
-        if (!string.IsNullOrEmpty(expectedKey))
-        {
-            var providedKey = HttpContext.Request.Headers["X-Internal-Key"].FirstOrDefault();
-            if (providedKey != expectedKey)
-            {
-                await Send.UnauthorizedAsync(ct);
-                return;
-            }
-        }
-
-        var asset = await dbContext.Assets.FirstOrDefaultAsync(a => a.Id == req.AssetId, ct);
+        var asset = await dbContext.Assets.FirstOrDefaultAsync(a => a.S3Key == req.S3Key, ct);
         if (asset == null)
         {
+            logger.LogWarning("Asset not found for S3Key: {S3Key}", req.S3Key);
             await Send.NotFoundAsync(ct);
             return;
         }
@@ -56,14 +44,15 @@ public class UpdateAssetStatusEndpoint(
         asset.Status = newStatus;
         asset.ScannedAt = DateTime.UtcNow;
 
-        if (newStatus == AssetStatus.Clean && !string.IsNullOrEmpty(req.CleanS3Key))
+        if (!string.IsNullOrEmpty(req.NewS3Key))
         {
-            asset.CleanS3Key = req.CleanS3Key;
+            asset.S3Key = req.NewS3Key;
         }
 
         await dbContext.SaveChangesAsync(ct);
 
-        logger.LogInformation("Asset {AssetId} status updated to {Status}", asset.Id, newStatus);
+        logger.LogInformation("Asset {AssetId} status updated to {Status} (S3Key: {S3Key})",
+            asset.Id, newStatus, asset.S3Key);
 
         await Send.OkAsync(ct);
     }
