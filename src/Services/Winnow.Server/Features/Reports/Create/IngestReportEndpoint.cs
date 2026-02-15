@@ -24,7 +24,7 @@ public class IngestReportValidator : Validator<IngestReportRequest>
     public IngestReportValidator()
     {
         RuleFor(x => x.Title).NotEmpty().MaximumLength(500);
-        RuleFor(x => x.Message).NotEmpty().MaximumLength(5000); 
+        RuleFor(x => x.Message).NotEmpty().MaximumLength(5000);
     }
 }
 
@@ -48,6 +48,7 @@ public record IngestReportResponse
 public class IngestReportEndpoint(
     IPublishEndpoint publishEndpoint,
     Winnow.Server.Services.Ai.IEmbeddingService embeddingService,
+    Winnow.Server.Services.Storage.IStorageService storageService,
     WinnowDbContext dbContext,
     ILogger<IngestReportEndpoint> logger) : Endpoint<IngestReportRequest, IngestReportResponse>
 {
@@ -91,23 +92,55 @@ public class IngestReportEndpoint(
         var embeddingBytes = new byte[embeddingFloats.Length * sizeof(float)];
         Buffer.BlockCopy(embeddingFloats, 0, embeddingBytes, 0, embeddingBytes.Length);
 
+        // 2. Upload screenshot to S3 quarantine (if provided)
+        string? screenshotKey = null;
+        if (!string.IsNullOrEmpty(req.Screenshot))
+        {
+            try
+            {
+                // Strip data URL prefix: "data:image/png;base64,..."
+                var base64Data = req.Screenshot;
+                var commaIndex = base64Data.IndexOf(',');
+                if (commaIndex >= 0)
+                    base64Data = base64Data[(commaIndex + 1)..];
+
+                var imageBytes = Convert.FromBase64String(base64Data);
+                using var stream = new MemoryStream(imageBytes);
+
+                // Direct SDK upload — bypasses HTTP/SSL issues with presigned URLs
+                screenshotKey = await storageService.UploadFileAsync(
+                    Guid.Empty, // orgId — will be populated when multi-tenancy is wired
+                    project.Id,
+                    stream,
+                    $"screenshot_{DateTime.UtcNow:yyyyMMddHHmmss}.png",
+                    "image/png", ct);
+
+                logger.LogInformation("Screenshot uploaded to quarantine: {Key}", screenshotKey);
+            }
+            catch (Exception ex)
+            {
+                // Don't fail report ingestion if S3 is unavailable
+                logger.LogWarning(ex, "Failed to upload screenshot to S3 — skipping");
+            }
+        }
+
         var report = new Report
         {
             ProjectId = project.Id,
             Title = req.Title,
             Message = req.Message,
             StackTrace = req.StackTrace,
-            Screenshot = req.Screenshot,
+            Screenshot = screenshotKey, // S3 object key, NOT Base64
             Metadata = req.Metadata != null ? JsonSerializer.Serialize(req.Metadata) : null,
             CreatedAt = DateTime.UtcNow,
             Embedding = embeddingBytes,
-            ClusterId = null 
+            ClusterId = null
         };
 
         dbContext.Reports.Add(report);
         await dbContext.SaveChangesAsync(ct);
 
-        logger.LogInformation("IngestReportEndpoint: Publishing ReportCreatedEvent for report {Id} (Tenant: {Tenant})", 
+        logger.LogInformation("IngestReportEndpoint: Publishing ReportCreatedEvent for report {Id} (Tenant: {Tenant})",
             report.Id, ((TenantContext)dbContext.GetService<ITenantContext>()).TenantId);
 
         await publishEndpoint.Publish(new ReportCreatedEvent
@@ -122,6 +155,6 @@ public class IngestReportEndpoint(
             TenantId = ((TenantContext)dbContext.GetService<ITenantContext>()).TenantId
         }, ct);
 
-        await Send.AcceptedAtAsync("GetReport", new { id = report.Id }, new IngestReportResponse { Id = report.Id });
+        await Send.AcceptedAtAsync("GetReport", new { id = report.Id }, new IngestReportResponse { Id = report.Id }, false, ct);
     }
 }

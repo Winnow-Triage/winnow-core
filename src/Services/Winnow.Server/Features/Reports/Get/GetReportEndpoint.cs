@@ -17,7 +17,7 @@ public class GetReportResponse
     public string? StackTrace { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
-    
+
     // Clustering/Legacy fields
     public Guid? ParentReportId { get; set; }
     public string? AssignedTo { get; set; }
@@ -45,7 +45,7 @@ public class RelatedReportDto
     public float? ConfidenceScore { get; set; }
 }
 
-public class GetReportEndpoint(WinnowDbContext db) : Endpoint<GetReportRequest, GetReportResponse>
+public class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services.Storage.IStorageService storageService, ILogger<GetReportEndpoint> logger) : Endpoint<GetReportRequest, GetReportResponse>
 {
     public override void Configure()
     {
@@ -107,6 +107,21 @@ public class GetReportEndpoint(WinnowDbContext db) : Endpoint<GetReportRequest, 
                 .FirstOrDefaultAsync(ct);
         }
 
+        // Resolve screenshot key to presigned download URL
+        string? screenshotUrl = null;
+        if (!string.IsNullOrEmpty(report.Screenshot))
+        {
+            try
+            {
+                screenshotUrl = await storageService.GenerateDownloadUrlAsync(report.Screenshot, ct);
+            }
+            catch (Exception ex)
+            {
+                // Screenshot may still be in quarantine (not yet processed by Bouncer)
+                logger.LogDebug(ex, "Could not generate download URL for screenshot {Key} — may still be in quarantine", report.Screenshot);
+            }
+        }
+
         await Send.OkAsync(new GetReportResponse
         {
             Id = report.Id,
@@ -126,7 +141,7 @@ public class GetReportEndpoint(WinnowDbContext db) : Endpoint<GetReportRequest, 
             SuggestedConfidenceScore = report.SuggestedConfidenceScore,
             SuggestedParentMessage = suggestedParentMessage,
             Metadata = report.Metadata,
-            Screenshot = report.Screenshot,
+            Screenshot = screenshotUrl, // Presigned URL or null if still in quarantine
             ExternalUrl = report.ExternalUrl,
             Evidence = evidence
         }, ct);

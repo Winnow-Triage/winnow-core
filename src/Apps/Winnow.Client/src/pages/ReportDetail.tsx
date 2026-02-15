@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, ExternalLink, MessageSquare, Clock, AlertCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, ExternalLink, MessageSquare, Clock, AlertCircle, Sparkles, Paperclip } from 'lucide-react';
+import { MediaGallery } from '@/components/MediaGallery';
 import { Input } from '@/components/ui/input';
 import { toast } from "sonner";
 import {
@@ -57,6 +58,7 @@ interface ReportDetailData {
     criticalityScore?: number;
     criticalityReasoning?: string;
     metadata?: string;
+    screenshot?: string;
     externalUrl?: string;
     evidence: RelatedReport[];
 }
@@ -568,6 +570,30 @@ export default function ReportDetail() {
                             )}
                         </CardContent>
                     </Card>
+
+                    {/* Screenshot / Attachments */}
+                    {report.screenshot && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                                    <Paperclip className="h-3 w-3" />
+                                    Attachments
+                                </CardTitle>
+                                <CardDescription>Screenshot captured with the report.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <MediaGallery
+                                    attachments={[
+                                        {
+                                            url: report.screenshot,
+                                            type: 'image/png',
+                                            filename: 'screenshot.png'
+                                        }
+                                    ]}
+                                />
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
             </div>
 

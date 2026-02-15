@@ -1,13 +1,13 @@
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using MassTransit;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.SemanticKernel;
 using Winnow.Integrations;
 using Winnow.Server.Infrastructure.Configuration;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +18,23 @@ builder.Services.AddHttpClient();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<Winnow.Server.Services.Ai.IEmbeddingService, Winnow.Server.Services.Ai.EmbeddingService>();
 builder.Services.AddHostedService<Winnow.Server.Infrastructure.Scheduling.ClusterRefinementJob>();
+
+// S3 Storage Service
+var s3Settings = new Winnow.Server.Services.Storage.S3Settings();
+builder.Configuration.GetSection("S3Settings").Bind(s3Settings);
+builder.Services.AddSingleton(s3Settings);
+builder.Services.AddSingleton<Amazon.S3.IAmazonS3>(_ =>
+{
+    var config = new Amazon.S3.AmazonS3Config
+    {
+        ServiceURL = s3Settings.Endpoint,
+        ForcePathStyle = true, // Required for MinIO
+
+        UseHttp = s3Settings.Endpoint.StartsWith("http://")
+    };
+    return new Amazon.S3.AmazonS3Client(s3Settings.AccessKey, s3Settings.SecretKey, config);
+});
+builder.Services.AddSingleton<Winnow.Server.Services.Storage.IStorageService, Winnow.Server.Services.Storage.S3StorageService>();
 
 
 var llmSettings = new Winnow.Server.Infrastructure.Configuration.LlmSettings();
@@ -115,6 +132,18 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
     db.Database.Migrate();
+
+    // Ensure S3 buckets exist
+    try
+    {
+        var storage = scope.ServiceProvider.GetRequiredService<Winnow.Server.Services.Storage.IStorageService>();
+        await storage.EnsureBucketsExistAsync();
+        Console.WriteLine("S3 buckets verified/created successfully.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Warning: Could not ensure S3 buckets exist — MinIO may not be running. {ex.Message}");
+    }
 
     // SQLite multi-tenancy: Apply schema changes to ALL tenant databases
     var dataDir = Path.Combine(builder.Environment.ContentRootPath, "Data");

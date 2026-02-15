@@ -1,17 +1,17 @@
 version: '3.8'
 
 services:
-  # 1. The Database
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: winnow
-      POSTGRES_PASSWORD: localpassword
-      POSTGRES_DB: winnow_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+  # # 1. The Database
+  # postgres:
+  #   image: postgres:15-alpine
+  #   environment:
+  #     POSTGRES_USER: winnow
+  #     POSTGRES_PASSWORD: localpassword
+  #     POSTGRES_DB: winnow_db
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
 
   # 2. S3 Compatible Storage (MinIO)
   minio:
@@ -39,23 +39,23 @@ services:
       S3_ENDPOINT: http://minio:9000
       S3_BUCKET: winnow-quarantine
 
-  # 4. Your .NET API
-  api:
-    build:
-      context: ./src/Services/Winnow.Server
-      dockerfile: Dockerfile
-    ports:
-      - "5000:8080" # Maps localhost:5000 to container:8080
-    depends_on:
-      - postgres
-      - minio
-    environment:
-      - ConnectionStrings__DefaultConnection=Host=postgres;Database=winnow_db;Username=winnow;Password=localpassword
-      - AWS_ACCESS_KEY_ID=minioadmin
-      - AWS_SECRET_ACCESS_KEY=minioadmin
-      - S3_ServiceURL=http://minio:9000
-      - S3_ForcePathStyle=true
+  # # 4. Your .NET API
+  # api:
+  #   build:
+  #     context: ./src/Services/Winnow.Server
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "5000:8080" # Maps localhost:5000 to container:8080
+  #   depends_on:
+  #     - postgres
+  #     - minio
+  #   environment:
+  #     - ConnectionStrings__DefaultConnection=Host=postgres;Database=winnow_db;Username=winnow;Password=localpassword
+  #     - AWS_ACCESS_KEY_ID=minioadmin
+  #     - AWS_SECRET_ACCESS_KEY=minioadmin
+  #     - S3_ServiceURL=http://minio:9000
+  #     - S3_ForcePathStyle=true
 
 volumes:
-  postgres_data:
+  # postgres_data:
   minio_data:
