@@ -598,10 +598,10 @@ export default function ReportDetail() {
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 {/* Show clean images in MediaGallery */}
-                                {report.assets.filter(a => a.status === 'Clean' && a.downloadUrl && a.contentType.startsWith('image/')).length > 0 && (
+                                {report.assets.filter(a => a.status === 'Clean' && a.downloadUrl && (a.contentType.startsWith('image/') || a.contentType.startsWith('video/'))).length > 0 && (
                                     <MediaGallery
                                         attachments={report.assets
-                                            .filter(a => a.status === 'Clean' && a.downloadUrl && a.contentType.startsWith('image/'))
+                                            .filter(a => a.status === 'Clean' && a.downloadUrl && (a.contentType.startsWith('image/') || a.contentType.startsWith('video/')))
                                             .map(a => ({
                                                 url: a.downloadUrl!,
                                                 type: a.contentType,

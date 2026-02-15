@@ -10,6 +10,7 @@ public class UpdateAssetStatusRequest
     public string S3Key { get; set; } = default!;
     public string Status { get; set; } = default!; // "Clean", "Infected", "Failed"
     public string? NewS3Key { get; set; } // New key after Bouncer moves to clean bucket
+    public string? ContentType { get; set; } // Actual detected MIME type (may differ from upload)
 }
 
 public class UpdateAssetStatusEndpoint(
@@ -47,6 +48,11 @@ public class UpdateAssetStatusEndpoint(
         if (!string.IsNullOrEmpty(req.NewS3Key))
         {
             asset.S3Key = req.NewS3Key;
+        }
+
+        if (!string.IsNullOrEmpty(req.ContentType))
+        {
+            asset.ContentType = req.ContentType;
         }
 
         await dbContext.SaveChangesAsync(ct);
