@@ -16,6 +16,20 @@ public class S3StorageService : IStorageService
         _settings = settings;
     }
 
+    /// <summary>
+    /// The AWS SDK always generates HTTPS presigned URLs regardless of UseHttp config.
+    /// This fixes the scheme to match the configured endpoint (e.g. http for MinIO).
+    /// </summary>
+    private string FixPresignedUrlScheme(string presignedUrl)
+    {
+        if (_settings.Endpoint.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            && presignedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return "http://" + presignedUrl["https://".Length..];
+        }
+        return presignedUrl;
+    }
+
     public async Task<PresignedUploadResult> GenerateUploadUrlAsync(
         Guid orgId, Guid projectId, string fileName, string contentType, CancellationToken ct = default)
     {
@@ -36,8 +50,8 @@ public class S3StorageService : IStorageService
             ContentType = contentType
         };
 
-        var url = await Task.FromResult(_s3.GetPreSignedURL(request));
-        return new PresignedUploadResult(url, objectKey);
+        var url = _s3.GetPreSignedURL(request);
+        return new PresignedUploadResult(FixPresignedUrlScheme(url), objectKey);
     }
 
     public async Task<string> GenerateDownloadUrlAsync(string key, CancellationToken ct = default)
@@ -53,7 +67,7 @@ public class S3StorageService : IStorageService
             Expires = DateTime.UtcNow.Add(DownloadUrlExpiry)
         };
 
-        return await Task.FromResult(_s3.GetPreSignedURL(request));
+        return FixPresignedUrlScheme(_s3.GetPreSignedURL(request));
     }
 
     public async Task EnsureBucketsExistAsync(CancellationToken ct = default)
@@ -68,7 +82,7 @@ public class S3StorageService : IStorageService
     }
 
     public async Task<string> UploadFileAsync(
-        Guid orgId, Guid projectId, Guid reportId, Stream stream, string fileName, string contentType, CancellationToken ct = default)
+        Guid orgId, Guid projectId, Guid reportId, Stream stream, string fileName, string contentType, string? tenantId = null, CancellationToken ct = default)
     {
         var safeFileName = Path.GetFileName(fileName);
         if (string.IsNullOrWhiteSpace(safeFileName))
@@ -85,6 +99,9 @@ public class S3StorageService : IStorageService
         };
         request.Metadata.Add("org-id", orgId.ToString());
         request.Metadata.Add("project-id", projectId.ToString());
+        request.Metadata.Add("report-id", reportId.ToString());
+        if (!string.IsNullOrEmpty(tenantId))
+            request.Metadata.Add("tenant-id", tenantId);
 
         await _s3.PutObjectAsync(request, ct);
         return objectKey;

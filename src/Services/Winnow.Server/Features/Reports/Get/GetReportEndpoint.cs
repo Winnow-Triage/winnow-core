@@ -1,5 +1,6 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
+using Winnow.Server.Entities;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Reports.Get;
@@ -33,7 +34,20 @@ public class GetReportResponse
     public string? Screenshot { get; set; }
     public string? ExternalUrl { get; set; }
 
+    public List<AssetDto> Assets { get; set; } = [];
     public List<RelatedReportDto> Evidence { get; set; } = [];
+}
+
+public class AssetDto
+{
+    public Guid Id { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public long SizeBytes { get; set; }
+    public string Status { get; set; } = string.Empty; // Pending, Clean, Infected, Failed
+    public string? DownloadUrl { get; set; } // Presigned URL, only for Clean assets
+    public DateTime CreatedAt { get; set; }
+    public DateTime? ScannedAt { get; set; }
 }
 
 public class RelatedReportDto
@@ -58,6 +72,7 @@ public class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services.Storag
     {
         var report = await db.Reports
             .AsNoTracking()
+            .Include(r => r.Assets)
             .FirstOrDefaultAsync(t => t.Id == req.Id, ct);
 
         if (report == null)
@@ -107,19 +122,35 @@ public class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services.Storag
                 .FirstOrDefaultAsync(ct);
         }
 
-        // Resolve screenshot key to presigned download URL
-        string? screenshotUrl = null;
-        if (!string.IsNullOrEmpty(report.Screenshot))
+        // Build asset DTOs with download URLs for clean files
+        var assetDtos = new List<AssetDto>();
+        foreach (var asset in report.Assets)
         {
-            try
+            string? downloadUrl = null;
+            if (asset.Status == AssetStatus.Clean)
             {
-                screenshotUrl = await storageService.GenerateDownloadUrlAsync(report.Screenshot, ct);
+                try
+                {
+                    // Use the S3Key (which Bouncer may have updated to the clean bucket key)
+                    downloadUrl = await storageService.GenerateDownloadUrlAsync(asset.S3Key, ct);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Could not generate download URL for asset {AssetId}", asset.Id);
+                }
             }
-            catch (Exception ex)
+
+            assetDtos.Add(new AssetDto
             {
-                // Screenshot may still be in quarantine (not yet processed by Bouncer)
-                logger.LogDebug(ex, "Could not generate download URL for screenshot {Key} — may still be in quarantine", report.Screenshot);
-            }
+                Id = asset.Id,
+                FileName = asset.FileName,
+                ContentType = asset.ContentType,
+                SizeBytes = asset.SizeBytes,
+                Status = asset.Status.ToString(),
+                DownloadUrl = downloadUrl,
+                CreatedAt = asset.CreatedAt,
+                ScannedAt = asset.ScannedAt
+            });
         }
 
         await Send.OkAsync(new GetReportResponse
@@ -141,8 +172,8 @@ public class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services.Storag
             SuggestedConfidenceScore = report.SuggestedConfidenceScore,
             SuggestedParentMessage = suggestedParentMessage,
             Metadata = report.Metadata,
-            Screenshot = screenshotUrl, // Presigned URL or null if still in quarantine
             ExternalUrl = report.ExternalUrl,
+            Assets = assetDtos,
             Evidence = evidence
         }, ct);
     }

@@ -54,6 +54,6 @@ public class UpdateAssetStatusEndpoint(
         logger.LogInformation("Asset {AssetId} status updated to {Status} (S3Key: {S3Key})",
             asset.Id, newStatus, asset.S3Key);
 
-        await Send.OkAsync(ct);
+        HttpContext.Response.StatusCode = 204;
     }
 }

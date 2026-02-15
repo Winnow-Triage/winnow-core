@@ -112,13 +112,15 @@ public class IngestReportEndpoint(
                 using var stream = new MemoryStream(imageBytes);
 
                 // Direct SDK upload with report-scoped path
+                var currentTenantId = ((TenantContext)dbContext.GetService<ITenantContext>()).TenantId;
                 var s3Key = await storageService.UploadFileAsync(
                     Guid.Empty, // orgId — will be populated when multi-tenancy is wired
                     project.Id,
                     reportId,
                     stream,
                     fileName,
-                    "image/png", ct);
+                    "image/png",
+                    currentTenantId, ct);
 
                 screenshotAsset = new Asset
                 {

@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, ExternalLink, MessageSquare, Clock, AlertCircle, Sparkles, Paperclip } from 'lucide-react';
+import { ArrowLeft, ExternalLink, MessageSquare, Clock, AlertCircle, Sparkles, Paperclip, ShieldCheck, ShieldAlert, Loader2 } from 'lucide-react';
 import { MediaGallery } from '@/components/MediaGallery';
 import { Input } from '@/components/ui/input';
 import { toast } from "sonner";
@@ -40,6 +40,17 @@ interface RelatedReport {
     confidenceScore?: number;
 }
 
+interface AssetData {
+    id: string;
+    fileName: string;
+    contentType: string;
+    sizeBytes: number;
+    status: string; // Pending, Clean, Infected, Failed
+    downloadUrl?: string;
+    createdAt: string;
+    scannedAt?: string;
+}
+
 interface ReportDetailData {
     id: string;
     title: string;
@@ -60,6 +71,7 @@ interface ReportDetailData {
     metadata?: string;
     screenshot?: string;
     externalUrl?: string;
+    assets: AssetData[];
     evidence: RelatedReport[];
 }
 
@@ -571,26 +583,68 @@ export default function ReportDetail() {
                         </CardContent>
                     </Card>
 
-                    {/* Screenshot / Attachments */}
-                    {report.screenshot && (
+                    {/* Attachments / Assets */}
+                    {report.assets && report.assets.length > 0 && (
                         <Card>
                             <CardHeader>
                                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                                     <Paperclip className="h-3 w-3" />
                                     Attachments
+                                    <Badge variant="outline" className="ml-auto text-xs">
+                                        {report.assets.length} file{report.assets.length > 1 ? 's' : ''}
+                                    </Badge>
                                 </CardTitle>
-                                <CardDescription>Screenshot captured with the report.</CardDescription>
+                                <CardDescription>Files captured with this report.</CardDescription>
                             </CardHeader>
-                            <CardContent>
-                                <MediaGallery
-                                    attachments={[
-                                        {
-                                            url: report.screenshot,
-                                            type: 'image/png',
-                                            filename: 'screenshot.png'
-                                        }
-                                    ]}
-                                />
+                            <CardContent className="space-y-3">
+                                {/* Show clean images in MediaGallery */}
+                                {report.assets.filter(a => a.status === 'Clean' && a.downloadUrl && a.contentType.startsWith('image/')).length > 0 && (
+                                    <MediaGallery
+                                        attachments={report.assets
+                                            .filter(a => a.status === 'Clean' && a.downloadUrl && a.contentType.startsWith('image/'))
+                                            .map(a => ({
+                                                url: a.downloadUrl!,
+                                                type: a.contentType,
+                                                filename: a.fileName
+                                            }))}
+                                    />
+                                )}
+
+                                {/* Status list for all assets */}
+                                <div className="space-y-2">
+                                    {report.assets.map(asset => (
+                                        <div key={asset.id} className="flex items-center gap-2 text-sm rounded-md border p-2">
+                                            {asset.status === 'Pending' && (
+                                                <Badge variant="outline" className="gap-1 text-yellow-600 border-yellow-300">
+                                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                                    Scanning
+                                                </Badge>
+                                            )}
+                                            {asset.status === 'Clean' && (
+                                                <Badge variant="outline" className="gap-1 text-green-600 border-green-300">
+                                                    <ShieldCheck className="h-3 w-3" />
+                                                    Clean
+                                                </Badge>
+                                            )}
+                                            {asset.status === 'Infected' && (
+                                                <Badge variant="destructive" className="gap-1">
+                                                    <ShieldAlert className="h-3 w-3" />
+                                                    Infected
+                                                </Badge>
+                                            )}
+                                            {asset.status === 'Failed' && (
+                                                <Badge variant="outline" className="gap-1 text-red-600 border-red-300">
+                                                    <AlertCircle className="h-3 w-3" />
+                                                    Failed
+                                                </Badge>
+                                            )}
+                                            <span className="truncate flex-1">{asset.fileName}</span>
+                                            <span className="text-muted-foreground text-xs">
+                                                {(asset.sizeBytes / 1024).toFixed(1)} KB
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
                             </CardContent>
                         </Card>
                     )}
