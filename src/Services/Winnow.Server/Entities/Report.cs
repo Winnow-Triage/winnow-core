@@ -8,16 +8,16 @@ public class Report
     public string Message { get; set; } = default!;
     public string? StackTrace { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    
+
     public string Status { get; set; } = "New";
     public Guid? ClusterId { get; set; } // The cluster this report belongs to
-    
+
     // Legacy/Clustering fields (kept for compatibility during refactor)
     public Guid? ParentReportId { get; set; }
     public Guid? SuggestedParentId { get; set; }
     public float? SuggestedConfidenceScore { get; set; }
     public string? AssignedTo { get; set; }
-    public string? Summary { get; set; } 
+    public string? Summary { get; set; }
     public float? ConfidenceScore { get; set; }
     public int? CriticalityScore { get; set; }
     public string? CriticalityReasoning { get; set; }
@@ -25,5 +25,8 @@ public class Report
     public string? StackTraceHash { get; set; }
     public string? ExternalUrl { get; set; }
     public string? Metadata { get; set; } // Renamed from MetadataJson
-    public string? Screenshot { get; set; } // Base64 PNG data URL
+    public string? Screenshot { get; set; } // S3 object key (legacy, replaced by Assets)
+
+    // Navigation
+    public ICollection<Asset> Assets { get; set; } = new List<Asset>();
 }

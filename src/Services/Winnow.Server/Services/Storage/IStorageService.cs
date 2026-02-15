@@ -24,7 +24,7 @@ public interface IStorageService
     /// Returns the object key.
     /// </summary>
     Task<string> UploadFileAsync(
-        Guid orgId, Guid projectId, Stream stream, string fileName, string contentType, CancellationToken ct = default);
+        Guid orgId, Guid projectId, Guid reportId, Stream stream, string fileName, string contentType, CancellationToken ct = default);
 }
 
 public record PresignedUploadResult(string UploadUrl, string ObjectKey);

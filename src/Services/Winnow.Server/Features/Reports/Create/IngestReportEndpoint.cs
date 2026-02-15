@@ -92,8 +92,11 @@ public class IngestReportEndpoint(
         var embeddingBytes = new byte[embeddingFloats.Length * sizeof(float)];
         Buffer.BlockCopy(embeddingFloats, 0, embeddingBytes, 0, embeddingBytes.Length);
 
-        // 2. Upload screenshot to S3 quarantine (if provided)
-        string? screenshotKey = null;
+        // 2. Generate Report ID upfront so we can use it in the S3 path
+        var reportId = Guid.NewGuid();
+
+        // 3. Upload screenshot to S3 quarantine and create Asset record (if provided)
+        Asset? screenshotAsset = null;
         if (!string.IsNullOrEmpty(req.Screenshot))
         {
             try
@@ -105,17 +108,31 @@ public class IngestReportEndpoint(
                     base64Data = base64Data[(commaIndex + 1)..];
 
                 var imageBytes = Convert.FromBase64String(base64Data);
+                var fileName = $"screenshot_{DateTime.UtcNow:yyyyMMddHHmmss}.png";
                 using var stream = new MemoryStream(imageBytes);
 
-                // Direct SDK upload — bypasses HTTP/SSL issues with presigned URLs
-                screenshotKey = await storageService.UploadFileAsync(
+                // Direct SDK upload with report-scoped path
+                var s3Key = await storageService.UploadFileAsync(
                     Guid.Empty, // orgId — will be populated when multi-tenancy is wired
                     project.Id,
+                    reportId,
                     stream,
-                    $"screenshot_{DateTime.UtcNow:yyyyMMddHHmmss}.png",
+                    fileName,
                     "image/png", ct);
 
-                logger.LogInformation("Screenshot uploaded to quarantine: {Key}", screenshotKey);
+                screenshotAsset = new Asset
+                {
+                    OrganizationId = Guid.Empty,
+                    ProjectId = project.Id,
+                    ReportId = reportId,
+                    FileName = fileName,
+                    S3Key = s3Key,
+                    ContentType = "image/png",
+                    SizeBytes = imageBytes.Length,
+                    Status = AssetStatus.Pending
+                };
+
+                logger.LogInformation("Screenshot uploaded to quarantine: {Key}", s3Key);
             }
             catch (Exception ex)
             {
@@ -126,11 +143,11 @@ public class IngestReportEndpoint(
 
         var report = new Report
         {
+            Id = reportId,
             ProjectId = project.Id,
             Title = req.Title,
             Message = req.Message,
             StackTrace = req.StackTrace,
-            Screenshot = screenshotKey, // S3 object key, NOT Base64
             Metadata = req.Metadata != null ? JsonSerializer.Serialize(req.Metadata) : null,
             CreatedAt = DateTime.UtcNow,
             Embedding = embeddingBytes,
@@ -138,6 +155,8 @@ public class IngestReportEndpoint(
         };
 
         dbContext.Reports.Add(report);
+        if (screenshotAsset != null)
+            dbContext.Assets.Add(screenshotAsset);
         await dbContext.SaveChangesAsync(ct);
 
         logger.LogInformation("IngestReportEndpoint: Publishing ReportCreatedEvent for report {Id} (Tenant: {Tenant})",

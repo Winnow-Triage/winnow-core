@@ -68,13 +68,13 @@ public class S3StorageService : IStorageService
     }
 
     public async Task<string> UploadFileAsync(
-        Guid orgId, Guid projectId, Stream stream, string fileName, string contentType, CancellationToken ct = default)
+        Guid orgId, Guid projectId, Guid reportId, Stream stream, string fileName, string contentType, CancellationToken ct = default)
     {
         var safeFileName = Path.GetFileName(fileName);
         if (string.IsNullOrWhiteSpace(safeFileName))
             throw new ArgumentException("Invalid file name.", nameof(fileName));
 
-        var objectKey = $"organizations/{orgId}/projects/{projectId}/{Guid.NewGuid():N}_{safeFileName}";
+        var objectKey = $"organizations/{orgId}/projects/{projectId}/reports/{reportId}/{Guid.NewGuid():N}_{safeFileName}";
 
         var request = new PutObjectRequest
         {
