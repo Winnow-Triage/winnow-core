@@ -57,3 +57,5 @@ export function WinnowGauge({ percent, hoursSaved }: WinnowGaugeProps) {
         </Card>
     )
 }
+
+export default WinnowGauge;
