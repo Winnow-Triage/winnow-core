@@ -1,4 +1,4 @@
-﻿Microsoft Visual Studio Solution File, Format Version 12.00
+Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
@@ -9,6 +9,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Winnow.Sdk", "src\Sdks\Winnow.Sdk.DotNet\Winnow.Sdk.csproj", "{EB1569D4-D55B-4A6E-A418-21EE699A79C1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Winnow.Integrations", "src\Services\Winnow.Integrations\Winnow.Integrations.csproj", "{D33331E7-247D-47B0-ACD3-A0B7A626A68A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Winnow.Server.Tests", "src\Services\Winnow.Server.Tests\Winnow.Server.Tests.csproj", "{FA13A251-474A-4603-82B8-F3A6DB5861A3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -31,10 +33,15 @@ Global
 		{D33331E7-247D-47B0-ACD3-A0B7A626A68A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D33331E7-247D-47B0-ACD3-A0B7A626A68A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D33331E7-247D-47B0-ACD3-A0B7A626A68A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FA13A251-474A-4603-82B8-F3A6DB5861A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FA13A251-474A-4603-82B8-F3A6DB5861A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FA13A251-474A-4603-82B8-F3A6DB5861A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FA13A251-474A-4603-82B8-F3A6DB5861A3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{0ACD684E-9F59-45CF-A5B3-7B7013B93ABB} = {F161D62E-8757-4DD2-8D27-F072947FFAE1}
 		{EB1569D4-D55B-4A6E-A418-21EE699A79C1} = {F161D62E-8757-4DD2-8D27-F072947FFAE1}
 		{D33331E7-247D-47B0-ACD3-A0B7A626A68A} = {F161D62E-8757-4DD2-8D27-F072947FFAE1}
+		{FA13A251-474A-4603-82B8-F3A6DB5861A3} = {F161D62E-8757-4DD2-8D27-F072947FFAE1}
 	EndGlobalSection
 EndGlobal
