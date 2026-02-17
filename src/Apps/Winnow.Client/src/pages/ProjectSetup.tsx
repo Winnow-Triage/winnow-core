@@ -3,6 +3,7 @@ import { Check, Copy, Server, ArrowRight, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { api } from "@/lib/api"
 // import { useNavigate } from "react-router-dom" // Will use later for "Go to Dashboard"
 
 const codeSnippets = {
@@ -50,15 +51,9 @@ export default function ProjectSetup() {
 
         const checkReports = async () => {
             try {
-                // Determine API URL (assuming Winnow.Server is on localhost:5294 based on launchSettings)
-                const apiUrl = "http://localhost:5294/reports"
-
-                const response = await fetch(apiUrl)
-                if (response.ok) {
-                    const reports = await response.json()
-                    if (Array.isArray(reports) && reports.length > 0) {
-                        setConnectionState('success')
-                    }
+                const { data: reports } = await api.get("/reports")
+                if (Array.isArray(reports) && reports.length > 0) {
+                    setConnectionState('success')
                 }
             } catch (error) {
                 console.error("Polling failed (server might be down):", error)

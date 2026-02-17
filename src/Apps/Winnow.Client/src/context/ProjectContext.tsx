@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { api } from "../lib/api";
 
 export interface Project {
     id: string;
@@ -22,9 +22,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const [projects, setProjects] = useState<Project[]>([]);
     const [currentProject, setCurrentProject] = useState<Project | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const navigate = useNavigate();
-
-    const API_URL = "http://localhost:5294"; // In real app, from env
 
     useEffect(() => {
         refreshProjects();
@@ -40,34 +37,22 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         }
 
         try {
-            const response = await fetch(`${API_URL}/projects`, {
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
-            });
+            const { data } = await api.get("/projects");
+            setProjects(data);
 
-            if (response.status === 401) {
-                // Token expired or invalid
-                localStorage.removeItem("authToken");
-                navigate("/login");
-                return;
+            // Restore selection or default to first
+            const savedProjectId = localStorage.getItem("lastProjectId");
+            const matchedProject = data.find((p: Project) => p.id === savedProjectId) || data[0];
+
+            if (matchedProject) {
+                setCurrentProject(matchedProject);
+                localStorage.setItem("lastProjectId", matchedProject.id);
             }
-
-            if (response.ok) {
-                const data = await response.json();
-                setProjects(data);
-
-                // Restore selection or default to first
-                const savedProjectId = localStorage.getItem("lastProjectId");
-                const matchedProject = data.find((p: Project) => p.id === savedProjectId) || data[0];
-
-                if (matchedProject) {
-                    setCurrentProject(matchedProject);
-                    localStorage.setItem("lastProjectId", matchedProject.id);
-                }
-            }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to fetch projects", error);
+            if (error.response?.status === 401) {
+                // Token expired or invalid - handled by interceptor
+            }
         } finally {
             setIsLoading(false);
         }
@@ -86,26 +71,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         if (!token) return;
 
         try {
-            const response = await fetch(`${API_URL}/projects`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({ name })
-            });
-
-            if (response.ok) {
-                const newProject = await response.json();
-                setProjects(prev => [...prev, newProject]);
-                selectProject(newProject.id); // Auto-select new project
-            } else {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || "Failed to create project");
-            }
-        } catch (error) {
+            const { data: newProject } = await api.post("/projects", { name });
+            setProjects(prev => [...prev, newProject]);
+            selectProject(newProject.id); // Auto-select new project
+        } catch (error: any) {
             console.error("Create project error", error);
-            throw error;
+            throw new Error(error.response?.data?.message || "Failed to create project");
         }
     };
 

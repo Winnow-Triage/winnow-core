@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
-import axios from "axios"
 import { AlertCircle, Loader2 } from "lucide-react"
+import { api } from "@/lib/api"
 
 import { WinnowGauge } from "@/components/dashboard/WinnowGauge"
 import { TriageFunnelChart } from "@/components/dashboard/TriageFunnelChart"
@@ -35,10 +35,8 @@ export default function Dashboard() {
     const { data, isLoading, error } = useQuery<DashboardMetrics>({
         queryKey: ["dashboardMetrics"],
         queryFn: async () => {
-            // Assuming API base URL is configured in axios or via proxy
-            // The backend endpoint is /dashboard/metrics, checking if prefix is needed
-            const res = await axios.get("/api/dashboard/metrics")
-            return res.data
+            const { data } = await api.get("/dashboard/metrics")
+            return data
         },
         refetchInterval: 30000 // Refresh every 30s
     })

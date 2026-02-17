@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ModeToggle } from "@/components/mode-toggle"
+import { api } from "@/lib/api"
 
 export default function AuthPage() {
     const location = useLocation()
@@ -12,7 +13,6 @@ export default function AuthPage() {
     const [isSignUp, setIsSignUp] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const API_URL = "http://localhost:5294";
 
     useEffect(() => {
         setIsSignUp(location.pathname === '/signup')
@@ -35,15 +35,13 @@ export default function AuthPage() {
                 ? { email, password, fullName }
                 : { email, password };
 
-            const response = await fetch(`${API_URL}${endpoint}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                let errorMessage = errorData.message || `Authentication failed: ${response.statusText}`;
+            let data;
+            try {
+                const response = await api.post(endpoint, payload);
+                data = response.data;
+            } catch (error: any) {
+                const errorData = error.response?.data || {};
+                let errorMessage = errorData.message || `Authentication failed: ${error.response?.statusText || error.message}`;
 
                 // Parse ValidationProblemDetails 'errors' object
                 if (errorData.errors) {
@@ -55,8 +53,6 @@ export default function AuthPage() {
 
                 throw new Error(errorMessage);
             }
-
-            const data = await response.json();
 
             // Store Auth Data
             localStorage.setItem("authToken", data.token);
