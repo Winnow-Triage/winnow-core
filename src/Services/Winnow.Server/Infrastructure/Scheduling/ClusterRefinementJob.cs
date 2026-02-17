@@ -71,51 +71,76 @@ public class ClusterRefinementJob(
             "CREATE VIRTUAL TABLE IF NOT EXISTS vec_reports USING vec0(embedding float[384] distance_metric=cosine);",
             ct);
 
+        // Get all projects for this tenant
+        var projects = await db.Projects
+            .AsNoTracking()
+            .Select(p => p.Id)
+            .ToListAsync(ct);
+
+        var embeddingService = scope.ServiceProvider.GetRequiredService<Services.Ai.IEmbeddingService>();
+        var duplicateChecker = scope.ServiceProvider.GetRequiredService<Services.Ai.IDuplicateChecker>();
+        var negativeCache = scope.ServiceProvider.GetRequiredService<Services.Ai.INegativeMatchCache>();
+
+        foreach (var projectId in projects)
+        {
+            await ProcessProjectAsync(db, projectId, tenantId, embeddingService, duplicateChecker, negativeCache, ct);
+        }
+    }
+
+    private async Task ProcessProjectAsync(
+        WinnowDbContext db,
+        Guid projectId,
+        string tenantId,
+        Services.Ai.IEmbeddingService embeddingService,
+        Services.Ai.IDuplicateChecker duplicateChecker,
+        Services.Ai.INegativeMatchCache negativeCache,
+        CancellationToken ct)
+    {
         var recentLeaders = await db.Reports
             .AsNoTracking()
-            .Where(t => t.ParentReportId == null
+            .Where(t => t.ProjectId == projectId
+                     && t.ParentReportId == null
                      && t.Status != "Duplicate")
-            .OrderBy(t => t.CreatedAt) 
+            .OrderBy(t => t.CreatedAt)
             .ToListAsync(ct);
 
         if (recentLeaders.Count < 1) return;
 
-        logger.LogInformation("Janitor [{TenantId}]: Scanning {Count} active leaders.", tenantId, recentLeaders.Count);
+        logger.LogInformation("Janitor [{TenantId}][Project: {ProjectId}]: Scanning {Count} active leaders.",
+            tenantId, projectId, recentLeaders.Count);
 
-        var embeddingService = scope.ServiceProvider.GetRequiredService<Winnow.Server.Services.Ai.IEmbeddingService>();
         foreach (var leader in recentLeaders.Where(l => l.Embedding == null))
         {
             try
             {
-                logger.LogInformation("Janitor [{TenantId}]: Generating missing embedding for report {Id}", tenantId, leader.Id);
+                logger.LogInformation("Janitor [{TenantId}][Project: {ProjectId}]: Generating missing embedding for report {Id}",
+                    tenantId, projectId, leader.Id);
                 var text = $"{leader.Title}\n{leader.Message}\n{leader.StackTrace}";
                 var embeddingFloats = await embeddingService.GetEmbeddingAsync(text);
                 var embeddingBytes = new byte[embeddingFloats.Length * sizeof(float)];
                 Buffer.BlockCopy(embeddingFloats, 0, embeddingBytes, 0, embeddingBytes.Length);
 
                 await db.Database.ExecuteSqlRawAsync(
-                    "UPDATE Reports SET Embedding = {0} WHERE Id = {1}",
-                    [embeddingBytes, leader.Id], ct);
+                    "UPDATE Reports SET Embedding = {0} WHERE Id = {1} AND ProjectId = {2}",
+                    [embeddingBytes, leader.Id, projectId], ct);
 
                 await db.Database.ExecuteSqlRawAsync(
-                    "INSERT OR REPLACE INTO vec_reports(rowid, embedding) VALUES ((SELECT rowid FROM Reports WHERE Id = {0}), {1})",
-                    [leader.Id, embeddingBytes], ct);
+                    "INSERT OR REPLACE INTO vec_reports(rowid, embedding) VALUES ((SELECT rowid FROM Reports WHERE Id = {0} AND ProjectId = {1}), {2})",
+                    [leader.Id, projectId, embeddingBytes], ct);
 
                 leader.Embedding = embeddingBytes;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Janitor [{TenantId}]: Failed to heal embedding for {Id}", tenantId, leader.Id);
+                logger.LogError(ex, "Janitor [{TenantId}][Project: {ProjectId}]: Failed to heal embedding for {Id}",
+                    tenantId, projectId, leader.Id);
             }
         }
 
         int mergeCount = 0;
         int suggestCount = 0;
         var processedIds = new HashSet<Guid>();
-        var mergeMap = new Dictionary<Guid, Guid>(); 
-        
-        var duplicateChecker = scope.ServiceProvider.GetRequiredService<Winnow.Server.Services.Ai.IDuplicateChecker>();
-        var negativeCache = scope.ServiceProvider.GetRequiredService<Winnow.Server.Services.Ai.INegativeMatchCache>();
+        var mergeMap = new Dictionary<Guid, Guid>();
 
         foreach (var leaderA in recentLeaders)
         {
@@ -131,7 +156,7 @@ public class ClusterRefinementJob(
             var matchIds = matches.Select(m => m.Id).ToList();
             var parentInfo = await db.Reports
                 .AsNoTracking()
-                .Where(t => matchIds.Contains(t.Id))
+                .Where(t => matchIds.Contains(t.Id) && t.ProjectId == projectId)
                 .Select(t => new { t.Id, t.ParentReportId, t.CreatedAt })
                 .ToDictionaryAsync(t => t.Id, t => new { t.ParentReportId, t.CreatedAt }, ct);
 
@@ -148,7 +173,7 @@ public class ClusterRefinementJob(
 
                     return new { Match = m, UltimateParentId = currentParentId };
                 })
-                .Where(m => m.UltimateParentId != leaderA.Id) 
+                .Where(m => m.UltimateParentId != leaderA.Id)
                 .GroupBy(m => m.UltimateParentId)
                 .ToList();
 
@@ -168,7 +193,7 @@ public class ClusterRefinementJob(
 
                 var members = await db.Reports
                     .AsNoTracking()
-                    .Where(t => t.Id == clusterId || t.ParentReportId == clusterId)
+                    .Where(t => (t.Id == clusterId || t.ParentReportId == clusterId) && t.ProjectId == projectId)
                     .Select(t => t.Embedding)
                     .Where(e => e != null)
                     .ToListAsync(ct);
@@ -187,7 +212,7 @@ public class ClusterRefinementJob(
             if (bestMatch != null)
             {
                 var targetReport = await db.Reports.AsNoTracking()
-                    .Where(t => t.Id == bestMatch.Id)
+                    .Where(t => t.Id == bestMatch.Id && t.ProjectId == projectId)
                     .Select(t => new { t.Id, t.Title, t.Message, t.StackTrace, t.CreatedAt })
                     .FirstOrDefaultAsync(ct);
 
@@ -220,8 +245,8 @@ public class ClusterRefinementJob(
                     }
 
                     await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE Reports SET ParentReportId = {0} WHERE ParentReportId = {1}",
-                        [bestMatch.Id, leaderA.Id], ct);
+                        "UPDATE Reports SET ParentReportId = {0} WHERE ParentReportId = {1} AND ProjectId = {2}",
+                        [bestMatch.Id, leaderA.Id, projectId], ct);
 
                     var reportA = await db.Reports.FindAsync([leaderA.Id], ct);
                     if (reportA != null)
@@ -233,12 +258,12 @@ public class ClusterRefinementJob(
                         reportA.SuggestedConfidenceScore = null;
                         mergeCount++;
                         processedIds.Add(leaderA.Id);
-                        mergeMap[leaderA.Id] = bestMatch.Id; 
+                        mergeMap[leaderA.Id] = bestMatch.Id;
                     }
-                    continue; 
+                    continue;
                 }
 
-                SuggestionPath:
+            SuggestionPath:
                 if (bestMatch.Distance <= SuggestThreshold)
                 {
                     if (negativeCache.IsKnownMismatch(tenantId, leaderA.Id, bestMatch.Id))
@@ -257,20 +282,21 @@ public class ClusterRefinementJob(
             }
         }
 
-        await BreakCyclesAsync(db, tenantId, ct);
+        await BreakCyclesAsync(db, projectId, tenantId, ct);
 
         if (mergeCount > 0 || suggestCount > 0)
         {
             await db.SaveChangesAsync(ct);
-            logger.LogInformation("Janitor [{TenantId}]: Cleanup complete. Merged: {Merge}, Suggested: {Suggest}.",
-                tenantId, mergeCount, suggestCount);
+            logger.LogInformation("Janitor [{TenantId}][Project: {ProjectId}]: Cleanup complete. Merged: {Merge}, Suggested: {Suggest}.",
+                tenantId, projectId, mergeCount, suggestCount);
         }
     }
 
-    private async Task BreakCyclesAsync(WinnowDbContext db, string tenantId, CancellationToken ct)
+    private async Task BreakCyclesAsync(WinnowDbContext db, Guid projectId, string tenantId, CancellationToken ct)
     {
+        // Get all reports with parent references for this specific project
         var candidates = await db.Reports
-            .Where(t => t.ParentReportId != null)
+            .Where(t => t.ProjectId == projectId && t.ParentReportId != null)
             .Select(t => new { t.Id, t.ParentReportId })
             .ToListAsync(ct);
 
@@ -284,11 +310,12 @@ public class ClusterRefinementJob(
             {
                 if (path.Contains(currentId.Value))
                 {
-                    logger.LogWarning("Janitor [{TenantId}]: Circular reference detected! Breaking cycle at {Id}", tenantId, currentId.Value);
+                    logger.LogWarning("Janitor [{TenantId}][Project: {ProjectId}]: Circular reference detected! Breaking cycle at {Id}",
+                        tenantId, projectId, currentId.Value);
 
                     await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE Reports SET ParentReportId = NULL, Status = 'Open' WHERE Id = {0}",
-                        [currentId.Value], ct);
+                        "UPDATE Reports SET ParentReportId = NULL, Status = 'Open' WHERE Id = {0} AND ProjectId = {1}",
+                        [currentId.Value, projectId], ct);
 
                     fixes++;
                     break;
@@ -297,20 +324,20 @@ public class ClusterRefinementJob(
                 path.Add(currentId.Value);
 
                 var nextParentId = await db.Reports
-                    .Where(t => t.Id == currentId.Value)
+                    .Where(t => t.Id == currentId.Value && t.ProjectId == projectId)
                     .Select(t => t.ParentReportId)
                     .FirstOrDefaultAsync(ct);
 
-                if (nextParentId == null) break; 
+                if (nextParentId == null) break;
 
                 if (path.Count >= 2)
                 {
-                    logger.LogInformation("Janitor [{TenantId}]: Flattening deep hierarchy {A} -> {B} -> {Root}",
-                        tenantId, path[0], path[1], nextParentId);
+                    logger.LogInformation("Janitor [{TenantId}][Project: {ProjectId}]: Flattening deep hierarchy {A} -> {B} -> {Root}",
+                        tenantId, projectId, path[0], path[1], nextParentId);
 
                     await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE Reports SET ParentReportId = {0} WHERE Id = {1}",
-                        [nextParentId, path[0]], ct);
+                        "UPDATE Reports SET ParentReportId = {0} WHERE Id = {1} AND ProjectId = {2}",
+                        [nextParentId, path[0], projectId], ct);
 
                     fixes++;
                     break;
@@ -322,7 +349,8 @@ public class ClusterRefinementJob(
 
         if (fixes > 0)
         {
-            logger.LogInformation("Janitor [{TenantId}]: Cycle Breaker fixed {Count} hierarchies.", tenantId, fixes);
+            logger.LogInformation("Janitor [{TenantId}][Project: {ProjectId}]: Cycle Breaker fixed {Count} hierarchies.",
+                tenantId, projectId, fixes);
         }
     }
 
@@ -337,9 +365,10 @@ public class ClusterRefinementJob(
               AND v.distance < {1}
               AND t.Id != {2}
               AND t.Status != 'Duplicate'
+              AND t.ProjectId = {3}
         ";
 
-        return await db.Database.SqlQueryRaw<ReportMatch>(sql, target.Embedding!, threshold, target.Id)
+        return await db.Database.SqlQueryRaw<ReportMatch>(sql, target.Embedding!, threshold, target.Id, target.ProjectId)
             .ToListAsync(ct);
     }
 
