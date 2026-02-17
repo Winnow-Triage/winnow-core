@@ -1,6 +1,9 @@
+using System.Security.Claims;
 using System.Text.Json;
 using FastEndpoints;
 using MassTransit;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.SemanticKernel;
 using Winnow.Server.Entities;
 using Winnow.Server.Features.Reports.Create;
@@ -19,6 +22,7 @@ public class GenerateMockReportsEndpoint(
     Kernel kernel,
     WinnowDbContext db,
     IPublishEndpoint publishEndpoint,
+    Winnow.Server.Services.Ai.IEmbeddingService embeddingService,
     ILogger<GenerateMockReportsEndpoint> logger) : Endpoint<GenerateMockReportsRequest>
 {
     private static readonly JsonSerializerOptions options = new()
@@ -30,11 +34,38 @@ public class GenerateMockReportsEndpoint(
     public override void Configure()
     {
         Post("/reports/generate-mock");
-        AllowAnonymous();
     }
 
     public override async Task HandleAsync(GenerateMockReportsRequest req, CancellationToken ct)
     {
+        // Get user ID from JWT
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+        {
+            ThrowError("Unauthorized", 401);
+        }
+
+        // Get project ID from header
+        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader))
+        {
+            ThrowError("Project ID is required in X-Project-ID header", 400);
+        }
+
+        if (!Guid.TryParse(projectIdHeader, out var projectId))
+        {
+            ThrowError("Invalid Project ID format", 400);
+        }
+
+        // Validate user owns this project
+        var userOwnsProject = await db.Projects
+            .AsNoTracking()
+            .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
+        
+        if (!userOwnsProject)
+        {
+            ThrowError("Project not found or access denied", 404);
+        }
+
         var prompt = $$"""
             Generate {{req.Count}} realistic technical support reports for a software application.
             Scenario context: {{req.Scenario ?? "General SaaS application issues"}}
@@ -65,16 +96,26 @@ public class GenerateMockReportsEndpoint(
             var mockReports = JsonSerializer.Deserialize<List<MockReportDto>>(json, options) ?? throw new Exception("Failed to deserialize mock reports.");
             foreach (var dt in mockReports)
             {
+                // Generate embedding for the mock report
+                var textToEmbed = $"{dt.Title}\n{dt.Message}";
+                var embeddingFloats = await embeddingService.GetEmbeddingAsync(textToEmbed);
+                var embeddingBytes = new byte[embeddingFloats.Length * sizeof(float)];
+                Buffer.BlockCopy(embeddingFloats, 0, embeddingBytes, 0, embeddingBytes.Length);
+
                 var report = new Report
                 {
                     Title = dt.Title,
                     Message = dt.Message,
                     Status = "New",
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    ProjectId = projectId, // Set the project ID
+                    Embedding = embeddingBytes // Include the embedding
                 };
 
                 db.Reports.Add(report);
                 await db.SaveChangesAsync(ct);
+
+                var tenantId = ((TenantContext)db.GetService<ITenantContext>()).TenantId;
 
                 await publishEndpoint.Publish(new ReportCreatedEvent
                 {
@@ -82,17 +123,17 @@ public class GenerateMockReportsEndpoint(
                     Title = report.Title,
                     Message = report.Message,
                     CreatedAt = report.CreatedAt,
-                    ProjectId = Guid.Empty // Mock reports might not have a real project
+                    ProjectId = projectId, // Use the actual project ID
+                    TenantId = tenantId
                 }, ct);
             }
 
-            await Send.OkAsync(new { Message = $"Generated {mockReports.Count} reports." }, ct);
+            await Send.OkAsync(new { Message = $"Generated {mockReports.Count} reports with embeddings." }, ct);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error in GenerateMockReportsEndpoint. JSON was: {Json}", json);
-            AddError(ex.Message);
-            await Send.ErrorsAsync(400, ct);
+            ThrowError($"Failed to generate mock reports: {ex.Message}", 400);
         }
     }
 

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Entities;
@@ -64,16 +65,43 @@ public class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services.Storag
     public override void Configure()
     {
         Get("/reports/{id}");
-        AllowAnonymous();
         Description(x => x.WithName("GetReport"));
     }
 
     public override async Task HandleAsync(GetReportRequest req, CancellationToken ct)
     {
+        // Get user ID from JWT
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+        {
+            ThrowError("Unauthorized", 401);
+        }
+
+        // Get project ID from header
+        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader))
+        {
+            ThrowError("Project ID is required in X-Project-ID header", 400);
+        }
+
+        if (!Guid.TryParse(projectIdHeader, out var projectId))
+        {
+            ThrowError("Invalid Project ID format", 400);
+        }
+
+        // Validate user owns this project
+        var userOwnsProject = await db.Projects
+            .AsNoTracking()
+            .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
+        
+        if (!userOwnsProject)
+        {
+            ThrowError("Project not found or access denied", 404);
+        }
+
         var report = await db.Reports
             .AsNoTracking()
             .Include(r => r.Assets)
-            .FirstOrDefaultAsync(t => t.Id == req.Id, ct);
+            .FirstOrDefaultAsync(t => t.Id == req.Id && t.ProjectId == projectId, ct);
 
         if (report == null)
         {
@@ -85,10 +113,10 @@ public class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services.Storag
 
         if (report.ParentReportId == null)
         {
-            // cluster parent
+            // cluster parent - filter by project ID
             var children = await db.Reports
                 .AsNoTracking()
-                .Where(t => t.ParentReportId == report.Id)
+                .Where(t => t.ProjectId == projectId && t.ParentReportId == report.Id)
                 .Select(t => new RelatedReportDto
                 {
                     Id = t.Id,
@@ -107,7 +135,7 @@ public class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services.Storag
         {
             parentReportMessage = await db.Reports
                 .AsNoTracking()
-                .Where(t => t.Id == report.ParentReportId)
+                .Where(t => t.ProjectId == projectId && t.Id == report.ParentReportId)
                 .Select(t => t.Message)
                 .FirstOrDefaultAsync(ct);
         }
@@ -117,7 +145,7 @@ public class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services.Storag
         {
             suggestedParentMessage = await db.Reports
                 .AsNoTracking()
-                .Where(t => t.Id == report.SuggestedParentId)
+                .Where(t => t.ProjectId == projectId && t.Id == report.SuggestedParentId)
                 .Select(t => t.Message)
                 .FirstOrDefaultAsync(ct);
         }

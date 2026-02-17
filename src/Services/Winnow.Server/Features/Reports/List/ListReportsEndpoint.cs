@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
@@ -21,15 +22,43 @@ public class ListReportsEndpoint(WinnowDbContext dbContext) : EndpointWithoutReq
     public override void Configure()
     {
         Get("/reports");
-        AllowAnonymous(); 
     }
 
     public override async Task HandleAsync(CancellationToken ct)
     {
+        // Get user ID from JWT
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+        {
+            ThrowError("Unauthorized", 401);
+        }
+
+        // Get project ID from header
+        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader))
+        {
+            ThrowError("Project ID is required in X-Project-ID header", 400);
+        }
+
+        if (!Guid.TryParse(projectIdHeader, out var projectId))
+        {
+            ThrowError("Invalid Project ID format", 400);
+        }
+
+        // Validate user owns this project
+        var userOwnsProject = await dbContext.Projects
+            .AsNoTracking()
+            .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
+        
+        if (!userOwnsProject)
+        {
+            ThrowError("Project not found or access denied", 404);
+        }
+
         string sort = HttpContext.Request.Query["sort"].ToString();
         if (string.IsNullOrEmpty(sort)) sort = "newest";
 
-        var query = dbContext.Reports.AsNoTracking();
+        var query = dbContext.Reports.AsNoTracking()
+            .Where(r => r.ProjectId == projectId);
 
         query = sort switch
         {

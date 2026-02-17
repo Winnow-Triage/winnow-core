@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { useProject } from '@/context/ProjectContext';
 import {
     Table,
     TableBody,
@@ -31,14 +32,16 @@ export default function Clusters() {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isMerging, setIsMerging] = useState(false);
     const queryClient = useQueryClient();
+    const { currentProject } = useProject();
 
     const { data: reports, isLoading, refetch } = useQuery<Report[]>({
-        queryKey: ['reports'],
+        queryKey: ['reports', currentProject?.id],
         queryFn: async () => {
             const { data } = await api.get('/reports');
             return data;
         },
         staleTime: 60 * 1000,
+        enabled: !!currentProject,
     });
 
     // We need to count children to be useful.

@@ -111,8 +111,8 @@ public class S3StorageService : IStorageService
 public class S3Settings
 {
     public string Endpoint { get; set; } = "http://localhost:9000";
-    public string AccessKey { get; set; } = "minioadmin";
-    public string SecretKey { get; set; } = "minioadmin";
+    public string AccessKey { get; set; } = string.Empty;
+    public string SecretKey { get; set; } = string.Empty;
     public string Region { get; set; } = "us-east-1";
     public string QuarantineBucket { get; set; } = "winnow-quarantine";
     public string CleanBucket { get; set; } = "winnow-clean";

@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { api } from '@/lib/api';
+import { useProject } from '@/context/ProjectContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlayCircle, AlertTriangle, Sparkles, RefreshCw } from 'lucide-react';
+import { PlayCircle, AlertTriangle, Sparkles, RefreshCw, Folder } from 'lucide-react';
 
 export default function DebugConsole() {
+    const { currentProject } = useProject();
     const [count, setCount] = useState(5);
     const [topic, setTopic] = useState("Login Failure");
     const [isLoading, setIsLoading] = useState(false);
@@ -19,21 +21,11 @@ export default function DebugConsole() {
     const [isMockLoading, setIsMockLoading] = useState(false);
     const [mockMessage, setMockMessage] = useState<string | null>(null);
 
-    const handleSimulate = async () => {
-        setIsLoading(true);
-        setMessage(null);
-        try {
-            const { data } = await api.post('/debug/simulate-traffic', { count, topic });
-            setMessage(data.message);
-        } catch (error) {
-            console.error(error);
-            setMessage("Failed to simulate traffic.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     const handleGenerateMock = async () => {
+        if (!currentProject) {
+            setMockMessage("Please select a project first.");
+            return;
+        }
         setIsMockLoading(true);
         setMockMessage(null);
         try {
@@ -44,6 +36,24 @@ export default function DebugConsole() {
             setMockMessage("Failed to generate mock reports.");
         } finally {
             setIsMockLoading(false);
+        }
+    };
+
+    const handleSimulate = async () => {
+        if (!currentProject) {
+            setMessage("Please select a project first.");
+            return;
+        }
+        setIsLoading(true);
+        setMessage(null);
+        try {
+            const { data } = await api.post('/debug/simulate-traffic', { count, topic });
+            setMessage(data.message);
+        } catch (error) {
+            console.error(error);
+            setMessage("Failed to simulate traffic.");
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -65,6 +75,12 @@ export default function DebugConsole() {
                         <CardDescription>
                             Use the LLM to generate realistic, high-quality support reports based on a specific scenario.
                         </CardDescription>
+                        {currentProject && (
+                            <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                                <Folder className="h-4 w-4" />
+                                <span>Reports will be generated for project: <span className="font-semibold">{currentProject.name}</span></span>
+                            </div>
+                        )}
                     </CardHeader>
                     <CardContent className="flex flex-col gap-4">
                         <div className="grid w-full items-center gap-1.5">
@@ -108,6 +124,12 @@ export default function DebugConsole() {
                         <CardDescription>
                             Generate synthetic templates to stress test backend pipeline throughput.
                         </CardDescription>
+                        {currentProject && (
+                            <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                                <Folder className="h-4 w-4" />
+                                <span>Reports will be generated for project: <span className="font-semibold">{currentProject.name}</span></span>
+                            </div>
+                        )}
                     </CardHeader>
                     <CardContent className="flex flex-col gap-4">
                         <div className="grid w-full max-w-sm items-center gap-1.5">

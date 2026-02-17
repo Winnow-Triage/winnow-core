@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { useProject } from '@/context/ProjectContext';
 import {
     Table,
     TableBody,
@@ -26,13 +27,15 @@ interface Report {
 export default function AllReports() {
     const [search, setSearch] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: keyof Report; direction: 'asc' | 'desc' } | null>(null);
+    const { currentProject } = useProject();
 
     const { data: reports, isLoading } = useQuery<Report[]>({
-        queryKey: ['reports'],
+        queryKey: ['reports', currentProject?.id],
         queryFn: async () => {
             const { data } = await api.get('/reports');
             return data;
         },
+        enabled: !!currentProject,
     });
 
     const filteredReports = reports?.filter(t =>

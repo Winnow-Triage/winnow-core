@@ -10,6 +10,13 @@ api.interceptors.request.use((config) => {
     if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;
     }
+    
+    // Add project ID to all requests
+    const projectId = localStorage.getItem('lastProjectId');
+    if (projectId) {
+        config.headers['X-Project-ID'] = projectId;
+    }
+    
     return config;
 });
 

@@ -17,8 +17,8 @@ public class ReportCreatedConsumer(
 {
     public async Task Consume(ConsumeContext<ReportCreatedEvent> context)
     {
-        logger.LogInformation("ReportCreatedConsumer: Consuming message for report {Id} (Tenant: {Tenant})", 
-            context.Message.ReportId, context.Message.TenantId);
+        logger.LogInformation("ReportCreatedConsumer: Consuming message for report {Id} (Tenant: {Tenant}, Project: {Project})", 
+            context.Message.ReportId, context.Message.TenantId, context.Message.ProjectId);
 
         if (tenantContext is TenantContext concreteContext)
         {
@@ -29,25 +29,35 @@ public class ReportCreatedConsumer(
         var report = await dbContext.Reports.FindAsync([context.Message.ReportId], context.CancellationToken);
         if (report == null) return;
 
+        // Ensure report has the correct ProjectId from the event
+        if (report.ProjectId == Guid.Empty && context.Message.ProjectId != Guid.Empty)
+        {
+            report.ProjectId = context.Message.ProjectId;
+            await dbContext.SaveChangesAsync(context.CancellationToken);
+        }
+
+        var projectId = report.ProjectId;
+
         // 2. Ensure Vector Table
         await dbContext.Database.ExecuteSqlRawAsync(
             "CREATE VIRTUAL TABLE IF NOT EXISTS vec_reports USING vec0(embedding float[384] distance_metric=cosine);",
             context.CancellationToken);
 
-        // 3. Vector Search
+        // 3. Vector Search - ONLY within the same project
         if (report.Embedding != null && report.Status != "Duplicate" && report.Status != "Duplicate (StackHash)")
         {
             var embeddingFloats = new float[report.Embedding.Length / sizeof(float)];
             Buffer.BlockCopy(report.Embedding, 0, embeddingFloats, 0, report.Embedding.Length);
             
             const double DistanceThreshold = 0.35;
-            var parameters = new List<object> { report.Embedding };
+            var parameters = new List<object> { report.Embedding, projectId };
 
             var sql = @"
                 SELECT t.Id, t.ParentReportId as ParentId, v.distance as Distance
                 FROM vec_reports v
                 JOIN Reports t ON v.rowid = t.rowid
                 WHERE v.embedding MATCH {0}
+                  AND t.ProjectId = {1}
                   AND k = 50
                 ORDER BY v.distance ASC
             ";
@@ -57,7 +67,8 @@ public class ReportCreatedConsumer(
                 .SqlQueryRaw<ReportMatch>(sql, parameters.ToArray())
                 .ToListAsync(context.CancellationToken);
 
-            logger.LogInformation("ReportMatching: Found {Count} potential matches for report {Id}", searchResults.Count, report.Id);
+            logger.LogInformation("ReportMatching: Found {Count} potential matches for report {Id} in project {ProjectId}", 
+                searchResults.Count, report.Id, projectId);
 
             if (searchResults.Count > 0)
             {
@@ -68,7 +79,7 @@ public class ReportCreatedConsumer(
                     var topMatchIds = validMatches.Take(10).Select(m => m.Id).ToList();
                     var clusterMap = await dbContext.Reports
                         .AsNoTracking()
-                        .Where(t => topMatchIds.Contains(t.Id))
+                        .Where(t => topMatchIds.Contains(t.Id) && t.ProjectId == projectId)
                         .Select(t => new { t.Id, t.ParentReportId })
                         .ToDictionaryAsync(t => t.Id, t => t.ParentReportId ?? t.Id, context.CancellationToken);
 
@@ -83,7 +94,7 @@ public class ReportCreatedConsumer(
                     {
                         var members = await dbContext.Reports
                             .AsNoTracking()
-                            .Where(t => t.Id == clusterId || t.ParentReportId == clusterId)
+                            .Where(t => t.ProjectId == projectId && (t.Id == clusterId || t.ParentReportId == clusterId))
                             .Select(t => t.Embedding)
                             .Where(e => e != null)
                             .ToListAsync(context.CancellationToken);
@@ -111,7 +122,8 @@ public class ReportCreatedConsumer(
                         }
                         else if (bestMatch.Distance <= DistanceThreshold)
                         {
-                            var parentReport = await dbContext.Reports.FindAsync([bestMatch.Id], context.CancellationToken);
+                            var parentReport = await dbContext.Reports
+                                .FirstOrDefaultAsync(t => t.Id == bestMatch.Id && t.ProjectId == projectId, context.CancellationToken);
                             if (parentReport != null)
                             {
                                 var areDuplicates = await duplicateChecker.AreDuplicatesAsync(
@@ -139,15 +151,22 @@ public class ReportCreatedConsumer(
 
         await dbContext.SaveChangesAsync(context.CancellationToken);
 
-        // Sync to Vector Index
-        await dbContext.Database.ExecuteSqlInterpolatedAsync($@"
-            INSERT OR REPLACE INTO vec_reports(rowid, embedding)
-            SELECT rowid, {report.Embedding}
-            FROM Reports
-            WHERE Id = {report.Id}
-        ");
-        
-        logger.LogDebug("ReportMatching: Synchronized report {Id} to vector index.", report.Id);
+        // Sync to Vector Index - only if embedding exists
+        if (report.Embedding != null)
+        {
+            await dbContext.Database.ExecuteSqlInterpolatedAsync($@"
+                INSERT OR REPLACE INTO vec_reports(rowid, embedding)
+                SELECT rowid, {report.Embedding}
+                FROM Reports
+                WHERE Id = {report.Id}
+            ");
+            
+            logger.LogDebug("ReportMatching: Synchronized report {Id} to vector index.", report.Id);
+        }
+        else
+        {
+            logger.LogDebug("ReportMatching: Skipping vector index sync for report {Id} - no embedding.", report.Id);
+        }
     }
 
     private float[] CalculateCentroid(List<byte[]?> embeddings)

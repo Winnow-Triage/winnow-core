@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api"
+import { useProject } from "@/context/ProjectContext"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, CheckCircle, XCircle, SkipForward, ArrowRight, Check } from "lucide-react"
+import { Loader2, CheckCircle, XCircle, ArrowRight, Check } from "lucide-react"
 import { toast } from "sonner"
 import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/utils"
@@ -26,14 +27,16 @@ interface ReviewItem {
 export default function ReviewSuggestions() {
     const queryClient = useQueryClient()
     const navigate = useNavigate()
+    const { currentProject } = useProject()
     const [currentIndex, setCurrentIndex] = useState(0)
 
     const { data: queue, isLoading, error } = useQuery<ReviewItem[]>({
-        queryKey: ["reviewQueue"],
+        queryKey: ["reviewQueue", currentProject?.id],
         queryFn: async () => {
             const res = await api.get("/reports/review-queue")
             return res.data
-        }
+        },
+        enabled: !!currentProject,
     })
 
     const currentItem = queue && queue.length > 0 ? queue[currentIndex] : null

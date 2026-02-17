@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Entities;
@@ -16,28 +17,52 @@ public class GenerateClusterSummaryEndpoint(WinnowDbContext db, IClusterSummaryS
     public override void Configure()
     {
         Post("/reports/{Id}/generate-summary");
-        AllowAnonymous();
     }
 
     public override async Task HandleAsync(GenerateClusterSummaryRequest req, CancellationToken ct)
     {
-        var report = await db.Reports.FindAsync([req.Id], ct);
+        // Get user ID from JWT
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+        {
+            ThrowError("Unauthorized", 401);
+        }
+
+        // Get project ID from header
+        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader))
+        {
+            ThrowError("Project ID is required in X-Project-ID header", 400);
+        }
+
+        if (!Guid.TryParse(projectIdHeader, out var projectId))
+        {
+            ThrowError("Invalid Project ID format", 400);
+        }
+
+        // Validate user owns this project
+        var userOwnsProject = await db.Projects
+            .AsNoTracking()
+            .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
+        
+        if (!userOwnsProject)
+        {
+            ThrowError("Project not found or access denied", 404);
+        }
+
+        var report = await db.Reports
+            .FirstOrDefaultAsync(r => r.Id == req.Id && r.ProjectId == projectId, ct);
         if (report == null)
         {
             await Send.NotFoundAsync(ct);
             return;
         }
 
-        // Fetch related reports (evidence) to provide context for the summary
+        // Fetch related reports (evidence) to provide context for the summary - filter by project
         var relatedReports = await db.Reports
             .AsNoTracking()
-            .Where(t => t.ParentReportId == report.Id)
+            .Where(t => t.ProjectId == projectId && t.ParentReportId == report.Id)
             .ToListAsync(ct);
 
-        // Convert Report to Ticket (Legacy/Internal) for the service if needed, 
-        // but for now, I'll update the service interface if it's strictly using Ticket.
-        // Actually, since Report is the new Ticket, I'll update the service to use Report.
-        
         var result = await summaryService.GenerateSummaryAsync(relatedReports, ct);
 
         if (result.IsError)

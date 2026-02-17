@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api"
+import { useProject } from "@/context/ProjectContext"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
 
@@ -35,19 +36,21 @@ interface DashboardMetrics {
 
 export default function ClusterDashboard() {
     const { theme } = useTheme()
+    const { currentProject } = useProject()
 
     // Resolve effective theme
     const isDark = theme === 'dark' ||
         (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
 
     const { data, isLoading, error } = useQuery<DashboardMetrics>({
-        queryKey: ["dashboardMetrics"],
+        queryKey: ["dashboardMetrics", currentProject?.id],
         queryFn: async () => {
             // Use configured api client which handles base URL and tenant headers
             const res = await api.get("/dashboard/metrics")
             return res.data
         },
-        refetchInterval: 30000 // Refresh every 30s
+        refetchInterval: 30000, // Refresh every 30s
+        enabled: !!currentProject
     })
 
     if (isLoading) {
@@ -59,7 +62,7 @@ export default function ClusterDashboard() {
     }
 
 
-    if (error || !data) {
+    if (error) {
         return (
             <div className="p-8">
                 <div className="bg-destructive/15 text-destructive p-4 rounded-md border border-destructive/20 flex gap-2 items-center">
@@ -72,6 +75,8 @@ export default function ClusterDashboard() {
             </div>
         )
     }
+
+    if (!data) return null;
 
     return (
         <div className="space-y-6 pt-4">

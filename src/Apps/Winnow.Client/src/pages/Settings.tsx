@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { useProject } from '@/context/ProjectContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -72,13 +73,15 @@ function IntegrationsSettings() {
     const queryClient = useQueryClient();
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const { currentProject } = useProject();
 
     const { data: integrations, isLoading } = useQuery<IntegrationConfig[]>({
-        queryKey: ['integrations'],
+        queryKey: ['integrations', currentProject?.id],
         queryFn: async () => {
             const { data } = await api.get('/integrations');
             return data;
-        }
+        },
+        enabled: !!currentProject,
     });
 
     const deleteMutation = useMutation({
@@ -174,12 +177,13 @@ function IntegrationsSettings() {
 
 function AddIntegrationDialog({ open, onOpenChange, editId }: { open: boolean, onOpenChange: (open: boolean) => void, editId: string | null }) {
     const queryClient = useQueryClient();
+    const { currentProject } = useProject();
     const [provider, setProvider] = useState<string>("GitHub");
     const [formData, setFormData] = useState<any>({});
 
     // Fetch details if in edit mode
     useQuery({
-        queryKey: ['integration', editId],
+        queryKey: ['integration', editId, currentProject?.id],
         queryFn: async () => {
             if (!editId) return null;
             const { data } = await api.get(`/integrations/${editId}`);
@@ -189,7 +193,7 @@ function AddIntegrationDialog({ open, onOpenChange, editId }: { open: boolean, o
             } catch (e) { console.error("Failed to parse settings", e); }
             return data;
         },
-        enabled: !!editId && open
+        enabled: !!editId && open && !!currentProject
     });
 
     // Reset form when opening in 'add' mode

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 
 export interface Project {
@@ -19,6 +20,7 @@ interface ProjectContextType {
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
+    const queryClient = useQueryClient();
     const [projects, setProjects] = useState<Project[]>([]);
     const [currentProject, setCurrentProject] = useState<Project | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -63,6 +65,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         if (project) {
             setCurrentProject(project);
             localStorage.setItem("lastProjectId", project.id);
+            // Invalidate all queries to force refetch when project changes
+            queryClient.invalidateQueries();
         }
     };
 

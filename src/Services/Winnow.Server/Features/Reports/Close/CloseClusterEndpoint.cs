@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Features.Shared;
@@ -15,12 +16,40 @@ public class CloseClusterEndpoint(WinnowDbContext db) : Endpoint<CloseClusterReq
     public override void Configure()
     {
         Post("/reports/{id}/close-cluster");
-        AllowAnonymous();
     }
 
     public override async Task HandleAsync(CloseClusterRequest req, CancellationToken ct)
     {
-        var report = await db.Reports.FindAsync([req.Id], ct);
+        // Get user ID from JWT
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+        {
+            ThrowError("Unauthorized", 401);
+        }
+
+        // Get project ID from header
+        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader))
+        {
+            ThrowError("Project ID is required in X-Project-ID header", 400);
+        }
+
+        if (!Guid.TryParse(projectIdHeader, out var projectId))
+        {
+            ThrowError("Invalid Project ID format", 400);
+        }
+
+        // Validate user owns this project
+        var userOwnsProject = await db.Projects
+            .AsNoTracking()
+            .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
+        
+        if (!userOwnsProject)
+        {
+            ThrowError("Project not found or access denied", 404);
+        }
+
+        var report = await db.Reports
+            .FirstOrDefaultAsync(r => r.Id == req.Id && r.ProjectId == projectId, ct);
 
         if (report == null)
         {
@@ -31,9 +60,9 @@ public class CloseClusterEndpoint(WinnowDbContext db) : Endpoint<CloseClusterReq
         // Determine the Cluster ID (Parent ID)
         var clusterId = report.ParentReportId ?? report.Id;
 
-        // Find all reports in this cluster (Parent + Children)
+        // Find all reports in this cluster (Parent + Children) - filter by project
         var clusterReports = await db.Reports
-            .Where(t => t.Id == clusterId || t.ParentReportId == clusterId)
+            .Where(t => t.ProjectId == projectId && (t.Id == clusterId || t.ParentReportId == clusterId))
             .ToListAsync(ct);
 
         foreach (var t in clusterReports)

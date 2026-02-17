@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using FastEndpoints;
 using MassTransit;
+using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Features.Reports.Create;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
@@ -21,16 +23,44 @@ public class SimulateTrafficResponse
 public class SimulateTrafficEndpoint(
     IPublishEndpoint publishEndpoint,
     WinnowDbContext dbContext,
-    ITenantContext tenantContext) : Endpoint<SimulateTrafficRequest, SimulateTrafficResponse>
+    ITenantContext tenantContext,
+    Winnow.Server.Services.Ai.IEmbeddingService embeddingService) : Endpoint<SimulateTrafficRequest, SimulateTrafficResponse>
 {
     public override void Configure()
     {
         Post("/debug/simulate-traffic");
-        AllowAnonymous();
     }
 
     public override async Task HandleAsync(SimulateTrafficRequest req, CancellationToken ct)
     {
+        // Get user ID from JWT
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+        {
+            ThrowError("Unauthorized", 401);
+        }
+
+        // Get project ID from header
+        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader))
+        {
+            ThrowError("Project ID is required in X-Project-ID header", 400);
+        }
+
+        if (!Guid.TryParse(projectIdHeader, out var projectId))
+        {
+            ThrowError("Invalid Project ID format", 400);
+        }
+
+        // Validate user owns this project
+        var userOwnsProject = await dbContext.Projects
+            .AsNoTracking()
+            .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
+        
+        if (!userOwnsProject)
+        {
+            ThrowError("Project not found or access denied", 404);
+        }
+
         var templates = GetTemplates(req.Topic);
         var random = new Random();
 
@@ -43,6 +73,12 @@ public class SimulateTrafficEndpoint(
             var template = templates[random.Next(templates.Count)];
             var title = $"{template.Title} {random.Next(1000, 9999)}";
 
+            // Generate embedding for the simulated report
+            var textToEmbed = $"{title}\n{template.Description}";
+            var embeddingFloats = await embeddingService.GetEmbeddingAsync(textToEmbed);
+            var embeddingBytes = new byte[embeddingFloats.Length * sizeof(float)];
+            Buffer.BlockCopy(embeddingFloats, 0, embeddingBytes, 0, embeddingBytes.Length);
+
             var report = new Entities.Report
             {
                 Title = title,
@@ -50,7 +86,8 @@ public class SimulateTrafficEndpoint(
                 StackTrace = template.Description,
                 CreatedAt = DateTime.UtcNow,
                 Status = "New",
-                ProjectId = Guid.Empty // Debug reports might not have a real project
+                ProjectId = projectId, // Use the validated project ID
+                Embedding = embeddingBytes // Include the embedding
             };
 
             dbContext.Reports.Add(report);
@@ -62,7 +99,8 @@ public class SimulateTrafficEndpoint(
                 Title = report.Title,
                 Message = report.Message,
                 StackTrace = report.StackTrace,
-                CreatedAt = report.CreatedAt
+                CreatedAt = report.CreatedAt,
+                TenantId = tenantContext.TenantId
             });
         }
 
@@ -75,7 +113,7 @@ public class SimulateTrafficEndpoint(
 
         await Send.OkAsync(new SimulateTrafficResponse
         {
-            Message = $"Simulated {req.Count} reports for topic '{req.Topic}' (Tenant: {tenantContext.TenantId})",
+            Message = $"Simulated {req.Count} reports for topic '{req.Topic}' in project {projectId} (Tenant: {tenantContext.TenantId})",
             Count = req.Count
         }, cancellation: ct);
     }

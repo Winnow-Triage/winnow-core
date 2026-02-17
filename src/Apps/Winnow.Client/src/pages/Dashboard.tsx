@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { api } from "@/lib/api"
+import { useProject } from "@/context/ProjectContext"
 
 import { WinnowGauge } from "@/components/dashboard/WinnowGauge"
 import { TriageFunnelChart } from "@/components/dashboard/TriageFunnelChart"
@@ -32,13 +33,16 @@ interface DashboardMetrics {
 }
 
 export default function Dashboard() {
+    const { currentProject } = useProject()
+    
     const { data, isLoading, error } = useQuery<DashboardMetrics>({
-        queryKey: ["dashboardMetrics"],
+        queryKey: ["dashboardMetrics", currentProject?.id],
         queryFn: async () => {
             const { data } = await api.get("/dashboard/metrics")
             return data
         },
-        refetchInterval: 30000 // Refresh every 30s
+        refetchInterval: 30000, // Refresh every 30s
+        enabled: !!currentProject // Only fetch if we have a project selected
     })
 
     if (isLoading) {
