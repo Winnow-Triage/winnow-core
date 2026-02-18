@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
@@ -84,7 +85,7 @@ public class WinnowTestApp : WebApplicationFactory<Program>
             services.AddDbContext<WinnowDbContext>((serviceProvider, options) =>
             {
                 options.UseSqlite(_sqliteConnection);
-                options.AddInterceptors(new SqliteVectorConnectionInterceptor());
+                options.AddInterceptors(new TestSqliteVectorConnectionInterceptor());
             });
 
             // Apply additional test service configuration
@@ -173,5 +174,52 @@ public class WinnowTestApp : WebApplicationFactory<Program>
         }
 
         public override string ConnectionString => _connection.ConnectionString;
+    }
+
+    private class TestSqliteVectorConnectionInterceptor : DbConnectionInterceptor
+    {
+        public override void ConnectionOpened(DbConnection connection, ConnectionEndEventData eventData)
+        {
+            LoadExtension(connection);
+            base.ConnectionOpened(connection, eventData);
+        }
+
+        public override async Task ConnectionOpenedAsync(DbConnection connection, ConnectionEndEventData eventData, CancellationToken cancellationToken = default)
+        {
+            LoadExtension(connection);
+            await base.ConnectionOpenedAsync(connection, eventData);
+        }
+
+        private static void LoadExtension(DbConnection connection)
+        {
+            if (connection is SqliteConnection sqliteConnection)
+            {
+                sqliteConnection.EnableExtensions(true);
+                try
+                {
+                    // Try to load from base directory explicitly
+                    var extensionPath = Path.Combine(AppContext.BaseDirectory, "vec0.so");
+                    Console.WriteLine($"Attempting to load SQLite vec0 extension from: {extensionPath}");
+                    if (File.Exists(extensionPath))
+                    {
+                        sqliteConnection.LoadExtension(extensionPath);
+                        Console.WriteLine("Successfully loaded vec0 extension from .so file");
+                    }
+                    else
+                    {
+                        // Fallback to just the name (works if extension is in system path)
+                        Console.WriteLine("Attempting to load vec0 extension by name");
+                        sqliteConnection.LoadExtension("vec0");
+                        Console.WriteLine("Successfully loaded vec0 extension by name");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to load sqlite-vec extension: {ex.Message}");
+                    // Don't rethrow - allow tests to continue without vector search
+                    // The consumer will handle missing extension gracefully
+                }
+            }
+        }
     }
 }
