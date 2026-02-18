@@ -1,14 +1,12 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
-using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Integrations;
 
-public record IntegrationConfigDto(Guid Id, string Provider, string Name);
+public record IntegrationDto(Guid Id, string Provider, string Name);
 
-public class GetIntegrationConfigsEndpoint(WinnowDbContext db) : EndpointWithoutRequest<List<IntegrationConfigDto>>
+public class GetIntegrationConfigsEndpoint(WinnowDbContext db) : EndpointWithoutRequest<List<IntegrationDto>>
 {
     public override void Configure()
     {
@@ -20,15 +18,15 @@ public class GetIntegrationConfigsEndpoint(WinnowDbContext db) : EndpointWithout
     {
         try
         {
-            var configs = await db.IntegrationConfigs
+            var integrations = await db.Integrations
                 .AsNoTracking()
-                .Where(c => c.IsActive)
-                .Select(c => new { c.Id, c.Provider })
+                .Where(i => i.IsActive)
+                .Select(i => new { i.Id, i.Provider })
                 .ToListAsync(ct);
 
-            // In a real app, we might parse SettingsJson to get a user-friendly name (e.g. Board Name)
+            // In a real app, we might parse Config to get a user-friendly name (e.g. Board Name)
             // For now, return Provider name.
-            var dtos = configs.Select(c => new IntegrationConfigDto(c.Id, c.Provider, $"{c.Provider} Integration")).ToList();
+            var dtos = integrations.Select(i => new IntegrationDto(i.Id, i.Provider, $"{i.Provider} Integration")).ToList();
             
             await Send.OkAsync(dtos, cancellation: ct);
         }

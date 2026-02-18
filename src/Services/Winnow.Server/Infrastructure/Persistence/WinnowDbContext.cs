@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Entities;
@@ -7,6 +8,9 @@ namespace Winnow.Server.Infrastructure.Persistence;
 
 public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantContext tenantContext) : IdentityDbContext<ApplicationUser>(options)
 {
+
+    private static readonly JsonSerializerOptions _jsonOptions = new() { };
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         // Dynamic connection string based on tenant
@@ -61,10 +65,20 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
             entity.Property(a => a.Status)
                 .HasConversion<string>(); // Store enum as string in SQLite
         });
+
+        // Integration -> IntegrationConfig (polymorphic) configuration
+        modelBuilder.Entity<Integration>(entity =>
+        {
+            entity.Property(i => i.Config)
+                .HasConversion(
+                    v => System.Text.Json.JsonSerializer.Serialize(v, _jsonOptions),
+                    v => System.Text.Json.JsonSerializer.Deserialize<Winnow.Integrations.Domain.IntegrationConfig>(v, _jsonOptions)!
+                );
+        });
     }
 
     public DbSet<Report> Reports { get; set; } = null!;
     public DbSet<Asset> Assets { get; set; } = null!;
-    public DbSet<IntegrationConfig> IntegrationConfigs { get; set; } = null!;
+    public DbSet<Integration> Integrations { get; set; } = null!;
     public DbSet<Project> Projects { get; set; } = null!;
 }

@@ -14,17 +14,17 @@ public class DeleteIntegrationConfigEndpoint(WinnowDbContext db) : EndpointWitho
     public override async Task HandleAsync(CancellationToken ct)
     {
         var id = Route<Guid>("id");
-        var config = await db.IntegrationConfigs.FindAsync([id], ct);
+        var integration = await db.Integrations.FindAsync([id], ct);
 
-        if (config == null)
+        if (integration == null)
         {
             await Send.NotFoundAsync(ct);
             return;
         }
 
-        db.IntegrationConfigs.Remove(config);
+        db.Integrations.Remove(integration);
         await db.SaveChangesAsync(ct);
 
-        await Send.OkAsync(ct);
+        await Send.OkAsync(null, ct);
     }
 }
