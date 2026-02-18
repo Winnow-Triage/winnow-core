@@ -15,21 +15,16 @@ namespace Winnow.Server.Tests;
 /// WebApplicationFactory for Winnow.Server integration tests.
 /// Configures an in-memory SQLite database and test tenant context.
 /// </summary>
-public class WinnowTestApp : WebApplicationFactory<Program>
+/// <remarks>
+/// Initializes a new instance of the <see cref="WinnowTestApp"/> class.
+/// </remarks>
+/// <param name="configureTestServices">Optional action to configure services for testing.
+/// Allows injecting custom mocks or service overrides per test.</param>
+public class WinnowTestApp(Action<IServiceCollection>? configureTestServices = null) : WebApplicationFactory<Program>
 {
     private readonly string _tenantId = "test-tenant";
     private SqliteConnection? _sqliteConnection;
-    private readonly Action<IServiceCollection>? _configureTestServices;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="WinnowTestApp"/> class.
-    /// </summary>
-    /// <param name="configureTestServices">Optional action to configure services for testing.
-    /// Allows injecting custom mocks or service overrides per test.</param>
-    public WinnowTestApp(Action<IServiceCollection>? configureTestServices = null)
-    {
-        _configureTestServices = configureTestServices;
-    }
+    private readonly Action<IServiceCollection>? _configureTestServices = configureTestServices;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -187,7 +182,7 @@ public class WinnowTestApp : WebApplicationFactory<Program>
         public override async Task ConnectionOpenedAsync(DbConnection connection, ConnectionEndEventData eventData, CancellationToken cancellationToken = default)
         {
             LoadExtension(connection);
-            await base.ConnectionOpenedAsync(connection, eventData);
+            await base.ConnectionOpenedAsync(connection, eventData, cancellationToken);
         }
 
         private static void LoadExtension(DbConnection connection)

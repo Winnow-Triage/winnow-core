@@ -3,9 +3,11 @@ using FastEndpoints.Swagger;
 using MassTransit;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.SemanticKernel;
+using Scrutor;
 using Winnow.Server.Entities;
 using Winnow.Server.Infrastructure.Configuration;
 using Winnow.Server.Infrastructure.Integrations;
+using Winnow.Server.Infrastructure.Integrations.Strategies;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Infrastructure.Scheduling;
@@ -23,6 +25,21 @@ public static class ServiceExtensions
         // Multi-tenancy
         services.AddScoped<ITenantContext, TenantContext>();
         services.AddScoped<ExporterFactory>();
+        
+        // Assembly scanning for all strategy implementations
+        services.Scan(scan => scan
+            .FromAssemblyOf<IExporterCreationStrategy>()
+            .AddClasses(classes => classes.AssignableTo<IExporterCreationStrategy>())
+            .As<IExporterCreationStrategy>()
+            .WithScopedLifetime()
+        );
+        
+        services.Scan(scan => scan
+            .FromAssemblyOf<IIntegrationConfigDeserializationStrategy>()
+            .AddClasses(classes => classes.AssignableTo<IIntegrationConfigDeserializationStrategy>())
+            .As<IIntegrationConfigDeserializationStrategy>()
+            .WithScopedLifetime()
+        );
         
         // Core HTTP & caching
         services.AddHttpClient();

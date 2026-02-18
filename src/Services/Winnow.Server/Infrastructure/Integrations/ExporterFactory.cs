@@ -2,13 +2,15 @@ using Microsoft.EntityFrameworkCore;
 using Winnow.Integrations;
 using Winnow.Integrations.Domain;
 using Winnow.Server.Entities;
+using Winnow.Server.Infrastructure.Integrations.Strategies;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Infrastructure.Integrations;
 
 public class ExporterFactory(
     IHttpClientFactory httpClientFactory,
-    WinnowDbContext dbContext)
+    WinnowDbContext dbContext,
+    IEnumerable<IExporterCreationStrategy> strategies)
 {
     public async Task<IReportExporter> GetExporterAsync(CancellationToken ct = default)
     {
@@ -36,29 +38,13 @@ public class ExporterFactory(
     private IReportExporter CreateExporterFromIntegration(Integration integration)
     {
         var client = httpClientFactory.CreateClient("Exporter");
+        var config = integration.Config;
 
-        return integration.Config switch
-        {
-            GitHubConfig github => CreateGitHubExporter(github, client),
-            TrelloConfig trello => CreateTrelloExporter(trello, client),
-            JiraConfig jira => CreateJiraExporter(jira, client),
-            _ => new NullExporter() // Or throw?
-        };
-    }
+        // Find the appropriate strategy for this configuration type
+        var strategy = strategies.FirstOrDefault(s => s.CanHandle(config))
+            ?? throw new InvalidOperationException($"No exporter creation strategy found for configuration type: {config?.GetType().Name}");
 
-    private static GitHubExporter CreateGitHubExporter(GitHubConfig config, HttpClient client)
-    {
-        return new GitHubExporter(client, config.ApiKey, config.Owner, config.Repo);
-    }
-
-    private static TrelloExporter CreateTrelloExporter(TrelloConfig config, HttpClient client)
-    {
-        return new TrelloExporter(client, config.ApiKey, config.Token, config.ListId);
-    }
-
-    private static JiraExporter CreateJiraExporter(JiraConfig config, HttpClient client)
-    {
-        return new JiraExporter(client, config.BaseUrl, config.UserEmail, config.ApiToken, config.ProjectKey);
+        return strategy.Create(config, client);
     }
 }
 

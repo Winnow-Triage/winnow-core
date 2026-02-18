@@ -26,7 +26,7 @@ public class GetReportsTests : IAsyncLifetime
         // Configure mocks
         _embeddingServiceMock
             .Setup(x => x.GetEmbeddingAsync(It.IsAny<string>()))
-            .ReturnsAsync(() => Enumerable.Range(0, 384).Select(i => (float)i / 384).ToArray());
+            .ReturnsAsync(() => [.. Enumerable.Range(0, 384).Select(i => (float)i / 384)]);
         
         _storageServiceMock
             .Setup(x => x.UploadFileAsync(

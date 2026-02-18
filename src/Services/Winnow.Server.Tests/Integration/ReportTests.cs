@@ -20,19 +20,19 @@ public class ReportTests : IAsyncLifetime
     {
         _embeddingServiceMock = new Mock<IEmbeddingService>();
         _storageServiceMock = new Mock<IStorageService>();
-        
+
         // Configure mocks
         _embeddingServiceMock
             .Setup(x => x.GetEmbeddingAsync(It.IsAny<string>()))
-            .ReturnsAsync(() => Enumerable.Range(0, 384).Select(i => (float)i / 384).ToArray());
-        
+            .ReturnsAsync(() => [.. Enumerable.Range(0, 384).Select(i => (float)i / 384)]);
+
         _storageServiceMock
             .Setup(x => x.UploadFileAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), 
-                It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), 
+                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+                It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("test-s3-key");
-        
+
         // Create the test application with mocked services using constructor
         _app = new WinnowTestApp(services =>
         {
@@ -44,7 +44,7 @@ public class ReportTests : IAsyncLifetime
                 services.Remove(embeddingDescriptor);
             }
             services.AddSingleton(_embeddingServiceMock.Object);
-            
+
             // Replace IStorageService with mock
             var storageDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(IStorageService));
@@ -54,7 +54,7 @@ public class ReportTests : IAsyncLifetime
             }
             services.AddSingleton(_storageServiceMock.Object);
         });
-        
+
         _client = _app.CreateClient();
     }
 
@@ -94,19 +94,19 @@ public class ReportTests : IAsyncLifetime
         var response = await _client.PostAsJsonAsync("/api/reports", request);
 
         // Assert
-        Assert.True(response.IsSuccessStatusCode, 
+        Assert.True(response.IsSuccessStatusCode,
             $"Expected success status code but got {response.StatusCode}. Response: {await response.Content.ReadAsStringAsync()}");
-        
+
         // Verify the response contains a GUID
         var result = await response.Content.ReadFromJsonAsync<IngestReportResponse>();
         Assert.NotNull(result);
         Assert.NotEqual(Guid.Empty, result.Id);
-        
+
         // Verify embedding service was called
         _embeddingServiceMock.Verify(
             x => x.GetEmbeddingAsync(It.Is<string>(s => s.Contains("Test Report Title"))),
             Times.Once);
-        
+
         // Verify the report was created in the database
         using var scope = _app.Services.CreateScope();
         using var db = scope.ServiceProvider.GetRequiredService<Winnow.Server.Infrastructure.Persistence.WinnowDbContext>();

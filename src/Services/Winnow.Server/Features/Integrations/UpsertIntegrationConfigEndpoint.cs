@@ -2,6 +2,7 @@ using FastEndpoints;
 using Winnow.Server.Entities;
 using Winnow.Integrations.Domain;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Infrastructure.Integrations.Strategies;
 using System.Text.Json;
 
 namespace Winnow.Server.Features.Integrations;
@@ -14,7 +15,10 @@ public class UpsertIntegrationConfigRequest
     public bool IsActive { get; set; } = true;
 }
 
-public class UpsertIntegrationConfigEndpoint(WinnowDbContext db) : Endpoint<UpsertIntegrationConfigRequest, Integration>
+public class UpsertIntegrationConfigEndpoint(
+    WinnowDbContext db,
+    IEnumerable<IIntegrationConfigDeserializationStrategy> deserializationStrategies) 
+    : Endpoint<UpsertIntegrationConfigRequest, Integration>
 {
     public override void Configure()
     {
@@ -44,14 +48,12 @@ public class UpsertIntegrationConfigEndpoint(WinnowDbContext db) : Endpoint<Upse
         integration.Provider = req.Provider;
         integration.IsActive = req.IsActive;
 
-        // Deserialize request into concrete domain record based on provider
-        IntegrationConfig newConfig = req.Provider.ToLowerInvariant() switch
-        {
-            "github" => JsonSerializer.Deserialize<GitHubConfig>(req.SettingsJson) ?? new GitHubConfig(),
-            "trello" => JsonSerializer.Deserialize<TrelloConfig>(req.SettingsJson) ?? new TrelloConfig(),
-            "jira" => JsonSerializer.Deserialize<JiraConfig>(req.SettingsJson) ?? new JiraConfig(),
-            _ => throw new ArgumentException($"Unsupported provider: {req.Provider}")
-        };
+        // Find the appropriate deserialization strategy for this provider
+        var strategy = deserializationStrategies.FirstOrDefault(s => s.CanHandle(req.Provider))
+            ?? throw new ArgumentException($"Unsupported provider: {req.Provider}");
+
+        // Use the strategy to deserialize the configuration
+        IntegrationConfig newConfig = strategy.Deserialize(req.SettingsJson);
         
         // Use the polymorphic domain model to update configuration
         integration.UpdateConfig(newConfig);
