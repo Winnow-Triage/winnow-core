@@ -1,5 +1,4 @@
 import { Code, Zap, CheckSquare, ArrowRight } from 'lucide-react';
-import { useState } from 'react';
 
 const steps = [
     {
@@ -26,7 +25,6 @@ const steps = [
 ];
 
 export function HowItWorks() {
-    const [activeTab, setActiveTab] = useState<'js' | 'csharp'>('js');
 
     const Step1Icon = steps[0].icon;
     const Step2Icon = steps[1].icon;
