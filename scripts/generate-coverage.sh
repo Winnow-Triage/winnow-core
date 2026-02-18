@@ -5,6 +5,8 @@
 
 set -e  # Exit on any error
 
+rm -rf ./coverage ./coverage-report
+
 echo "=== Generating Code Coverage Report ==="
 
 # 1. Install report generator tool (ignore if already installed)
