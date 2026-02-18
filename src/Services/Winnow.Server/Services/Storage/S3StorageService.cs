@@ -3,18 +3,12 @@ using Amazon.S3.Model;
 
 namespace Winnow.Server.Services.Storage;
 
-public class S3StorageService : IStorageService
+public class S3StorageService(IAmazonS3 s3, S3Settings settings) : IStorageService
 {
-    private readonly IAmazonS3 _s3;
-    private readonly S3Settings _settings;
+    private readonly IAmazonS3 _s3 = s3;
+    private readonly S3Settings _settings = settings;
     private static readonly TimeSpan UploadUrlExpiry = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan DownloadUrlExpiry = TimeSpan.FromHours(1);
-
-    public S3StorageService(IAmazonS3 s3, S3Settings settings)
-    {
-        _s3 = s3;
-        _settings = settings;
-    }
 
     /// <summary>
     /// The AWS SDK always generates HTTPS presigned URLs regardless of UseHttp config.
@@ -30,7 +24,7 @@ public class S3StorageService : IStorageService
         return presignedUrl;
     }
 
-    public async Task<PresignedUploadResult> GenerateUploadUrlAsync(
+    public Task<PresignedUploadResult> GenerateUploadUrlAsync(
         Guid orgId, Guid projectId, string fileName, string contentType, CancellationToken ct = default)
     {
         // Sanitize the filename to prevent path traversal
@@ -51,10 +45,10 @@ public class S3StorageService : IStorageService
         };
 
         var url = _s3.GetPreSignedURL(request);
-        return new PresignedUploadResult(FixPresignedUrlScheme(url), objectKey);
+        return Task.FromResult(new PresignedUploadResult(FixPresignedUrlScheme(url), objectKey));
     }
 
-    public async Task<string> GenerateDownloadUrlAsync(string key, CancellationToken ct = default)
+    public Task<string> GenerateDownloadUrlAsync(string key, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentException("Object key is required.", nameof(key));
@@ -67,7 +61,7 @@ public class S3StorageService : IStorageService
             Expires = DateTime.UtcNow.Add(DownloadUrlExpiry)
         };
 
-        return FixPresignedUrlScheme(_s3.GetPreSignedURL(request));
+        return Task.FromResult(FixPresignedUrlScheme(_s3.GetPreSignedURL(request)));
     }
 
     public async Task EnsureBucketsExistAsync(CancellationToken ct = default)
