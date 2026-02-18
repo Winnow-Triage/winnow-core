@@ -19,12 +19,13 @@ public class WinnowTestApp : WebApplicationFactory<Program>
 {
     private readonly string _tenantId = "test-tenant";
     private SqliteConnection? _sqliteConnection;
-    private Action<IServiceCollection>? _configureTestServices;
+    private readonly Action<IServiceCollection>? _configureTestServices;
 
     /// <summary>
-    /// Creates a new WinnowTestApp with optional test service configuration.
+    /// Initializes a new instance of the <see cref="WinnowTestApp"/> class.
     /// </summary>
-    /// <param name="configureTestServices">Optional action to configure test services after base configuration.</param>
+    /// <param name="configureTestServices">Optional action to configure services for testing.
+    /// Allows injecting custom mocks or service overrides per test.</param>
     public WinnowTestApp(Action<IServiceCollection>? configureTestServices = null)
     {
         _configureTestServices = configureTestServices;
@@ -34,6 +35,8 @@ public class WinnowTestApp : WebApplicationFactory<Program>
     {
         builder.ConfigureTestServices(services =>
         {
+            // Allow test-specific service configuration
+            _configureTestServices?.Invoke(services);
             // Remove the existing DbContext registration
             var dbContextDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(DbContextOptions<WinnowDbContext>));
@@ -87,9 +90,6 @@ public class WinnowTestApp : WebApplicationFactory<Program>
                 options.UseSqlite(_sqliteConnection);
                 options.AddInterceptors(new TestSqliteVectorConnectionInterceptor());
             });
-
-            // Apply additional test service configuration
-            _configureTestServices?.Invoke(services);
         });
     }
 
@@ -109,7 +109,7 @@ public class WinnowTestApp : WebApplicationFactory<Program>
     {
         using var scope = Services.CreateScope();
         using var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
-        
+
         // Ensure database is created
         await db.Database.EnsureCreatedAsync();
 
@@ -154,7 +154,7 @@ public class WinnowTestApp : WebApplicationFactory<Program>
     {
         using var scope = Services.CreateScope();
         using var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
-        
+
         // Delete all data but keep tables
         await db.Database.EnsureDeletedAsync();
         await db.Database.EnsureCreatedAsync();

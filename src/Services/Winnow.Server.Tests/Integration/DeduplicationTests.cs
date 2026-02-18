@@ -2,7 +2,6 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Moq;
-using Winnow.Server.Entities;
 using Winnow.Server.Features.Reports.Create;
 using Winnow.Server.Services.Ai;
 using Winnow.Server.Services.Storage;
