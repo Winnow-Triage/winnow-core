@@ -21,11 +21,11 @@ public class OllamaDuplicateChecker(
             var prompt = $@"
             You are a Senior QA Engineer. Your job is to determine if two bug reports describe the SAME underlying issue.
 
-            Ticket A:
+            Report A:
             Title: {titleA}
             Description: {descA}
 
-            Ticket B:
+            Report B:
             Title: {titleB}
             Description: {descB}
 

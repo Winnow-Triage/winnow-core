@@ -3,14 +3,14 @@ using System.Net.Http.Json;
 
 namespace Winnow.Integrations;
 
-public interface ITicketExporter
+public interface IReportExporter
 {
-    Task<string> ExportTicketAsync(string title, string description, CancellationToken cancellationToken);
+    Task<string> ExportReportAsync(string title, string description, CancellationToken cancellationToken);
 }
 
-public class TrelloExporter(HttpClient httpClient, string apiKey, string token, string listId) : ITicketExporter
+public class TrelloExporter(HttpClient httpClient, string apiKey, string token, string listId) : IReportExporter
 {
-    public async Task<string> ExportTicketAsync(string title, string description, CancellationToken cancellationToken)
+    public async Task<string> ExportReportAsync(string title, string description, CancellationToken cancellationToken)
     {
         // 1. Keep Auth in the URL (Standard Trello practice)
         var url = $"https://api.trello.com/1/cards?key={apiKey}&token={token}";
@@ -41,9 +41,9 @@ public class TrelloExporter(HttpClient httpClient, string apiKey, string token, 
     private class TrelloCardResponse { public required string ShortUrl { get; set; } }
 }
 
-public class GitHubExporter(HttpClient httpClient, string apiKey, string owner, string repo) : ITicketExporter
+public class GitHubExporter(HttpClient httpClient, string apiKey, string owner, string repo) : IReportExporter
 {
-    public async Task<string> ExportTicketAsync(string title, string description, CancellationToken cancellationToken)
+    public async Task<string> ExportReportAsync(string title, string description, CancellationToken cancellationToken)
     {
         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Winnow-App");
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
@@ -66,9 +66,9 @@ public class GitHubExporter(HttpClient httpClient, string apiKey, string owner, 
     private class GitHubIssueResponse { [System.Text.Json.Serialization.JsonPropertyName("html_url")] public required string HtmlUrl { get; set; } }
 }
 
-public class JiraExporter(HttpClient httpClient, string baseUrl, string userEmail, string apiToken, string projectKey) : ITicketExporter
+public class JiraExporter(HttpClient httpClient, string baseUrl, string userEmail, string apiToken, string projectKey) : IReportExporter
 {
-    public async Task<string> ExportTicketAsync(string title, string description, CancellationToken cancellationToken)
+    public async Task<string> ExportReportAsync(string title, string description, CancellationToken cancellationToken)
     {
         var authValue = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{userEmail}:{apiToken}"));
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", authValue);

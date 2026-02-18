@@ -12,7 +12,7 @@ public class ExporterFactory(
     IHttpClientFactory httpClientFactory,
     WinnowDbContext dbContext)
 {
-    public async Task<ITicketExporter> GetExporterAsync(CancellationToken ct = default)
+    public async Task<IReportExporter> GetExporterAsync(CancellationToken ct = default)
     {
         // Default behavior: Pick the first active one (or null)
         var config = await dbContext.IntegrationConfigs
@@ -24,7 +24,7 @@ public class ExporterFactory(
         return CreateExporterFromConfig(config);
     }
 
-    public async Task<ITicketExporter> GetExporterByIdAsync(Guid configId, CancellationToken ct = default)
+    public async Task<IReportExporter> GetExporterByIdAsync(Guid configId, CancellationToken ct = default)
     {
         var config = await dbContext.IntegrationConfigs
             .AsNoTracking()
@@ -35,7 +35,7 @@ public class ExporterFactory(
         return CreateExporterFromConfig(config);
     }
 
-    private ITicketExporter CreateExporterFromConfig(IntegrationConfig config)
+    private IReportExporter CreateExporterFromConfig(IntegrationConfig config)
     {
         var client = httpClientFactory.CreateClient("Exporter");
         var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -49,21 +49,21 @@ public class ExporterFactory(
         };
     }
 
-    private ITicketExporter CreateGitHubExporter(string json, HttpClient client, JsonSerializerOptions options)
+    private IReportExporter CreateGitHubExporter(string json, HttpClient client, JsonSerializerOptions options)
     {
         var s = JsonSerializer.Deserialize<GitHubSettings>(json, options);
         if (s == null) throw new InvalidOperationException("Failed to deserialize GitHub settings");
         return new GitHubExporter(client, s.ApiKey, s.Owner, s.Repo);
     }
 
-    private ITicketExporter CreateTrelloExporter(string json, HttpClient client, JsonSerializerOptions options)
+    private IReportExporter CreateTrelloExporter(string json, HttpClient client, JsonSerializerOptions options)
     {
         var s = JsonSerializer.Deserialize<TrelloSettings>(json, options);
         if (s == null) throw new InvalidOperationException("Failed to deserialize Trello settings");
         return new TrelloExporter(client, s.ApiKey, s.Token, s.ListId);
     }
 
-    private ITicketExporter CreateJiraExporter(string json, HttpClient client, JsonSerializerOptions options)
+    private IReportExporter CreateJiraExporter(string json, HttpClient client, JsonSerializerOptions options)
     {
         var s = JsonSerializer.Deserialize<JiraSettings>(json, options);
         if (s == null) throw new InvalidOperationException("Failed to deserialize Jira settings");
@@ -71,9 +71,9 @@ public class ExporterFactory(
     }
 }
 
-public class NullExporter : ITicketExporter
+public class NullExporter : IReportExporter
 {
-    public Task<string> ExportTicketAsync(string title, string description, CancellationToken cancellationToken)
+    public Task<string> ExportReportAsync(string title, string description, CancellationToken cancellationToken)
     {
         return Task.FromResult(string.Empty);
     }

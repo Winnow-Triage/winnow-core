@@ -27,10 +27,10 @@ public class GetReportResponse
     public float? ConfidenceScore { get; set; }
     public int? CriticalityScore { get; set; }
     public string? CriticalityReasoning { get; set; }
-    public string? ParentReportMessage { get; set; } // Was ParentTicketTitle
+    public string? ParentReportMessage { get; set; }
     public Guid? SuggestedParentId { get; set; }
     public float? SuggestedConfidenceScore { get; set; }
-    public string? SuggestedParentMessage { get; set; } // Was SuggestedParentTitle
+    public string? SuggestedParentMessage { get; set; }
     public string? Metadata { get; set; }
     public string? Screenshot { get; set; }
     public string? ExternalUrl { get; set; }

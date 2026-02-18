@@ -4,18 +4,18 @@ namespace Winnow.Server.Services.Ai;
 
 public class NegativeMatchCache(IMemoryCache cache) : INegativeMatchCache
 {
-    public bool IsKnownMismatch(string tenantId, Guid ticketA, Guid ticketB)
+    public bool IsKnownMismatch(string tenantId, Guid reportA, Guid reportB)
     {
-        var key = GetKey(tenantId, ticketA, ticketB);
+        var key = GetKey(tenantId, reportA, reportB);
         return cache.TryGetValue(key, out _);
     }
 
-    public void MarkAsMismatch(string tenantId, Guid ticketA, Guid ticketB)
+    public void MarkAsMismatch(string tenantId, Guid reportA, Guid reportB)
     {
-        var key = GetKey(tenantId, ticketA, ticketB);
+        var key = GetKey(tenantId, reportA, reportB);
         
         // Cache for 24 hours. If we haven't merged them by then, 
-        // maybe the tickets changed enough to be worth checking again.
+        // maybe the reports changed enough to be worth checking again.
         cache.Set(key, true, TimeSpan.FromHours(24));
     }
 

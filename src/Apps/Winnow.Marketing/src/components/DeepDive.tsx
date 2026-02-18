@@ -115,7 +115,7 @@ export function DeepDive() {
                     description="Whether it's a JavaScript console error or a C# Exception in Unity/Godot, Winnow captures the full stack trace, variable state, and session logs."
                     imageSrc="/dashboard-mockup-light.png"
                     imageDarkSrc="/dashboard-mockup-dark.png"
-                    imageAlt="Ticket Detail View"
+                    imageAlt="Report Detail View"
                     reverse={true}
                 >
                     <a href="#" className="inline-flex items-center font-medium text-primary hover:underline underline-offset-4">
