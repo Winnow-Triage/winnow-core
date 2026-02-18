@@ -11,3 +11,5 @@ var app = builder.Build();
 await app.UseWinnowMiddleware();
 
 app.Run();
+
+public partial class Program { }
