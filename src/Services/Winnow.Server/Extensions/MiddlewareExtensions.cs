@@ -76,7 +76,25 @@ internal static class MiddlewareExtensions
         app.UseAuthorization();
         app.UseStaticFiles();
         app.UseCors();
-        app.UseFastEndpoints();
+        app.UseRateLimiter();
+        app.UseFastEndpoints(c =>
+        {
+            c.Endpoints.Configurator = ep =>
+            {
+                if (ep.EndpointType.Namespace?.StartsWith("Winnow.Server.Features.Auth") == true)
+                {
+                    ep.Options(b => b.RequireRateLimiting("strict"));
+                }
+                else if (ep.EndpointType.Name == "IngestReportEndpoint" || ep.EndpointType.Name == "SimulateTrafficEndpoint")
+                {
+                    ep.Options(b => b.RequireRateLimiting("webhook"));
+                }
+                else
+                {
+                    ep.Options(b => b.RequireRateLimiting("api"));
+                }
+            };
+        });
         app.UseSwaggerGen();
 
         return app;

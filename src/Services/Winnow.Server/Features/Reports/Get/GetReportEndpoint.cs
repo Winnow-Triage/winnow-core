@@ -92,7 +92,7 @@ public sealed class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services
         var userOwnsProject = await db.Projects
             .AsNoTracking()
             .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
-        
+
         if (!userOwnsProject)
         {
             ThrowError("Project not found or access denied", 404);

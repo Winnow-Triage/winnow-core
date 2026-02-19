@@ -2,9 +2,8 @@ using FastEndpoints;
 using FastEndpoints.Swagger;
 using MassTransit;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Http.Resilience;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.SemanticKernel;
-using Winnow.Integrations;
 using Winnow.Server.Domain.Services;
 using Winnow.Server.Entities;
 using Winnow.Server.Features.Dashboard;
@@ -172,6 +171,36 @@ internal static class ServiceExtensions
         services.AddFastEndpoints();
         services.SwaggerDocument();
         services.AddAuthorization();
+
+        // Rate Limiting
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            options.AddFixedWindowLimiter("api", options =>
+            {
+                options.PermitLimit = 100;
+                options.Window = TimeSpan.FromMinutes(1);
+                options.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+                options.QueueLimit = 5;
+            });
+
+            options.AddFixedWindowLimiter("webhook", options =>
+            {
+                options.PermitLimit = 20;
+                options.Window = TimeSpan.FromSeconds(1);
+                options.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+                options.QueueLimit = 10;
+            });
+
+            options.AddFixedWindowLimiter("strict", options =>
+            {
+                options.PermitLimit = 10;
+                options.Window = TimeSpan.FromMinutes(1);
+                options.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+                options.QueueLimit = 0;
+            });
+        });
 
         // CORS
         services.AddCors(options =>

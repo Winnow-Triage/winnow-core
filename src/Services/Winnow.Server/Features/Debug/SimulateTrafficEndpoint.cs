@@ -55,7 +55,7 @@ public sealed class SimulateTrafficEndpoint(
         var userOwnsProject = await dbContext.Projects
             .AsNoTracking()
             .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
-        
+
         if (!userOwnsProject)
         {
             ThrowError("Project not found or access denied", 404);
@@ -146,7 +146,7 @@ public sealed class SimulateTrafficEndpoint(
                 ("Invoice not generated", "Monthly invoice failed to generate."),
                 ("Currency conversion error", "Wrong currency symbol displayed in checkout.")
             },
-            _ => new() 
+            _ => new()
             {
                 ("System Error", "Generic system error occurred."),
                 ("Feature Request", "User wants dark mode."),
