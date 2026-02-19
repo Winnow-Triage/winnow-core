@@ -11,7 +11,7 @@ public class UngroupReportRequest
     public Guid Id { get; set; }
 }
 
-public class UngroupReportEndpoint(WinnowDbContext db) : Endpoint<UngroupReportRequest, ActionResponse>
+public sealed class UngroupReportEndpoint(WinnowDbContext db) : Endpoint<UngroupReportRequest, ActionResponse>
 {
     public override void Configure()
     {

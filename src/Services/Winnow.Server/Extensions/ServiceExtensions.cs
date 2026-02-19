@@ -25,7 +25,7 @@ public static class ServiceExtensions
     {
         // Multi-tenancy
         services.AddScoped<ITenantContext, TenantContext>();
-        services.AddScoped<ExporterFactory>();
+        services.AddScoped<IExporterFactory, ExporterFactory>();
         
         // Assembly scanning for all strategy implementations
         services.Scan(scan => scan

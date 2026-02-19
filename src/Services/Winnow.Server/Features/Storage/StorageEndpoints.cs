@@ -17,7 +17,7 @@ public class GetUploadUrlResponse
     public string ObjectKey { get; set; } = string.Empty;
 }
 
-public class GetUploadUrlEndpoint(IStorageService storage) : Endpoint<GetUploadUrlRequest, GetUploadUrlResponse>
+public sealed class GetUploadUrlEndpoint(IStorageService storage) : Endpoint<GetUploadUrlRequest, GetUploadUrlResponse>
 {
     public override void Configure()
     {
@@ -49,7 +49,7 @@ public class GetDownloadUrlResponse
     public string DownloadUrl { get; set; } = string.Empty;
 }
 
-public class GetDownloadUrlEndpoint(IStorageService storage) : Endpoint<GetDownloadUrlRequest, GetDownloadUrlResponse>
+public sealed class GetDownloadUrlEndpoint(IStorageService storage) : Endpoint<GetDownloadUrlRequest, GetDownloadUrlResponse>
 {
     public override void Configure()
     {

@@ -13,7 +13,7 @@ public class DismissSuggestionRequest
     public bool RejectMatch { get; set; }
 }
 
-public class DismissSuggestionEndpoint(WinnowDbContext db, INegativeMatchCache negativeCache, ITenantContext tenantContext) : Endpoint<DismissSuggestionRequest, ActionResponse>
+public sealed class DismissSuggestionEndpoint(WinnowDbContext db, INegativeMatchCache negativeCache, ITenantContext tenantContext) : Endpoint<DismissSuggestionRequest, ActionResponse>
 {
     public override void Configure()
     {

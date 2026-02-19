@@ -26,7 +26,7 @@ public class AuthResponse
     public string ApiKey { get; set; } = string.Empty;
 }
 
-public class RegisterEndpoint(
+public sealed class RegisterEndpoint(
     UserManager<ApplicationUser> userManager,
     WinnowDbContext dbContext,
     IConfiguration config) : Endpoint<RegisterRequest, AuthResponse>

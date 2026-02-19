@@ -16,7 +16,7 @@ public class ExportReportResponse
     public string ExternalUrl { get; set; } = string.Empty;
 }
 
-public class ExportReportEndpoint(WinnowDbContext db, ExporterFactory exporterFactory) : Endpoint<ExportReportRequest>
+public sealed class ExportReportEndpoint(WinnowDbContext db, IExporterFactory exporterFactory) : Endpoint<ExportReportRequest>
 {
     public override void Configure()
     {

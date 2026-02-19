@@ -11,7 +11,7 @@ public class CreateProjectRequest
     public string Name { get; set; } = default!;
 }
 
-public class CreateProjectEndpoint(WinnowDbContext dbContext) : Endpoint<CreateProjectRequest, ProjectDto>
+public sealed class CreateProjectEndpoint(WinnowDbContext dbContext) : Endpoint<CreateProjectRequest, ProjectDto>
 {
     public override void Configure()
     {

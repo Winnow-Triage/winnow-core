@@ -11,7 +11,7 @@ public class CloseClusterRequest
     public Guid Id { get; set; }
 }
 
-public class CloseClusterEndpoint(WinnowDbContext db) : Endpoint<CloseClusterRequest, ActionResponse>
+public sealed class CloseClusterEndpoint(WinnowDbContext db) : Endpoint<CloseClusterRequest, ActionResponse>
 {
     public override void Configure()
     {

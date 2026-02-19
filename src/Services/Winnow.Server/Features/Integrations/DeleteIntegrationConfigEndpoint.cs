@@ -3,7 +3,7 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Integrations;
 
-public class DeleteIntegrationConfigEndpoint(WinnowDbContext db) : EndpointWithoutRequest
+public sealed class DeleteIntegrationConfigEndpoint(WinnowDbContext db) : EndpointWithoutRequest
 {
     public override void Configure()
     {

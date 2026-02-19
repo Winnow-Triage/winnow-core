@@ -12,7 +12,7 @@ public class AssignReportRequest
     public string? AssignedTo { get; set; }
 }
 
-public class AssignReportEndpoint(WinnowDbContext db) : Endpoint<AssignReportRequest, ActionResponse>
+public sealed class AssignReportEndpoint(WinnowDbContext db) : Endpoint<AssignReportRequest, ActionResponse>
 {
     public override void Configure()
     {

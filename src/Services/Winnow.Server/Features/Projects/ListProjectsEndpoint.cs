@@ -8,7 +8,7 @@ namespace Winnow.Server.Features.Projects;
 
 public record ProjectDto(Guid Id, string Name, string ApiKey);
 
-public class ListProjectsEndpoint(WinnowDbContext dbContext) : EndpointWithoutRequest<List<ProjectDto>>
+public sealed class ListProjectsEndpoint(WinnowDbContext dbContext) : EndpointWithoutRequest<List<ProjectDto>>
 {
     public override void Configure()
     {

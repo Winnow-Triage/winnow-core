@@ -45,7 +45,7 @@ public record IngestReportResponse
     public Guid Id { get; init; }
 }
 
-public class IngestReportEndpoint(
+public sealed class IngestReportEndpoint(
     IPublishEndpoint publishEndpoint,
     Winnow.Server.Services.Ai.IEmbeddingService embeddingService,
     Winnow.Server.Services.Storage.IStorageService storageService,

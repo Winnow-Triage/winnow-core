@@ -13,7 +13,7 @@ public class UpdateAssetStatusRequest
     public string? ContentType { get; set; } // Actual detected MIME type (may differ from upload)
 }
 
-public class UpdateAssetStatusEndpoint(
+public sealed class UpdateAssetStatusEndpoint(
     WinnowDbContext dbContext,
     ILogger<UpdateAssetStatusEndpoint> logger) : Endpoint<UpdateAssetStatusRequest>
 {

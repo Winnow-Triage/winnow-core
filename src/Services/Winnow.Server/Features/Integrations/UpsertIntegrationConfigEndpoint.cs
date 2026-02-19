@@ -15,7 +15,7 @@ public class UpsertIntegrationConfigRequest
     public bool IsActive { get; set; } = true;
 }
 
-public class UpsertIntegrationConfigEndpoint(
+public sealed class UpsertIntegrationConfigEndpoint(
     WinnowDbContext db,
     IEnumerable<IIntegrationConfigDeserializationStrategy> deserializationStrategies) 
     : Endpoint<UpsertIntegrationConfigRequest, Integration>

@@ -4,7 +4,7 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Integrations;
 
-public class GetIntegrationConfigDetailEndpoint(WinnowDbContext db) : EndpointWithoutRequest<UpsertIntegrationConfigRequest>
+public sealed class GetIntegrationConfigDetailEndpoint(WinnowDbContext db) : EndpointWithoutRequest<UpsertIntegrationConfigRequest>
 {
 
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };

@@ -10,7 +10,7 @@ namespace Winnow.Server.Infrastructure.Integrations;
 public class ExporterFactory(
     IHttpClientFactory httpClientFactory,
     WinnowDbContext dbContext,
-    IEnumerable<IExporterCreationStrategy> strategies)
+    IEnumerable<IExporterCreationStrategy> strategies) : IExporterFactory
 {
     public async Task<IReportExporter> GetExporterAsync(CancellationToken ct = default)
     {

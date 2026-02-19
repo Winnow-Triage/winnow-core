@@ -16,7 +16,7 @@ public class LoginRequest
     public string Password { get; set; } = string.Empty;
 }
 
-public class LoginEndpoint(
+public sealed class LoginEndpoint(
     UserManager<ApplicationUser> userManager,
     WinnowDbContext dbContext,
     IConfiguration config) : Endpoint<LoginRequest, AuthResponse>

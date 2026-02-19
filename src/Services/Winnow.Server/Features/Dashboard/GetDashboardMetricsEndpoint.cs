@@ -5,7 +5,7 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Dashboard;
 
-public class GetDashboardMetricsEndpoint(IDashboardService dashboardService, WinnowDbContext dbContext) : EndpointWithoutRequest<DashboardMetricsDto>
+public sealed class GetDashboardMetricsEndpoint(IDashboardService dashboardService, WinnowDbContext dbContext) : EndpointWithoutRequest<DashboardMetricsDto>
 {
     public override void Configure()
     {

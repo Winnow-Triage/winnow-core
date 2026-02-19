@@ -17,7 +17,7 @@ public record ReportDto(
     int? CriticalityScore, 
     string? Metadata);
 
-public class ListReportsEndpoint(WinnowDbContext dbContext) : EndpointWithoutRequest<List<ReportDto>>
+public sealed class ListReportsEndpoint(WinnowDbContext dbContext) : EndpointWithoutRequest<List<ReportDto>>
 {
     public override void Configure()
     {

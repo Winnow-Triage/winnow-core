@@ -18,7 +18,7 @@ public class GenerateMockReportsRequest
     public string? Scenario { get; set; }
 }
 
-public class GenerateMockReportsEndpoint(
+public sealed class GenerateMockReportsEndpoint(
     Kernel kernel,
     WinnowDbContext db,
     IPublishEndpoint publishEndpoint,

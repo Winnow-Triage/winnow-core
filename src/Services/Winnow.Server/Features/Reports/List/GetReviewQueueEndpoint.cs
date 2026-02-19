@@ -19,7 +19,7 @@ public record ReviewItemDto(
     float? ConfidenceScore
 );
 
-public class GetReviewQueueEndpoint(WinnowDbContext db) : EndpointWithoutRequest<List<ReviewItemDto>>
+public sealed class GetReviewQueueEndpoint(WinnowDbContext db) : EndpointWithoutRequest<List<ReviewItemDto>>
 {
     public override void Configure()
     {

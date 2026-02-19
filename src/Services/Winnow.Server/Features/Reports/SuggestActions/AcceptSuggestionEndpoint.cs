@@ -11,7 +11,7 @@ public class AcceptSuggestionRequest
     public Guid Id { get; set; }
 }
 
-public class AcceptSuggestionEndpoint(WinnowDbContext db) : Endpoint<AcceptSuggestionRequest, ActionResponse>
+public sealed class AcceptSuggestionEndpoint(WinnowDbContext db) : Endpoint<AcceptSuggestionRequest, ActionResponse>
 {
     public override void Configure()
     {

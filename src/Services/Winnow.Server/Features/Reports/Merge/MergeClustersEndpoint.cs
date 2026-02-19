@@ -13,7 +13,7 @@ public class MergeClustersRequest
     public List<Guid> SourceIds { get; set; } = new(); // Source Clusters/Reports to merge INTO target
 }
 
-public class MergeClustersEndpoint(WinnowDbContext db) : Endpoint<MergeClustersRequest, ActionResponse>
+public sealed class MergeClustersEndpoint(WinnowDbContext db) : Endpoint<MergeClustersRequest, ActionResponse>
 {
     public override void Configure()
     {

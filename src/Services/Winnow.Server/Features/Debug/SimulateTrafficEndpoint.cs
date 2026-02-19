@@ -20,7 +20,7 @@ public class SimulateTrafficResponse
     public int Count { get; set; }
 }
 
-public class SimulateTrafficEndpoint(
+public sealed class SimulateTrafficEndpoint(
     IPublishEndpoint publishEndpoint,
     WinnowDbContext dbContext,
     ITenantContext tenantContext,

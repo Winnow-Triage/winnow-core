@@ -12,7 +12,7 @@ public class GenerateClusterSummaryRequest
     public Guid Id { get; set; }
 }
 
-public class GenerateClusterSummaryEndpoint(WinnowDbContext db, IClusterSummaryService summaryService) : Endpoint<GenerateClusterSummaryRequest, ActionResponse>
+public sealed class GenerateClusterSummaryEndpoint(WinnowDbContext db, IClusterSummaryService summaryService) : Endpoint<GenerateClusterSummaryRequest, ActionResponse>
 {
     public override void Configure()
     {

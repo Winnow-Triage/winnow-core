@@ -10,7 +10,7 @@ public class ClearClusterSummaryRequest
     public Guid Id { get; set; }
 }
 
-public class ClearClusterSummaryEndpoint(WinnowDbContext db) : Endpoint<ClearClusterSummaryRequest>
+public sealed class ClearClusterSummaryEndpoint(WinnowDbContext db) : Endpoint<ClearClusterSummaryRequest>
 {
     public override void Configure()
     {
