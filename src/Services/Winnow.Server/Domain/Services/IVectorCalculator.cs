@@ -3,7 +3,7 @@ namespace Winnow.Server.Domain.Services;
 /// <summary>
 /// Interface for vector calculation operations used in similarity matching.
 /// </summary>
-public interface IVectorCalculator
+internal interface IVectorCalculator
 {
     /// <summary>
     /// Calculates the centroid (average) of a list of vectors.

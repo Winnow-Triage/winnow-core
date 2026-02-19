@@ -13,7 +13,7 @@ public class ExportReportRequest
 
 public class ExportReportResponse
 {
-    public string ExternalUrl { get; set; } = string.Empty;
+    public Uri ExternalUrl { get; set; } = default!;
 }
 
 public sealed class ExportReportEndpoint(WinnowDbContext db, IExporterFactory exporterFactory) : Endpoint<ExportReportRequest>
@@ -74,7 +74,8 @@ public sealed class ExportReportEndpoint(WinnowDbContext db, IExporterFactory ex
             var backlink = $"http://localhost:5173/reports/{report.Id}";
             contentToExport += $"\n\n---\n[View in Winnow]({backlink})";
 
-            var externalUrl = await exporter.ExportReportAsync(report.Title, contentToExport ?? "", ct);
+            var externalUrlString = await exporter.ExportReportAsync(report.Title, contentToExport ?? "", ct);
+            var externalUrl = new Uri(externalUrlString);
             
             report.Status = "Exported";
             report.ExternalUrl = externalUrl;

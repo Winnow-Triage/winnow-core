@@ -3,14 +3,14 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Integrations;
 using Winnow.Server.Domain.Services;
+using Winnow.Server.Features.Reports.Create;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Infrastructure.Scheduling;
-using Winnow.Server.Features.Reports.Create;
 
 namespace Winnow.Server.Features.Reports.Create;
 
-public class ReportCreatedConsumer(
+internal class ReportCreatedConsumer(
     WinnowDbContext dbContext,
     ILogger<ReportCreatedConsumer> logger,
     ITenantContext tenantContext,
@@ -19,7 +19,7 @@ public class ReportCreatedConsumer(
 {
     public async Task Consume(ConsumeContext<ReportCreatedEvent> context)
     {
-        logger.LogInformation("ReportCreatedConsumer: Consuming message for report {Id} (Tenant: {Tenant}, Project: {Project})", 
+        logger.LogInformation("ReportCreatedConsumer: Consuming message for report {Id} (Tenant: {Tenant}, Project: {Project})",
             context.Message.ReportId, context.Message.TenantId, context.Message.ProjectId);
 
         if (tenantContext is TenantContext concreteContext)
@@ -50,7 +50,7 @@ public class ReportCreatedConsumer(
         {
             var embeddingFloats = new float[report.Embedding.Length / sizeof(float)];
             Buffer.BlockCopy(report.Embedding, 0, embeddingFloats, 0, report.Embedding.Length);
-            
+
             const double DistanceThreshold = 0.35;
             var parameters = new List<object> { report.Embedding, projectId };
 
@@ -69,7 +69,7 @@ public class ReportCreatedConsumer(
                 .SqlQueryRaw<ReportMatch>(sql, [.. parameters])
                 .ToListAsync(context.CancellationToken);
 
-            logger.LogInformation("ReportMatching: Found {Count} potential matches for report {Id} in project {ProjectId}", 
+            logger.LogInformation("ReportMatching: Found {Count} potential matches for report {Id} in project {ProjectId}",
                 searchResults.Count, report.Id, projectId);
 
             if (searchResults.Count > 0)
@@ -166,7 +166,7 @@ public class ReportCreatedConsumer(
                 FROM Reports
                 WHERE Id = {report.Id}
             ");
-            
+
             logger.LogDebug("ReportMatching: Synchronized report {Id} to vector index.", report.Id);
         }
         else
@@ -176,5 +176,5 @@ public class ReportCreatedConsumer(
     }
 }
 
-internal record ReportMatch(Guid Id, Guid? ParentId, double Distance);
-internal record ClusterMatch(Guid Id, double Distance);
+internal sealed record ReportMatch(Guid Id, Guid? ParentId, double Distance);
+internal sealed record ClusterMatch(Guid Id, double Distance);

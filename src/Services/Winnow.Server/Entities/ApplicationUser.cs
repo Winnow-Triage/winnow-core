@@ -8,5 +8,5 @@ public class ApplicationUser : IdentityUser
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Relationship: A user can be a member/owner of multiple projects
-    public ICollection<Project> Projects { get; set; } = new List<Project>();
+    public ICollection<Project> Projects { get; } = new List<Project>();
 }

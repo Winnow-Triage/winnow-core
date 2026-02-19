@@ -18,7 +18,7 @@ public class IntegrationConfigTests
         
         var jira = new JiraConfig
         {
-            BaseUrl = "https://example.atlassian.net",
+            BaseUrl = new Uri("https://example.atlassian.net"),
             UserEmail = "user@example.com",
             ApiToken = "jira-token",
             ProjectKey = "PROJ"

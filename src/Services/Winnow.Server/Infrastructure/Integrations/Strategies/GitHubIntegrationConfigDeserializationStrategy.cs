@@ -6,7 +6,7 @@ namespace Winnow.Server.Infrastructure.Integrations.Strategies;
 /// <summary>
 /// Strategy for deserializing GitHub integration configuration.
 /// </summary>
-public class GitHubIntegrationConfigDeserializationStrategy : IIntegrationConfigDeserializationStrategy
+internal class GitHubIntegrationConfigDeserializationStrategy : IIntegrationConfigDeserializationStrategy
 {
     /// <inheritdoc />
     public bool CanHandle(string provider) => 

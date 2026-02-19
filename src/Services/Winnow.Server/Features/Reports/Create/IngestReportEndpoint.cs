@@ -19,7 +19,7 @@ public class IngestReportRequest
     public Dictionary<string, object>? Metadata { get; set; }
 }
 
-public class IngestReportValidator : Validator<IngestReportRequest>
+internal class IngestReportValidator : Validator<IngestReportRequest>
 {
     public IngestReportValidator()
     {
@@ -28,7 +28,7 @@ public class IngestReportValidator : Validator<IngestReportRequest>
     }
 }
 
-public record ReportCreatedEvent
+internal record ReportCreatedEvent
 {
     public Guid ReportId { get; init; }
     public Guid ProjectId { get; init; }

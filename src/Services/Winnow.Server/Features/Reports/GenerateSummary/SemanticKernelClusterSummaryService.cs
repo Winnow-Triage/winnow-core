@@ -87,5 +87,5 @@ public class SemanticKernelClusterSummaryService(Kernel kernel) : IClusterSummar
         }
     }
 
-    private record JsonResult(string Summary, int? CriticalityScore, string? CriticalityReasoning);
+    private sealed record JsonResult(string Summary, int? CriticalityScore, string? CriticalityReasoning);
 }

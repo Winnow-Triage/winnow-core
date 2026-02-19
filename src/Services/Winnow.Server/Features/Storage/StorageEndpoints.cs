@@ -2,7 +2,6 @@ using FastEndpoints;
 using Winnow.Server.Services.Storage;
 
 namespace Winnow.Server.Features.Storage;
-
 public class GetUploadUrlRequest
 {
     public Guid OrganizationId { get; set; }
@@ -10,10 +9,9 @@ public class GetUploadUrlRequest
     public string FileName { get; set; } = default!;
     public string ContentType { get; set; } = "application/octet-stream";
 }
-
 public class GetUploadUrlResponse
 {
-    public string UploadUrl { get; set; } = string.Empty;
+    public Uri UploadUrl { get; set; } = default!;
     public string ObjectKey { get; set; } = string.Empty;
 }
 
@@ -38,15 +36,13 @@ public sealed class GetUploadUrlEndpoint(IStorageService storage) : Endpoint<Get
         }, ct);
     }
 }
-
 public class GetDownloadUrlRequest
 {
     public string Key { get; set; } = default!;
 }
-
 public class GetDownloadUrlResponse
 {
-    public string DownloadUrl { get; set; } = string.Empty;
+    public Uri DownloadUrl { get; set; } = default!;
 }
 
 public sealed class GetDownloadUrlEndpoint(IStorageService storage) : Endpoint<GetDownloadUrlRequest, GetDownloadUrlResponse>

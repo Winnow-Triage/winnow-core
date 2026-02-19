@@ -5,7 +5,7 @@ using Winnow.Server.Infrastructure.Configuration;
 
 namespace Winnow.Server.Services.Ai.Strategies;
 
-public class OnnxEmbeddingProvider : IEmbeddingProvider, IDisposable
+internal class OnnxEmbeddingProvider : IEmbeddingProvider, IDisposable
 {
     private readonly InferenceSession? _session;
     private readonly Tokenizer? _tokenizer;

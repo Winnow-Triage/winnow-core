@@ -18,7 +18,7 @@ public abstract record IntegrationConfig
     /// <param name="incoming">The incoming configuration to merge</param>
     /// <returns>New merged configuration</returns>
     public abstract IntegrationConfig Merge(IntegrationConfig incoming);
-    
+
     /// <summary>
     /// Validates that incoming configuration is not null.
     /// </summary>
@@ -28,7 +28,7 @@ public abstract record IntegrationConfig
     {
         ArgumentNullException.ThrowIfNull(incoming);
     }
-    
+
     /// <summary>
     /// Helper method to merge secret fields, preserving masked values.
     /// </summary>
@@ -49,14 +49,14 @@ public record GitHubConfig : IntegrationConfig
     public string ApiKey { get; init; } = string.Empty;
     public string Owner { get; init; } = string.Empty;
     public string Repo { get; init; } = string.Empty;
-    
+
     public override IntegrationConfig Merge(IntegrationConfig incoming)
     {
         ValidateIncoming(incoming);
-        
+
         if (incoming is not GitHubConfig other)
             throw new ArgumentException($"Cannot merge {incoming.GetType().Name} with {nameof(GitHubConfig)}");
-        
+
         return this with
         {
             ApiKey = MergeSecret(ApiKey, other.ApiKey),
@@ -74,14 +74,14 @@ public record TrelloConfig : IntegrationConfig
     public string ApiKey { get; init; } = string.Empty;
     public string Token { get; init; } = string.Empty;
     public string ListId { get; init; } = string.Empty;
-    
+
     public override IntegrationConfig Merge(IntegrationConfig incoming)
     {
         ValidateIncoming(incoming);
-        
+
         if (incoming is not TrelloConfig other)
             throw new ArgumentException($"Cannot merge {incoming.GetType().Name} with {nameof(TrelloConfig)}");
-        
+
         return this with
         {
             ApiKey = MergeSecret(ApiKey, other.ApiKey),
@@ -96,18 +96,18 @@ public record TrelloConfig : IntegrationConfig
 /// </summary>
 public record JiraConfig : IntegrationConfig
 {
-    public string BaseUrl { get; init; } = string.Empty;
+    public Uri BaseUrl { get; init; } = new("https://localhost");
     public string UserEmail { get; init; } = string.Empty;
     public string ApiToken { get; init; } = string.Empty;
     public string ProjectKey { get; init; } = string.Empty;
-    
+
     public override IntegrationConfig Merge(IntegrationConfig incoming)
     {
         ValidateIncoming(incoming);
-        
+
         if (incoming is not JiraConfig other)
             throw new ArgumentException($"Cannot merge {incoming.GetType().Name} with {nameof(JiraConfig)}");
-        
+
         return this with
         {
             BaseUrl = other.BaseUrl,

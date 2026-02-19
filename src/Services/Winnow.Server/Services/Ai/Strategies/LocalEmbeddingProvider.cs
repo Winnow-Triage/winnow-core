@@ -6,7 +6,7 @@ namespace Winnow.Server.Services.Ai.Strategies;
 /// <summary>
 /// Local embedding provider for Ollama.
 /// </summary>
-public class LocalEmbeddingProvider : IEmbeddingProvider
+internal class LocalEmbeddingProvider : IEmbeddingProvider
 {
     private readonly ILogger<LocalEmbeddingProvider> _logger;
     private readonly HttpClient? _httpClient;
@@ -110,7 +110,7 @@ public class LocalEmbeddingProvider : IEmbeddingProvider
         return embedding;
     }
 
-    private class OllamaEmbeddingResponse
+    private sealed class OllamaEmbeddingResponse
     {
         public float[]? Embedding { get; set; }
     }

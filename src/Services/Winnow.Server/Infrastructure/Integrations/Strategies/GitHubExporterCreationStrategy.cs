@@ -6,7 +6,7 @@ namespace Winnow.Server.Infrastructure.Integrations.Strategies;
 /// <summary>
 /// Strategy for creating GitHub exporters.
 /// </summary>
-public class GitHubExporterCreationStrategy : IExporterCreationStrategy
+internal class GitHubExporterCreationStrategy : IExporterCreationStrategy
 {
     /// <inheritdoc />
     public bool CanHandle(IntegrationConfig config) => config is GitHubConfig;

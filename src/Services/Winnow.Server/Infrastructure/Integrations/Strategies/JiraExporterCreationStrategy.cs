@@ -6,7 +6,7 @@ namespace Winnow.Server.Infrastructure.Integrations.Strategies;
 /// <summary>
 /// Strategy for creating Jira exporters.
 /// </summary>
-public class JiraExporterCreationStrategy : IExporterCreationStrategy
+internal class JiraExporterCreationStrategy : IExporterCreationStrategy
 {
     /// <inheritdoc />
     public bool CanHandle(IntegrationConfig config) => config is JiraConfig;

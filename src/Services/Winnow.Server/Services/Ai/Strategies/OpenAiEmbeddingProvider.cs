@@ -6,7 +6,7 @@ namespace Winnow.Server.Services.Ai.Strategies;
 /// <summary>
 /// OpenAI embedding provider for generating embeddings using OpenAI's API.
 /// </summary>
-public class OpenAiEmbeddingProvider : IEmbeddingProvider
+internal class OpenAiEmbeddingProvider : IEmbeddingProvider
 {
     private readonly ILogger<OpenAiEmbeddingProvider> _logger;
     private readonly HttpClient? _httpClient;

@@ -7,6 +7,21 @@
 
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    
+    <!-- Suppress analyzer warnings that don't apply to test projects -->
+    <!-- CA1515: Test classes can be public for test frameworks -->
+    <!-- CA1707: Test method names often use underscores for readability -->
+    <!-- CA1001: Test classes with disposable fields may not need IDisposable -->
+    <!-- CA1852: Sealing test helper classes - not necessary for tests -->
+    <!-- CA1823: Unused fields in test classes - okay for tests -->
+    <!-- CA1862: String comparisons in tests - not critical -->
+    <!-- CA1711: Rename type name IntegrationTestCollection - fine for tests -->
+    <!-- CA1847: Use 'string.Contains(char)' - fine for tests -->
+    <!-- Also suppress CA2007 (ConfigureAwait) as per user request -->
+    <!-- Also suppress CA1303 (Resource strings) - not needed for tests -->
+    <!-- Also suppress CA1822 (Static methods) - fine for tests -->
+    <!-- Also suppress CA1866 (string.StartsWith) - fine for tests -->
+    <NoWarn>$(NoWarn);CA1515;CA1707;CA1001;CA1852;CA1823;CA1862;CA1711;CA1847;CA2007;CA1303;CA1822;CA1866</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

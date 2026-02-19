@@ -1,5 +1,6 @@
 namespace Winnow.Server.Entities;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1515:Consider making public types internal", Justification = "Entity Framework requires public entities")]
 public enum AssetStatus
 {
     Pending,
@@ -8,6 +9,7 @@ public enum AssetStatus
     Failed
 }
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1515:Consider making public types internal", Justification = "Entity Framework requires public entities")]
 public class Asset
 {
     public Guid Id { get; set; } = Guid.NewGuid();

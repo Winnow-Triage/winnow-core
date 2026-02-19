@@ -19,7 +19,7 @@ using Winnow.Server.Features.Reports.GenerateSummary;
 
 namespace Winnow.Server.Extensions;
 
-public static class ServiceExtensions
+internal static class ServiceExtensions
 {
     public static IServiceCollection AddWinnowServices(this IServiceCollection services, IConfiguration config)
     {

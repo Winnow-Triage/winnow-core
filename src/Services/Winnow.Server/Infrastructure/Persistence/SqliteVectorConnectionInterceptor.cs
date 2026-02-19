@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Winnow.Server.Infrastructure.Persistence;
 
-public class SqliteVectorConnectionInterceptor : DbConnectionInterceptor
+internal class SqliteVectorConnectionInterceptor : DbConnectionInterceptor
 {
     public override void ConnectionOpened(DbConnection connection, ConnectionEndEventData eventData)
     {

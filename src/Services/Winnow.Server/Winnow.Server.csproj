@@ -49,4 +49,8 @@
     <Content Condition="$([MSBuild]::IsOSPlatform('OSX'))" Include="$(NuGetPackageRoot)sqlite-vec/0.1.7-alpha.2.1/runtimes/osx-arm64/native/vec0.dylib" Link="vec0.dylib" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);CA2007;CA1848;CA1515;CA1852;CA1812</NoWarn>
+  </PropertyGroup>
+
 </Project>

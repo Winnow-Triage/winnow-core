@@ -14,14 +14,15 @@ public class S3StorageService(IAmazonS3 s3, S3Settings settings) : IStorageServi
     /// The AWS SDK always generates HTTPS presigned URLs regardless of UseHttp config.
     /// This fixes the scheme to match the configured endpoint (e.g. http for MinIO).
     /// </summary>
-    private string FixPresignedUrlScheme(string presignedUrl)
+    private Uri FixPresignedUrlScheme(string presignedUrl)
     {
         if (_settings.Endpoint.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
             && presignedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
-            return "http://" + presignedUrl["https://".Length..];
+            var fixedUrl = "http://" + presignedUrl["https://".Length..];
+            return new Uri(fixedUrl);
         }
-        return presignedUrl;
+        return new Uri(presignedUrl);
     }
 
     public Task<PresignedUploadResult> GenerateUploadUrlAsync(
@@ -48,7 +49,7 @@ public class S3StorageService(IAmazonS3 s3, S3Settings settings) : IStorageServi
         return Task.FromResult(new PresignedUploadResult(FixPresignedUrlScheme(url), objectKey));
     }
 
-    public Task<string> GenerateDownloadUrlAsync(string key, CancellationToken ct = default)
+    public Task<Uri> GenerateDownloadUrlAsync(string key, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentException("Object key is required.", nameof(key));
@@ -61,7 +62,8 @@ public class S3StorageService(IAmazonS3 s3, S3Settings settings) : IStorageServi
             Expires = DateTime.UtcNow.Add(DownloadUrlExpiry)
         };
 
-        return Task.FromResult(FixPresignedUrlScheme(_s3.GetPreSignedURL(request)));
+        var url = _s3.GetPreSignedURL(request);
+        return Task.FromResult(FixPresignedUrlScheme(url));
     }
 
     public async Task EnsureBucketsExistAsync(CancellationToken ct = default)

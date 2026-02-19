@@ -7,7 +7,7 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Infrastructure.Scheduling;
 
-public class ClusterRefinementJob(
+internal sealed class ClusterRefinementJob(
     IServiceScopeFactory scopeFactory,
     ILogger<ClusterRefinementJob> logger) : BackgroundService
 {
@@ -190,10 +190,8 @@ public class ClusterRefinementJob(
             ClusterMatch? bestMatch = null;
             float[] leaderAFloats = VectorCalculator.BytesToFloats(leaderA.Embedding);
 
-            foreach (var group in clusterGroups)
+            foreach (var (clusterId, items) in clusterGroups)
             {
-                var clusterId = group.Key;
-
                 var members = await db.Reports
                     .AsNoTracking()
                     .Where(t => (t.Id == clusterId || t.ParentReportId == clusterId) && t.ProjectId == projectId)
@@ -212,7 +210,7 @@ public class ClusterRefinementJob(
 
                 if (bestMatch == null || centroidDist < bestMatch.Distance)
                 {
-                    bestMatch = new ClusterMatch(clusterId, group.Items.First().Title, centroidDist);
+                    bestMatch = new ClusterMatch(clusterId, items.First().Title, centroidDist);
                 }
             }
 
@@ -379,6 +377,6 @@ public class ClusterRefinementJob(
             .ToListAsync(ct);
     }
 
-    private record ReportMatch(Guid Id, string Title, string Message, DateTime CreatedAt, double Distance);
-    private record ClusterMatch(Guid Id, string Title, double Distance);
+    private sealed record ReportMatch(Guid Id, string Title, string Message, DateTime CreatedAt, double Distance);
+    private sealed record ClusterMatch(Guid Id, string Title, double Distance);
 }

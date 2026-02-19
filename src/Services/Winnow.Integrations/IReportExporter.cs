@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 
 namespace Winnow.Integrations;
 
@@ -25,20 +26,21 @@ public class TrelloExporter(HttpClient httpClient, string apiKey, string token, 
         };
 
         // 3. Send as JSON
-        var response = await httpClient.PostAsJsonAsync(url, payload, cancellationToken);
-        
+        var response = await httpClient.PostAsJsonAsync(url, payload, cancellationToken).ConfigureAwait(false);
+
         if (!response.IsSuccessStatusCode)
         {
-            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             // Log this content! Trello usually returns a helpful message like "invalid value for idList"
             throw new HttpRequestException($"Trello Export Failed ({response.StatusCode}): {content}");
         }
 
-        var result = await response.Content.ReadFromJsonAsync<TrelloCardResponse>(cancellationToken: cancellationToken);
-        return result?.ShortUrl ?? "https://trello.com";
+        var result = await response.Content.ReadFromJsonAsync<TrelloCardResponse>(cancellationToken: cancellationToken).ConfigureAwait(false);
+        return result?.ShortUrl?.AbsoluteUri ?? "https://trello.com";
     }
 
-    private class TrelloCardResponse { public required string ShortUrl { get; set; } }
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1812:Avoid uninstantiated internal classes", Justification = "Used for JSON deserialization")]
+    private sealed record TrelloCardResponse(Uri ShortUrl);
 }
 
 public class GitHubExporter(HttpClient httpClient, string apiKey, string owner, string repo) : IReportExporter
@@ -51,22 +53,23 @@ public class GitHubExporter(HttpClient httpClient, string apiKey, string owner, 
         var response = await httpClient.PostAsJsonAsync(
             $"https://api.github.com/repos/{owner}/{repo}/issues",
             new { title, body = description },
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
         {
-            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             throw new HttpRequestException($"GitHub Export Failed ({response.StatusCode}): {content}");
         }
 
-        var result = await response.Content.ReadFromJsonAsync<GitHubIssueResponse>(cancellationToken: cancellationToken);
-        return result?.HtmlUrl ?? $"https://github.com/{owner}/{repo}/issues";
+        var result = await response.Content.ReadFromJsonAsync<GitHubIssueResponse>(cancellationToken: cancellationToken).ConfigureAwait(false);
+        return result?.HtmlUrl?.AbsoluteUri ?? $"https://github.com/{owner}/{repo}/issues";
     }
 
-    private class GitHubIssueResponse { [System.Text.Json.Serialization.JsonPropertyName("html_url")] public required string HtmlUrl { get; set; } }
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1812:Avoid uninstantiated internal classes", Justification = "Used for JSON deserialization")]
+    private sealed record GitHubIssueResponse([property: JsonPropertyName("html_url")] Uri HtmlUrl);
 }
 
-public class JiraExporter(HttpClient httpClient, string baseUrl, string userEmail, string apiToken, string projectKey) : IReportExporter
+public class JiraExporter(HttpClient httpClient, Uri baseUrl, string userEmail, string apiToken, string projectKey) : IReportExporter
 {
     public async Task<string> ExportReportAsync(string title, string description, CancellationToken cancellationToken)
     {
@@ -74,7 +77,7 @@ public class JiraExporter(HttpClient httpClient, string baseUrl, string userEmai
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", authValue);
 
         var response = await httpClient.PostAsJsonAsync(
-            $"{baseUrl.TrimEnd('/')}/rest/api/3/issue",
+            $"{baseUrl.AbsoluteUri.TrimEnd('/')}/rest/api/3/issue",
             new
             {
                 fields = new
@@ -97,17 +100,18 @@ public class JiraExporter(HttpClient httpClient, string baseUrl, string userEmai
                     issuetype = new { name = "Bug" }
                 }
             },
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
         {
-            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             throw new HttpRequestException($"Jira Export Failed ({response.StatusCode}): {content}");
         }
 
-        var result = await response.Content.ReadFromJsonAsync<JiraIssueResponse>(cancellationToken: cancellationToken);
-        return $"{baseUrl.TrimEnd('/')}/browse/{result?.Key}";
+        var result = await response.Content.ReadFromJsonAsync<JiraIssueResponse>(cancellationToken: cancellationToken).ConfigureAwait(false);
+        return $"{baseUrl.AbsoluteUri.TrimEnd('/')}/browse/{result?.Key}";
     }
 
-    private class JiraIssueResponse { public required string Key { get; set; } }
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1812:Avoid uninstantiated internal classes", Justification = "Used for JSON deserialization")]
+    private sealed record JiraIssueResponse(string Key);
 }

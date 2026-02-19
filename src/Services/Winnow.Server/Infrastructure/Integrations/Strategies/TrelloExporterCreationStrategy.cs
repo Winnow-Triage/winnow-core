@@ -6,7 +6,7 @@ namespace Winnow.Server.Infrastructure.Integrations.Strategies;
 /// <summary>
 /// Strategy for creating Trello exporters.
 /// </summary>
-public class TrelloExporterCreationStrategy : IExporterCreationStrategy
+internal class TrelloExporterCreationStrategy : IExporterCreationStrategy
 {
     /// <inheritdoc />
     public bool CanHandle(IntegrationConfig config) => config is TrelloConfig;

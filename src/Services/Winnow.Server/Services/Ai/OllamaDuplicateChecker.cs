@@ -5,7 +5,7 @@ using Microsoft.SemanticKernel.ChatCompletion;
 
 namespace Winnow.Server.Services.Ai;
 
-public class OllamaDuplicateChecker(
+internal class OllamaDuplicateChecker(
     [FromKeyedServices("Gatekeeper")] IChatCompletionService chatService,
     Winnow.Server.Infrastructure.Configuration.LlmSettings settings,
     ILogger<OllamaDuplicateChecker> logger) : IDuplicateChecker

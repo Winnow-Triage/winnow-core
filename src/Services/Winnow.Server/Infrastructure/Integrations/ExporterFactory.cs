@@ -48,7 +48,7 @@ public class ExporterFactory(
     }
 }
 
-public class NullExporter : IReportExporter
+internal class NullExporter : IReportExporter
 {
     public Task<string> ExportReportAsync(string title, string description, CancellationToken cancellationToken)
     {

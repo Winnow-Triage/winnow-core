@@ -6,7 +6,7 @@ namespace Winnow.Server.Infrastructure.Integrations.Strategies;
 /// <summary>
 /// Strategy for deserializing Jira integration configuration.
 /// </summary>
-public class JiraIntegrationConfigDeserializationStrategy : IIntegrationConfigDeserializationStrategy
+internal class JiraIntegrationConfigDeserializationStrategy : IIntegrationConfigDeserializationStrategy
 {
     /// <inheritdoc />
     public bool CanHandle(string provider) => 

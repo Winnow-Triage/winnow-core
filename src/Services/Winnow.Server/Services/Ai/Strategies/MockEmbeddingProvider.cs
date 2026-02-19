@@ -5,7 +5,7 @@ namespace Winnow.Server.Services.Ai.Strategies;
 /// <summary>
 /// Mock embedding provider for testing and fallback scenarios.
 /// </summary>
-public class MockEmbeddingProvider(ILogger<MockEmbeddingProvider> _logger) : IEmbeddingProvider
+internal class MockEmbeddingProvider(ILogger<MockEmbeddingProvider> _logger) : IEmbeddingProvider
 {
     private readonly Random _rng = new();
 

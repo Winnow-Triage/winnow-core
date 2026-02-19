@@ -137,5 +137,5 @@ public sealed class GenerateMockReportsEndpoint(
         }
     }
 
-    private record MockReportDto(string Title, string Message);
+public record MockReportDto(string Title, string Message);
 }

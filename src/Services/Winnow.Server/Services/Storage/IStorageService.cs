@@ -12,7 +12,7 @@ public interface IStorageService
     /// <summary>
     /// Generates a presigned GET URL for downloading a processed file from the clean bucket.
     /// </summary>
-    Task<string> GenerateDownloadUrlAsync(string key, CancellationToken ct = default);
+    Task<Uri> GenerateDownloadUrlAsync(string key, CancellationToken ct = default);
 
     /// <summary>
     /// Ensures the quarantine and clean buckets exist, creating them if necessary.
@@ -27,4 +27,4 @@ public interface IStorageService
         Guid orgId, Guid projectId, Guid reportId, Stream stream, string fileName, string contentType, string? tenantId = null, CancellationToken ct = default);
 }
 
-public record PresignedUploadResult(string UploadUrl, string ObjectKey);
+public record PresignedUploadResult(Uri UploadUrl, string ObjectKey);

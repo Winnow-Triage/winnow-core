@@ -7,7 +7,7 @@ using Winnow.Server.Services.Storage;
 
 namespace Winnow.Server.Extensions;
 
-public static class MiddlewareExtensions
+internal static class MiddlewareExtensions
 {
     public static async Task<WebApplication> UseWinnowMiddleware(this WebApplication app)
     {

@@ -2,8 +2,8 @@ namespace Winnow.Server.Features.Dashboard;
 
 public record DashboardMetricsDto(
     TriageMetricsDto Triage,
-    List<TrendingClusterDto> TrendingClusters,
-    List<VolumeMetricDto> VolumeHistory);
+    IReadOnlyCollection<TrendingClusterDto> TrendingClusters,
+    IReadOnlyCollection<VolumeMetricDto> VolumeHistory);
 
 public record TriageMetricsDto(
     int TotalReports,

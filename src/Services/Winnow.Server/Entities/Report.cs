@@ -23,7 +23,7 @@ public class Report
     public string? CriticalityReasoning { get; set; }
     public byte[]? Embedding { get; set; }
     public string? StackTraceHash { get; set; }
-    public string? ExternalUrl { get; set; }
+    public Uri? ExternalUrl { get; set; }
     public string? Metadata { get; set; } // Renamed from MetadataJson
     public string? Screenshot { get; set; } // S3 object key (legacy, replaced by Assets)
 

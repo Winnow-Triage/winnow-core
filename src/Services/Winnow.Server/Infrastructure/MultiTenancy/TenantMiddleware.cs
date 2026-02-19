@@ -6,7 +6,7 @@ namespace Winnow.Server.Infrastructure.MultiTenancy;
 
 
 // Middleware for identifying the current tenant based on the request host
-public class TenantMiddleware(RequestDelegate next)
+internal class TenantMiddleware(RequestDelegate next)
 {
     private static readonly ConcurrentDictionary<string, bool> _initializedTenants = new();
     private static readonly SemaphoreSlim _migrationLock = new(1, 1);

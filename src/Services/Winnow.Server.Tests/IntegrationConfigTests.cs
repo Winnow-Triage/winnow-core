@@ -95,7 +95,7 @@ public class IntegrationConfigTests
         // Arrange
         var original = new JiraConfig
         {
-            BaseUrl = "https://original.atlassian.net",
+            BaseUrl = new Uri("https://original.atlassian.net"),
             UserEmail = "original@example.com",
             ApiToken = "original-token",
             ProjectKey = "ORIG"
@@ -103,7 +103,7 @@ public class IntegrationConfigTests
         
         var incoming = new JiraConfig
         {
-            BaseUrl = "https://new.atlassian.net", // Changed
+            BaseUrl = new Uri("https://new.atlassian.net"), // Changed
             UserEmail = "new@example.com", // Changed
             ApiToken = "******", // Masked
             ProjectKey = "NEW" // Changed
@@ -114,7 +114,7 @@ public class IntegrationConfigTests
         
         // Assert
         Assert.NotNull(merged);
-        Assert.Equal("https://new.atlassian.net", merged.BaseUrl); // Updated
+        Assert.Equal(new Uri("https://new.atlassian.net"), merged.BaseUrl); // Updated
         Assert.Equal("new@example.com", merged.UserEmail); // Updated
         Assert.Equal("original-token", merged.ApiToken); // Preserved via MergeSecret
         Assert.Equal("NEW", merged.ProjectKey); // Updated

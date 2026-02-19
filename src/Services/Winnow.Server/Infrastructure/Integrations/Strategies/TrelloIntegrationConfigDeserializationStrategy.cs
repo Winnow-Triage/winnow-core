@@ -6,7 +6,7 @@ namespace Winnow.Server.Infrastructure.Integrations.Strategies;
 /// <summary>
 /// Strategy for deserializing Trello integration configuration.
 /// </summary>
-public class TrelloIntegrationConfigDeserializationStrategy : IIntegrationConfigDeserializationStrategy
+internal class TrelloIntegrationConfigDeserializationStrategy : IIntegrationConfigDeserializationStrategy
 {
     /// <inheritdoc />
     public bool CanHandle(string provider) => 

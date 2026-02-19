@@ -12,13 +12,13 @@ public class ArchitectureTests
     private const string FeaturesNamespace = "Winnow.Server.Features";
     private const string IntegrationsAssembly = "Winnow.Integrations";
     private const string ServerAssembly = "Winnow.Server";
-    
+
     [Fact]
     public void Entities_ShouldNotDependOnInfrastructureOrAspNetCore()
     {
         // Rule 1: Classes in Winnow.Server.Entities should NOT have dependencies on 
         // Winnow.Server.Infrastructure or Microsoft.AspNetCore
-        
+
         var result = Types.InAssembly(typeof(Entities.Report).Assembly)
             .That()
             .ResideInNamespace(EntitiesNamespace)
@@ -29,68 +29,68 @@ public class ArchitectureTests
             .And()
             .NotHaveDependencyOn("Microsoft.AspNetCore")
             .GetResult();
-        
-        Assert.True(result.IsSuccessful, 
+
+        Assert.True(result.IsSuccessful,
             $"Entities should not depend on Infrastructure or ASP.NET Core. Violations: {string.Join(", ", result.FailingTypeNames ?? [])}");
     }
-    
+
     [Fact]
     public void IExporterCreationStrategy_Implementations_ShouldHaveNamesEndingWithStrategy()
     {
         // Rule 2: Classes that implement IExporterCreationStrategy should have names ending with "Strategy"
-        
+
         var result = Types.InAssembly(typeof(Entities.Report).Assembly)
             .That()
             .ImplementInterface(typeof(Infrastructure.Integrations.Strategies.IExporterCreationStrategy))
             .Should()
             .HaveNameEndingWith("Strategy")
             .GetResult();
-        
+
         Assert.True(result.IsSuccessful,
             $"All IExporterCreationStrategy implementations should have names ending with 'Strategy'. Violations: {string.Join(", ", result.FailingTypeNames ?? [])}");
     }
-    
+
     [Fact]
     public void IntegrationsAssembly_ShouldNotDependOnServerAssembly()
     {
         // Rule 3: The Winnow.Integrations assembly should NOT depend on Winnow.Server
-        
+
         var result = Types.InAssembly(typeof(Winnow.Integrations.IReportExporter).Assembly)
             .Should()
             .NotHaveDependencyOn(ServerAssembly)
             .GetResult();
-        
+
         Assert.True(result.IsSuccessful,
             $"Integrations assembly should not depend on Server assembly. Violations: {string.Join(", ", result.FailingTypeNames ?? [])}");
     }
-    
+
     [Fact]
     public void EndpointClasses_InFeaturesNamespace_ShouldBePublicAndSealed()
     {
         // Rule 4: All Classes in Features namespace ending in Endpoint must be public and sealed (FastEndpoints convention)
-        
+
         var endpointClasses = Types.InAssembly(typeof(Winnow.Server.Entities.Report).Assembly)
             .That()
             .ResideInNamespace(FeaturesNamespace)
             .And()
             .HaveNameEndingWith("Endpoint")
             .GetTypes();
-        
+
         var violations = new List<string>();
-        
+
         foreach (var type in endpointClasses)
         {
             if (!type.IsPublic)
             {
                 violations.Add($"{type.FullName} is not public");
             }
-            
+
             if (!type.IsSealed)
             {
                 violations.Add($"{type.FullName} is not sealed");
             }
         }
-        
+
         Assert.Empty(violations);
     }
 
@@ -129,7 +129,7 @@ public class ArchitectureTests
         var slices = allFeatureTypes
             .Select(t => t.Namespace)
             .Where(ns => ns != null && ns.StartsWith(featuresNamespace))
-            .Select(ns => ns[(featuresNamespace.Length + 1)..].Split('.')[0]) // Get the first segment
+            .Select(ns => ns![(featuresNamespace.Length + 1)..].Split('.')[0]) // Get the first segment
             .Distinct()
             .Where(s => s != "Shared") // Exclude Shared namespace from slice dependency checks
             .ToList();
@@ -139,7 +139,7 @@ public class ArchitectureTests
         foreach (var slice in slices)
         {
             var sliceNamespace = $"{featuresNamespace}.{slice}";
-            
+
             // 3. Find other slices (excluding Shared and the current slice)
             var otherSlices = slices.Where(s => s != slice).Select(s => $"{featuresNamespace}.{s}");
 
@@ -151,7 +151,7 @@ public class ArchitectureTests
                 {
                     continue; // Allow this dependency
                 }
-                
+
                 var result = Types.InAssembly(assembly)
                     .That()
                     .ResideInNamespace(sliceNamespace) // "Features.Reports.*"
@@ -168,7 +168,7 @@ public class ArchitectureTests
 
         // Allow Features.Shared to be used by all slices
         // This is a design choice - Shared contains common utilities for Features
-        
+
         Assert.Empty(violations);
     }
 
@@ -178,7 +178,7 @@ public class ArchitectureTests
         // Rule: Services that implement interfaces should have names that match the interface without the "I" prefix
         // Providers (classes ending with Provider) are exempt from this rule
         var assembly = typeof(Entities.Report).Assembly;
-        
+
         // Get all service implementations in the Services and Domain.Services namespaces
         var serviceTypes = Types.InAssembly(assembly)
             .That()
@@ -186,9 +186,9 @@ public class ArchitectureTests
             .Or()
             .ResideInNamespace("Winnow.Server.Domain.Services")
             .GetTypes();
-        
+
         var violations = new List<string>();
-        
+
         foreach (var type in serviceTypes)
         {
             // Skip providers - they have their own naming conventions
@@ -196,18 +196,18 @@ public class ArchitectureTests
             {
                 continue;
             }
-            
+
             var interfaces = type.GetInterfaces();
             foreach (var interfaceType in interfaces)
             {
                 var interfaceName = interfaceType.Name;
                 var className = type.Name;
-                
+
                 // Check if interface name starts with "I" and has more than 1 character
                 if (interfaceName.StartsWith("I") && interfaceName.Length > 1)
                 {
                     var expectedClassName = interfaceName[1..];
-                    
+
                     // Check if class name matches interface name without "I"
                     // Allow for some flexibility (e.g., "Service" suffix or other patterns)
                     if (!className.Contains(expectedClassName))
@@ -221,10 +221,10 @@ public class ArchitectureTests
                 }
             }
         }
-        
+
         Assert.Empty(violations);
     }
-    
+
     private bool IsKnownException(Type type, Type interfaceType)
     {
         // Add known exceptions here
@@ -239,28 +239,28 @@ public class ArchitectureTests
         // 1. Have a corresponding Request class, OR
         // 2. Inherit from EndpointWithoutRequest (or similar pattern)
         var assembly = typeof(Entities.Report).Assembly;
-        
+
         var endpointTypes = Types.InAssembly(assembly)
             .That()
             .ResideInNamespace(FeaturesNamespace)
             .And()
             .HaveNameEndingWith("Endpoint")
             .GetTypes();
-        
+
         var violations = new List<string>();
-        
+
         foreach (var endpointType in endpointTypes)
         {
             var endpointNamespace = endpointType.Namespace;
             if (endpointNamespace == null) continue;
-            
+
             // Check if this is an EndpointWithoutRequest or similar pattern
             var baseType = endpointType.BaseType;
             var isEndpointWithoutRequest = false;
-            
+
             while (baseType != null && baseType != typeof(object))
             {
-                if (baseType.Name.Contains("EndpointWithoutRequest") || 
+                if (baseType.Name.Contains("EndpointWithoutRequest") ||
                     baseType.Name.StartsWith("Endpoint<") && baseType.GetGenericArguments().Length == 0)
                 {
                     isEndpointWithoutRequest = true;
@@ -268,17 +268,17 @@ public class ArchitectureTests
                 }
                 baseType = baseType.BaseType;
             }
-            
+
             if (isEndpointWithoutRequest)
             {
                 // EndpointWithoutRequest doesn't need a separate request class
                 continue;
             }
-            
+
             // Check for Request class
             var requestClassName = endpointType.Name.Replace("Endpoint", "Request");
             var requestType = assembly.GetType($"{endpointNamespace}.{requestClassName}");
-            
+
             if (requestType == null)
             {
                 // Try alternative naming pattern (e.g., IngestReportEndpoint -> IngestReportRequest)
@@ -289,17 +289,17 @@ public class ArchitectureTests
                 }
                 requestType = assembly.GetType($"{endpointNamespace}.{altRequestClassName}");
             }
-            
+
             if (requestType == null)
             {
                 violations.Add($"Endpoint {endpointType.FullName} is missing corresponding Request class in namespace {endpointNamespace}");
                 continue;
             }
-            
+
             // Note: Validators are optional but recommended for complex validation
             // We're not enforcing Validator existence to allow for simple endpoints
         }
-        
+
         Assert.Empty(violations);
     }
 
@@ -309,7 +309,7 @@ public class ArchitectureTests
         // Rule: Command classes (or methods) should have verb-based names
         // This is a convention check for classes that handle commands or actions
         var assembly = typeof(Entities.Report).Assembly;
-        
+
         // Look for classes with "Command" in their name or in Commands namespace
         var commandTypes = Types.InAssembly(assembly)
             .That()
@@ -317,20 +317,20 @@ public class ArchitectureTests
             .Or()
             .ResideInNamespaceMatching(".*\\.Commands")
             .GetTypes();
-        
+
         var verbViolations = new List<string>();
         var validVerbs = new HashSet<string> { "Create", "Update", "Delete", "Get", "List", "Add", "Remove", "Import", "Export", "Generate", "Process", "Send", "Notify", "Assign", "Close", "Merge", "Ungroup", "Suggest", "Ingest" };
-        
+
         foreach (var type in commandTypes)
         {
             var typeName = type.Name;
-            
+
             // Remove "Command" suffix if present
             if (typeName.EndsWith("Command"))
             {
                 typeName = typeName[..^"Command".Length];
             }
-            
+
             // Check if the name starts with a valid verb
             bool hasValidVerb = false;
             foreach (var verb in validVerbs)
@@ -341,13 +341,13 @@ public class ArchitectureTests
                     break;
                 }
             }
-            
+
             if (!hasValidVerb)
             {
                 verbViolations.Add($"{type.FullName} should start with a verb (e.g., Create, Update, Delete, Get, List, etc.)");
             }
         }
-        
+
         Assert.Empty(verbViolations);
     }
 
@@ -356,25 +356,25 @@ public class ArchitectureTests
     {
         // Rule: Event classes should have past tense names (e.g., Created, Updated, Deleted)
         var assembly = typeof(Entities.Report).Assembly;
-        
+
         var eventTypes = Types.InAssembly(assembly)
             .That()
             .HaveNameEndingWith("Event")
             .GetTypes();
-        
+
         var violations = new List<string>();
         var pastTenseEndings = new HashSet<string> { "ed", "Created", "Updated", "Deleted", "Added", "Removed", "Sent", "Processed", "Notified", "Assigned", "Closed", "Merged", "Generated", "Imported", "Exported" };
-        
+
         foreach (var type in eventTypes)
         {
             var typeName = type.Name;
-            
+
             // Remove "Event" suffix
             if (typeName.EndsWith("Event"))
             {
                 typeName = typeName[..^"Event".Length];
             }
-            
+
             // Check if the name ends with a past tense indicator
             bool isPastTense = false;
             foreach (var ending in pastTenseEndings)
@@ -385,13 +385,13 @@ public class ArchitectureTests
                     break;
                 }
             }
-            
+
             if (!isPastTense)
             {
                 violations.Add($"{type.FullName} should have a past tense name (e.g., CreatedEvent, UpdatedEvent, etc.)");
             }
         }
-        
+
         Assert.Empty(violations);
     }
 
@@ -402,15 +402,15 @@ public class ArchitectureTests
         // except for Infrastructure.Persistence, MultiTenancy, and Scheduling which are acceptable in this architecture
         // Also, Infrastructure.Integrations.Strategies is allowed for integration-related features
         var assembly = typeof(Entities.Report).Assembly;
-        
+
         // Define disallowed infrastructure namespaces (ones that should NOT be used in Features)
         var disallowedInfrastructureNamespaces = new[]
         {
             "Winnow.Server.Infrastructure.Configuration",
         };
-        
+
         var violations = new List<string>();
-        
+
         // Check each disallowed namespace
         foreach (var disallowedNs in disallowedInfrastructureNamespaces)
         {
@@ -420,7 +420,7 @@ public class ArchitectureTests
                 .ShouldNot()
                 .HaveDependencyOn(disallowedNs)
                 .GetResult();
-            
+
             if (!result.IsSuccessful)
             {
                 foreach (var violatingType in result.FailingTypeNames ?? [])
@@ -432,7 +432,7 @@ public class ArchitectureTests
                 }
             }
         }
-        
+
         // Allowed infrastructure namespaces for Features
         var allowedInfrastructureNamespaces = new[]
         {
@@ -442,7 +442,7 @@ public class ArchitectureTests
             "Winnow.Server.Infrastructure.Integrations", // For ExporterFactory and deserialization strategies
             "Winnow.Server.Infrastructure.Integrations.Strategies" // For IIntegrationConfigDeserializationStrategy
         };
-        
+
         // Check that Features only depend on allowed infrastructure namespaces
         // This is a positive check rather than negative
         var allInfrastructureDependencies = Types.InAssembly(assembly)
@@ -451,10 +451,10 @@ public class ArchitectureTests
             .And()
             .HaveDependencyOn(InfrastructureNamespace)
             .GetTypes();
-        
+
         // For this test, we're just ensuring no violations in the disallowed namespaces
         // The allowed namespaces are documented here for clarity
-        
+
         Assert.Empty(violations);
     }
 
@@ -463,14 +463,14 @@ public class ArchitectureTests
     {
         // Rule: Application services (in Domain.Services) should not directly reference Infrastructure
         var assembly = typeof(Entities.Report).Assembly;
-        
+
         var result = Types.InAssembly(assembly)
             .That()
             .ResideInNamespace("Winnow.Server.Domain.Services")
             .ShouldNot()
             .HaveDependencyOn(InfrastructureNamespace)
             .GetResult();
-        
+
         Assert.True(result.IsSuccessful,
             $"Domain Services should not depend on Infrastructure. Violations: {string.Join(", ", result.FailingTypeNames ?? [])}");
     }
@@ -483,14 +483,14 @@ public class ArchitectureTests
         // However, some validation in HandleAsync methods is acceptable for simple parameter validation
         // Also, FastEndpoints base classes have validation methods that we should exclude
         var assembly = typeof(Entities.Report).Assembly;
-        
+
         var featureTypes = Types.InAssembly(assembly)
             .That()
             .ResideInNamespace(FeaturesNamespace)
             .GetTypes();
-        
+
         var violations = new List<string>();
-        
+
         // Check for validation logic in Endpoint classes
         foreach (var type in featureTypes.Where(t => t.Name.EndsWith("Endpoint")))
         {
@@ -499,16 +499,16 @@ public class ArchitectureTests
             {
                 continue;
             }
-            
+
             var methods = type.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly);
-            
+
             foreach (var method in methods)
             {
                 // Simple check for validation logic - looking for common validation patterns
                 // This is a basic check that could be expanded
                 // We'll exclude HandleAsync methods and FastEndpoints base methods
-                if (method.Name.Contains("Validate") && !method.Name.Contains("Validator") && 
-                    method.Name != "HandleAsync" && method.Name != "ValidateAsync" && 
+                if (method.Name.Contains("Validate") && !method.Name.Contains("Validator") &&
+                    method.Name != "HandleAsync" && method.Name != "ValidateAsync" &&
                     !method.Name.StartsWith("FastEndpoints."))
                 {
                     // Check if this is actually a custom validation method (not from base class)
@@ -519,18 +519,18 @@ public class ArchitectureTests
                 }
             }
         }
-        
+
         Assert.Empty(violations);
     }
-    
+
     private bool IsFastEndpointsBaseMethod(System.Reflection.MethodInfo method)
     {
         // Check if method is from FastEndpoints base classes
         var declaringType = method.DeclaringType;
         if (declaringType == null) return false;
-        
+
         var declaringTypeName = declaringType.FullName ?? "";
-        return declaringTypeName.StartsWith("FastEndpoints.") || 
+        return declaringTypeName.StartsWith("FastEndpoints.") ||
                declaringTypeName.Contains("FastEndpoints.Endpoint");
     }
 
@@ -540,7 +540,7 @@ public class ArchitectureTests
         // Rule: Service implementations should implement interfaces
         // This ensures proper dependency injection and testability
         var assembly = typeof(Entities.Report).Assembly;
-        
+
         var serviceTypes = Types.InAssembly(assembly)
             .That()
             .HaveNameEndingWith("Service")
@@ -551,14 +551,14 @@ public class ArchitectureTests
             .And()
             .AreNotAbstract()
             .GetTypes();
-        
+
         var violations = new List<string>();
-        
+
         foreach (var serviceType in serviceTypes)
         {
             // Check if service implements at least one interface
             var interfaces = serviceType.GetInterfaces();
-            
+
             // Skip services that are clearly infrastructure or internal (e.g., hosted services)
             if (serviceType.Namespace?.Contains("Infrastructure") == true ||
                 serviceType.Name.Contains("HostedService") ||
@@ -566,14 +566,14 @@ public class ArchitectureTests
             {
                 continue;
             }
-            
+
             // Services should implement at least one interface (for DI and testing)
             if (interfaces.Length == 0)
             {
                 violations.Add($"Service {serviceType.FullName} should implement an interface for proper dependency injection and testability.");
             }
         }
-        
+
         Assert.Empty(violations);
     }
 
@@ -583,70 +583,70 @@ public class ArchitectureTests
         // Rule: Async methods in application code should have "Async" suffix
         // This applies to Features, Services, and Domain layers, but not Infrastructure or compiler-generated code
         var assembly = typeof(Entities.Report).Assembly;
-        
+
         var asyncMethods = assembly.GetTypes()
             .SelectMany(t => t.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly))
             .Where(m => m.ReturnType.Name == "Task" || m.ReturnType.Name.StartsWith("Task`"))
             .ToList();
-        
+
         var violations = new List<string>();
-        
+
         foreach (var method in asyncMethods)
         {
             var declaringType = method.DeclaringType;
             if (declaringType == null) continue;
-            
+
             var namespaceName = declaringType.Namespace ?? "";
-            
+
             // Skip compiler-generated methods (like Program.<Main>$)
             if (method.Name.Contains("<") || method.Name.Contains(">") || method.Name.Contains("$"))
             {
                 continue;
             }
-            
+
             // Skip methods that already have Async suffix
             if (method.Name.EndsWith("Async"))
             {
                 continue;
             }
-            
+
             // Skip property getters/setters and event handlers
-            if (method.Name.StartsWith("get_") || method.Name.StartsWith("set_") || 
+            if (method.Name.StartsWith("get_") || method.Name.StartsWith("set_") ||
                 method.Name.StartsWith("add_") || method.Name.StartsWith("remove_"))
             {
                 continue;
             }
-            
+
             // Skip overrides of base async methods (they may not have Async suffix in base)
             if (method.GetBaseDefinition() != method)
             {
                 continue;
             }
-            
+
             // Skip FastEndpoints base methods
             if (namespaceName.StartsWith("FastEndpoints.") || namespaceName.Contains("FastEndpoints."))
             {
                 continue;
             }
-            
+
             // Skip Infrastructure namespace - infrastructure code may follow different conventions
             if (namespaceName.Contains("Winnow.Server.Infrastructure"))
             {
                 continue;
             }
-            
+
             // Skip Extension methods
             if (declaringType.Name.EndsWith("Extensions"))
             {
                 continue;
             }
-            
+
             // Skip abstract classes and interfaces
             if (declaringType.IsAbstract || declaringType.IsInterface)
             {
                 continue;
             }
-            
+
             // Only enforce for application code: Features, Services, Domain
             if (namespaceName.Contains("Winnow.Server.Features") ||
                 namespaceName.Contains("Winnow.Server.Services") ||
@@ -657,7 +657,7 @@ public class ArchitectureTests
                 {
                     continue;
                 }
-                
+
                 // Skip methods that are implementing interface methods without Async suffix
                 var implementedInterfaces = declaringType.GetInterfaces();
                 var isInterfaceImplementation = false;
@@ -666,7 +666,7 @@ public class ArchitectureTests
                     var interfaceMethods = iface.GetMethods();
                     foreach (var interfaceMethod in interfaceMethods)
                     {
-                        if (interfaceMethod.Name == method.Name && 
+                        if (interfaceMethod.Name == method.Name &&
                             interfaceMethod.ReturnType.Name == "Task" || interfaceMethod.ReturnType.Name.StartsWith("Task`"))
                         {
                             // This method is implementing an interface method without Async suffix
@@ -676,14 +676,14 @@ public class ArchitectureTests
                     }
                     if (isInterfaceImplementation) break;
                 }
-                
+
                 if (!isInterfaceImplementation)
                 {
                     violations.Add($"Async method {declaringType.FullName}.{method.Name} should have 'Async' suffix for consistency.");
                 }
             }
         }
-        
+
         Assert.Empty(violations);
     }
 
@@ -693,7 +693,7 @@ public class ArchitectureTests
         // Rule: Data Transfer Objects (DTOs) should not be in the Entities namespace
         // They should be in Features namespaces or separate DTO namespaces
         var assembly = typeof(Entities.Report).Assembly;
-        
+
         var dtoTypes = Types.InAssembly(assembly)
             .That()
             .HaveNameEndingWith("Dto")
@@ -704,26 +704,26 @@ public class ArchitectureTests
             .Or()
             .HaveNameEndingWith("Response")
             .GetTypes();
-        
+
         var violations = new List<string>();
-        
+
         foreach (var dtoType in dtoTypes)
         {
             var namespaceName = dtoType.Namespace ?? "";
-            
+
             // DTOs should not be in Entities namespace
             if (namespaceName.Contains("Winnow.Server.Entities"))
             {
                 violations.Add($"DTO class {dtoType.FullName} should not be in Entities namespace. Move it to a Features namespace.");
             }
-            
+
             // DTOs should not be in Infrastructure namespace
             if (namespaceName.Contains("Winnow.Server.Infrastructure"))
             {
                 violations.Add($"DTO class {dtoType.FullName} should not be in Infrastructure namespace. Move it to a Features namespace.");
             }
         }
-        
+
         Assert.Empty(violations);
     }
 
@@ -734,20 +734,20 @@ public class ArchitectureTests
         // Constructors should primarily be used for dependency injection and simple validation
         // Note: This is a guideline rather than a strict rule
         var assembly = typeof(Entities.Report).Assembly;
-        
+
         var featureTypes = Types.InAssembly(assembly)
             .That()
             .ResideInNamespace(FeaturesNamespace)
             .And()
             .AreNotAbstract()
             .GetTypes();
-        
+
         var violations = new List<string>();
-        
+
         foreach (var type in featureTypes)
         {
             var constructors = type.GetConstructors(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
-            
+
             foreach (var constructor in constructors)
             {
                 var instructions = constructor.GetMethodBody()?.GetILAsByteArray();
@@ -760,7 +760,7 @@ public class ArchitectureTests
                     {
                         var localVariables = methodBody.LocalVariables.Count;
                         var exceptionHandlers = methodBody.ExceptionHandlingClauses.Count;
-                        
+
                         // If constructor has many local variables or exception handlers, it likely contains business logic
                         if (localVariables > 5 || exceptionHandlers > 0)
                         {
@@ -771,7 +771,7 @@ public class ArchitectureTests
                 }
             }
         }
-        
+
         // This is a guideline test - we'll output violations but not fail the test
         // Developers should review these warnings and consider refactoring
         if (violations.Count > 0)
@@ -782,7 +782,7 @@ public class ArchitectureTests
                 Console.WriteLine($"  - {violation}");
             }
         }
-        
+
         // We'll assert true since this is a guideline, not a strict rule
         Assert.True(true, "Constructor business logic check completed (guideline only)");
     }
@@ -793,14 +793,14 @@ public class ArchitectureTests
         // Rule: Integration Configs must inherit from IntegrationConfig base, be sealed records, 
         // and reside in Winnow.Integrations.Domain namespace
         var integrationsAssembly = typeof(Winnow.Integrations.IReportExporter).Assembly;
-        
+
         var configTypes = Types.InAssembly(integrationsAssembly)
             .That()
             .Inherit(typeof(Winnow.Integrations.Domain.IntegrationConfig))
             .GetTypes();
-        
+
         var violations = new List<string>();
-        
+
         foreach (var configType in configTypes)
         {
             // Check if it's in the correct namespace
@@ -808,21 +808,21 @@ public class ArchitectureTests
             {
                 violations.Add($"Integration Config {configType.FullName} should be in Winnow.Integrations.Domain namespace");
             }
-            
+
             // Check if it's a record - records are immutable by design
             // For records, we don't need to check IsSealed as records have different semantics
             // Instead, we check if it's a record by looking for the IsRecord property (available in .NET 5+)
-            var isRecord = configType.IsValueType == false && 
-                          (configType.GetMethod("ToString")?.DeclaringType != typeof(object) || 
+            var isRecord = configType.IsValueType == false &&
+                          (configType.GetMethod("ToString")?.DeclaringType != typeof(object) ||
                            configType.GetMethods().Any(m => m.Name == "<Clone>$"));
-            
+
             // If it's not a record, then it should be sealed
             if (!isRecord && !configType.IsSealed)
             {
                 violations.Add($"Integration Config {configType.FullName} should be a sealed record (use 'record' keyword)");
             }
         }
-        
+
         Assert.Empty(violations);
     }
 
@@ -832,7 +832,7 @@ public class ArchitectureTests
         // Rule: Features should not depend on concrete strategy implementations
         // They should use interfaces (IExporterCreationStrategy) or factory pattern
         var assembly = typeof(Entities.Report).Assembly;
-        
+
         var concreteStrategyTypes = Types.InAssembly(assembly)
             .That()
             .ResideInNamespace("Winnow.Server.Infrastructure.Integrations.Strategies")
@@ -843,9 +843,9 @@ public class ArchitectureTests
             .And()
             .DoNotHaveName("IIntegrationConfigDeserializationStrategy")
             .GetTypes();
-        
+
         var violations = new List<string>();
-        
+
         foreach (var strategyType in concreteStrategyTypes)
         {
             var result = Types.InAssembly(assembly)
@@ -854,7 +854,7 @@ public class ArchitectureTests
                 .ShouldNot()
                 .HaveDependencyOn(strategyType.FullName ?? strategyType.Name)
                 .GetResult();
-            
+
             if (!result.IsSuccessful)
             {
                 foreach (var violatingType in result.FailingTypeNames ?? [])
@@ -863,11 +863,11 @@ public class ArchitectureTests
                 }
             }
         }
-        
+
         // Also check for direct instantiation of strategies in Features
         // This is a more complex check that would require IL analysis
         // For now, we rely on the dependency check above
-        
+
         Assert.Empty(violations);
     }
 
@@ -878,14 +878,14 @@ public class ArchitectureTests
         // They should use dependency injection or factory patterns
         // This checks for 'new' keyword usage for logic classes in Features namespace
         var assembly = typeof(Entities.Report).Assembly;
-        
+
         var featureTypes = Types.InAssembly(assembly)
             .That()
             .ResideInNamespace(FeaturesNamespace)
             .GetTypes();
-        
+
         var violations = new List<string>();
-        
+
         // Define logic class patterns (non-DTO, non-Entity, non-infrastructure classes)
         var logicClassPatterns = new[]
         {
@@ -897,12 +897,12 @@ public class ArchitectureTests
             "Factory",
             "Provider"
         };
-        
+
         // This is a simplified check that looks for dependency on concrete types
         // A more comprehensive check would require IL analysis for 'new' keyword
         // For this architecture test, we'll check that Features don't depend on
         // concrete implementations of services/strategies in Infrastructure
-        
+
         var concreteInfrastructureTypes = Types.InAssembly(assembly)
             .That()
             .ResideInNamespace(InfrastructureNamespace)
@@ -911,12 +911,12 @@ public class ArchitectureTests
             .And()
             .AreNotAbstract()
             .GetTypes();
-        
+
         // Filter to likely logic classes (not DTOs, configurations, etc.)
         var logicTypes = concreteInfrastructureTypes
             .Where(t => logicClassPatterns.Any(p => t.Name.EndsWith(p)))
             .ToList();
-        
+
         foreach (var logicType in logicTypes)
         {
             var result = Types.InAssembly(assembly)
@@ -925,7 +925,7 @@ public class ArchitectureTests
                 .ShouldNot()
                 .HaveDependencyOn(logicType.FullName ?? logicType.Name)
                 .GetResult();
-            
+
             if (!result.IsSuccessful)
             {
                 foreach (var violatingType in result.FailingTypeNames ?? [])
@@ -938,7 +938,7 @@ public class ArchitectureTests
                         // This would indicate direct instantiation or constructor injection of concrete type
                         var constructors = violatingTypeClass.GetConstructors();
                         bool hasDirectDependency = false;
-                        
+
                         foreach (var constructor in constructors)
                         {
                             var parameters = constructor.GetParameters();
@@ -952,7 +952,7 @@ public class ArchitectureTests
                             }
                             if (hasDirectDependency) break;
                         }
-                        
+
                         if (hasDirectDependency)
                         {
                             violations.Add($"Feature {violatingType} has constructor dependency on concrete logic class {logicType.FullName}. Use interfaces instead.");
@@ -961,7 +961,7 @@ public class ArchitectureTests
                 }
             }
         }
-        
+
         Assert.Empty(violations);
     }
 
@@ -972,34 +972,34 @@ public class ArchitectureTests
         // Instead, use the CanHandle() pattern with strategies
         // Note: This test is more challenging as it requires IL analysis
         // We'll implement a basic check for now that can be enhanced later
-        
+
         var assembly = typeof(Entities.Report).Assembly;
-        
+
         // Get all methods in the assembly
         var allMethods = assembly.GetTypes()
             .SelectMany(t => t.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly))
             .ToList();
-        
+
         var violations = new List<string>();
-        
+
         // This is a simplified check - in a real implementation, we would need
         // more sophisticated IL analysis to detect switch statements on types
         // For now, we'll check for method names or patterns that might indicate
         // type switching behavior
-        
+
         var suspiciousMethodNames = new[]
         {
             "HandleConfig",
-            "ProcessConfig", 
+            "ProcessConfig",
             "CreateForConfig",
             "GetExporterFor",
             "ExportTo"
         };
-        
+
         foreach (var method in allMethods)
         {
             var methodName = method.Name.ToLowerInvariant();
-            
+
             // Look for methods that might be doing type switching
             if (suspiciousMethodNames.Any(name => methodName.Contains(name.ToLowerInvariant())))
             {
@@ -1010,12 +1010,12 @@ public class ArchitectureTests
                     // Check IL instructions - this is simplified
                     // In a full implementation, we would analyze IL for switch instructions
                     // related to IntegrationConfig types
-                    
+
                     // For now, we'll check parameter types
                     var parameters = method.GetParameters();
                     foreach (var param in parameters)
                     {
-                        if (param.ParameterType.Name == "IntegrationConfig" || 
+                        if (param.ParameterType.Name == "IntegrationConfig" ||
                             param.ParameterType.FullName?.Contains("IntegrationConfig") == true)
                         {
                             // Check for switch-like method names without strategy pattern
@@ -1029,7 +1029,7 @@ public class ArchitectureTests
                 }
             }
         }
-        
+
         // This is a guideline/awareness test rather than a strict rule
         // We'll assert true and output warnings instead of failing
         if (violations.Count > 0)
@@ -1040,7 +1040,7 @@ public class ArchitectureTests
                 Console.WriteLine($"  - {violation}");
             }
         }
-        
+
         Assert.True(true, "Switch statement check completed (guideline only)");
     }
 }

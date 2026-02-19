@@ -33,7 +33,7 @@ public class GetReportResponse
     public string? SuggestedParentMessage { get; set; }
     public string? Metadata { get; set; }
     public string? Screenshot { get; set; }
-    public string? ExternalUrl { get; set; }
+    public Uri? ExternalUrl { get; set; }
 
     public List<AssetDto> Assets { get; set; } = [];
     public List<RelatedReportDto> Evidence { get; set; } = [];
@@ -46,7 +46,7 @@ public class AssetDto
     public string ContentType { get; set; } = string.Empty;
     public long SizeBytes { get; set; }
     public string Status { get; set; } = string.Empty; // Pending, Clean, Infected, Failed
-    public string? DownloadUrl { get; set; } // Presigned URL, only for Clean assets
+    public Uri? DownloadUrl { get; set; } // Presigned URL, only for Clean assets
     public DateTime CreatedAt { get; set; }
     public DateTime? ScannedAt { get; set; }
 }
@@ -154,7 +154,7 @@ public sealed class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services
         var assetDtos = new List<AssetDto>();
         foreach (var asset in report.Assets)
         {
-            string? downloadUrl = null;
+            Uri? downloadUrl = null;
             if (asset.Status == AssetStatus.Clean)
             {
                 try

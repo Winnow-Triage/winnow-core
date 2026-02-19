@@ -27,7 +27,7 @@ public class ExporterStrategyTests
     {
         // Arrange
         var strategy = new GitHubExporterCreationStrategy();
-        var jiraConfig = new JiraConfig { BaseUrl = "test", UserEmail = "test", ApiToken = "test", ProjectKey = "test" };
+        var jiraConfig = new JiraConfig { BaseUrl = new Uri("https://test.atlassian.net"), UserEmail = "test", ApiToken = "test", ProjectKey = "test" };
         var trelloConfig = new TrelloConfig { ApiKey = "test", Token = "test", ListId = "test" };
 
         // Act
@@ -59,7 +59,7 @@ public class ExporterStrategyTests
     {
         // Arrange
         var strategy = new GitHubExporterCreationStrategy();
-        var wrongConfig = new JiraConfig { BaseUrl = "test", UserEmail = "test", ApiToken = "test", ProjectKey = "test" };
+        var wrongConfig = new JiraConfig { BaseUrl = new Uri("https://test.atlassian.net"), UserEmail = "test", ApiToken = "test", ProjectKey = "test" };
         var httpClient = new Mock<HttpClient>().Object;
 
         // Act & Assert
@@ -72,7 +72,7 @@ public class ExporterStrategyTests
     {
         // Arrange
         var strategy = new JiraExporterCreationStrategy();
-        var config = new JiraConfig { BaseUrl = "test", UserEmail = "test", ApiToken = "test", ProjectKey = "test" };
+        var config = new JiraConfig { BaseUrl = new Uri("https://test.atlassian.net"), UserEmail = "test", ApiToken = "test", ProjectKey = "test" };
 
         // Act
         var result = strategy.CanHandle(config);
@@ -103,7 +103,7 @@ public class ExporterStrategyTests
     {
         // Arrange
         var strategy = new JiraExporterCreationStrategy();
-        var config = new JiraConfig { BaseUrl = "https://test.atlassian.net", UserEmail = "user@test.com", ApiToken = "test-token", ProjectKey = "PROJ" };
+        var config = new JiraConfig { BaseUrl = new Uri("https://test.atlassian.net"), UserEmail = "user@test.com", ApiToken = "test-token", ProjectKey = "PROJ" };
         var httpClient = new Mock<HttpClient>().Object;
 
         // Act
@@ -146,7 +146,7 @@ public class ExporterStrategyTests
         // Arrange
         var strategy = new TrelloExporterCreationStrategy();
         var githubConfig = new GitHubConfig { ApiKey = "test", Owner = "owner", Repo = "repo" };
-        var jiraConfig = new JiraConfig { BaseUrl = "test", UserEmail = "test", ApiToken = "test", ProjectKey = "test" };
+        var jiraConfig = new JiraConfig { BaseUrl = new Uri("https://test.atlassian.net"), UserEmail = "test", ApiToken = "test", ProjectKey = "test" };
 
         // Act
         var resultForGitHub = strategy.CanHandle(githubConfig);
@@ -191,7 +191,7 @@ public class ExporterStrategyTests
         // Arrange
         var strategy = new DefaultExporterCreationStrategy();
         var githubConfig = new GitHubConfig { ApiKey = "test", Owner = "owner", Repo = "repo" };
-        var jiraConfig = new JiraConfig { BaseUrl = "test", UserEmail = "test", ApiToken = "test", ProjectKey = "test" };
+        var jiraConfig = new JiraConfig { BaseUrl = new Uri("https://test.atlassian.net"), UserEmail = "test", ApiToken = "test", ProjectKey = "test" };
         var trelloConfig = new TrelloConfig { ApiKey = "test", Token = "test", ListId = "test" };
 
         // Act
@@ -225,7 +225,7 @@ public class ExporterStrategyTests
     {
         // Arrange
         var strategy = new DefaultExporterCreationStrategy();
-        var jiraConfig = new JiraConfig { BaseUrl = "test", UserEmail = "test", ApiToken = "test", ProjectKey = "test" };
+        var jiraConfig = new JiraConfig { BaseUrl = new Uri("https://test.atlassian.net"), UserEmail = "test", ApiToken = "test", ProjectKey = "test" };
         var trelloConfig = new TrelloConfig { ApiKey = "test", Token = "test", ListId = "test" };
         var httpClient = new Mock<HttpClient>().Object;
 
