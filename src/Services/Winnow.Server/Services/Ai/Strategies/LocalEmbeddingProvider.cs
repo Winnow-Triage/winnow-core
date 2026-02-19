@@ -95,7 +95,7 @@ public class LocalEmbeddingProvider : IEmbeddingProvider
 
     public bool CanHandle(LlmSettings settings)
     {
-        return settings.Provider == "Ollama" && 
+        return settings?.Provider == "Ollama" && 
                !string.IsNullOrWhiteSpace(settings.Ollama?.Endpoint) &&
                !string.IsNullOrWhiteSpace(settings.Ollama.ModelId);
     }

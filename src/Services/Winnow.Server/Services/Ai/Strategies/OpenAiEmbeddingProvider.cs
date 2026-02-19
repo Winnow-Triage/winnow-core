@@ -100,7 +100,7 @@ public class OpenAiEmbeddingProvider : IEmbeddingProvider
     /// <returns>True if this provider can handle the settings, false otherwise.</returns>
     public bool CanHandle(LlmSettings settings)
     {
-        return settings.Provider == "OpenAI" &&
+        return settings?.Provider == "OpenAI" &&
                !string.IsNullOrWhiteSpace(settings.OpenAI?.ApiKey) &&
                !string.IsNullOrWhiteSpace(settings.OpenAI.ModelId);
     }
