@@ -71,8 +71,9 @@ internal static class MiddlewareExtensions
         }
 
         // Middleware pipeline
-        app.UseMiddleware<TenantMiddleware>();
+        // Middleware pipeline
         app.UseAuthentication();
+        app.UseMiddleware<TenantMiddleware>();
         app.UseAuthorization();
         app.UseStaticFiles();
         app.UseCors();

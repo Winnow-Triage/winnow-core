@@ -29,6 +29,7 @@ public class LoginRequest
 public sealed class LoginEndpoint(
     UserManager<ApplicationUser> userManager,
     WinnowDbContext dbContext,
+    Winnow.Server.Infrastructure.MultiTenancy.ITenantContext tenantContext,
     IConfiguration config) : Endpoint<LoginRequest, AuthResponse>
 {
     public override void Configure()
@@ -80,7 +81,7 @@ public sealed class LoginEndpoint(
             await dbContext.SaveChangesAsync(ct);
         }
 
-        var token = GenerateJwt(user);
+        var token = await GenerateJwt(user);
 
         await Send.OkAsync(new AuthResponse
         {
@@ -93,7 +94,7 @@ public sealed class LoginEndpoint(
         });
     }
 
-    private string GenerateJwt(ApplicationUser user)
+    private async Task<string> GenerateJwt(ApplicationUser user)
     {
         var jwtSettings = config.GetSection("JwtSettings");
         var key = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? "super_secret_key_at_least_32_chars_long_for_safety");
@@ -102,8 +103,15 @@ public sealed class LoginEndpoint(
         {
             new(ClaimTypes.NameIdentifier, user.Id),
             new(ClaimTypes.Email, user.Email!),
-            new(ClaimTypes.Name, user.FullName)
+            new(ClaimTypes.Name, user.FullName),
+            new("tenant_id", tenantContext.TenantId ?? "default")
         };
+
+        var roles = await userManager.GetRolesAsync(user);
+        foreach (var role in roles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {

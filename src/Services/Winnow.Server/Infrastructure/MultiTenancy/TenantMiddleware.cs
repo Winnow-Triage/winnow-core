@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
 
@@ -13,8 +14,14 @@ internal class TenantMiddleware(RequestDelegate next)
 
     public async Task InvokeAsync(HttpContext context, ITenantContext tenantContext, WinnowDbContext dbContext)
     {
+        // 0. Check JWT Claim (Most Secure)
+        var tenantClaim = context.User.FindFirst("tenant_id");
+        if (tenantClaim != null)
+        {
+            ((TenantContext)tenantContext).TenantId = tenantClaim.Value;
+        }
         // 1. Check Header First (Preferred for API/Dev)
-        if (context.Request.Headers.TryGetValue("X-Tenant-ID", out var tenantId))
+        else if (context.Request.Headers.TryGetValue("X-Tenant-ID", out var tenantId))
         {
             ((TenantContext)tenantContext).TenantId = tenantId;
         }
