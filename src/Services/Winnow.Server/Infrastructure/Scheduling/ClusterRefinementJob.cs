@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Winnow.Server.Domain.Services;
 using Winnow.Server.Entities;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.MultiTenancy;
@@ -40,10 +41,10 @@ public class ClusterRefinementJob(
         }
     }
 
-    private List<string> GetAllActiveTenants()
+    private static List<string> GetAllActiveTenants()
     {
         var dataDir = Path.Combine(Directory.GetCurrentDirectory(), "Data");
-        if (!Directory.Exists(dataDir)) return new List<string> { "default" };
+        if (!Directory.Exists(dataDir)) return ["default"];
 
         var files = Directory.GetFiles(dataDir, "*.db");
         var tenants = files
@@ -80,10 +81,11 @@ public class ClusterRefinementJob(
         var embeddingService = scope.ServiceProvider.GetRequiredService<Services.Ai.IEmbeddingService>();
         var duplicateChecker = scope.ServiceProvider.GetRequiredService<Services.Ai.IDuplicateChecker>();
         var negativeCache = scope.ServiceProvider.GetRequiredService<Services.Ai.INegativeMatchCache>();
+        var vectorCalculator = scope.ServiceProvider.GetRequiredService<IVectorCalculator>();
 
         foreach (var projectId in projects)
         {
-            await ProcessProjectAsync(db, projectId, tenantId, embeddingService, duplicateChecker, negativeCache, ct);
+            await ProcessProjectAsync(db, projectId, tenantId, embeddingService, duplicateChecker, negativeCache, vectorCalculator, ct);
         }
     }
 
@@ -94,6 +96,7 @@ public class ClusterRefinementJob(
         Services.Ai.IEmbeddingService embeddingService,
         Services.Ai.IDuplicateChecker duplicateChecker,
         Services.Ai.INegativeMatchCache negativeCache,
+        IVectorCalculator vectorCalculator,
         CancellationToken ct)
     {
         var recentLeaders = await db.Reports
@@ -185,7 +188,7 @@ public class ClusterRefinementJob(
             }
 
             ClusterMatch? bestMatch = null;
-            float[] leaderAFloats = BytesToFloats(leaderA.Embedding);
+            float[] leaderAFloats = VectorCalculator.BytesToFloats(leaderA.Embedding);
 
             foreach (var group in clusterGroups)
             {
@@ -200,8 +203,12 @@ public class ClusterRefinementJob(
 
                 if (members.Count == 0) continue;
 
-                var centroid = CalculateCentroid(members);
-                var centroidDist = CalculateCosineDistance(leaderAFloats, centroid);
+                var memberFloats = members
+                    .Where(e => e != null)
+                    .Select(e => VectorCalculator.BytesToFloats(e!))
+                    .ToList();
+                var centroid = vectorCalculator.CalculateCentroid(memberFloats);
+                var centroidDist = vectorCalculator.CalculateCosineDistance(leaderAFloats, centroid);
 
                 if (bestMatch == null || centroidDist < bestMatch.Distance)
                 {
@@ -354,7 +361,7 @@ public class ClusterRefinementJob(
         }
     }
 
-    private async Task<List<ReportMatch>> FindMatchesInDb(WinnowDbContext db, Report target, double threshold, CancellationToken ct)
+    private static async Task<List<ReportMatch>> FindMatchesInDb(WinnowDbContext db, Report target, double threshold, CancellationToken ct)
     {
         var sql = @"
             SELECT t.Id, t.Title, t.Message, t.CreatedAt, v.distance as Distance
@@ -370,45 +377,6 @@ public class ClusterRefinementJob(
 
         return await db.Database.SqlQueryRaw<ReportMatch>(sql, target.Embedding!, threshold, target.Id, target.ProjectId)
             .ToListAsync(ct);
-    }
-
-    private float[] BytesToFloats(byte[] bytes)
-    {
-        float[] floats = new float[bytes.Length / sizeof(float)];
-        Buffer.BlockCopy(bytes, 0, floats, 0, bytes.Length);
-        return floats;
-    }
-
-    private float[] CalculateCentroid(List<byte[]?> embeddings)
-    {
-        var validOnes = embeddings.Where(e => e != null).Cast<byte[]>().ToList();
-        if (validOnes.Count == 0) return Array.Empty<float>();
-
-        int length = validOnes[0].Length / sizeof(float);
-        float[] centroid = new float[length];
-        foreach (var bytes in validOnes)
-        {
-            for (int i = 0; i < length; i++)
-            {
-                centroid[i] += BitConverter.ToSingle(bytes, i * sizeof(float));
-            }
-        }
-        for (int i = 0; i < length; i++) centroid[i] /= validOnes.Count;
-        return centroid;
-    }
-
-    private double CalculateCosineDistance(float[] a, float[] b)
-    {
-        if (a.Length == 0 || b.Length == 0) return 1.0;
-        float dot = 0, ma = 0, mb = 0;
-        for (int i = 0; i < a.Length; i++)
-        {
-            dot += a[i] * b[i];
-            ma += a[i] * a[i];
-            mb += b[i] * b[i];
-        }
-        if (ma == 0 || mb == 0) return 1.0;
-        return 1.0 - (dot / (Math.Sqrt(ma) * Math.Sqrt(mb)));
     }
 
     private record ReportMatch(Guid Id, string Title, string Message, DateTime CreatedAt, double Distance);

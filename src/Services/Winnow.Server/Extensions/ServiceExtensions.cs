@@ -3,7 +3,7 @@ using FastEndpoints.Swagger;
 using MassTransit;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.SemanticKernel;
-using Scrutor;
+using Winnow.Server.Domain.Services;
 using Winnow.Server.Entities;
 using Winnow.Server.Infrastructure.Configuration;
 using Winnow.Server.Infrastructure.Integrations;
@@ -12,6 +12,7 @@ using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Infrastructure.Scheduling;
 using Winnow.Server.Services.Ai;
+using Winnow.Server.Services.Ai.Strategies;
 using Winnow.Server.Services.Storage;
 using Winnow.Server.Features.Dashboard;
 using Winnow.Server.Features.Reports.GenerateSummary;
@@ -41,12 +42,21 @@ public static class ServiceExtensions
             .WithScopedLifetime()
         );
         
+        // Register embedding providers
+        services.Scan(scan => scan
+            .FromAssemblyOf<IEmbeddingProvider>()
+            .AddClasses(classes => classes.AssignableTo<IEmbeddingProvider>())
+            .As<IEmbeddingProvider>()
+            .WithScopedLifetime()
+        );
+        
         // Core HTTP & caching
         services.AddHttpClient();
         services.AddMemoryCache();
         
         // AI Services
-        services.AddSingleton<IEmbeddingService, EmbeddingService>();
+        services.AddScoped<IEmbeddingService, EmbeddingService>();
+        services.AddSingleton<IVectorCalculator, VectorCalculator>();
         services.AddHostedService<ClusterRefinementJob>();
         
         // Storage (S3/MinIO)

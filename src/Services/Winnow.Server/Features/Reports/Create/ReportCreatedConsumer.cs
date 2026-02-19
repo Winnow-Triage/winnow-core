@@ -2,6 +2,7 @@ using System.Linq;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Integrations;
+using Winnow.Server.Domain.Services;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Infrastructure.Scheduling;
@@ -13,7 +14,8 @@ public class ReportCreatedConsumer(
     WinnowDbContext dbContext,
     ILogger<ReportCreatedConsumer> logger,
     ITenantContext tenantContext,
-    Services.Ai.IDuplicateChecker duplicateChecker) : IConsumer<ReportCreatedEvent>
+    Services.Ai.IDuplicateChecker duplicateChecker,
+    IVectorCalculator vectorCalculator) : IConsumer<ReportCreatedEvent>
 {
     public async Task Consume(ConsumeContext<ReportCreatedEvent> context)
     {
@@ -64,7 +66,7 @@ public class ReportCreatedConsumer(
 
             // Using Internal Match helper
             var searchResults = await dbContext.Database
-                .SqlQueryRaw<ReportMatch>(sql, parameters.ToArray())
+                .SqlQueryRaw<ReportMatch>(sql, [.. parameters])
                 .ToListAsync(context.CancellationToken);
 
             logger.LogInformation("ReportMatching: Found {Count} potential matches for report {Id} in project {ProjectId}", 
@@ -101,8 +103,12 @@ public class ReportCreatedConsumer(
 
                         if (members.Count == 0) continue;
 
-                        var centroid = CalculateCentroid(members);
-                        var centroidDist = CalculateCosineDistance(embeddingFloats, centroid);
+                        var memberFloats = members
+                            .Where(e => e != null)
+                            .Select(e => VectorCalculator.BytesToFloats(e!))
+                            .ToList();
+                        var centroid = vectorCalculator.CalculateCentroid(memberFloats);
+                        var centroidDist = vectorCalculator.CalculateCosineDistance(embeddingFloats, centroid);
 
                         if (bestMatch == null || centroidDist < bestMatch.Distance)
                         {
@@ -167,37 +173,6 @@ public class ReportCreatedConsumer(
         {
             logger.LogDebug("ReportMatching: Skipping vector index sync for report {Id} - no embedding.", report.Id);
         }
-    }
-
-    private float[] CalculateCentroid(List<byte[]?> embeddings)
-    {
-        var validOnes = embeddings.Where(e => e != null).Cast<byte[]>().ToList();
-        if (validOnes.Count == 0) return Array.Empty<float>();
-
-        int length = validOnes[0].Length / sizeof(float);
-        float[] centroid = new float[length];
-        foreach (var bytes in validOnes)
-        {
-            for (int i = 0; i < length; i++)
-            {
-                centroid[i] += BitConverter.ToSingle(bytes, i * sizeof(float));
-            }
-        }
-        for (int i = 0; i < length; i++) centroid[i] /= validOnes.Count;
-        return centroid;
-    }
-
-    private double CalculateCosineDistance(float[] a, float[] b)
-    {
-        float dot = 0, ma = 0, mb = 0;
-        for (int i = 0; i < a.Length; i++)
-        {
-            dot += a[i] * b[i];
-            ma += a[i] * a[i];
-            mb += b[i] * b[i];
-        }
-        if (ma == 0 || mb == 0) return 1.0;
-        return 1.0 - (dot / (Math.Sqrt(ma) * Math.Sqrt(mb)));
     }
 }
 
