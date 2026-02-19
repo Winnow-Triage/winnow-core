@@ -37,7 +37,7 @@ public class ExporterFactory(
 
     private IReportExporter CreateExporterFromIntegration(Integration integration)
     {
-        var client = httpClientFactory.CreateClient("Exporter");
+        var client = httpClientFactory.CreateClient("ExternalIntegrations");
         var config = integration.Config;
 
         // Find the appropriate strategy for this configuration type

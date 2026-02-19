@@ -2,9 +2,13 @@ using FastEndpoints;
 using FastEndpoints.Swagger;
 using MassTransit;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.SemanticKernel;
+using Winnow.Integrations;
 using Winnow.Server.Domain.Services;
 using Winnow.Server.Entities;
+using Winnow.Server.Features.Dashboard;
+using Winnow.Server.Features.Reports.GenerateSummary;
 using Winnow.Server.Infrastructure.Configuration;
 using Winnow.Server.Infrastructure.Integrations;
 using Winnow.Server.Infrastructure.Integrations.Strategies;
@@ -14,8 +18,6 @@ using Winnow.Server.Infrastructure.Scheduling;
 using Winnow.Server.Services.Ai;
 using Winnow.Server.Services.Ai.Strategies;
 using Winnow.Server.Services.Storage;
-using Winnow.Server.Features.Dashboard;
-using Winnow.Server.Features.Reports.GenerateSummary;
 
 namespace Winnow.Server.Extensions;
 
@@ -26,7 +28,7 @@ internal static class ServiceExtensions
         // Multi-tenancy
         services.AddScoped<ITenantContext, TenantContext>();
         services.AddScoped<IExporterFactory, ExporterFactory>();
-        
+
         // Assembly scanning for all strategy implementations
         services.Scan(scan => scan
             .FromAssemblyOf<IExporterCreationStrategy>()
@@ -34,14 +36,14 @@ internal static class ServiceExtensions
             .As<IExporterCreationStrategy>()
             .WithScopedLifetime()
         );
-        
+
         services.Scan(scan => scan
             .FromAssemblyOf<IIntegrationConfigDeserializationStrategy>()
             .AddClasses(classes => classes.AssignableTo<IIntegrationConfigDeserializationStrategy>())
             .As<IIntegrationConfigDeserializationStrategy>()
             .WithScopedLifetime()
         );
-        
+
         // Register embedding providers
         services.Scan(scan => scan
             .FromAssemblyOf<IEmbeddingProvider>()
@@ -49,16 +51,36 @@ internal static class ServiceExtensions
             .As<IEmbeddingProvider>()
             .WithScopedLifetime()
         );
-        
-        // Core HTTP & caching
+
+        // Core HTTP & caching with resilience pipelines
+        // Add typed HTTP clients with standard resilience handlers for external services
+
+        // Configure resilience options
+        // Using standard resilience handler with default settings:
+        // - Retry: Max 3 retries, exponential backoff starting at 2 seconds
+        // - Circuit Breaker: Break for 30 seconds after 5 consecutive failures  
+        // - Attempt Timeout: 15 seconds per request
+
+        // Register named HTTP client for exporters with resilience handlers
+        services.AddHttpClient("ExternalIntegrations")
+            .AddStandardResilienceHandler();
+
+        // Register typed HTTP clients for embedding providers with resilience handlers
+        services.AddHttpClient<OpenAiEmbeddingProvider>()
+            .AddStandardResilienceHandler();
+
+        services.AddHttpClient<LocalEmbeddingProvider>()
+            .AddStandardResilienceHandler();
+
+        // Default fallback client
         services.AddHttpClient();
         services.AddMemoryCache();
-        
+
         // AI Services
         services.AddScoped<IEmbeddingService, EmbeddingService>();
         services.AddSingleton<IVectorCalculator, VectorCalculator>();
         services.AddHostedService<ClusterRefinementJob>();
-        
+
         // Storage (S3/MinIO)
         var s3Settings = new S3Settings();
         config.GetSection("S3Settings").Bind(s3Settings);
@@ -74,12 +96,12 @@ internal static class ServiceExtensions
             return new Amazon.S3.AmazonS3Client(s3Settings.AccessKey, s3Settings.SecretKey, s3Config);
         });
         services.AddSingleton<IStorageService, S3StorageService>();
-        
+
         // LLM Configuration
         var llmSettings = new LlmSettings();
         config.GetSection("LlmSettings").Bind(llmSettings);
         services.AddSingleton(llmSettings);
-        
+
         // Semantic Kernel setup based on provider
         if (llmSettings.Provider == "Ollama")
         {
@@ -108,22 +130,22 @@ internal static class ServiceExtensions
         {
             services.AddScoped<IClusterSummaryService, PlaceholderSummaryService>();
         }
-        
+
         // Always register the duplicate checker (It handles fail-safe internally)
         services.AddScoped<IDuplicateChecker, OllamaDuplicateChecker>();
         services.AddSingleton<INegativeMatchCache, NegativeMatchCache>();
-        
+
         // Dashboard service
         services.AddScoped<IDashboardService, DashboardService>();
-        
+
         // Database
         services.AddDbContext<WinnowDbContext>(); // Configuration happens in OnConfiguring dynamically
-        
+
         // Identity
         services.AddIdentity<ApplicationUser, IdentityRole>()
             .AddEntityFrameworkStores<WinnowDbContext>()
             .AddDefaultTokenProviders();
-        
+
         // Authentication
         services.AddAuthentication(options =>
         {
@@ -145,12 +167,12 @@ internal static class ServiceExtensions
                     System.Text.Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? "super_secret_key_at_least_32_chars_long_for_safety"))
             };
         });
-        
+
         // FastEndpoints
         services.AddFastEndpoints();
         services.SwaggerDocument();
         services.AddAuthorization();
-        
+
         // CORS
         services.AddCors(options =>
         {
@@ -161,7 +183,7 @@ internal static class ServiceExtensions
                       .AllowAnyMethod();
             });
         });
-        
+
         // MassTransit
         services.AddMassTransit(x =>
         {
@@ -171,7 +193,7 @@ internal static class ServiceExtensions
                 cfg.ConfigureEndpoints(context);
             });
         });
-        
+
         return services;
     }
 }
