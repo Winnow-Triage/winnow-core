@@ -41,7 +41,6 @@ public sealed class UpsertIntegrationConfigEndpoint(
     public override void Configure()
     {
         Post("/integrations");
-        AllowAnonymous();
         Summary(s =>
         {
             s.Summary = "Create/Update integration";

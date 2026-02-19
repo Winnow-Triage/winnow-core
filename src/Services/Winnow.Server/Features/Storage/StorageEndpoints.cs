@@ -2,6 +2,7 @@ using FastEndpoints;
 using Winnow.Server.Services.Storage;
 
 namespace Winnow.Server.Features.Storage;
+
 public class GetUploadUrlRequest
 {
     public Guid OrganizationId { get; set; }
@@ -20,7 +21,6 @@ public sealed class GetUploadUrlEndpoint(IStorageService storage) : Endpoint<Get
     public override void Configure()
     {
         Post("/storage/upload-url");
-        AllowAnonymous(); // TODO: Restrict to authenticated users
         Description(x => x.WithName("GetUploadUrl"));
     }
 
@@ -50,7 +50,6 @@ public sealed class GetDownloadUrlEndpoint(IStorageService storage) : Endpoint<G
     public override void Configure()
     {
         Post("/storage/download-url");
-        AllowAnonymous(); // TODO: Restrict to authenticated users
         Description(x => x.WithName("GetDownloadUrl"));
     }
 

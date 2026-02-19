@@ -8,7 +8,6 @@ public sealed class DeleteIntegrationConfigEndpoint(WinnowDbContext db) : Endpoi
     public override void Configure()
     {
         Delete("/integrations/{id}");
-        AllowAnonymous();
         Summary(s =>
         {
             s.Summary = "Delete integration";

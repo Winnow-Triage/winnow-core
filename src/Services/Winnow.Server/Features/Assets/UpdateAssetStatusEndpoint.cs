@@ -2,6 +2,7 @@ using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Entities;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Infrastructure.Security;
 
 namespace Winnow.Server.Features.Assets;
 
@@ -39,6 +40,8 @@ public sealed class UpdateAssetStatusEndpoint(
     {
         Post("/assets/status");
         AllowAnonymous(); // TODO: Lock down with X-Bouncer-Secret header
+        PreProcessor<ApiKeyAuthPreProcessor<UpdateAssetStatusRequest>>();
+        AuthSchemes("ApiKey");
         Description(b => b.WithName("UpdateAssetStatus"));
         Summary(s =>
         {

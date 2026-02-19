@@ -172,6 +172,35 @@ internal static class ServiceExtensions
         services.SwaggerDocument(o =>
         {
             o.ShortSchemaNames = true;
+            o.DocumentSettings = s =>
+            {
+                s.AddAuth("Bearer", new()
+                {
+                    Name = "Authorization",
+                    In = NSwag.OpenApiSecurityApiKeyLocation.Header,
+                    Type = NSwag.OpenApiSecuritySchemeType.Http,
+                    Scheme = "Bearer",
+                    Description = "JWT Authorization header using the Bearer scheme."
+                });
+
+                s.AddAuth("ApiKey", new()
+                {
+                    Name = "X-API-Key",
+                    In = NSwag.OpenApiSecurityApiKeyLocation.Header,
+                    Type = NSwag.OpenApiSecuritySchemeType.ApiKey,
+                    Description = "Enter the Bouncer API Key here."
+                });
+
+                s.AddAuth("ProjectApiKey", new()
+                {
+                    Name = "X-Winnow-Key",
+                    In = NSwag.OpenApiSecurityApiKeyLocation.Header,
+                    Type = NSwag.OpenApiSecuritySchemeType.ApiKey,
+                    Description = "Enter the Project API Key here."
+                });
+
+                s.OperationProcessors.Add(new Winnow.Server.Infrastructure.Security.Swagger.SwaggerSecurityProcessor());
+            };
         });
         services.AddAuthorization();
 

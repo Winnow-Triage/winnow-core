@@ -12,7 +12,6 @@ public sealed class GetIntegrationConfigDetailEndpoint(WinnowDbContext db) : End
     public override void Configure()
     {
         Get("/integrations/{Id}");
-        AllowAnonymous();
         Summary(s =>
         {
             s.Summary = "Get integration details";

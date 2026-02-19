@@ -85,6 +85,7 @@ public sealed class IngestReportEndpoint(
         Post("/reports");
         AllowAnonymous();
         Description(b => b
+            .WithName("IngestReport")
             .Accepts<IngestReportRequest>("application/json")
             .Produces<IngestReportResponse>(202));
         Summary(s =>

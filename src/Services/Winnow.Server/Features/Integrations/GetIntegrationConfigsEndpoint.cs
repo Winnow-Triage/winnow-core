@@ -17,7 +17,6 @@ public sealed class GetIntegrationConfigsEndpoint(WinnowDbContext db) : Endpoint
     public override void Configure()
     {
         Get("/integrations");
-        AllowAnonymous();
         Summary(s =>
         {
             s.Summary = "List integrations";
