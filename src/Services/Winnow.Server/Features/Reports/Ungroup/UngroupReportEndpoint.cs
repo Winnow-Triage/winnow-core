@@ -6,8 +6,14 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Reports.Ungroup;
 
+/// <summary>
+/// Request to remove a report from its cluster.
+/// </summary>
 public class UngroupReportRequest
 {
+    /// <summary>
+    /// ID of the report to ungroup.
+    /// </summary>
     public Guid Id { get; set; }
 }
 
@@ -16,6 +22,14 @@ public sealed class UngroupReportEndpoint(WinnowDbContext db) : Endpoint<Ungroup
     public override void Configure()
     {
         Post("/reports/{id}/ungroup");
+        Summary(s =>
+        {
+            s.Summary = "Ungroup a report";
+            s.Description = "Removes a report from its current cluster and sets its status to New.";
+            s.Response<ActionResponse>(200, "Report ungrouped successfully");
+            s.Response(400, "Report is not grouped");
+            s.Response(404, "Report not found");
+        });
     }
 
     public override async Task HandleAsync(UngroupReportRequest req, CancellationToken ct)
@@ -42,7 +56,7 @@ public sealed class UngroupReportEndpoint(WinnowDbContext db) : Endpoint<Ungroup
         var userOwnsProject = await db.Projects
             .AsNoTracking()
             .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
-        
+
         if (!userOwnsProject)
         {
             ThrowError("Project not found or access denied", 404);
@@ -63,7 +77,7 @@ public sealed class UngroupReportEndpoint(WinnowDbContext db) : Endpoint<Ungroup
         }
 
         report.ParentReportId = null;
-        report.Status = "New"; 
+        report.Status = "New";
 
         await db.SaveChangesAsync(ct);
         await Send.OkAsync(new ActionResponse { Message = "Report ungrouped successfully." }, ct);

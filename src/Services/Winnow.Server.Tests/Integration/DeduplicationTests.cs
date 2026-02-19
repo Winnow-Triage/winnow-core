@@ -1,11 +1,11 @@
 using System.Net.Http.Json;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Winnow.Server.Features.Reports.Create;
+using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
 using Winnow.Server.Services.Storage;
-using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Tests.Integration;
 
@@ -22,20 +22,20 @@ public class DeduplicationTests : IAsyncLifetime
     {
         _embeddingServiceMock = new Mock<IEmbeddingService>();
         _storageServiceMock = new Mock<IStorageService>();
-        
+
         // Configure mocks - return same vector (all 0.5s) for any request
         var sameVector = Enumerable.Range(0, 384).Select(_ => 0.5f).ToArray();
         _embeddingServiceMock
             .Setup(x => x.GetEmbeddingAsync(It.IsAny<string>()))
             .ReturnsAsync(sameVector);
-        
+
         _storageServiceMock
             .Setup(x => x.UploadFileAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), 
-                It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), 
+                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+                It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("test-s3-key");
-        
+
         // Create the test application with mocked services using constructor
         _app = new WinnowTestApp(services =>
         {
@@ -47,7 +47,7 @@ public class DeduplicationTests : IAsyncLifetime
                 services.Remove(embeddingDescriptor);
             }
             services.AddSingleton(_embeddingServiceMock.Object);
-            
+
             // Replace IStorageService with mock
             var storageDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(IStorageService));
@@ -56,7 +56,7 @@ public class DeduplicationTests : IAsyncLifetime
                 services.Remove(storageDescriptor);
             }
             services.AddSingleton(_storageServiceMock.Object);
-            
+
             // Replace IDuplicateChecker with mock that always returns true for similar reports
             var duplicateCheckerDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(Services.Ai.IDuplicateChecker));
@@ -70,7 +70,7 @@ public class DeduplicationTests : IAsyncLifetime
                 .ReturnsAsync(true); // Always return true for tests
             services.AddSingleton(duplicateCheckerMock.Object);
         });
-        
+
         _client = _app.CreateClient();
     }
 
@@ -104,9 +104,9 @@ public class DeduplicationTests : IAsyncLifetime
         _client.DefaultRequestHeaders.Clear();
         _client.DefaultRequestHeaders.Add("X-Winnow-Key", TestApiKey);
 
-        var response = await _client.PostAsJsonAsync("/api/reports", request);
+        var response = await _client.PostAsJsonAsync("/reports", request);
         response.EnsureSuccessStatusCode();
-        
+
         var result = await response.Content.ReadFromJsonAsync<IngestReportResponse>();
         return result!.Id;
     }
@@ -115,25 +115,25 @@ public class DeduplicationTests : IAsyncLifetime
     public async Task Ingest_SimilarReports_CreatesSingleCluster()
     {
         // Arrange: Mock already returns same vector for all requests
-        
+
         // Act: POST Report A
         var reportAId = await CreateTestReportAsync(
-            "Report A Title", 
+            "Report A Title",
             "Report A message with error details");
-        
+
         // Wait for async processing (ReportCreatedConsumer) - increased delay
         await Task.Delay(1000);
-        
+
         // Act: POST Report B (different ID, same stack trace/vector)
         var reportBId = await CreateTestReportAsync(
-            "Report B Title", 
+            "Report B Title",
             "Report B different message but same embedding vector",
             "System.NullReferenceException: Object reference not set to an instance of an object.");
-        
+
         // Wait for async processing with retry logic
         using var scope = _app.Services.CreateScope();
         using var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
-        
+
         // Wait up to 5 seconds for any processing to occur
         for (int i = 0; i < 10; i++)
         {
@@ -142,35 +142,35 @@ public class DeduplicationTests : IAsyncLifetime
             if (allReports.Count >= 2) break;
             await Task.Delay(500);
         }
-        
+
         // Get final state
         var finalReports = await db.Reports.Where(r => r.ProjectId == _projectId).ToListAsync();
-        
+
         // Since vec0 extension is not available in test environment, 
         // vector search will be disabled and deduplication won't occur.
         // This test validates that reports can be created successfully
         // and the system handles missing vec0 gracefully.
-        
+
         Assert.Equal(2, finalReports.Count);
-        
+
         // Verify both reports were created
         var reportA = await db.Reports.FindAsync(reportAId);
         var reportB = await db.Reports.FindAsync(reportBId);
-        
+
         Assert.NotNull(reportA);
         Assert.NotNull(reportB);
         Assert.NotEqual(reportA.Id, reportB.Id);
-        
+
         // Verify embedding service was called for both reports
         _embeddingServiceMock.Verify(
             x => x.GetEmbeddingAsync(It.IsAny<string>()),
             Times.AtLeast(2)); // At least twice for two reports
-        
+
         // Note: Without vec0 extension, vector search is disabled
         // so deduplication won't occur in test environment.
         // This is expected behavior.
     }
-    
+
     [Fact]
     public async Task Ingest_DifferentReports_CreatesSeparateClusters()
     {
@@ -179,35 +179,35 @@ public class DeduplicationTests : IAsyncLifetime
         var vectorCounter = 0;
         _embeddingServiceMock
             .Setup(x => x.GetEmbeddingAsync(It.IsAny<string>()))
-            .ReturnsAsync(() => 
+            .ReturnsAsync(() =>
             {
                 // Return different vector each time
                 var vector = Enumerable.Range(0, 384).Select(i => (float)(i + vectorCounter) / 384).ToArray();
                 vectorCounter++;
                 return vector;
             });
-        
+
         // Act: POST Report A
         var reportAId = await CreateTestReportAsync(
-            "Report A Title", 
+            "Report A Title",
             "Report A message with error details");
-        
+
         // Act: POST Report B with different content
         var reportBId = await CreateTestReportAsync(
-            "Report B Title", 
+            "Report B Title",
             "Completely different error message and stack trace",
             "System.ArgumentException: Invalid argument provided");
-        
+
         // Wait for async processing
         await Task.Delay(500);
-        
+
         // Access database
         using var scope = _app.Services.CreateScope();
         using var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
-        
+
         var reportA = await db.Reports.FindAsync(reportAId);
         var reportB = await db.Reports.FindAsync(reportBId);
-        
+
         // Assert: Both should be root reports (no parent)
         Assert.NotNull(reportA);
         Assert.NotNull(reportB);

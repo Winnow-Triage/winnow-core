@@ -91,7 +91,7 @@ public class ReportTests : IAsyncLifetime
         _client.DefaultRequestHeaders.Add("X-Winnow-Key", TestApiKey);
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/reports", request);
+        var response = await _client.PostAsJsonAsync("/reports", request);
 
         // Assert
         Assert.True(response.IsSuccessStatusCode,
@@ -132,7 +132,7 @@ public class ReportTests : IAsyncLifetime
         // Do NOT add the API key header
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/reports", request);
+        var response = await _client.PostAsJsonAsync("/reports", request);
 
         // Assert
         Assert.Equal(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
@@ -152,7 +152,7 @@ public class ReportTests : IAsyncLifetime
         _client.DefaultRequestHeaders.Add("X-Winnow-Key", "invalid-api-key");
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/reports", request);
+        var response = await _client.PostAsJsonAsync("/reports", request);
 
         // Assert
         Assert.Equal(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);

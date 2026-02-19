@@ -13,6 +13,13 @@ public sealed class GetIntegrationConfigDetailEndpoint(WinnowDbContext db) : End
     {
         Get("/integrations/{Id}");
         AllowAnonymous();
+        Summary(s =>
+        {
+            s.Summary = "Get integration details";
+            s.Description = "Retrieves the full configuration for an integration, including masked settings.";
+            s.Response<UpsertIntegrationConfigRequest>(200, "Integration details");
+            s.Response(404, "Integration not found");
+        });
     }
 
     public override async Task HandleAsync(CancellationToken ct)

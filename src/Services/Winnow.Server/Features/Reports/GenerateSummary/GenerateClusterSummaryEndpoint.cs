@@ -7,8 +7,14 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Reports.GenerateSummary;
 
+/// <summary>
+/// Request to generate an AI summary for a cluster.
+/// </summary>
 public class GenerateClusterSummaryRequest
 {
+    /// <summary>
+    /// ID of the cluster/report to summarize.
+    /// </summary>
     public Guid Id { get; set; }
 }
 
@@ -17,6 +23,14 @@ public sealed class GenerateClusterSummaryEndpoint(WinnowDbContext db, IClusterS
     public override void Configure()
     {
         Post("/reports/{Id}/generate-summary");
+        Summary(s =>
+        {
+            s.Summary = "Generate cluster summary";
+            s.Description = "Triggers AI generation of a summary and criticality score for a report cluster.";
+            s.Response<ActionResponse>(200, "Summary generated successfully");
+            s.Response(404, "Report not found");
+            s.Response(500, "AI generation failed");
+        });
     }
 
     public override async Task HandleAsync(GenerateClusterSummaryRequest req, CancellationToken ct)
@@ -43,7 +57,7 @@ public sealed class GenerateClusterSummaryEndpoint(WinnowDbContext db, IClusterS
         var userOwnsProject = await db.Projects
             .AsNoTracking()
             .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
-        
+
         if (!userOwnsProject)
         {
             ThrowError("Project not found or access denied", 404);

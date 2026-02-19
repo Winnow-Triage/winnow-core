@@ -9,20 +9,60 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Auth;
 
+/// <summary>
+/// Registration request data.
+/// </summary>
 public class RegisterRequest
 {
+    /// <summary>
+    /// User's full name.
+    /// </summary>
     public string FullName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// User's email address (used as username).
+    /// </summary>
     public string Email { get; set; } = string.Empty;
+
+    /// <summary>
+    /// User's password.
+    /// </summary>
     public string Password { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Authentication response containing token and user info.
+/// </summary>
 public class AuthResponse
 {
+    /// <summary>
+    /// JWT Access Token.
+    /// </summary>
     public string Token { get; set; } = string.Empty;
+
+    /// <summary>
+    /// User's unique identifier.
+    /// </summary>
     public string UserId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// User's email address.
+    /// </summary>
     public string Email { get; set; } = string.Empty;
+
+    /// <summary>
+    /// User's full name.
+    /// </summary>
     public string FullName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// ID of the user's default project.
+    /// </summary>
     public Guid DefaultProjectId { get; set; }
+
+    /// <summary>
+    /// API Key for the default project.
+    /// </summary>
     public string ApiKey { get; set; } = string.Empty;
 }
 
@@ -35,6 +75,13 @@ public sealed class RegisterEndpoint(
     {
         Post("/auth/register");
         AllowAnonymous();
+        Summary(s =>
+        {
+            s.Summary = "Register a new user";
+            s.Description = "Creates a new user account and a default project, returning authentication details.";
+            s.Response<AuthResponse>(200, "Registration successful");
+            s.Response(400, "Registration failed (e.g. email already in use)");
+        });
     }
 
     public override async Task HandleAsync(RegisterRequest req, CancellationToken ct)

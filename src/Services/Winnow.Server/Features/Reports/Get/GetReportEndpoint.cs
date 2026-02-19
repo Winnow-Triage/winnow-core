@@ -6,57 +6,203 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Reports.Get;
 
+/// <summary>
+/// Request to retrieve a single report.
+/// </summary>
 public class GetReportRequest
 {
+    /// <summary>
+    /// The unique identifier of the report to retrieve.
+    /// </summary>
     public Guid Id { get; set; }
 }
 
+/// <summary>
+/// Detailed response containing report data, assets, and evidence.
+/// </summary>
 public class GetReportResponse
 {
+    /// <summary>
+    /// The unique identifier of the report.
+    /// </summary>
     public Guid Id { get; set; }
+
+    /// <summary>
+    /// The title or subject of the report.
+    /// </summary>
     public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The main message or description of the issue.
+    /// </summary>
     public string Message { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The stack trace associated with the report, if applicable.
+    /// </summary>
     public string? StackTrace { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The current status of the report (e.g., Open, Closed).
+    /// </summary>
     public string Status { get; set; } = string.Empty;
+
+    /// <summary>
+    /// When the report was created.
+    /// </summary>
     public DateTime CreatedAt { get; set; }
 
     // Clustering/Legacy fields
+    /// <summary>
+    /// ID of the parent report if this is part of a cluster.
+    /// </summary>
     public Guid? ParentReportId { get; set; }
+
+    /// <summary>
+    /// Username or ID of the user assigned to this report.
+    /// </summary>
     public string? AssignedTo { get; set; }
+
+    /// <summary>
+    /// AI-generated summary of the report.
+    /// </summary>
     public string? Summary { get; set; }
+
+    /// <summary>
+    /// AI-calculated confidence score (0-1).
+    /// </summary>
     public float? ConfidenceScore { get; set; }
+
+    /// <summary>
+    /// Criticality score (1-100).
+    /// </summary>
     public int? CriticalityScore { get; set; }
+
+    /// <summary>
+    /// Reasoning behind the criticality score.
+    /// </summary>
     public string? CriticalityReasoning { get; set; }
+
+    /// <summary>
+    /// Message from the parent report, if applicable.
+    /// </summary>
     public string? ParentReportMessage { get; set; }
+
+    /// <summary>
+    /// Standardized suggested parent ID from analysis.
+    /// </summary>
     public Guid? SuggestedParentId { get; set; }
+
+    /// <summary>
+    /// Confidence score for the suggested parent.
+    /// </summary>
     public float? SuggestedConfidenceScore { get; set; }
+
+    /// <summary>
+    /// Message from the suggested parent report.
+    /// </summary>
     public string? SuggestedParentMessage { get; set; }
+
+    /// <summary>
+    /// JSON metadata string.
+    /// </summary>
     public string? Metadata { get; set; }
+
+    /// <summary>
+    /// URL or path to a screenshot.
+    /// </summary>
     public string? Screenshot { get; set; }
+
+    /// <summary>
+    /// External link related to the report.
+    /// </summary>
     public Uri? ExternalUrl { get; set; }
 
+    /// <summary>
+    /// List of associated assets/files.
+    /// </summary>
     public List<AssetDto> Assets { get; set; } = [];
+
+    /// <summary>
+    /// Related reports providing evidence or context.
+    /// </summary>
     public List<RelatedReportDto> Evidence { get; set; } = [];
 }
 
+/// <summary>
+/// Represents a file asset attached to a report.
+/// </summary>
 public class AssetDto
 {
+    /// <summary>
+    /// Unique identifier for the asset.
+    /// </summary>
     public Guid Id { get; set; }
+
+    /// <summary>
+    /// Original file name.
+    /// </summary>
     public string FileName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// MIME type of the file.
+    /// </summary>
     public string ContentType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// File size in bytes.
+    /// </summary>
     public long SizeBytes { get; set; }
+
+    /// <summary>
+    /// Scan status: Pending, Clean, Infected, Failed.
+    /// </summary>
     public string Status { get; set; } = string.Empty; // Pending, Clean, Infected, Failed
+
+    /// <summary>
+    /// Temporary download URL (if clean).
+    /// </summary>
     public Uri? DownloadUrl { get; set; } // Presigned URL, only for Clean assets
+
+    /// <summary>
+    /// When the asset was uploaded.
+    /// </summary>
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>
+    /// When the asset was scanned by antivirus.
+    /// </summary>
     public DateTime? ScannedAt { get; set; }
 }
 
+/// <summary>
+/// A related report used as evidence.
+/// </summary>
 public class RelatedReportDto
 {
+    /// <summary>
+    /// Unique identifier of the related report.
+    /// </summary>
     public Guid Id { get; set; }
+
+    /// <summary>
+    /// Brief message from the related report.
+    /// </summary>
     public string Message { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Status of the related report.
+    /// </summary>
     public string Status { get; set; } = string.Empty;
+
+    /// <summary>
+    /// When the related report was created.
+    /// </summary>
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>
+    /// Relevance score to the main report.
+    /// </summary>
     public float? ConfidenceScore { get; set; }
 }
 
@@ -66,6 +212,13 @@ public sealed class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services
     {
         Get("/reports/{id}");
         Description(x => x.WithName("GetReport"));
+        Summary(s =>
+        {
+            s.Summary = "Retrieve a specific report";
+            s.Description = "Fetches a report by its ID, including metadata, assets, and evidence.";
+            s.Response<GetReportResponse>(200, "The requested report");
+            s.Response(404, "Report not found");
+        });
     }
 
     public override async Task HandleAsync(GetReportRequest req, CancellationToken ct)

@@ -6,8 +6,14 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Reports.SuggestActions;
 
+/// <summary>
+/// Request to accept a suggested cluster merge.
+/// </summary>
 public class AcceptSuggestionRequest
 {
+    /// <summary>
+    /// ID of the report with the suggestion to accept.
+    /// </summary>
     public Guid Id { get; set; }
 }
 
@@ -16,6 +22,14 @@ public sealed class AcceptSuggestionEndpoint(WinnowDbContext db) : Endpoint<Acce
     public override void Configure()
     {
         Post("/reports/{Id}/accept-suggestion");
+        Summary(s =>
+        {
+            s.Summary = "Accept clustering suggestion";
+            s.Description = "Accepts the AI-suggested parent for a report, merging it into the cluster.";
+            s.Response<ActionResponse>(200, "Suggestion accepted successfully");
+            s.Response(400, "Invalid suggestion or circular reference");
+            s.Response(404, "Report or suggested parent not found");
+        });
     }
 
     public override async Task HandleAsync(AcceptSuggestionRequest req, CancellationToken ct)
@@ -42,7 +56,7 @@ public sealed class AcceptSuggestionEndpoint(WinnowDbContext db) : Endpoint<Acce
         var userOwnsProject = await db.Projects
             .AsNoTracking()
             .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
-        
+
         if (!userOwnsProject)
         {
             ThrowError("Project not found or access denied", 404);

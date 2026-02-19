@@ -2,9 +2,9 @@ using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
 using Winnow.Server.Services.Storage;
-using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Tests.Integration;
 
@@ -22,19 +22,19 @@ public class GetReportsTests : IAsyncLifetime
     {
         _embeddingServiceMock = new Mock<IEmbeddingService>();
         _storageServiceMock = new Mock<IStorageService>();
-        
+
         // Configure mocks
         _embeddingServiceMock
             .Setup(x => x.GetEmbeddingAsync(It.IsAny<string>()))
             .ReturnsAsync(() => [.. Enumerable.Range(0, 384).Select(i => (float)i / 384)]);
-        
+
         _storageServiceMock
             .Setup(x => x.UploadFileAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), 
-                It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), 
+                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+                It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("test-s3-key");
-        
+
         // Create the test application with mocked services using constructor
         _app = new WinnowTestApp(services =>
         {
@@ -46,7 +46,7 @@ public class GetReportsTests : IAsyncLifetime
                 services.Remove(embeddingDescriptor);
             }
             services.AddSingleton(_embeddingServiceMock.Object);
-            
+
             // Replace IStorageService with mock
             var storageDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(IStorageService));
@@ -56,7 +56,7 @@ public class GetReportsTests : IAsyncLifetime
             }
             services.AddSingleton(_storageServiceMock.Object);
         });
-        
+
         _client = _app.CreateClient();
     }
 
@@ -64,7 +64,7 @@ public class GetReportsTests : IAsyncLifetime
     {
         // Create a test project in the database
         _projectId = await _app.CreateTestProjectAsync(TestApiKey);
-        
+
         // Get the user ID from the created project
         using var scope = _app.Services.CreateScope();
         using var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
@@ -103,9 +103,9 @@ public class GetReportsTests : IAsyncLifetime
         _client.DefaultRequestHeaders.Clear();
         _client.DefaultRequestHeaders.Add("X-Winnow-Key", TestApiKey);
 
-        var response = await _client.PostAsJsonAsync("/api/reports", request);
+        var response = await _client.PostAsJsonAsync("/reports", request);
         response.EnsureSuccessStatusCode();
-        
+
         var result = await response.Content.ReadFromJsonAsync<Winnow.Server.Features.Reports.Create.IngestReportResponse>();
         return result!.Id;
     }
@@ -128,7 +128,7 @@ public class GetReportsTests : IAsyncLifetime
         using var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
         var reportsInDb = await db.Reports.Where(r => r.ProjectId == _projectId).ToListAsync();
         Assert.Equal(3, reportsInDb.Count);
-        
+
         // Verify each report has expected fields populated
         foreach (var report in reportsInDb)
         {
@@ -145,7 +145,7 @@ public class GetReportsTests : IAsyncLifetime
         // Arrange: Create a report in Project A and one in Project B
         var projectAId = await _app.CreateTestProjectAsync("project-a-key");
         var projectBId = await _app.CreateTestProjectAsync("project-b-key");
-        
+
         // Create report in Project A
         _client.DefaultRequestHeaders.Clear();
         _client.DefaultRequestHeaders.Add("X-Winnow-Key", "project-a-key");
@@ -154,11 +154,11 @@ public class GetReportsTests : IAsyncLifetime
             Title = "Project A Report",
             Message = "Message for Project A"
         };
-        var responseA = await _client.PostAsJsonAsync("/api/reports", requestA);
+        var responseA = await _client.PostAsJsonAsync("/reports", requestA);
         responseA.EnsureSuccessStatusCode();
         var resultA = await responseA.Content.ReadFromJsonAsync<Winnow.Server.Features.Reports.Create.IngestReportResponse>();
         var reportAId = resultA!.Id;
-        
+
         // Create report in Project B  
         _client.DefaultRequestHeaders.Clear();
         _client.DefaultRequestHeaders.Add("X-Winnow-Key", "project-b-key");
@@ -167,7 +167,7 @@ public class GetReportsTests : IAsyncLifetime
             Title = "Project B Report",
             Message = "Message for Project B"
         };
-        var responseB = await _client.PostAsJsonAsync("/api/reports", requestB);
+        var responseB = await _client.PostAsJsonAsync("/reports", requestB);
         responseB.EnsureSuccessStatusCode();
         var resultB = await responseB.Content.ReadFromJsonAsync<Winnow.Server.Features.Reports.Create.IngestReportResponse>();
         var reportBId = resultB!.Id;
@@ -175,23 +175,23 @@ public class GetReportsTests : IAsyncLifetime
         // Act & Assert: Verify each report is stored in the correct project
         using var scope = _app.Services.CreateScope();
         using var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
-        
+
         // Check Project A's reports
         var projectAReports = await db.Reports.Where(r => r.ProjectId == projectAId).ToListAsync();
         Assert.Single(projectAReports);
         Assert.Equal(reportAId, projectAReports[0].Id);
         Assert.Equal("Project A Report", projectAReports[0].Title);
-        
+
         // Check Project B's reports  
         var projectBReports = await db.Reports.Where(r => r.ProjectId == projectBId).ToListAsync();
         Assert.Single(projectBReports);
         Assert.Equal(reportBId, projectBReports[0].Id);
         Assert.Equal("Project B Report", projectBReports[0].Title);
-        
+
         // Verify reports are not mixed between projects
         var allReports = await db.Reports.Where(r => r.ProjectId == projectAId || r.ProjectId == projectBId).ToListAsync();
         Assert.Equal(2, allReports.Count);
-        
+
         var projectAReportIds = projectAReports.Select(r => r.Id).ToHashSet();
         var projectBReportIds = projectBReports.Select(r => r.Id).ToHashSet();
         Assert.DoesNotContain(reportAId, projectBReportIds);

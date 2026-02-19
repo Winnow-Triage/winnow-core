@@ -10,6 +10,14 @@ public sealed class GetDashboardMetricsEndpoint(IDashboardService dashboardServi
     public override void Configure()
     {
         Get("/dashboard/metrics");
+        Summary(s =>
+        {
+            s.Summary = "Get dashboard metrics";
+            s.Description = "Retrieves aggregated metrics for the project dashboard (e.g., usage, error rates).";
+            s.Response<DashboardMetricsDto>(200, "Metrics data");
+            s.Response(400, "Invalid project ID");
+            s.Response(401, "Unauthorized");
+        });
     }
 
     public override async Task HandleAsync(CancellationToken ct)
@@ -36,7 +44,7 @@ public sealed class GetDashboardMetricsEndpoint(IDashboardService dashboardServi
         var userOwnsProject = await dbContext.Projects
             .AsNoTracking()
             .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
-        
+
         if (!userOwnsProject)
         {
             ThrowError("Project not found or access denied", 404);

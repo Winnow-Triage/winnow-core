@@ -475,7 +475,7 @@ export function initUI(config: WinnowConfig) {
                 headers['X-Tenant-Id'] = config.tenantId;
             }
 
-            const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/api/reports`, {
+            const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/reports`, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify(payload)

@@ -7,10 +7,20 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Reports.Merge;
 
+/// <summary>
+/// Request to merge multiple clusters/reports into a target cluster.
+/// </summary>
 public class MergeClustersRequest
 {
-    public Guid Id { get; set; } // Target Cluster (Parent)
-    public List<Guid> SourceIds { get; set; } = new(); // Source Clusters/Reports to merge INTO target
+    /// <summary>
+    /// The target report/cluster ID that others will be merged INTO.
+    /// </summary>
+    public Guid Id { get; set; }
+
+    /// <summary>
+    /// List of source report IDs to merge into the target.
+    /// </summary>
+    public List<Guid> SourceIds { get; set; } = new();
 }
 
 public sealed class MergeClustersEndpoint(WinnowDbContext db) : Endpoint<MergeClustersRequest, ActionResponse>
@@ -18,6 +28,13 @@ public sealed class MergeClustersEndpoint(WinnowDbContext db) : Endpoint<MergeCl
     public override void Configure()
     {
         Post("/reports/{Id}/merge");
+        Summary(s =>
+        {
+            s.Summary = "Merge clusters";
+            s.Description = "Merges multiple source reports/clusters into a single target cluster. Source reports are marked as Duplicate.";
+            s.Response<ActionResponse>(200, "Clusters merged successfully");
+            s.Response(404, "Target report not found");
+        });
     }
 
     public override async Task HandleAsync(MergeClustersRequest req, CancellationToken ct)
@@ -44,7 +61,7 @@ public sealed class MergeClustersEndpoint(WinnowDbContext db) : Endpoint<MergeCl
         var userOwnsProject = await db.Projects
             .AsNoTracking()
             .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
-        
+
         if (!userOwnsProject)
         {
             ThrowError("Project not found or access denied", 404);

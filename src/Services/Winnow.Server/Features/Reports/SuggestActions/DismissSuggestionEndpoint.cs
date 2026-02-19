@@ -2,14 +2,20 @@ using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Features.Shared;
+using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
-using Winnow.Server.Infrastructure.MultiTenancy;
 
 namespace Winnow.Server.Features.Reports.SuggestActions;
 
+/// <summary>
+/// Request to dismiss a clustering suggestion.
+/// </summary>
 public class DismissSuggestionRequest
 {
+    /// <summary>
+    /// If true, records a negative match to prevent future suggestions.
+    /// </summary>
     public bool RejectMatch { get; set; }
 }
 
@@ -18,6 +24,13 @@ public sealed class DismissSuggestionEndpoint(WinnowDbContext db, INegativeMatch
     public override void Configure()
     {
         Post("/reports/{Id}/dismiss-suggestion");
+        Summary(s =>
+        {
+            s.Summary = "Dismiss clustering suggestion";
+            s.Description = "Dismisses the AI-suggested parent for a report. Optionally learns from the rejection.";
+            s.Response<ActionResponse>(200, "Suggestion dismissed");
+            s.Response(404, "Report not found");
+        });
     }
 
     public override async Task HandleAsync(DismissSuggestionRequest req, CancellationToken ct)
@@ -44,7 +57,7 @@ public sealed class DismissSuggestionEndpoint(WinnowDbContext db, INegativeMatch
         var userOwnsProject = await db.Projects
             .AsNoTracking()
             .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
-        
+
         if (!userOwnsProject)
         {
             ThrowError("Project not found or access denied", 404);
@@ -53,7 +66,7 @@ public sealed class DismissSuggestionEndpoint(WinnowDbContext db, INegativeMatch
         var reportId = Route<Guid>("Id");
         var report = await db.Reports
             .FirstOrDefaultAsync(r => r.Id == reportId && r.ProjectId == projectId, ct);
-        
+
         if (report == null)
         {
             await Send.NotFoundAsync(ct);

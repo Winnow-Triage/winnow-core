@@ -169,7 +169,10 @@ internal static class ServiceExtensions
 
         // FastEndpoints
         services.AddFastEndpoints();
-        services.SwaggerDocument();
+        services.SwaggerDocument(o =>
+        {
+            o.ShortSchemaNames = true;
+        });
         services.AddAuthorization();
 
         // Rate Limiting

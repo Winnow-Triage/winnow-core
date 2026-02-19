@@ -6,8 +6,14 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Reports.Close;
 
+/// <summary>
+/// Request to close a cluster of reports.
+/// </summary>
 public class CloseClusterRequest
 {
+    /// <summary>
+    /// ID of any report within the cluster to close.
+    /// </summary>
     public Guid Id { get; set; }
 }
 
@@ -16,6 +22,13 @@ public sealed class CloseClusterEndpoint(WinnowDbContext db) : Endpoint<CloseClu
     public override void Configure()
     {
         Post("/reports/{id}/close-cluster");
+        Summary(s =>
+        {
+            s.Summary = "Close a cluster of reports";
+            s.Description = "Closes all reports in the same cluster as the specified report ID.";
+            s.Response<ActionResponse>(200, "Cluster closed successfully");
+            s.Response(404, "Report not found");
+        });
     }
 
     public override async Task HandleAsync(CloseClusterRequest req, CancellationToken ct)
@@ -42,7 +55,7 @@ public sealed class CloseClusterEndpoint(WinnowDbContext db) : Endpoint<CloseClu
         var userOwnsProject = await db.Projects
             .AsNoTracking()
             .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
-        
+
         if (!userOwnsProject)
         {
             ThrowError("Project not found or access denied", 404);

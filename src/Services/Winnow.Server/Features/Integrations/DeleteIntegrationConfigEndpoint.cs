@@ -9,6 +9,13 @@ public sealed class DeleteIntegrationConfigEndpoint(WinnowDbContext db) : Endpoi
     {
         Delete("/integrations/{id}");
         AllowAnonymous();
+        Summary(s =>
+        {
+            s.Summary = "Delete integration";
+            s.Description = "Permanently removes an integration configuration.";
+            s.Response(200, "Integration deleted");
+            s.Response(404, "Integration not found");
+        });
     }
 
     public override async Task HandleAsync(CancellationToken ct)

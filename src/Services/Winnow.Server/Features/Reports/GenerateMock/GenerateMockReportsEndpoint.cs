@@ -12,9 +12,19 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Reports.GenerateMock;
 
+/// <summary>
+/// Request to generate mock data.
+/// </summary>
 public class GenerateMockReportsRequest
 {
+    /// <summary>
+    /// Number of reports to generate.
+    /// </summary>
     public int Count { get; set; } = 5;
+
+    /// <summary>
+    /// Contextual scenario for AI generation.
+    /// </summary>
     public string? Scenario { get; set; }
 }
 
@@ -34,6 +44,13 @@ public sealed class GenerateMockReportsEndpoint(
     public override void Configure()
     {
         Post("/reports/generate-mock");
+        Summary(s =>
+        {
+            s.Summary = "Generate mock reports";
+            s.Description = "Generates synthetic reports using AI for testing and demonstration purposes.";
+            s.Response(200, "Mock reports generated successfully");
+            s.Response(400, "Generation failed");
+        });
     }
 
     public override async Task HandleAsync(GenerateMockReportsRequest req, CancellationToken ct)
@@ -60,7 +77,7 @@ public sealed class GenerateMockReportsEndpoint(
         var userOwnsProject = await db.Projects
             .AsNoTracking()
             .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
-        
+
         if (!userOwnsProject)
         {
             ThrowError("Project not found or access denied", 404);
@@ -137,5 +154,5 @@ public sealed class GenerateMockReportsEndpoint(
         }
     }
 
-public record MockReportDto(string Title, string Message);
+    public record MockReportDto(string Title, string Message);
 }

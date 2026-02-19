@@ -5,12 +5,30 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Assets;
 
+/// <summary>
+/// Request to update an asset's vulnerability scan status.
+/// </summary>
 public class UpdateAssetStatusRequest
 {
+    /// <summary>
+    /// The original S3 key of the asset.
+    /// </summary>
     public string S3Key { get; set; } = default!;
-    public string Status { get; set; } = default!; // "Clean", "Infected", "Failed"
-    public string? NewS3Key { get; set; } // New key after Bouncer moves to clean bucket
-    public string? ContentType { get; set; } // Actual detected MIME type (may differ from upload)
+
+    /// <summary>
+    /// New status: Clean, Infected, or Failed.
+    /// </summary>
+    public string Status { get; set; } = default!;
+
+    /// <summary>
+    /// New S3 key if the asset was moved (e.g. from quarantine to clean bucket).
+    /// </summary>
+    public string? NewS3Key { get; set; }
+
+    /// <summary>
+    /// Detected MIME type.
+    /// </summary>
+    public string? ContentType { get; set; }
 }
 
 public sealed class UpdateAssetStatusEndpoint(
@@ -19,9 +37,17 @@ public sealed class UpdateAssetStatusEndpoint(
 {
     public override void Configure()
     {
-        Post("/api/internal/assets/status");
+        Post("/assets/status");
         AllowAnonymous(); // TODO: Lock down with X-Bouncer-Secret header
         Description(b => b.WithName("UpdateAssetStatus"));
+        Summary(s =>
+        {
+            s.Summary = "Update asset status";
+            s.Description = "Internal Callback: Updates the status of an asset after virus scanning.";
+            s.Response(204, "Status updated");
+            s.Response(400, "Invalid status");
+            s.Response(404, "Asset not found");
+        });
     }
 
     public override async Task HandleAsync(UpdateAssetStatusRequest req, CancellationToken ct)

@@ -4,6 +4,12 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Integrations;
 
+/// <summary>
+/// Summary of an integration configuration.
+/// </summary>
+/// <param name="Id">Configuration ID.</param>
+/// <param name="Provider">Provider name (e.g., Jira, GitHub).</param>
+/// <param name="Name">Display name.</param>
 public record IntegrationDto(Guid Id, string Provider, string Name);
 
 public sealed class GetIntegrationConfigsEndpoint(WinnowDbContext db) : EndpointWithoutRequest<List<IntegrationDto>>
@@ -12,6 +18,12 @@ public sealed class GetIntegrationConfigsEndpoint(WinnowDbContext db) : Endpoint
     {
         Get("/integrations");
         AllowAnonymous();
+        Summary(s =>
+        {
+            s.Summary = "List integrations";
+            s.Description = "Retrieves a list of all active integration configurations.";
+            s.Response<List<IntegrationDto>>(200, "List of integrations");
+        });
     }
 
     public override async Task HandleAsync(CancellationToken ct)
@@ -27,7 +39,7 @@ public sealed class GetIntegrationConfigsEndpoint(WinnowDbContext db) : Endpoint
             // In a real app, we might parse Config to get a user-friendly name (e.g. Board Name)
             // For now, return Provider name.
             var dtos = integrations.Select(i => new IntegrationDto(i.Id, i.Provider, $"{i.Provider} Integration")).ToList();
-            
+
             await Send.OkAsync(dtos, cancellation: ct);
         }
         catch

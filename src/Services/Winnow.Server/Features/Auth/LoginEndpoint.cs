@@ -10,9 +10,19 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Auth;
 
+/// <summary>
+/// Credentials for logging in.
+/// </summary>
 public class LoginRequest
 {
+    /// <summary>
+    /// User's email address.
+    /// </summary>
     public string Email { get; set; } = string.Empty;
+
+    /// <summary>
+    /// User's password.
+    /// </summary>
     public string Password { get; set; } = string.Empty;
 }
 
@@ -25,6 +35,13 @@ public sealed class LoginEndpoint(
     {
         Post("/auth/login");
         AllowAnonymous();
+        Summary(s =>
+        {
+            s.Summary = "Log in to the application";
+            s.Description = "Authenticates a user and returns a JWT token along with project details.";
+            s.Response<AuthResponse>(200, "Login successful");
+            s.Response(400, "Invalid credentials or request");
+        });
     }
 
     public override async Task HandleAsync(LoginRequest req, CancellationToken ct)
@@ -47,17 +64,17 @@ public sealed class LoginEndpoint(
             .Where(p => p.OwnerId == user.Id)
             .OrderBy(p => p.CreatedAt)
             .FirstOrDefaultAsync(ct);
-            
+
         // If no project exists (legacy user?), create one on the fly? Or just return null/empty.
         // For now, let's assume one exists or create a fallback.
         if (project == null)
         {
-             project = new Project
+            project = new Project
             {
                 Id = Guid.NewGuid(),
                 Name = "Personal Project",
                 OwnerId = user.Id,
-                ApiKey = $"wm_live_{Guid.NewGuid().ToString("N")[..20]}" 
+                ApiKey = $"wm_live_{Guid.NewGuid().ToString("N")[..20]}"
             };
             dbContext.Projects.Add(project);
             await dbContext.SaveChangesAsync(ct);
@@ -93,7 +110,7 @@ public sealed class LoginEndpoint(
             Subject = new ClaimsIdentity(claims),
             Expires = DateTime.UtcNow.AddDays(7),
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
-             Issuer = jwtSettings["Issuer"],
+            Issuer = jwtSettings["Issuer"],
             Audience = jwtSettings["Audience"]
         };
 

@@ -6,8 +6,14 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Projects;
 
+/// <summary>
+/// Request to create a new project.
+/// </summary>
 public class CreateProjectRequest
 {
+    /// <summary>
+    /// Name of the new project.
+    /// </summary>
     public string Name { get; set; } = default!;
 }
 
@@ -16,6 +22,13 @@ public sealed class CreateProjectEndpoint(WinnowDbContext dbContext) : Endpoint<
     public override void Configure()
     {
         Post("/projects");
+        Summary(s =>
+        {
+            s.Summary = "Create a new project";
+            s.Description = "Creates a new project for the authenticated user and generates an API key.";
+            s.Response<ProjectDto>(200, "Project created successfully");
+            s.Response(401, "Unauthorized");
+        });
         // Authorized users only
     }
 

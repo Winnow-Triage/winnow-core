@@ -5,6 +5,20 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Reports.List;
 
+/// <summary>
+/// Item in the review queue requiring attention.
+/// </summary>
+/// <param name="ReportId">ID of the report to review.</param>
+/// <param name="ReportTitle">Title of the report.</param>
+/// <param name="ReportMessage">Message of the report.</param>
+/// <param name="ReportStackTrace">Stack trace of the report.</param>
+/// <param name="ReportAssignedTo">User assigned to the report.</param>
+/// <param name="ReportCreatedAt">Creation timestamp.</param>
+/// <param name="SuggestedParentId">ID of the suggested parent report.</param>
+/// <param name="SuggestedParentTitle">Title of the suggested parent.</param>
+/// <param name="SuggestedParentMessage">Message of the suggested parent.</param>
+/// <param name="SuggestedParentStackTrace">Stack trace of the suggested parent.</param>
+/// <param name="ConfidenceScore">Confidence in the suggestion.</param>
 public record ReviewItemDto(
     Guid ReportId,
     string ReportTitle,
@@ -24,6 +38,13 @@ public sealed class GetReviewQueueEndpoint(WinnowDbContext db) : EndpointWithout
     public override void Configure()
     {
         Get("/reports/review-queue");
+        Summary(s =>
+        {
+            s.Summary = "Get backlog review queue";
+            s.Description = "Retrieves reports that have suggested parents (clusters) pending review.";
+            s.Response<List<ReviewItemDto>>(200, "List of review items");
+            s.Response(401, "Unauthorized");
+        });
     }
 
     public override async Task HandleAsync(CancellationToken ct)
@@ -50,7 +71,7 @@ public sealed class GetReviewQueueEndpoint(WinnowDbContext db) : EndpointWithout
         var userOwnsProject = await db.Projects
             .AsNoTracking()
             .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
-        
+
         if (!userOwnsProject)
         {
             ThrowError("Project not found or access denied", 404);

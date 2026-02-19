@@ -8,15 +8,35 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Debug;
 
+/// <summary>
+/// Request to simulate traffic for debugging.
+/// </summary>
 public class SimulateTrafficRequest
 {
+    /// <summary>
+    /// Number of events/reports to generate.
+    /// </summary>
     public int Count { get; set; } = 5;
+
+    /// <summary>
+    /// Topic/Scenario to simulate (e.g., "Login Failure").
+    /// </summary>
     public string Topic { get; set; } = "Login Failure";
 }
 
+/// <summary>
+/// Response from simulation.
+/// </summary>
 public class SimulateTrafficResponse
 {
+    /// <summary>
+    /// Result message.
+    /// </summary>
     public string Message { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Number of items generated.
+    /// </summary>
     public int Count { get; set; }
 }
 
@@ -29,6 +49,13 @@ public sealed class SimulateTrafficEndpoint(
     public override void Configure()
     {
         Post("/debug/simulate-traffic");
+        Summary(s =>
+        {
+            s.Summary = "Simulate traffic";
+            s.Description = "Generates synthetic traffic/reports for testing purposes.";
+            s.Response<SimulateTrafficResponse>(200, "Simulation started");
+            s.Response(401, "Unauthorized");
+        });
     }
 
     public override async Task HandleAsync(SimulateTrafficRequest req, CancellationToken ct)

@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>1520d6bf-ee1b-41e1-a1a4-7a4784c15e56</UserSecretsId>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -52,7 +53,7 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <NoWarn>$(NoWarn);CA2007;CA1848;CA1515;CA1852;CA1812</NoWarn>
+    <NoWarn>$(NoWarn);CA2007;CA1848;CA1515;CA1852;CA1812;CS1591</NoWarn>
   </PropertyGroup>
 
 </Project>

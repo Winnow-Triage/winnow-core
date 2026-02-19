@@ -10,12 +10,34 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Reports.Create;
 
+/// <summary>
+/// Data required to ingest a new report.
+/// </summary>
 public class IngestReportRequest
 {
+    /// <summary>
+    /// Title of the report.
+    /// </summary>
     public string Title { get; set; } = default!;
+
+    /// <summary>
+    /// Detailed message or description.
+    /// </summary>
     public string Message { get; set; } = default!;
+
+    /// <summary>
+    /// Optional stack trace.
+    /// </summary>
     public string? StackTrace { get; set; }
+
+    /// <summary>
+    /// Base64 encoded screenshot image.
+    /// </summary>
     public string? Screenshot { get; set; }
+
+    /// <summary>
+    /// Arbitrary metadata key-value pairs.
+    /// </summary>
     public Dictionary<string, object>? Metadata { get; set; }
 }
 
@@ -40,8 +62,14 @@ internal record ReportCreatedEvent
     public string? TenantId { get; init; }
 }
 
+/// <summary>
+/// Response after successful ingestion.
+/// </summary>
 public record IngestReportResponse
 {
+    /// <summary>
+    /// The ID of the created report.
+    /// </summary>
     public Guid Id { get; init; }
 }
 
@@ -54,11 +82,18 @@ public sealed class IngestReportEndpoint(
 {
     public override void Configure()
     {
-        Post("/api/reports");
+        Post("/reports");
         AllowAnonymous();
         Description(b => b
             .Accepts<IngestReportRequest>("application/json")
             .Produces<IngestReportResponse>(202));
+        Summary(s =>
+        {
+            s.Summary = "Ingest a new report";
+            s.Description = "Accepts a new report via API key authentication. Processes embeddings and screenshots.";
+            s.Response<IngestReportResponse>(202, "Report accepted for processing");
+            s.Response(401, "Invalid API Key");
+        });
     }
 
     public override async Task HandleAsync(IngestReportRequest req, CancellationToken ct)
