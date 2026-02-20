@@ -52,6 +52,16 @@
     <Content Condition="$([MSBuild]::IsOSPlatform('Windows'))" Include="$(NuGetPackageRoot)sqlite-vec/0.1.7-alpha.2.1/runtimes/win-x64/native/vec0.dll" Link="vec0.dll" CopyToOutputDirectory="PreserveNewest" />
 
     <Content Condition="$([MSBuild]::IsOSPlatform('OSX'))" Include="$(NuGetPackageRoot)sqlite-vec/0.1.7-alpha.2.1/runtimes/osx-arm64/native/vec0.dylib" Link="vec0.dylib" CopyToOutputDirectory="PreserveNewest" />
+
+    <!-- ONNX Runtime native libraries -->
+    <Content Condition="$([MSBuild]::IsOSPlatform('Linux'))" Include="$(NuGetPackageRoot)microsoft.ml.onnxruntime/1.24.1/runtimes/linux-x64/native/libonnxruntime.so" Link="libonnxruntime.so" CopyToOutputDirectory="PreserveNewest" />
+    <Content Condition="$([MSBuild]::IsOSPlatform('Linux'))" Include="$(NuGetPackageRoot)microsoft.ml.onnxruntime/1.24.1/runtimes/linux-x64/native/libonnxruntime_providers_shared.so" Link="libonnxruntime_providers_shared.so" CopyToOutputDirectory="PreserveNewest" />
+    
+    <Content Condition="$([MSBuild]::IsOSPlatform('Windows'))" Include="$(NuGetPackageRoot)microsoft.ml.onnxruntime/1.24.1/runtimes/win-x64/native/onnxruntime.dll" Link="onnxruntime.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Content Condition="$([MSBuild]::IsOSPlatform('Windows'))" Include="$(NuGetPackageRoot)microsoft.ml.onnxruntime/1.24.1/runtimes/win-x64/native/onnxruntime_providers_shared.dll" Link="onnxruntime_providers_shared.dll" CopyToOutputDirectory="PreserveNewest" />
+    
+    <Content Condition="$([MSBuild]::IsOSPlatform('OSX'))" Include="$(NuGetPackageRoot)microsoft.ml.onnxruntime/1.24.1/runtimes/osx-arm64/native/libonnxruntime.dylib" Link="libonnxruntime.dylib" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Note: osx-arm64 is the correct directory for macOS Apple Silicon, not osx-x64 -->
   </ItemGroup>
 
   <PropertyGroup>
