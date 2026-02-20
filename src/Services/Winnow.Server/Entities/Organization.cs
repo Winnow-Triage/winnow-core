@@ -16,11 +16,12 @@ public class Organization
     // Helper methods
     public bool IsPaidTier()
     {
-        return SubscriptionTier != "Free";
+        return SubscriptionTier == "Starter" || SubscriptionTier == "Pro" || SubscriptionTier == "Dedicated";
     }
 
-    public bool CanCreateMultipleProjects()
+    public bool CanCreateProject()
     {
+        // Example logic: Free tier gets 3 projects, paid tiers get unlimited
         return IsPaidTier() || SubscriptionTier == "Free" && Teams.SelectMany(t => t.Projects).Count() < 3;
     }
 }

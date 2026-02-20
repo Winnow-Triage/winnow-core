@@ -35,7 +35,7 @@ public class UpdateOrganizationSubscriptionEndpoint(WinnowDbContext dbContext) :
 {
     private static readonly HashSet<string> _allowedTiers = new(StringComparer.OrdinalIgnoreCase)
     {
-        "Free", "Pro", "Enterprise"
+        "Free", "Starter", "Pro", "Dedicated"
     };
 
     public override void Configure()

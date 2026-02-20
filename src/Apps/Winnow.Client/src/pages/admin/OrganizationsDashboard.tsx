@@ -126,9 +126,10 @@ export default function OrganizationsDashboard() {
 
     const getTierBadgeColor = (tier: string) => {
         const t = tier.toLowerCase()
-        if (t === 'pro') return 'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20'
-        if (t === 'enterprise') return 'bg-purple-500/10 text-purple-500 hover:bg-purple-500/20'
-        return 'bg-muted text-muted-foreground hover:bg-muted/80'
+        if (t === 'starter') return 'bg-blue-500/10 text-blue-500 border-blue-500/20 hover:bg-blue-500/20'
+        if (t === 'pro') return 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20 hover:bg-indigo-500/20'
+        if (t === 'dedicated') return 'bg-slate-500/10 text-slate-400 border-slate-500/20 hover:bg-slate-500/20'
+        return 'bg-muted text-foreground hover:bg-muted/80' // Free
     }
 
     // Filter organizations based on search query and selected tier
@@ -162,8 +163,9 @@ export default function OrganizationsDashboard() {
                         <SelectContent className="border-red-900/50">
                             <SelectItem value="All">All Tiers</SelectItem>
                             <SelectItem value="Free">Free</SelectItem>
+                            <SelectItem value="Starter">Starter</SelectItem>
                             <SelectItem value="Pro">Pro</SelectItem>
-                            <SelectItem value="Enterprise">Enterprise</SelectItem>
+                            <SelectItem value="Dedicated">Dedicated</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -248,11 +250,14 @@ export default function OrganizationsDashboard() {
                                                 <DropdownMenuItem onClick={() => handleUpdateTier(org.id, 'Free')} className="hover:bg-red-500/20 focus:bg-red-500/20 cursor-pointer">
                                                     Set to Free
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleUpdateTier(org.id, 'Pro')} className="hover:bg-blue-500/20 hover:text-blue-500 focus:bg-blue-500/20 cursor-pointer">
+                                                <DropdownMenuItem onClick={() => handleUpdateTier(org.id, 'Starter')} className="hover:bg-blue-500/20 hover:text-blue-500 focus:bg-blue-500/20 cursor-pointer">
+                                                    Set to Starter
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleUpdateTier(org.id, 'Pro')} className="hover:bg-indigo-500/20 hover:text-indigo-500 focus:bg-indigo-500/20 cursor-pointer">
                                                     Set to Pro
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleUpdateTier(org.id, 'Enterprise')} className="hover:bg-purple-500/20 hover:text-purple-500 focus:bg-purple-500/20 cursor-pointer">
-                                                    Set to Enterprise
+                                                <DropdownMenuItem onClick={() => handleUpdateTier(org.id, 'Dedicated')} className="hover:bg-slate-500/20 hover:text-slate-400 focus:bg-slate-500/20 cursor-pointer">
+                                                    Set to Dedicated
                                                 </DropdownMenuItem>
 
                                                 <DropdownMenuSeparator className="bg-red-900/30" />

@@ -107,7 +107,7 @@ public sealed class RegisterEndpoint(
         {
             Id = Guid.NewGuid(),
             Name = $"{req.FullName}'s Organization",
-            SubscriptionTier = "free",
+            SubscriptionTier = "Free",
             CreatedAt = DateTime.UtcNow
         };
 
@@ -122,7 +122,7 @@ public sealed class RegisterEndpoint(
 
         dbContext.Organizations.Add(organization);
         dbContext.OrganizationMembers.Add(organizationMember);
-        
+
         // 3. Create Default "Personal" Project
         var project = new Project
         {
@@ -135,7 +135,7 @@ public sealed class RegisterEndpoint(
 
         dbContext.Projects.Add(project);
         await dbContext.SaveChangesAsync(ct);
-        
+
         // Set tenant context
         tenantContext.CurrentOrganizationId = organization.Id;
 

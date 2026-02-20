@@ -63,7 +63,7 @@ public sealed class LoginEndpoint(
         var organizationMemberships = await dbContext.OrganizationMembers
             .Where(om => om.UserId == user.Id)
             .ToListAsync(ct);
-        
+
         if (organizationMemberships.Count == 0)
         {
             // Create a default organization for the user if they don't have one
@@ -71,10 +71,10 @@ public sealed class LoginEndpoint(
             {
                 Id = Guid.NewGuid(),
                 Name = $"{user.FullName}'s Organization",
-                SubscriptionTier = "free",
+                SubscriptionTier = "Free",
                 CreatedAt = DateTime.UtcNow
             };
-            
+
             var organizationMember = new OrganizationMember
             {
                 Id = Guid.NewGuid(),
@@ -83,11 +83,11 @@ public sealed class LoginEndpoint(
                 Role = "owner",
                 JoinedAt = DateTime.UtcNow
             };
-            
+
             dbContext.Organizations.Add(organization);
             dbContext.OrganizationMembers.Add(organizationMember);
             await dbContext.SaveChangesAsync(ct);
-            
+
             organizationMemberships = new List<OrganizationMember> { organizationMember };
         }
 
