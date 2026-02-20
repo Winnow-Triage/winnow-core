@@ -3,7 +3,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace Winnow.Server.Features.Health;
 
-public class HealthEndpoint : EndpointWithoutRequest
+public sealed class HealthEndpoint : EndpointWithoutRequest
 {
     private readonly HealthCheckService _healthCheckService;
 

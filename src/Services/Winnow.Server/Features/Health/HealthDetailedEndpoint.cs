@@ -4,15 +4,8 @@ using Winnow.Server.Infrastructure.HealthChecks;
 
 namespace Winnow.Server.Features.Health;
 
-public class HealthDetailedEndpoint : EndpointWithoutRequest
+public sealed class HealthDetailedEndpoint(HealthCheckService healthCheckService) : EndpointWithoutRequest
 {
-    private readonly HealthCheckService _healthCheckService;
-
-    public HealthDetailedEndpoint(HealthCheckService healthCheckService)
-    {
-        _healthCheckService = healthCheckService;
-    }
-
     public override void Configure()
     {
         Get("/health/detailed");
@@ -29,14 +22,14 @@ public class HealthDetailedEndpoint : EndpointWithoutRequest
     public override async Task HandleAsync(CancellationToken ct)
     {
         // Detailed health check: runs all checks
-        var report = await _healthCheckService.CheckHealthAsync(ct);
+        var report = await healthCheckService.CheckHealthAsync(ct);
 
         // Use the JSON writer utility
         await HealthCheckJsonWriter.WriteHealthCheckResponse(HttpContext, report);
-        
+
         // Set appropriate status code
-        HttpContext.Response.StatusCode = report.Status == HealthStatus.Healthy 
-            ? StatusCodes.Status200OK 
+        HttpContext.Response.StatusCode = report.Status == HealthStatus.Healthy
+            ? StatusCodes.Status200OK
             : StatusCodes.Status503ServiceUnavailable;
     }
 }

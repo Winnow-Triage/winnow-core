@@ -4,15 +4,8 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace Winnow.Server.Features.Health;
 
-public class HealthLiveEndpoint : EndpointWithoutRequest
+public sealed class HealthLiveEndpoint : EndpointWithoutRequest
 {
-    private readonly HealthCheckService _healthCheckService;
-
-    public HealthLiveEndpoint(HealthCheckService healthCheckService)
-    {
-        _healthCheckService = healthCheckService;
-    }
-
     public override void Configure()
     {
         Get("/health/live");
