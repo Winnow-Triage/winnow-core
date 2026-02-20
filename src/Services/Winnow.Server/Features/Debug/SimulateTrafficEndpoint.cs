@@ -56,16 +56,14 @@ public sealed class SimulateTrafficEndpoint(
             s.Response<SimulateTrafficResponse>(200, "Simulation started");
             s.Response(401, "Unauthorized");
         });
+        Options(x => x.RequireAuthorization());
     }
 
     public override async Task HandleAsync(SimulateTrafficRequest req, CancellationToken ct)
     {
         // Get user ID from JWT
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId))
-        {
-            ThrowError("Unauthorized", 401);
-        }
+        if (userId is null) ThrowError("Unauthorized", 401);
 
         // Get project ID from header
         if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader))

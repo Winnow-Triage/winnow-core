@@ -81,7 +81,7 @@ public sealed class LoginEndpoint(
             await dbContext.SaveChangesAsync(ct);
         }
 
-        var token = await GenerateJwt(user);
+        var token = await GenerateJwtAsync(user);
 
         await Send.OkAsync(new AuthResponse
         {
@@ -94,7 +94,7 @@ public sealed class LoginEndpoint(
         });
     }
 
-    private async Task<string> GenerateJwt(ApplicationUser user)
+    private async Task<string> GenerateJwtAsync(ApplicationUser user)
     {
         var jwtSettings = config.GetSection("JwtSettings");
         var key = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? "super_secret_key_at_least_32_chars_long_for_safety");

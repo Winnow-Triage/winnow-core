@@ -30,16 +30,14 @@ public sealed class AcceptSuggestionEndpoint(WinnowDbContext db) : Endpoint<Acce
             s.Response(400, "Invalid suggestion or circular reference");
             s.Response(404, "Report or suggested parent not found");
         });
+        Options(x => x.RequireAuthorization());
     }
 
     public override async Task HandleAsync(AcceptSuggestionRequest req, CancellationToken ct)
     {
         // Get user ID from JWT
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId))
-        {
-            ThrowError("Unauthorized", 401);
-        }
+        if (userId is null) ThrowError("Unauthorized", 401);
 
         // Get project ID from header
         if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader))

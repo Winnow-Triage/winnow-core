@@ -29,16 +29,15 @@ public sealed class CreateProjectEndpoint(WinnowDbContext dbContext) : Endpoint<
             s.Response<ProjectDto>(200, "Project created successfully");
             s.Response(401, "Unauthorized");
         });
+        Options(x => x.RequireAuthorization());
         // Authorized users only
     }
 
     public override async Task HandleAsync(CreateProjectRequest req, CancellationToken ct)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId))
-        {
-            ThrowError("Unauthorized", 401);
-        }
+        if (userId is null) ThrowError("Unauthorized", 401);
+
 
         // Generate API Key (simple implementation for now)
         var apiKey = $"wm_live_{Guid.NewGuid().ToString("N")[..20]}";

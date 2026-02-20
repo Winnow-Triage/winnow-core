@@ -39,9 +39,9 @@ public sealed class UpdateAssetStatusEndpoint(
     public override void Configure()
     {
         Post("/assets/status");
-        AllowAnonymous(); // TODO: Lock down with X-Bouncer-Secret header
+        AllowAnonymous(); // Allowed anonymously but secured by ApiKeyAuthPreProcessor (Bouncer Key)
         PreProcessor<ApiKeyAuthPreProcessor<UpdateAssetStatusRequest>>();
-        AuthSchemes("ApiKey");
+
         Description(b => b.WithName("UpdateAssetStatus"));
         Summary(s =>
         {

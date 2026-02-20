@@ -83,7 +83,7 @@ public sealed class IngestReportEndpoint(
     public override void Configure()
     {
         Post("/reports");
-        AllowAnonymous();
+        AuthSchemes("ApiKey");
         Description(b => b
             .WithName("IngestReport")
             .Accepts<IngestReportRequest>("application/json")
@@ -99,24 +99,9 @@ public sealed class IngestReportEndpoint(
 
     public override async Task HandleAsync(IngestReportRequest req, CancellationToken ct)
     {
-        if (!HttpContext.Request.Headers.TryGetValue("X-Winnow-Key", out var apiKeyValues))
-        {
-            await Send.UnauthorizedAsync(ct);
-            return;
-        }
-
-        var apiKey = apiKeyValues.FirstOrDefault();
-        if (string.IsNullOrEmpty(apiKey))
-        {
-            await Send.UnauthorizedAsync(ct);
-            return;
-        }
-
-        var project = await dbContext.Projects
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.ApiKey == apiKey, ct);
-
-        if (project == null)
+        // Authentication handled by ApiKey scheme
+        var projectIdClaim = User.FindFirst("ProjectId");
+        if (projectIdClaim == null || !Guid.TryParse(projectIdClaim.Value, out var projectId))
         {
             await Send.UnauthorizedAsync(ct);
             return;
@@ -151,7 +136,7 @@ public sealed class IngestReportEndpoint(
                 var currentTenantId = ((TenantContext)dbContext.GetService<ITenantContext>()).TenantId;
                 var s3Key = await storageService.UploadFileAsync(
                     Guid.Empty, // orgId — will be populated when multi-tenancy is wired
-                    project.Id,
+                    projectId,
                     reportId,
                     stream,
                     fileName,
@@ -161,7 +146,7 @@ public sealed class IngestReportEndpoint(
                 screenshotAsset = new Asset
                 {
                     OrganizationId = Guid.Empty,
-                    ProjectId = project.Id,
+                    ProjectId = projectId,
                     ReportId = reportId,
                     FileName = fileName,
                     S3Key = s3Key,
@@ -182,7 +167,7 @@ public sealed class IngestReportEndpoint(
         var report = new Report
         {
             Id = reportId,
-            ProjectId = project.Id,
+            ProjectId = projectId,
             Title = req.Title,
             Message = req.Message,
             StackTrace = req.StackTrace,
@@ -203,7 +188,7 @@ public sealed class IngestReportEndpoint(
         await publishEndpoint.Publish(new ReportCreatedEvent
         {
             ReportId = report.Id,
-            ProjectId = project.Id,
+            ProjectId = projectId,
             Title = report.Title,
             Message = report.Message,
             StackTrace = report.StackTrace,

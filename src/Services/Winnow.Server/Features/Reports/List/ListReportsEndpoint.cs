@@ -43,6 +43,7 @@ public sealed class ListReportsEndpoint(WinnowDbContext dbContext) : EndpointWit
             s.Response(400, "Invalid request");
             s.Response(401, "Unauthorized");
         });
+        Options(x => x.RequireAuthorization());
     }
 
     public override async Task HandleAsync(CancellationToken ct)

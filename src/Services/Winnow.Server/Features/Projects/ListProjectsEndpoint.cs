@@ -26,6 +26,7 @@ public sealed class ListProjectsEndpoint(WinnowDbContext dbContext) : EndpointWi
             s.Response<List<ProjectDto>>(200, "List of projects");
             s.Response(401, "Unauthorized");
         });
+        Options(x => x.RequireAuthorization());
         // We will enable strict auth in Program.cs, but we can also enforce it here
         // Claims: assuming standard JWT claims
     }
@@ -33,10 +34,8 @@ public sealed class ListProjectsEndpoint(WinnowDbContext dbContext) : EndpointWi
     public override async Task HandleAsync(CancellationToken ct)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId))
-        {
-            ThrowError("Unauthorized", 401);
-        }
+        if (userId is null) ThrowError("Unauthorized", 401);
+
 
         var projects = await dbContext.Projects
             .AsNoTracking()

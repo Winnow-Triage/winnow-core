@@ -15,6 +15,7 @@ public sealed class DeleteIntegrationConfigEndpoint(WinnowDbContext db) : Endpoi
             s.Response(200, "Integration deleted");
             s.Response(404, "Integration not found");
         });
+        Options(x => x.RequireAuthorization());
     }
 
     public override async Task HandleAsync(CancellationToken ct)

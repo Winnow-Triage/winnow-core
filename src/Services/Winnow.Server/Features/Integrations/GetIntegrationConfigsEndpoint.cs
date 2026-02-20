@@ -23,6 +23,7 @@ public sealed class GetIntegrationConfigsEndpoint(WinnowDbContext db) : Endpoint
             s.Description = "Retrieves a list of all active integration configurations.";
             s.Response<List<IntegrationDto>>(200, "List of integrations");
         });
+        Options(x => x.RequireAuthorization());
     }
 
     public override async Task HandleAsync(CancellationToken ct)

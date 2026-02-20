@@ -48,6 +48,7 @@ public sealed class UpsertIntegrationConfigEndpoint(
             s.Response<Integration>(200, "Integration saved successfully");
             s.Response(404, "Integration to update not found");
         });
+        Options(x => x.RequireAuthorization());
     }
 
     public override async Task HandleAsync(UpsertIntegrationConfigRequest req, CancellationToken ct)

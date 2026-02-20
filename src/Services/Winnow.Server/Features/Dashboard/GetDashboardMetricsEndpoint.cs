@@ -18,6 +18,7 @@ public sealed class GetDashboardMetricsEndpoint(IDashboardService dashboardServi
             s.Response(400, "Invalid project ID");
             s.Response(401, "Unauthorized");
         });
+        Options(x => x.RequireAuthorization());
     }
 
     public override async Task HandleAsync(CancellationToken ct)

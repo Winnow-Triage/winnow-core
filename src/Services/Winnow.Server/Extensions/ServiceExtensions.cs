@@ -165,7 +165,8 @@ internal static class ServiceExtensions
                 IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
                     System.Text.Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? "super_secret_key_at_least_32_chars_long_for_safety"))
             };
-        });
+        })
+        .AddScheme<Winnow.Server.Infrastructure.Security.ApiKeyAuthenticationOptions, Winnow.Server.Infrastructure.Security.ApiKeyAuthenticationHandler>(Winnow.Server.Infrastructure.Security.ApiKeyAuthenticationOptions.DefaultScheme, null);
 
         // FastEndpoints
         services.AddFastEndpoints();

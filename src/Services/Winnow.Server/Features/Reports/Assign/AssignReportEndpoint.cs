@@ -34,16 +34,13 @@ public sealed class AssignReportEndpoint(WinnowDbContext db) : Endpoint<AssignRe
             s.Response<ActionResponse>(200, "Report assigned successfully");
             s.Response(404, "Report not found");
         });
+        Options(x => x.RequireAuthorization());
     }
 
     public override async Task HandleAsync(AssignReportRequest req, CancellationToken ct)
     {
-        // Get user ID from JWT
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId))
-        {
-            ThrowError("Unauthorized", 401);
-        }
+        if (userId is null) ThrowError("Unauthorized", 401);
 
         // Get project ID from header
         if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader))
