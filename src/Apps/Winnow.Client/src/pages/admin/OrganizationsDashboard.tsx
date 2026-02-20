@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { getAllOrganizations, updateOrganizationSubscription, type OrganizationSummary } from "@/lib/api"
+import { getAllOrganizations, updateOrganizationSubscription, updateOrganizationStatus, deleteOrganization, type OrganizationSummary } from "@/lib/api"
 import {
     Table,
     TableBody,
@@ -13,7 +13,18 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
+    DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { MoreHorizontal } from "lucide-react"
@@ -34,6 +45,12 @@ export default function OrganizationsDashboard() {
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
     const [tierFilter, setTierFilter] = useState<string>("All")
+
+    // Deletion Modal State
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+    const [orgToDelete, setOrgToDelete] = useState<OrganizationSummary | null>(null)
+    const [deleteConfirmationText, setDeleteConfirmationText] = useState("")
+    const [isDeleting, setIsDeleting] = useState(false)
 
     const fetchOrganizations = async () => {
         try {
@@ -69,6 +86,42 @@ export default function OrganizationsDashboard() {
         });
         // In a real implementation, this would trigger an API call to get an impersonation token
         // and redirect the super admin to the tenant dashboard with that context.
+    }
+
+    const handleToggleSuspension = async (org: OrganizationSummary) => {
+        const action = org.isSuspended ? "activated" : "suspended"
+        try {
+            await updateOrganizationStatus(org.id, !org.isSuspended)
+            toast.success(`Organization successfully ${action}`)
+            fetchOrganizations()
+        } catch (error) {
+            console.error(`Failed to ${action} organization:`, error)
+            toast.error(`Failed to modify organization status`)
+        }
+    }
+
+    const handleInitiateDelete = (org: OrganizationSummary) => {
+        setOrgToDelete(org)
+        setDeleteConfirmationText("")
+        setIsDeleteDialogOpen(true)
+    }
+
+    const handleConfirmDelete = async () => {
+        if (!orgToDelete || deleteConfirmationText !== orgToDelete.name) return
+
+        try {
+            setIsDeleting(true)
+            await deleteOrganization(orgToDelete.id)
+            toast.success("Organization permanently deleted")
+            setIsDeleteDialogOpen(false)
+            setOrgToDelete(null)
+            fetchOrganizations()
+        } catch (error) {
+            console.error("Failed to delete organization:", error)
+            toast.error("Failed to delete organization")
+        } finally {
+            setIsDeleting(false)
+        }
     }
 
     const getTierBadgeColor = (tier: string) => {
@@ -148,9 +201,15 @@ export default function OrganizationsDashboard() {
                                 <TableRow key={org.id} className="border-red-900/20 hover:bg-red-950/10">
                                     <TableCell className="font-medium text-foreground">{org.name}</TableCell>
                                     <TableCell>
-                                        <Badge className="bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20 text-xs px-2 py-0" variant="outline">
-                                            Active
-                                        </Badge>
+                                        {org.isSuspended ? (
+                                            <Badge className="bg-orange-500/10 text-orange-500 border-orange-500/20 hover:bg-orange-500/20 text-xs px-2 py-0" variant="outline">
+                                                Suspended
+                                            </Badge>
+                                        ) : (
+                                            <Badge className="bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20 text-xs px-2 py-0" variant="outline">
+                                                Active
+                                            </Badge>
+                                        )}
                                     </TableCell>
                                     <TableCell className="text-muted-foreground">{org.memberCount}</TableCell>
                                     <TableCell className="text-muted-foreground">{org.teamCount}</TableCell>
@@ -175,7 +234,16 @@ export default function OrganizationsDashboard() {
                                                 <DropdownMenuItem onClick={() => handleImpersonate(org.name)} className="font-medium text-orange-400 focus:text-orange-400 focus:bg-orange-500/10 mb-2">
                                                     Impersonate Tenant
                                                 </DropdownMenuItem>
-                                                <div className="h-px bg-red-900/30 my-1 mx-2" />
+
+                                                <DropdownMenuItem
+                                                    onClick={() => handleToggleSuspension(org)}
+                                                    className="hover:bg-red-500/20 focus:bg-red-500/20 cursor-pointer"
+                                                >
+                                                    {org.isSuspended ? "Activate Tenant" : "Suspend Tenant"}
+                                                </DropdownMenuItem>
+
+                                                <DropdownMenuSeparator className="bg-red-900/30" />
+
                                                 <div className="text-xs text-muted-foreground px-2 py-1.5 font-semibold">Subscription</div>
                                                 <DropdownMenuItem onClick={() => handleUpdateTier(org.id, 'Free')} className="hover:bg-red-500/20 focus:bg-red-500/20 cursor-pointer">
                                                     Set to Free
@@ -186,6 +254,15 @@ export default function OrganizationsDashboard() {
                                                 <DropdownMenuItem onClick={() => handleUpdateTier(org.id, 'Enterprise')} className="hover:bg-purple-500/20 hover:text-purple-500 focus:bg-purple-500/20 cursor-pointer">
                                                     Set to Enterprise
                                                 </DropdownMenuItem>
+
+                                                <DropdownMenuSeparator className="bg-red-900/30" />
+
+                                                <DropdownMenuItem
+                                                    onClick={() => handleInitiateDelete(org)}
+                                                    className="text-red-500 hover:bg-red-500/20 hover:text-red-500 focus:bg-red-500/20 focus:text-red-500 cursor-pointer font-bold"
+                                                >
+                                                    Delete Tenant
+                                                </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>
@@ -195,6 +272,47 @@ export default function OrganizationsDashboard() {
                     </TableBody>
                 </Table>
             </div>
-        </div>
+
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogContent className="border-red-900/50 bg-background">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-red-500 text-xl font-bold flex items-center gap-2">
+                            Permanently Delete Tenant?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-muted-foreground pt-2">
+                            This action is completely destructive and cannot be undone. It will cascade delete all associated Teams, Projects, Reports, Vector Embeddings, and attempt to purge all S3 assets.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    {orgToDelete && (
+                        <div className="my-4 space-y-3 p-4 bg-red-950/20 border border-red-900/50 rounded-md">
+                            <p className="text-sm">
+                                Please type <strong className="text-red-400 font-mono select-all">{orgToDelete.name}</strong> to confirm.
+                            </p>
+                            <Input
+                                value={deleteConfirmationText}
+                                onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                                className="bg-background border-red-900/50 focus-visible:ring-red-500 font-mono"
+                                placeholder={orgToDelete.name}
+                            />
+                        </div>
+                    )}
+
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="border-red-900/50 hover:bg-red-950/20">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={(e) => {
+                                e.preventDefault();
+                                handleConfirmDelete();
+                            }}
+                            disabled={!orgToDelete || deleteConfirmationText !== orgToDelete.name || isDeleting}
+                            className="bg-red-600 hover:bg-red-700 text-white font-bold disabled:opacity-50"
+                        >
+                            {isDeleting ? "Deleting..." : "Permanently Delete"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </div >
     )
 }

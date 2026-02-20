@@ -35,6 +35,21 @@ api.interceptors.response.use(
                 window.location.href = '/login';
             }
         }
+
+        // Handle 403 Forbidden for Suspended Organizations
+        if (error.response?.status === 403) {
+            const errorMessage = error.response?.data?.message?.toLowerCase() || '';
+            if (errorMessage.includes('suspended')) {
+                // Clear session data to forcefully block further authenticated attempts under this tenant
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('user');
+                localStorage.removeItem('lastProjectId');
+
+                if (window.location.pathname !== '/suspended') {
+                    window.location.href = '/suspended';
+                }
+            }
+        }
         return Promise.reject(error);
     }
 );
@@ -47,6 +62,7 @@ export interface OrganizationSummary {
     stripeCustomerId: string | null;
     subscriptionTier: string;
     createdAt: string;
+    isSuspended: boolean;
     teamCount: number;
     memberCount: number;
     projectCount: number;
@@ -59,6 +75,19 @@ export const getAllOrganizations = async (): Promise<OrganizationSummary[]> => {
 
 export const getOrganizationDetails = async (id: string) => {
     const response = await api.get(`/admin/organizations/${id}`);
+    return response.data;
+};
+
+export const updateOrganizationStatus = async (id: string, isSuspended: boolean) => {
+    const response = await api.patch(`/admin/organizations/${id}/status`, {
+        id,
+        isSuspended
+    });
+    return response.data;
+};
+
+export const deleteOrganization = async (id: string) => {
+    const response = await api.delete(`/admin/organizations/${id}`);
     return response.data;
 };
 

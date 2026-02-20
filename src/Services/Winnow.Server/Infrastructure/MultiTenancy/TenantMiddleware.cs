@@ -20,14 +20,14 @@ internal class TenantMiddleware(RequestDelegate next)
         {
             ((TenantContext)tenantContext).TenantId = tenantClaim.Value;
         }
-        
+
         // Extract organization ID from JWT claim if present
         var organizationClaim = context.User.FindFirst("organization_id");
         if (organizationClaim != null && Guid.TryParse(organizationClaim.Value, out var organizationId))
         {
             ((TenantContext)tenantContext).CurrentOrganizationId = organizationId;
         }
-        
+
         // 1. Check Header First (Preferred for API/Dev)
         else if (context.Request.Headers.TryGetValue("X-Tenant-ID", out var tenantId))
         {
@@ -65,6 +65,21 @@ internal class TenantMiddleware(RequestDelegate next)
             finally
             {
                 _migrationLock.Release();
+            }
+        }
+
+        // 4. Enforce Organization Suspension Check
+        if (tenantContext.CurrentOrganizationId.HasValue)
+        {
+            var org = await dbContext.Organizations
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(o => o.Id == tenantContext.CurrentOrganizationId.Value);
+
+            if (org != null && org.IsSuspended)
+            {
+                context.Response.StatusCode = 403;
+                await context.Response.WriteAsJsonAsync(new { message = "This organization has been suspended by an administrator." });
+                return;
             }
         }
 

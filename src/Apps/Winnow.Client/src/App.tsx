@@ -12,6 +12,7 @@ import Clusters from './pages/Clusters'
 import Settings from './pages/Settings'
 import ProjectSetup from './pages/ProjectSetup'
 import AuthPage from './pages/AuthPage'
+import SuspendedPage from './pages/SuspendedPage'
 
 import AdminLayout from './components/admin/AdminLayout'
 import AdminProtectedRoute from './components/admin/AdminProtectedRoute'
@@ -31,6 +32,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<AuthPage />} />
         <Route path="/signup" element={<AuthPage />} />
+        <Route path="/suspended" element={<SuspendedPage />} />
 
         <Route path="/admin/*" element={
           <AdminProtectedRoute>

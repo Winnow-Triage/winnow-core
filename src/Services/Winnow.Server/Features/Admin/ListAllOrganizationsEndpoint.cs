@@ -17,6 +17,7 @@ public class OrganizationSummaryResponse
     public string? StripeCustomerId { get; set; }
     public string SubscriptionTier { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+    public bool IsSuspended { get; set; }
     public int TeamCount { get; set; }
     public int MemberCount { get; set; }
     public int ProjectCount { get; set; }
@@ -58,6 +59,7 @@ public class ListAllOrganizationsEndpoint(WinnowDbContext dbContext) : Endpoint<
             StripeCustomerId = o.StripeCustomerId,
             SubscriptionTier = o.SubscriptionTier,
             CreatedAt = o.CreatedAt,
+            IsSuspended = o.IsSuspended,
             TeamCount = o.Teams.Count,
             MemberCount = o.Members.Count,
             ProjectCount = o.Teams.Sum(t => t.Projects.Count)

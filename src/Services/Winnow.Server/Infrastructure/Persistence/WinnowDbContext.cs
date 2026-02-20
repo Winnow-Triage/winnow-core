@@ -57,12 +57,12 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         modelBuilder.Entity<Organization>(entity =>
         {
             entity.HasKey(o => o.Id);
-            
+
             entity.HasMany(o => o.Teams)
                 .WithOne(t => t.Organization)
                 .HasForeignKey(t => t.OrganizationId)
                 .OnDelete(DeleteBehavior.Cascade);
-            
+
             entity.HasMany(o => o.Members)
                 .WithOne(m => m.Organization)
                 .HasForeignKey(m => m.OrganizationId)
@@ -72,12 +72,12 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         modelBuilder.Entity<Team>(entity =>
         {
             entity.HasKey(t => t.Id);
-            
+
             entity.HasOne(t => t.Organization)
                 .WithMany(o => o.Teams)
                 .HasForeignKey(t => t.OrganizationId)
-                .OnDelete(DeleteBehavior.Restrict);
-            
+                .OnDelete(DeleteBehavior.Cascade);
+
             entity.HasMany(t => t.Projects)
                 .WithOne(p => p.Team)
                 .HasForeignKey(p => p.TeamId)
@@ -87,15 +87,15 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         modelBuilder.Entity<OrganizationMember>(entity =>
         {
             entity.HasKey(om => om.Id);
-            
+
             entity.HasIndex(om => new { om.UserId, om.OrganizationId })
                 .IsUnique();
-            
+
             entity.HasOne(om => om.Organization)
                 .WithMany(o => o.Members)
                 .HasForeignKey(om => om.OrganizationId)
-                .OnDelete(DeleteBehavior.Restrict);
-            
+                .OnDelete(DeleteBehavior.Cascade);
+
             entity.HasOne(om => om.User)
                 .WithMany(u => u.OrganizationMemberships)
                 .HasForeignKey(om => om.UserId)
@@ -106,17 +106,17 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         modelBuilder.Entity<Project>(entity =>
         {
             entity.HasKey(p => p.Id);
-            
+
             entity.HasOne(p => p.Team)
                 .WithMany(t => t.Projects)
                 .HasForeignKey(p => p.TeamId)
                 .OnDelete(DeleteBehavior.Restrict);
-            
+
             entity.HasOne(p => p.Organization)
                 .WithMany()
                 .HasForeignKey(p => p.OrganizationId)
                 .OnDelete(DeleteBehavior.Restrict);
-            
+
             entity.HasOne(p => p.Owner)
                 .WithMany(u => u.Projects)
                 .HasForeignKey(p => p.OwnerId)
@@ -127,7 +127,7 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         modelBuilder.Entity<Report>(entity =>
         {
             entity.HasKey(r => r.Id);
-            
+
             entity.HasOne(r => r.Project)
                 .WithMany()
                 .HasForeignKey(r => r.ProjectId)
@@ -138,7 +138,7 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         modelBuilder.Entity<Asset>(entity =>
         {
             entity.HasKey(a => a.Id);
-            
+
             entity.HasOne(a => a.Report)
                 .WithMany(r => r.Assets)
                 .HasForeignKey(a => a.ReportId)
@@ -152,7 +152,7 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         modelBuilder.Entity<Integration>(entity =>
         {
             entity.HasKey(i => i.Id);
-            
+
             entity.Property(i => i.Config)
                 .HasConversion(
                     v => System.Text.Json.JsonSerializer.Serialize(v, _jsonOptions),
@@ -174,7 +174,7 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                     var tenantId = System.Linq.Expressions.Expression.Constant(tenantContext.CurrentOrganizationId.Value);
                     var equals = System.Linq.Expressions.Expression.Equal(property, tenantId);
                     var lambda = System.Linq.Expressions.Expression.Lambda(equals, parameter);
-                    
+
                     modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
                 }
             }
