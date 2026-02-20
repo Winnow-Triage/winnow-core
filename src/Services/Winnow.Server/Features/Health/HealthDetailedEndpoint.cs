@@ -3,10 +3,11 @@ using System.Linq;
 using FastEndpoints;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Winnow.Server.Infrastructure.HealthChecks;
 
 namespace Winnow.Server.Features.Health;
 
-public sealed class HealthDetailedEndpoint(HealthCheckService healthCheckService) : EndpointWithoutRequest<object>
+public sealed class HealthDetailedEndpoint(CachedHealthReportService cachedHealth, HealthCheckService fallbackCheck) : EndpointWithoutRequest<object>
 {
     public override void Configure()
     {
@@ -22,8 +23,14 @@ public sealed class HealthDetailedEndpoint(HealthCheckService healthCheckService
 
     public override async Task HandleAsync(CancellationToken ct)
     {
-        // Detailed health check: runs all checks
-        var report = await healthCheckService.CheckHealthAsync(ct);
+        // Try getting the background-polled report first
+        var report = cachedHealth.Report;
+
+        // If it's null (the publisher hasn't fired its first tick yet), fallback briefly
+        if (report == null)
+        {
+            report = await fallbackCheck.CheckHealthAsync(ct);
+        }
 
         var response = new
         {
@@ -42,14 +49,12 @@ public sealed class HealthDetailedEndpoint(HealthCheckService healthCheckService
             }).ToList(),
             circuitBreakers = new
             {
-                // Circuit breaker status could be added here by querying resilience pipeline metrics
                 externalIntegrations = "Configured",
                 httpClients = "With resilience pipeline"
             }
         };
 
         // Always return 200 OK so the frontend can parse the JSON and display the failed checks
-        // instead of Axios throwing a Network Error exception.
         await Send.ResponseAsync(response, StatusCodes.Status200OK, cancellation: ct);
     }
 }

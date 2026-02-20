@@ -184,6 +184,16 @@ internal static class ServiceExtensions
         services.AddSingleton<ExternalIntegrationsHealthCheck>();
         services.AddSingleton<S3StorageHealthCheck>();
 
+        // Register caching and publisher for fast UI loading
+        services.AddSingleton<CachedHealthReportService>();
+        services.AddSingleton<Microsoft.Extensions.Diagnostics.HealthChecks.IHealthCheckPublisher, HealthReportPublisher>();
+
+        services.Configure<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckPublisherOptions>(options =>
+        {
+            options.Delay = TimeSpan.Zero; // Start immediately on boot
+            options.Period = TimeSpan.FromSeconds(5); // Poll every 5 seconds
+        });
+
         // FastEndpoints
         services.AddFastEndpoints();
         services.SwaggerDocument(o =>
