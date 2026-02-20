@@ -23,11 +23,18 @@ public sealed class GetDashboardMetricsEndpoint(IDashboardService dashboardServi
 
     public override async Task HandleAsync(CancellationToken ct)
     {
-        // Get user ID from JWT
+        // Get user ID and organization ID from JWT
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var organizationIdClaim = User.FindFirstValue("organization");
+        
         if (string.IsNullOrEmpty(userId))
         {
             ThrowError("Unauthorized", 401);
+        }
+
+        if (!Guid.TryParse(organizationIdClaim, out var organizationId))
+        {
+            ThrowError("Organization ID not found in token", 401);
         }
 
         // Get project ID from header
@@ -41,17 +48,21 @@ public sealed class GetDashboardMetricsEndpoint(IDashboardService dashboardServi
             ThrowError("Invalid Project ID format", 400);
         }
 
-        // Validate user owns this project
-        var userOwnsProject = await dbContext.Projects
+        // Validate user has access to this project in the organization
+        var userHasAccess = await dbContext.Projects
+            .Include(p => p.Organization!)
+            .ThenInclude(o => o.Members)
             .AsNoTracking()
-            .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
+            .AnyAsync(p => p.Id == projectId && 
+                         p.OrganizationId == organizationId &&
+                         p.Organization!.Members.Any(m => m.UserId == userId), ct);
 
-        if (!userOwnsProject)
+        if (!userHasAccess)
         {
             ThrowError("Project not found or access denied", 404);
         }
 
-        var metrics = await dashboardService.GetDashboardMetricsAsync(projectId, ct);
+        var metrics = await dashboardService.GetDashboardMetricsAsync(projectId, organizationId, ct);
         await Send.OkAsync(metrics, ct);
     }
 }

@@ -10,7 +10,7 @@ public enum AssetStatus
 }
 
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1515:Consider making public types internal", Justification = "Entity Framework requires public entities")]
-public class Asset
+public class Asset : ITenantEntity
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 

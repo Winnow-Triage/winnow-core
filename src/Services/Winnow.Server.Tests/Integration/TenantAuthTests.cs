@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Winnow.Server.Entities;
 using Winnow.Server.Features.Auth;
@@ -45,12 +46,46 @@ public class TenantAuthTests : IAsyncLifetime
             throw new Exception($"Failed to create test user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
         }
 
+        // Check if default organization already exists (from migration)
+        var defaultOrganizationId = new Guid("11111111-1111-1111-1111-111111111111");
+        var defaultOrganization = await db.Organizations.FindAsync(defaultOrganizationId);
+        
+        if (defaultOrganization == null)
+        {
+            defaultOrganization = new Organization
+            {
+                Id = defaultOrganizationId,
+                Name = "Default Organization",
+                SubscriptionTier = "free",
+                CreatedAt = DateTime.UtcNow
+            };
+            db.Organizations.Add(defaultOrganization);
+        }
+        
+        // Check if user is already an organization member
+        var existingMember = await db.OrganizationMembers
+            .FirstOrDefaultAsync(m => m.UserId == user.Id && m.OrganizationId == defaultOrganization.Id);
+        
+        if (existingMember == null)
+        {
+            var orgMember = new OrganizationMember
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                OrganizationId = defaultOrganization.Id,
+                Role = "admin",
+                JoinedAt = DateTime.UtcNow
+            };
+            db.OrganizationMembers.Add(orgMember);
+        }
+
         // Create a project for this user so they can login (LoginEndpoint extracts default project)
         var project = new Project
         {
             Id = Guid.NewGuid(),
             Name = "Auth Test Project",
             OwnerId = user.Id,
+            OrganizationId = defaultOrganization.Id,
             ApiKey = "wm_live_auth_test_key"
         };
         db.Projects.Add(project);

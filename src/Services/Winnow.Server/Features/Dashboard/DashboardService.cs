@@ -5,19 +5,28 @@ namespace Winnow.Server.Features.Dashboard;
 
 public class DashboardService(WinnowDbContext db) : IDashboardService
 {
-    public async Task<DashboardMetricsDto> GetDashboardMetricsAsync(Guid projectId, CancellationToken ct)
+    public async Task<DashboardMetricsDto> GetDashboardMetricsAsync(Guid projectId, Guid organizationId, CancellationToken ct)
     {
+        // Verify project belongs to organization
+        var project = await db.Projects
+            .FirstOrDefaultAsync(p => p.Id == projectId && p.OrganizationId == organizationId, ct);
+        
+        if (project == null)
+        {
+            throw new InvalidOperationException($"Project {projectId} not found in organization {organizationId}");
+        }
+
         // 1. Triage Metrics
         var totalReports = await db.Reports
-            .Where(r => r.ProjectId == projectId)
+            .Where(r => r.ProjectId == projectId && r.OrganizationId == organizationId)
             .CountAsync(ct);
 
         var activeClusters = await db.Reports
-            .Where(r => r.ProjectId == projectId)
+            .Where(r => r.ProjectId == projectId && r.OrganizationId == organizationId)
             .CountAsync(t => t.ParentReportId == null && t.Status != "Closed" && t.Status != "Duplicate", ct);
 
         var pendingReviews = await db.Reports
-            .Where(r => r.ProjectId == projectId)
+            .Where(r => r.ProjectId == projectId && r.OrganizationId == organizationId)
             .CountAsync(t => t.SuggestedParentId != null && t.Status != "Duplicate" && t.Status != "Closed", ct);
 
         double noiseRatio = totalReports > 0 
@@ -37,7 +46,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         var yesterday = DateTime.UtcNow.AddHours(-24);
         
         var trending = await db.Reports
-            .Where(r => r.ProjectId == projectId && r.CreatedAt >= yesterday && r.ParentReportId != null)
+            .Where(r => r.ProjectId == projectId && r.OrganizationId == organizationId && r.CreatedAt >= yesterday && r.ParentReportId != null)
             .GroupBy(t => t.ParentReportId)
             .Select(g => new 
             {
@@ -53,12 +62,12 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         {
             var clusterIds = trending.Select(t => t.ClusterId).ToList();
             var clusterInfos = await db.Reports
-                .Where(r => r.ProjectId == projectId && clusterIds.Contains(r.Id))
+                .Where(r => r.ProjectId == projectId && r.OrganizationId == organizationId && clusterIds.Contains(r.Id))
                 .Select(t => new { t.Id, t.Title, t.Status })
                 .ToDictionaryAsync(t => t.Id, ct);
             
             var counts = await db.Reports
-                .Where(r => r.ProjectId == projectId && clusterIds.Contains(r.ParentReportId) && r.ParentReportId != null)
+                .Where(r => r.ProjectId == projectId && r.OrganizationId == organizationId && clusterIds.Contains(r.ParentReportId) && r.ParentReportId != null)
                 .GroupBy(t => t.ParentReportId)
                 .Select(g => new { ClusterId = g.Key!.Value, Total = g.Count() })
                 .ToDictionaryAsync(g => g.ClusterId, ct);
@@ -85,7 +94,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         // 3. Volume History (Bucketed by Hour)
         var historyRaw = await db.Reports
             .AsNoTracking()
-            .Where(r => r.ProjectId == projectId && r.CreatedAt >= yesterday)
+            .Where(r => r.ProjectId == projectId && r.OrganizationId == organizationId && r.CreatedAt >= yesterday)
             .Select(r => new { r.CreatedAt, IsDuplicate = r.ParentReportId != null })
             .ToListAsync(ct);
 

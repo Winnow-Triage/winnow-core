@@ -59,10 +59,45 @@ public sealed class LoginEndpoint(
             ThrowError("Invalid credentials");
         }
 
-        // Get default project (first one owned by user)
-        // In reality, user might have multiple, but we'll return the first one for the "Default Project ID" contract
+        // Get user's organization memberships
+        var organizationMemberships = await dbContext.OrganizationMembers
+            .Where(om => om.UserId == user.Id)
+            .ToListAsync(ct);
+        
+        if (organizationMemberships.Count == 0)
+        {
+            // Create a default organization for the user if they don't have one
+            var organization = new Organization
+            {
+                Id = Guid.NewGuid(),
+                Name = $"{user.FullName}'s Organization",
+                SubscriptionTier = "free",
+                CreatedAt = DateTime.UtcNow
+            };
+            
+            var organizationMember = new OrganizationMember
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                OrganizationId = organization.Id,
+                Role = "owner",
+                JoinedAt = DateTime.UtcNow
+            };
+            
+            dbContext.Organizations.Add(organization);
+            dbContext.OrganizationMembers.Add(organizationMember);
+            await dbContext.SaveChangesAsync(ct);
+            
+            organizationMemberships = new List<OrganizationMember> { organizationMember };
+        }
+
+        // Get the first organization (could be the default or user's primary)
+        var primaryOrganization = organizationMemberships.First();
+        tenantContext.CurrentOrganizationId = primaryOrganization.OrganizationId;
+
+        // Get default project (first one owned by user and in the same organization)
         var project = await dbContext.Projects
-            .Where(p => p.OwnerId == user.Id)
+            .Where(p => p.OwnerId == user.Id && p.OrganizationId == primaryOrganization.OrganizationId)
             .OrderBy(p => p.CreatedAt)
             .FirstOrDefaultAsync(ct);
 
@@ -75,6 +110,7 @@ public sealed class LoginEndpoint(
                 Id = Guid.NewGuid(),
                 Name = "Personal Project",
                 OwnerId = user.Id,
+                OrganizationId = primaryOrganization.OrganizationId,
                 ApiKey = $"wm_live_{Guid.NewGuid().ToString("N")[..20]}"
             };
             dbContext.Projects.Add(project);
@@ -106,6 +142,12 @@ public sealed class LoginEndpoint(
             new(ClaimTypes.Name, user.FullName),
             new("tenant_id", tenantContext.TenantId ?? "default")
         };
+
+        // Add organization ID claim if user has one
+        if (tenantContext.CurrentOrganizationId.HasValue)
+        {
+            claims.Add(new Claim("organization", tenantContext.CurrentOrganizationId.Value.ToString()));
+        }
 
         var roles = await userManager.GetRolesAsync(user);
         foreach (var role in roles)

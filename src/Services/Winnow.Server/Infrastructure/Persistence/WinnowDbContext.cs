@@ -8,7 +8,6 @@ namespace Winnow.Server.Infrastructure.Persistence;
 
 public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantContext tenantContext) : IdentityDbContext<ApplicationUser>(options)
 {
-
     private static readonly JsonSerializerOptions _jsonOptions = new() { };
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -54,9 +53,92 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
             }
         }
 
+        // Organization -> Team -> Project hierarchy
+        modelBuilder.Entity<Organization>(entity =>
+        {
+            entity.HasKey(o => o.Id);
+            
+            entity.HasMany(o => o.Teams)
+                .WithOne(t => t.Organization)
+                .HasForeignKey(t => t.OrganizationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasMany(o => o.Members)
+                .WithOne(m => m.Organization)
+                .HasForeignKey(m => m.OrganizationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Team>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            
+            entity.HasOne(t => t.Organization)
+                .WithMany(o => o.Teams)
+                .HasForeignKey(t => t.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.HasMany(t => t.Projects)
+                .WithOne(p => p.Team)
+                .HasForeignKey(p => p.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<OrganizationMember>(entity =>
+        {
+            entity.HasKey(om => om.Id);
+            
+            entity.HasIndex(om => new { om.UserId, om.OrganizationId })
+                .IsUnique();
+            
+            entity.HasOne(om => om.Organization)
+                .WithMany(o => o.Members)
+                .HasForeignKey(om => om.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.HasOne(om => om.User)
+                .WithMany(u => u.OrganizationMemberships)
+                .HasForeignKey(om => om.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Project relationships
+        modelBuilder.Entity<Project>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            
+            entity.HasOne(p => p.Team)
+                .WithMany(t => t.Projects)
+                .HasForeignKey(p => p.TeamId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.HasOne(p => p.Organization)
+                .WithMany()
+                .HasForeignKey(p => p.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.HasOne(p => p.Owner)
+                .WithMany(u => u.Projects)
+                .HasForeignKey(p => p.OwnerId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Report relationships
+        modelBuilder.Entity<Report>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            
+            entity.HasOne(r => r.Project)
+                .WithMany()
+                .HasForeignKey(r => r.ProjectId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         // Asset -> Report relationship
         modelBuilder.Entity<Asset>(entity =>
         {
+            entity.HasKey(a => a.Id);
+            
             entity.HasOne(a => a.Report)
                 .WithMany(r => r.Assets)
                 .HasForeignKey(a => a.ReportId)
@@ -69,14 +151,39 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         // Integration -> IntegrationConfig (polymorphic) configuration
         modelBuilder.Entity<Integration>(entity =>
         {
+            entity.HasKey(i => i.Id);
+            
             entity.Property(i => i.Config)
                 .HasConversion(
                     v => System.Text.Json.JsonSerializer.Serialize(v, _jsonOptions),
                     v => System.Text.Json.JsonSerializer.Deserialize<Winnow.Integrations.Domain.IntegrationConfig>(v, _jsonOptions)!
                 );
         });
+
+        // Apply global query filters to all ITenantEntity entities
+        // Note: We need to create a design-time version without tenant context
+        // The tenantContext will be null at design time, so we need to handle that
+        if (tenantContext != null && tenantContext.CurrentOrganizationId.HasValue)
+        {
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                if (typeof(ITenantEntity).IsAssignableFrom(entityType.ClrType))
+                {
+                    var parameter = System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e");
+                    var property = System.Linq.Expressions.Expression.Property(parameter, nameof(ITenantEntity.OrganizationId));
+                    var tenantId = System.Linq.Expressions.Expression.Constant(tenantContext.CurrentOrganizationId.Value);
+                    var equals = System.Linq.Expressions.Expression.Equal(property, tenantId);
+                    var lambda = System.Linq.Expressions.Expression.Lambda(equals, parameter);
+                    
+                    modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
+                }
+            }
+        }
     }
 
+    public DbSet<Organization> Organizations { get; set; } = null!;
+    public DbSet<Team> Teams { get; set; } = null!;
+    public DbSet<OrganizationMember> OrganizationMembers { get; set; } = null!;
     public DbSet<Report> Reports { get; set; } = null!;
     public DbSet<Asset> Assets { get; set; } = null!;
     public DbSet<Integration> Integrations { get; set; } = null!;

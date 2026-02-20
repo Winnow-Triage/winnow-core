@@ -128,12 +128,37 @@ public class WinnowTestApp(Action<IServiceCollection>? configureTestServices = n
             await db.SaveChangesAsync();
         }
 
+        // Create a test organization
+        var organizationId = Guid.NewGuid();
+        var organization = new Winnow.Server.Entities.Organization
+        {
+            Id = organizationId,
+            Name = "Test Organization",
+            SubscriptionTier = "free",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        db.Organizations.Add(organization);
+        
+        // Add user as member of organization
+        var organizationMember = new Winnow.Server.Entities.OrganizationMember
+        {
+            Id = Guid.NewGuid(),
+            UserId = testUserId,
+            OrganizationId = organizationId,
+            Role = "owner",
+            JoinedAt = DateTime.UtcNow
+        };
+        
+        db.OrganizationMembers.Add(organizationMember);
+
         var project = new Winnow.Server.Entities.Project
         {
             Id = Guid.NewGuid(),
             Name = "Test Project",
             ApiKey = apiKey,
             OwnerId = testUserId,
+            OrganizationId = organizationId,
             CreatedAt = DateTime.UtcNow
         };
 

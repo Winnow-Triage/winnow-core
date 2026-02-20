@@ -14,12 +14,20 @@ internal class TenantMiddleware(RequestDelegate next)
 
     public async Task InvokeAsync(HttpContext context, ITenantContext tenantContext, WinnowDbContext dbContext)
     {
-        // 0. Check JWT Claim (Most Secure)
+        // 0. Check JWT Claims (Most Secure)
         var tenantClaim = context.User.FindFirst("tenant_id");
         if (tenantClaim != null)
         {
             ((TenantContext)tenantContext).TenantId = tenantClaim.Value;
         }
+        
+        // Extract organization ID from JWT claim if present
+        var organizationClaim = context.User.FindFirst("organization_id");
+        if (organizationClaim != null && Guid.TryParse(organizationClaim.Value, out var organizationId))
+        {
+            ((TenantContext)tenantContext).CurrentOrganizationId = organizationId;
+        }
+        
         // 1. Check Header First (Preferred for API/Dev)
         else if (context.Request.Headers.TryGetValue("X-Tenant-ID", out var tenantId))
         {

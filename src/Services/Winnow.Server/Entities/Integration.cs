@@ -3,13 +3,15 @@ using Winnow.Integrations.Domain;
 
 namespace Winnow.Server.Entities;
 
-public class Integration
+public class Integration : ITenantEntity
 {
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
 
     [Required]
     public string Provider { get; set; } = string.Empty; // "GitHub", "Trello", "Jira"
+
+    public Guid OrganizationId { get; set; } // Tenant isolation
 
     public IntegrationConfig Config { get; private set; } = null!; // Polymorphic domain model
 

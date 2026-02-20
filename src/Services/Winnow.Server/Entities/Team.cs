@@ -1,19 +1,19 @@
-using System;
-
 namespace Winnow.Server.Entities;
 
-public class Project : ITenantEntity
+public class Team
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = string.Empty;
-    public string ApiKey { get; set; } = string.Empty;
-    public Guid? TeamId { get; set; }
     public Guid OrganizationId { get; set; }
-    public string OwnerId { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation properties
-    public Team? Team { get; set; }
     public Organization? Organization { get; set; }
-    public ApplicationUser? Owner { get; set; }
+    public ICollection<Project> Projects { get; set; } = new List<Project>();
+    
+    // Helper methods
+    public bool BelongsToOrganization(Guid organizationId)
+    {
+        return OrganizationId == organizationId;
+    }
 }

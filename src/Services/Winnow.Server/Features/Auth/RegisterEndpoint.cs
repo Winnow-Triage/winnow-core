@@ -69,6 +69,7 @@ public class AuthResponse
 public sealed class RegisterEndpoint(
     UserManager<ApplicationUser> userManager,
     WinnowDbContext dbContext,
+    Winnow.Server.Infrastructure.MultiTenancy.ITenantContext tenantContext,
     IConfiguration config) : Endpoint<RegisterRequest, AuthResponse>
 {
     public override void Configure()
@@ -78,7 +79,7 @@ public sealed class RegisterEndpoint(
         Summary(s =>
         {
             s.Summary = "Register a new user";
-            s.Description = "Creates a new user account and a default project, returning authentication details.";
+            s.Description = "Creates a new user account, a default organization, and a default project, returning authentication details.";
             s.Response<AuthResponse>(200, "Registration successful");
             s.Response(400, "Registration failed (e.g. email already in use)");
         });
@@ -101,19 +102,44 @@ public sealed class RegisterEndpoint(
             ThrowError(result.Errors.First().Description);
         }
 
-        // 2. Create Default "Personal" Project
+        // 2. Create Default Organization
+        var organization = new Organization
+        {
+            Id = Guid.NewGuid(),
+            Name = $"{req.FullName}'s Organization",
+            SubscriptionTier = "free",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var organizationMember = new OrganizationMember
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            OrganizationId = organization.Id,
+            Role = "owner",
+            JoinedAt = DateTime.UtcNow
+        };
+
+        dbContext.Organizations.Add(organization);
+        dbContext.OrganizationMembers.Add(organizationMember);
+        
+        // 3. Create Default "Personal" Project
         var project = new Project
         {
             Id = Guid.NewGuid(),
             Name = $"{req.FullName}'s Project",
             OwnerId = user.Id,
+            OrganizationId = organization.Id,
             ApiKey = $"wm_live_{Guid.NewGuid().ToString("N")[..20]}" // Simple API Key gen
         };
 
         dbContext.Projects.Add(project);
         await dbContext.SaveChangesAsync(ct);
+        
+        // Set tenant context
+        tenantContext.CurrentOrganizationId = organization.Id;
 
-        // 3. Generate JWT
+        // 4. Generate JWT
         var token = GenerateJwt(user);
 
         await Send.OkAsync(new AuthResponse
@@ -138,6 +164,12 @@ public sealed class RegisterEndpoint(
             new(ClaimTypes.Email, user.Email!),
             new(ClaimTypes.Name, user.FullName)
         };
+
+        // Add organization ID claim if available in tenant context
+        if (tenantContext.CurrentOrganizationId.HasValue)
+        {
+            claims.Add(new Claim("organization", tenantContext.CurrentOrganizationId.Value.ToString()));
+        }
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {

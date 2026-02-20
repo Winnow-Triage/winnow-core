@@ -9,4 +9,7 @@ public class ApplicationUser : IdentityUser
 
     // Relationship: A user can be a member/owner of multiple projects
     public ICollection<Project> Projects { get; } = new List<Project>();
+
+    // Relationship: A user can be a member of multiple organizations
+    public ICollection<OrganizationMember> OrganizationMemberships { get; set; } = new List<OrganizationMember>();
 }
