@@ -16,12 +16,15 @@ using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Infrastructure.Scheduling;
 using Winnow.Server.Services.Ai;
 using Winnow.Server.Services.Ai.Strategies;
+using Winnow.Server.Infrastructure.HealthChecks;
 using Winnow.Server.Services.Storage;
 
 namespace Winnow.Server.Extensions;
 
 internal static class ServiceExtensions
 {
+    private static readonly string[] HealthCheckReadyTags = new[] { "ready" };
+    
     public static IServiceCollection AddWinnowServices(this IServiceCollection services, IConfiguration config)
     {
         // Multi-tenancy
@@ -167,6 +170,16 @@ internal static class ServiceExtensions
             };
         })
         .AddScheme<Winnow.Server.Infrastructure.Security.ApiKeyAuthenticationOptions, Winnow.Server.Infrastructure.Security.ApiKeyAuthenticationHandler>(Winnow.Server.Infrastructure.Security.ApiKeyAuthenticationOptions.DefaultScheme, null);
+
+        // Health Checks
+        services.AddHealthChecks()
+            .AddDbContextCheck<WinnowDbContext>("Database", tags: HealthCheckReadyTags)
+            .AddCheck<ExternalIntegrationsHealthCheck>("ExternalIntegrations", tags: HealthCheckReadyTags)
+            .AddCheck<S3StorageHealthCheck>("S3Storage", tags: HealthCheckReadyTags);
+        
+        // Register custom health check services
+        services.AddSingleton<ExternalIntegrationsHealthCheck>();
+        services.AddSingleton<S3StorageHealthCheck>();
 
         // FastEndpoints
         services.AddFastEndpoints();

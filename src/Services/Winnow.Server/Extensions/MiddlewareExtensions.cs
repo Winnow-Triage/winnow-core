@@ -1,6 +1,10 @@
+using System;
 using FastEndpoints;
 using FastEndpoints.Swagger;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Winnow.Server.Infrastructure.HealthChecks;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Storage;
@@ -97,6 +101,29 @@ internal static class MiddlewareExtensions
             };
         });
         app.UseSwaggerGen();
+
+        // Health Check Endpoints - Public (plain text)
+        app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions 
+        { 
+            Predicate = _ => false
+        });
+        
+        app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions 
+        { 
+            Predicate = check => check.Tags.Contains("ready")
+        });
+        
+        // Simple aggregate health endpoint
+        app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+        {
+            Predicate = check => check.Tags.Contains("ready")
+        });
+        
+        // Detailed health endpoint showing all checks (for future authenticated admin use)
+        app.MapHealthChecks("/health/detailed", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions 
+        { 
+            ResponseWriter = HealthCheckJsonWriter.WriteHealthCheckResponse
+        });
 
         return app;
     }
