@@ -10,13 +10,13 @@ api.interceptors.request.use((config) => {
     if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;
     }
-    
+
     // Add project ID to all requests
     const projectId = localStorage.getItem('lastProjectId');
     if (projectId) {
         config.headers['X-Project-ID'] = projectId;
     }
-    
+
     return config;
 });
 
@@ -29,7 +29,7 @@ api.interceptors.response.use(
             localStorage.removeItem('authToken');
             localStorage.removeItem('user');
             localStorage.removeItem('lastProjectId');
-            
+
             // Use window.location for navigation since we're outside React component
             if (window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
                 window.location.href = '/login';
@@ -38,3 +38,52 @@ api.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+// --- Admin Endpoints ---
+
+export interface OrganizationSummary {
+    id: string;
+    name: string;
+    stripeCustomerId: string | null;
+    subscriptionTier: string;
+    createdAt: string;
+    teamCount: number;
+    memberCount: number;
+    projectCount: number;
+}
+
+export const getAllOrganizations = async (): Promise<OrganizationSummary[]> => {
+    const response = await api.get('/admin/organizations');
+    return response.data;
+};
+
+export const getOrganizationDetails = async (id: string) => {
+    const response = await api.get(`/admin/organizations/${id}`);
+    return response.data;
+};
+
+export const updateOrganizationSubscription = async (id: string, tier: string) => {
+    const response = await api.post(`/admin/organizations/${id}/subscription`, {
+        subscriptionTier: tier
+    });
+    return response.data;
+};
+
+export interface SystemHealthCheck {
+    name: string;
+    status: string;
+    duration: string;
+    description?: string;
+}
+
+export interface SystemHealthResponse {
+    status: string;
+    totalDuration: string;
+    utcTimestamp: string;
+    checks: SystemHealthCheck[];
+}
+
+export const getSystemHealth = async (): Promise<SystemHealthResponse> => {
+    const response = await api.get('/health/detailed');
+    return response.data;
+};

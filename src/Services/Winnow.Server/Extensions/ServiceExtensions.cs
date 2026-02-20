@@ -9,6 +9,7 @@ using Winnow.Server.Entities;
 using Winnow.Server.Features.Dashboard;
 using Winnow.Server.Features.Reports.GenerateSummary;
 using Winnow.Server.Infrastructure.Configuration;
+using Winnow.Server.Infrastructure.HealthChecks;
 using Winnow.Server.Infrastructure.Integrations;
 using Winnow.Server.Infrastructure.Integrations.Strategies;
 using Winnow.Server.Infrastructure.MultiTenancy;
@@ -16,7 +17,6 @@ using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Infrastructure.Scheduling;
 using Winnow.Server.Services.Ai;
 using Winnow.Server.Services.Ai.Strategies;
-using Winnow.Server.Infrastructure.HealthChecks;
 using Winnow.Server.Services.Storage;
 
 namespace Winnow.Server.Extensions;
@@ -24,7 +24,7 @@ namespace Winnow.Server.Extensions;
 internal static class ServiceExtensions
 {
     private static readonly string[] HealthCheckReadyTags = new[] { "ready" };
-    
+
     public static IServiceCollection AddWinnowServices(this IServiceCollection services, IConfiguration config)
     {
         // Multi-tenancy
@@ -65,6 +65,7 @@ internal static class ServiceExtensions
 
         // Register named HTTP client for exporters with resilience handlers
         services.AddHttpClient("ExternalIntegrations")
+            .RemoveAllLoggers() // Prevent health check polling from spamming logs on failure
             .AddStandardResilienceHandler();
 
         // Register typed HTTP clients for embedding providers with resilience handlers
@@ -82,6 +83,7 @@ internal static class ServiceExtensions
         services.AddScoped<IEmbeddingService, EmbeddingService>();
         services.AddSingleton<IVectorCalculator, VectorCalculator>();
         services.AddHostedService<ClusterRefinementJob>();
+        services.AddHostedService<AdminSeeder>();
 
         // Storage (S3/MinIO)
         var s3Settings = new S3Settings();
@@ -145,6 +147,7 @@ internal static class ServiceExtensions
 
         // Identity
         services.AddIdentity<ApplicationUser, IdentityRole>()
+            .AddRoles<IdentityRole>()
             .AddEntityFrameworkStores<WinnowDbContext>()
             .AddDefaultTokenProviders();
 
@@ -176,7 +179,7 @@ internal static class ServiceExtensions
             .AddDbContextCheck<WinnowDbContext>("Database", tags: HealthCheckReadyTags)
             .AddCheck<ExternalIntegrationsHealthCheck>("ExternalIntegrations", tags: HealthCheckReadyTags)
             .AddCheck<S3StorageHealthCheck>("S3Storage", tags: HealthCheckReadyTags);
-        
+
         // Register custom health check services
         services.AddSingleton<ExternalIntegrationsHealthCheck>();
         services.AddSingleton<S3StorageHealthCheck>();

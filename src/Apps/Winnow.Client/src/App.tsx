@@ -13,6 +13,12 @@ import Settings from './pages/Settings'
 import ProjectSetup from './pages/ProjectSetup'
 import AuthPage from './pages/AuthPage'
 
+import AdminLayout from './components/admin/AdminLayout'
+import AdminProtectedRoute from './components/admin/AdminProtectedRoute'
+import OrganizationsDashboard from './pages/admin/OrganizationsDashboard'
+import SystemHealth from './pages/admin/SystemHealth'
+import AdminSettings from './pages/admin/AdminSettings'
+
 import { Toaster } from "sonner"
 
 import { ModeToggle } from "@/components/mode-toggle"
@@ -25,6 +31,19 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<AuthPage />} />
         <Route path="/signup" element={<AuthPage />} />
+
+        <Route path="/admin/*" element={
+          <AdminProtectedRoute>
+            <Routes>
+              <Route element={<AdminLayout />}>
+                <Route index element={<Navigate to="/admin/organizations" replace />} />
+                <Route path="organizations" element={<OrganizationsDashboard />} />
+                <Route path="health" element={<SystemHealth />} />
+                <Route path="settings" element={<AdminSettings />} />
+              </Route>
+            </Routes>
+          </AdminProtectedRoute>
+        } />
 
         <Route path="/*" element={
           <ProtectedRoute>

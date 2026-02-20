@@ -76,11 +76,11 @@ internal static class MiddlewareExtensions
 
         // Middleware pipeline
         // Middleware pipeline
+        app.UseCors();
         app.UseAuthentication();
         app.UseMiddleware<TenantMiddleware>();
         app.UseAuthorization();
         app.UseStaticFiles();
-        app.UseCors();
         app.UseRateLimiter();
         app.UseFastEndpoints(c =>
         {
