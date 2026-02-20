@@ -32,6 +32,22 @@ public class SwaggerSecurityProcessor : IOperationProcessor
                 { "ProjectApiKey", [] }
             });
         }
+        // Basic health endpoints should not require any authentication
+        else if (op.OperationId == "HealthLive" || op.OperationId == "HealthReady" || op.OperationId == "Health")
+        {
+            // Clear security requirements for basic health endpoints
+            op.Security.Clear();
+        }
+        // HealthDetailed endpoint requires SuperAdmin role (Bearer auth)
+        else if (op.OperationId == "HealthDetailed")
+        {
+            // Keep Bearer auth requirement for detailed health endpoint
+            op.Security.Clear();
+            op.Security.Add(new OpenApiSecurityRequirement
+            {
+                { "Bearer", [] }
+            });
+        }
         else
         {
             // For all other endpoints, ensure we use Bearer auth
