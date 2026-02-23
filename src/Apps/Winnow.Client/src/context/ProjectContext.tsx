@@ -15,6 +15,7 @@ interface ProjectContextType {
     selectProject: (projectId: string) => void;
     refreshProjects: () => Promise<void>;
     createProject: (name: string) => Promise<void>;
+    renameProject: (id: string, newName: string) => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -84,8 +85,26 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const renameProject = async (id: string, newName: string) => {
+        const token = localStorage.getItem("authToken");
+        if (!token) return;
+
+        try {
+            await api.put(`/projects/${id}`, { name: newName });
+
+            // Update local state without full refetch
+            setProjects(prev => prev.map(p => p.id === id ? { ...p, name: newName } : p));
+            if (currentProject?.id === id) {
+                setCurrentProject(prev => prev ? { ...prev, name: newName } : null);
+            }
+        } catch (error: any) {
+            console.error("Rename project error", error);
+            throw new Error(error.response?.data?.message || "Failed to rename project");
+        }
+    };
+
     return (
-        <ProjectContext.Provider value={{ projects, currentProject, isLoading, selectProject, refreshProjects, createProject }}>
+        <ProjectContext.Provider value={{ projects, currentProject, isLoading, selectProject, refreshProjects, createProject, renameProject }}>
             {children}
         </ProjectContext.Provider>
     );

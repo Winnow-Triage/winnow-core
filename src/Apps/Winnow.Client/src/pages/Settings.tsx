@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Save, Github, Trello, FolderGit2, Edit } from 'lucide-react';
+import { Edit, FolderGit2, Github, Plus, Trash2, Trello } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface IntegrationConfig {
     id: string;
@@ -34,13 +35,59 @@ export default function Settings() {
     const [isCheckingOut, setIsCheckingOut] = useState<string | null>(null);
     const [isManaging, setIsManaging] = useState(false);
 
-    const { data: organization, isLoading: isOrgLoading } = useQuery<{ id: string, name: string, subscriptionTier: string }>({
+    const { data: organization, isLoading: isOrgLoading, refetch } = useQuery<{ id: string, name: string, subscriptionTier: string }>({
         queryKey: ['current-organization'],
         queryFn: async () => {
             const { data } = await api.get('/organizations/current');
             return data;
         }
     });
+
+    const [orgName, setOrgName] = useState("");
+    const [isSavingOrg, setIsSavingOrg] = useState(false);
+    const [isDeletingOrg, setIsDeletingOrg] = useState(false);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const navigate = useNavigate();
+
+    // Sync input with fetched org name
+    React.useEffect(() => {
+        if (organization) {
+            setOrgName(organization.name);
+        }
+    }, [organization]);
+
+    const handleSaveOrganization = async () => {
+        if (!orgName.trim() || orgName.trim() === organization?.name) return;
+
+        setIsSavingOrg(true);
+        try {
+            await api.put('/organizations/current', { name: orgName.trim() });
+            await refetch();
+            toast.success("Organization updated successfully");
+        } catch (error) {
+            console.error("Failed to update organization:", error);
+            toast.error("Failed to update organization");
+        } finally {
+            setIsSavingOrg(false);
+        }
+    };
+
+    const handleDeleteOrganization = async () => {
+        setIsDeletingOrg(true);
+        try {
+            await api.delete('/organizations/current');
+            // Remove token and push to login since org no longer exists
+            localStorage.removeItem('authToken');
+            toast.success("Organization deleted. You have been logged out.");
+            navigate('/login');
+        } catch (error) {
+            console.error("Failed to delete organization:", error);
+            toast.error("Failed to delete organization. Please contact support.");
+        } finally {
+            setIsDeletingOrg(false);
+            setIsDeleteConfirmOpen(false);
+        }
+    };
 
     const subscriptionTier: string = organization?.subscriptionTier || "Free";
 
@@ -112,16 +159,73 @@ export default function Settings() {
                     <TabsTrigger value="ai">AI Models</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="general" className="mt-6">
+                <TabsContent value="general" className="mt-6 flex flex-col gap-6">
                     <Card>
                         <CardHeader>
                             <CardTitle>General Settings</CardTitle>
                             <CardDescription>Manage your workspace preferences.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex flex-col gap-2">
+                            <div className="flex flex-col gap-2 max-w-sm">
                                 <Label>Organization Name</Label>
-                                <Input disabled value={isOrgLoading ? "Loading..." : organization?.name || "Unknown Organization"} readOnly />
+                                <Input
+                                    disabled={isOrgLoading}
+                                    value={isOrgLoading ? "Loading..." : orgName}
+                                    onChange={(e) => setOrgName(e.target.value)}
+                                    placeholder={isOrgLoading ? "" : "My Organization"}
+                                />
+                            </div>
+                        </CardContent>
+                        <CardFooter className="flex items-center justify-end p-4 px-6 border-t bg-muted/50 rounded-b-lg mt-4">
+                            <Button
+                                onClick={handleSaveOrganization}
+                                disabled={isSavingOrg || isOrgLoading || !orgName.trim() || orgName.trim() === organization?.name}
+                            >
+                                {isSavingOrg ? "Saving..." : "Save Changes"}
+                            </Button>
+                        </CardFooter>
+                    </Card>
+
+                    <Card className="border-destructive dark:border-red-900/50">
+                        <CardHeader>
+                            <CardTitle className="text-destructive">Danger Zone</CardTitle>
+                            <CardDescription>
+                                Irreversible actions regarding your organization. Proceed with extreme caution.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1 mr-4">
+                                    <h4 className="font-medium text-sm">Delete Organization</h4>
+                                    <p className="text-sm text-muted-foreground">
+                                        Permanently delete this organization, all of its projects, API keys, and collected error reports. This action cannot be undone.
+                                    </p>
+                                </div>
+                                <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="destructive" className="shrink-0" onClick={() => setIsDeleteConfirmOpen(true)}>
+                                            Delete Organization
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Delete Organization</DialogTitle>
+                                            <DialogDescription>
+                                                Are you absolutely sure you want to delete <span className="font-bold text-foreground">{organization?.name}</span>?
+                                                <br /><br />
+                                                This will permanently erase all projects, API keys, and collected data. This action is irreversible.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <DialogFooter>
+                                            <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)} disabled={isDeletingOrg}>
+                                                Cancel
+                                            </Button>
+                                            <Button variant="destructive" onClick={handleDeleteOrganization} disabled={isDeletingOrg}>
+                                                {isDeletingOrg ? "Deleting..." : "Yes, delete everything"}
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
                             </div>
                         </CardContent>
                     </Card>
@@ -244,6 +348,7 @@ export default function Settings() {
         </div>
     );
 }
+
 
 function IntegrationsSettings() {
     const queryClient = useQueryClient();

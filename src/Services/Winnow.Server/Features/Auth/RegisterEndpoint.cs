@@ -70,7 +70,8 @@ public sealed class RegisterEndpoint(
     UserManager<ApplicationUser> userManager,
     WinnowDbContext dbContext,
     Winnow.Server.Infrastructure.MultiTenancy.ITenantContext tenantContext,
-    IConfiguration config) : Endpoint<RegisterRequest, AuthResponse>
+    IConfiguration config,
+    Winnow.Server.Infrastructure.Security.IApiKeyService apiKeyService) : Endpoint<RegisterRequest, AuthResponse>
 {
     public override void Configure()
     {
@@ -124,13 +125,15 @@ public sealed class RegisterEndpoint(
         dbContext.OrganizationMembers.Add(organizationMember);
 
         // 3. Create Default "Personal" Project
+        var projectId = Guid.NewGuid();
+        var plaintextKey = apiKeyService.GeneratePlaintextKey(projectId);
         var project = new Project
         {
-            Id = Guid.NewGuid(),
+            Id = projectId,
             Name = $"{req.FullName}'s Project",
             OwnerId = user.Id,
             OrganizationId = organization.Id,
-            ApiKey = $"wm_live_{Guid.NewGuid().ToString("N")[..20]}" // Simple API Key gen
+            ApiKeyHash = apiKeyService.HashKey(plaintextKey)
         };
 
         dbContext.Projects.Add(project);
@@ -149,7 +152,7 @@ public sealed class RegisterEndpoint(
             Email = user.Email,
             FullName = user.FullName,
             DefaultProjectId = project.Id,
-            ApiKey = project.ApiKey
+            ApiKey = plaintextKey
         });
     }
 

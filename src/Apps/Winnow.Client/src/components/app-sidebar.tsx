@@ -126,14 +126,14 @@ function ProjectSwitcher() {
     if (isLoading) return <div className="animate-pulse h-8 w-24 bg-muted rounded" />
 
     return (
-        <>
+        <div className="flex items-center gap-1 w-full">
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <div className="flex w-full items-center gap-2 cursor-pointer transition-colors hover:bg-muted/50 p-2 rounded-md">
                         <div className="flex flex-col items-start text-sm truncate">
                             <span className="font-semibold">{currentProject?.name || "Select Project"}</span>
                         </div>
-                        <ChevronsUpDown className="ml-auto h-4 w-4 opacity-50" />
+                        <ChevronsUpDown className="ml-auto h-4 w-4 opacity-50 shrink-0" />
                     </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg" align="start" side="bottom" sideOffset={4}>
@@ -162,6 +162,12 @@ function ProjectSwitcher() {
                 </DropdownMenuContent>
             </DropdownMenu>
 
+            {currentProject && (
+                <Link to="/project-settings" className="p-2 hover:bg-muted/50 rounded-md transition-colors shrink-0" title="Project Settings">
+                    <Settings className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                </Link>
+            )}
+
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
@@ -189,6 +195,6 @@ function ProjectSwitcher() {
                     </form>
                 </DialogContent>
             </Dialog>
-        </>
+        </div>
     )
 }

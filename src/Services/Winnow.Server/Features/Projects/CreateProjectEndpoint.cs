@@ -18,7 +18,10 @@ public class CreateProjectRequest
     public string Name { get; set; } = default!;
 }
 
-public sealed class CreateProjectEndpoint(WinnowDbContext dbContext, ITenantContext tenantContext) : Endpoint<CreateProjectRequest, ProjectDto>
+public sealed class CreateProjectEndpoint(
+    WinnowDbContext dbContext,
+    ITenantContext tenantContext,
+    Winnow.Server.Infrastructure.Security.IApiKeyService apiKeyService) : Endpoint<CreateProjectRequest, ProjectDto>
 {
     public override void Configure()
     {
@@ -48,28 +51,35 @@ public sealed class CreateProjectEndpoint(WinnowDbContext dbContext, ITenantCont
         // Verify user is a member of this organization
         var organizationMember = await dbContext.OrganizationMembers
             .FirstOrDefaultAsync(om => om.UserId == userId && om.OrganizationId == tenantContext.CurrentOrganizationId.Value, ct);
-        
+
         if (organizationMember == null)
         {
             ThrowError("User does not have access to this organization", 403);
         }
 
-        // Generate API Key (simple implementation for now)
-        var apiKey = $"wm_live_{Guid.NewGuid().ToString("N")[..20]}";
+        // 1. We must generate the Project ID early so we can embed it in the key
+        var projectId = Guid.NewGuid();
+
+        // 2. Generate the plaintext key (embeds the ProjectId within it)
+        var plaintextApiKey = apiKeyService.GeneratePlaintextKey(projectId, "wm_live_");
+
+        // 3. Hash the entire plaintext key for the database
+        var apiKeyHash = apiKeyService.HashKey(plaintextApiKey);
 
         var project = new Project
         {
-            Id = Guid.NewGuid(),
+            Id = projectId, // Assign the ID we generated
             Name = req.Name,
             OwnerId = userId,
             OrganizationId = tenantContext.CurrentOrganizationId.Value,
-            ApiKey = apiKey,
+            ApiKeyHash = apiKeyHash, // Store ONLY the hash
             CreatedAt = DateTime.UtcNow
         };
 
         dbContext.Projects.Add(project);
         await dbContext.SaveChangesAsync(ct);
 
-        await Send.OkAsync(new ProjectDto(project.Id, project.Name, project.ApiKey), ct);
+        // 4. Return the PLAINTEXT key exactly once to the frontend
+        await Send.OkAsync(new ProjectDto(project.Id, project.Name, plaintextApiKey), ct);
     }
 }

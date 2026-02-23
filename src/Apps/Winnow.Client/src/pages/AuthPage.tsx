@@ -66,7 +66,7 @@ export default function AuthPage() {
 
             // Navigation
             if (isSignUp) {
-                navigate('/setup');
+                navigate('/setup', { state: { apiKey: data.apiKey } });
             } else {
                 navigate('/dashboard');
             }

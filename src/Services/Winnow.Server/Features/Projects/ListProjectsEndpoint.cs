@@ -40,7 +40,7 @@ public sealed class ListProjectsEndpoint(WinnowDbContext dbContext) : EndpointWi
         var projects = await dbContext.Projects
             .AsNoTracking()
             .Where(p => p.OwnerId == userId)
-            .Select(p => new ProjectDto(p.Id, p.Name, p.ApiKey))
+            .Select(p => new ProjectDto(p.Id, p.Name, ""))
             .ToListAsync(ct);
 
         await Send.OkAsync(projects, ct);

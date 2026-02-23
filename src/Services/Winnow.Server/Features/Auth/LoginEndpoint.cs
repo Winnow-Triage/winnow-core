@@ -30,7 +30,8 @@ public sealed class LoginEndpoint(
     UserManager<ApplicationUser> userManager,
     WinnowDbContext dbContext,
     Winnow.Server.Infrastructure.MultiTenancy.ITenantContext tenantContext,
-    IConfiguration config) : Endpoint<LoginRequest, AuthResponse>
+    IConfiguration config,
+    Winnow.Server.Infrastructure.Security.IApiKeyService apiKeyService) : Endpoint<LoginRequest, AuthResponse>
 {
     public override void Configure()
     {
@@ -105,13 +106,15 @@ public sealed class LoginEndpoint(
         // For now, let's assume one exists or create a fallback.
         if (project == null)
         {
+            var projectId = Guid.NewGuid();
+            var plaintextKey = apiKeyService.GeneratePlaintextKey(projectId);
             project = new Project
             {
-                Id = Guid.NewGuid(),
+                Id = projectId,
                 Name = "Personal Project",
                 OwnerId = user.Id,
                 OrganizationId = primaryOrganization.OrganizationId,
-                ApiKey = $"wm_live_{Guid.NewGuid().ToString("N")[..20]}"
+                ApiKeyHash = apiKeyService.HashKey(plaintextKey)
             };
             dbContext.Projects.Add(project);
             await dbContext.SaveChangesAsync(ct);
@@ -126,7 +129,7 @@ public sealed class LoginEndpoint(
             Email = user.Email ?? "",
             FullName = user.FullName,
             DefaultProjectId = project.Id,
-            ApiKey = project.ApiKey
+            ApiKey = "" // Cannot return hashed key
         });
     }
 

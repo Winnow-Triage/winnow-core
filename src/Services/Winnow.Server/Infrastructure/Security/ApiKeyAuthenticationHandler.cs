@@ -17,7 +17,8 @@ public class ApiKeyAuthenticationHandler(
     IOptionsMonitor<ApiKeyAuthenticationOptions> options,
     ILoggerFactory logger,
     UrlEncoder encoder,
-    WinnowDbContext dbContext) : AuthenticationHandler<ApiKeyAuthenticationOptions>(options, logger, encoder)
+    WinnowDbContext dbContext,
+    Winnow.Server.Infrastructure.Security.IApiKeyService apiKeyService) : AuthenticationHandler<ApiKeyAuthenticationOptions>(options, logger, encoder)
 {
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
@@ -26,20 +27,37 @@ public class ApiKeyAuthenticationHandler(
             return AuthenticateResult.NoResult();
         }
 
-        var apiKey = apiKeyValues.FirstOrDefault();
-        if (string.IsNullOrEmpty(apiKey))
+        var incomingKey = apiKeyValues.FirstOrDefault();
+        if (string.IsNullOrEmpty(incomingKey))
         {
             return AuthenticateResult.NoResult();
         }
 
         try
         {
+            // Expected Format: wm_live_{ProjectId}_{RandomSecret}
+            // Parts: 
+            // 0: wm
+            // 1: live
+            // 2: ProjectId string (N format)
+            // 3: RandomSecret string
+            var parts = incomingKey.Split('_');
+
+            // Check if it's formatted correctly and we can parse the ProjectId
+            if (parts.Length < 4 || !Guid.TryParse(parts[2], out var targetProjectId))
+            {
+                return AuthenticateResult.Fail("Malformed API Key");
+            }
+
+            // Look up the project exclusively by ID (fast index scan)
             var project = await dbContext.Projects
                 .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.ApiKey == apiKey);
+                .FirstOrDefaultAsync(p => p.Id == targetProjectId);
 
-            if (project == null)
+            // Project not found OR the hash comparison fails
+            if (project == null || !apiKeyService.VerifyKey(incomingKey, project.ApiKeyHash))
             {
+                // Return a generic error to prevent timing attacks / enumeration
                 return AuthenticateResult.Fail("Invalid API Key");
             }
 

@@ -15,6 +15,7 @@ using Winnow.Server.Infrastructure.Integrations.Strategies;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Infrastructure.Scheduling;
+using Winnow.Server.Infrastructure.Security;
 using Winnow.Server.Services.Ai;
 using Winnow.Server.Services.Ai.Strategies;
 using Winnow.Server.Services.Storage;
@@ -30,6 +31,9 @@ internal static class ServiceExtensions
         // Multi-tenancy
         services.AddScoped<ITenantContext, TenantContext>();
         services.AddScoped<IExporterFactory, ExporterFactory>();
+
+        // Security
+        services.AddSingleton<IApiKeyService, ApiKeyService>();
 
         // Stripe API Key Configuration
         Stripe.StripeConfiguration.ApiKey = config["Stripe:SecretKey"];

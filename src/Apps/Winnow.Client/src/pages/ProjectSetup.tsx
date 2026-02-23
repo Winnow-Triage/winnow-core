@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
-// import { useNavigate } from "react-router-dom" // Will use later for "Go to Dashboard"
+import { useLocation } from "react-router-dom"
 
 const codeSnippets = {
     js: {
@@ -41,9 +41,10 @@ export default function ProjectSetup() {
     const [keyCopied, setKeyCopied] = useState(false)
     const [snippetCopied, setSnippetCopied] = useState(false)
     const [connectionState, setConnectionState] = useState<'waiting' | 'success'>('waiting')
+    const location = useLocation()
     // const navigate = useNavigate()
 
-    const apiKey = "secret-key"
+    const apiKey = location.state?.apiKey || "Click 'Regenerate API Key' in Settings"
 
     // Polling Logic
     useEffect(() => {

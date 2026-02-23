@@ -10,6 +10,7 @@ import DebugConsole from './pages/DebugConsole'
 import AllReports from './pages/AllReports'
 import Clusters from './pages/Clusters'
 import Settings from './pages/Settings'
+import ProjectSettings from './pages/ProjectSettings'
 import ProjectSetup from './pages/ProjectSetup'
 import AuthPage from './pages/AuthPage'
 import SuspendedPage from './pages/SuspendedPage'
@@ -72,6 +73,7 @@ export default function App() {
                       <Route path="clusters" element={<Clusters />} />
                       <Route path="debug" element={<DebugConsole />} />
                       <Route path="settings" element={<Settings />} />
+                      <Route path="project-settings" element={<ProjectSettings />} />
                       <Route path="setup" element={<ProjectSetup />} />
                     </Route>
                   </Routes>
