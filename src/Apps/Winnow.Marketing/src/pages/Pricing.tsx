@@ -67,9 +67,9 @@ export function Pricing() {
                             <PricingFeature>7-Day Log Retention</PricingFeature>
                             <PricingFeature>Standard Email Support</PricingFeature>
                         </ul>
-                        <button className="w-full inline-flex items-center justify-center rounded-lg bg-blue-600 px-8 py-3 text-sm font-medium text-white hover:bg-blue-700 transition-colors shadow-md">
+                        <a href="http://localhost:5173/signup?tier=starter" className="w-full inline-flex items-center justify-center rounded-lg bg-blue-600 px-8 py-3 text-sm font-medium text-white hover:bg-blue-700 transition-colors shadow-md">
                             Start Trial
-                        </button>
+                        </a>
                     </div>
 
                     {/* Tier 3: Cloud Pro */}
@@ -91,9 +91,9 @@ export function Pricing() {
                             <PricingFeature>Increased Rate Limits</PricingFeature>
                             <PricingFeature>Priority Support</PricingFeature>
                         </ul>
-                        <button className="w-full inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-3 text-sm font-medium text-white hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/25">
+                        <a href="http://localhost:5173/signup?tier=pro" className="w-full inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-3 text-sm font-medium text-white hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/25">
                             Upgrade to Pro
-                        </button>
+                        </a>
                     </div>
 
                     {/* Tier 4: Dedicated */}
@@ -112,9 +112,9 @@ export function Pricing() {
                             <PricingFeature>1-Year+ Log Retention</PricingFeature>
                             <PricingFeature>Private Slack Channel</PricingFeature>
                         </ul>
-                        <button className="w-full inline-flex items-center justify-center rounded-lg bg-slate-50 px-8 py-3 text-sm font-medium text-slate-900 hover:bg-slate-200 transition-colors">
+                        <a href="mailto:sales@winnowtriage.com" className="w-full inline-flex items-center justify-center rounded-lg bg-slate-50 px-8 py-3 text-sm font-medium text-slate-900 hover:bg-slate-200 transition-colors">
                             Contact Sales
-                        </button>
+                        </a>
                     </div>
 
                 </div>

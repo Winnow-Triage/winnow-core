@@ -22,7 +22,7 @@ internal class TenantMiddleware(RequestDelegate next)
         }
 
         // Extract organization ID from JWT claim if present
-        var organizationClaim = context.User.FindFirst("organization_id");
+        var organizationClaim = context.User.FindFirst("organization");
         if (organizationClaim != null && Guid.TryParse(organizationClaim.Value, out var organizationId))
         {
             ((TenantContext)tenantContext).CurrentOrganizationId = organizationId;

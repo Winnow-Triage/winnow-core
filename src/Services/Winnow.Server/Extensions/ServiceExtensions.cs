@@ -31,6 +31,9 @@ internal static class ServiceExtensions
         services.AddScoped<ITenantContext, TenantContext>();
         services.AddScoped<IExporterFactory, ExporterFactory>();
 
+        // Stripe API Key Configuration
+        Stripe.StripeConfiguration.ApiKey = config["Stripe:SecretKey"];
+
         // Assembly scanning for all strategy implementations
         services.Scan(scan => scan
             .FromAssemblyOf<IExporterCreationStrategy>()

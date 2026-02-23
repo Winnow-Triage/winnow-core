@@ -23,13 +23,31 @@ interface IntegrationConfig {
 }
 
 export default function Settings() {
+    const [isCheckingOut, setIsCheckingOut] = useState<string | null>(null);
+
+    const handleCheckout = async (tier: string) => {
+        setIsCheckingOut(tier);
+        try {
+            const { data } = await api.post('/billing/checkout', { targetTier: tier });
+            if (data?.checkoutUrl) {
+                window.location.href = data.checkoutUrl;
+            }
+        } catch (error) {
+            console.error("Checkout failed:", error);
+            toast.error("Failed to start checkout process. Please try again.");
+        } finally {
+            setIsCheckingOut(null);
+        }
+    };
+
     return (
         <div className="flex flex-col gap-6">
             <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
 
             <Tabs defaultValue="integrations" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 max-w-[400px]">
+                <TabsList className="grid w-full grid-cols-4 max-w-[500px]">
                     <TabsTrigger value="general">General</TabsTrigger>
+                    <TabsTrigger value="billing">Billing</TabsTrigger>
                     <TabsTrigger value="integrations">Integrations</TabsTrigger>
                     <TabsTrigger value="ai">AI Models</TabsTrigger>
                 </TabsList>
@@ -47,6 +65,82 @@ export default function Settings() {
                             </div>
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <TabsContent value="billing" className="mt-6">
+                    <div className="grid gap-6 md:grid-cols-3">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Starter</CardTitle>
+                                <CardDescription>$15 / month</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
+                                    <li>Up to 3 members</li>
+                                    <li>Basic reporting</li>
+                                    <li>Community support</li>
+                                </ul>
+                            </CardContent>
+                            <CardFooter>
+                                <Button
+                                    className="w-full"
+                                    onClick={() => handleCheckout("Starter")}
+                                    disabled={isCheckingOut !== null}
+                                >
+                                    {isCheckingOut === "Starter" ? "Redirecting..." : "Upgrade to Starter"}
+                                </Button>
+                            </CardFooter>
+                        </Card>
+
+                        <Card className="border-primary relative">
+                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full">
+                                Recommended
+                            </div>
+                            <CardHeader>
+                                <CardTitle>Pro</CardTitle>
+                                <CardDescription>$79 / month</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
+                                    <li>Unlimited members</li>
+                                    <li>Advanced reporting & AI</li>
+                                    <li>Priority support</li>
+                                </ul>
+                            </CardContent>
+                            <CardFooter>
+                                <Button
+                                    className="w-full"
+                                    onClick={() => handleCheckout("Pro")}
+                                    disabled={isCheckingOut !== null}
+                                >
+                                    {isCheckingOut === "Pro" ? "Redirecting..." : "Upgrade to Pro"}
+                                </Button>
+                            </CardFooter>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Enterprise</CardTitle>
+                                <CardDescription>$2,000 / month</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
+                                    <li>Dedicated tenant infrastructure</li>
+                                    <li>Custom integrations</li>
+                                    <li>SLA & Account Manager</li>
+                                </ul>
+                            </CardContent>
+                            <CardFooter>
+                                <Button
+                                    className="w-full" variant="outline"
+                                    onClick={() => handleCheckout("Enterprise")}
+                                    disabled={isCheckingOut !== null}
+                                >
+                                    {isCheckingOut === "Enterprise" ? "Redirecting..." : "Contact Sales / Upgrade"}
+                                </Button>
+                            </CardFooter>
+                        </Card>
+                    </div>
                 </TabsContent>
 
                 <TabsContent value="integrations" className="mt-6">
