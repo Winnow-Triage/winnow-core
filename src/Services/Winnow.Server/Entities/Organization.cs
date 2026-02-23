@@ -16,7 +16,7 @@ public class Organization
     // Helper methods
     public bool IsPaidTier()
     {
-        return SubscriptionTier == "Starter" || SubscriptionTier == "Pro" || SubscriptionTier == "Dedicated";
+        return SubscriptionTier == "Starter" || SubscriptionTier == "Pro" || SubscriptionTier == "Enterprise";
     }
 
     public bool CanCreateProject()

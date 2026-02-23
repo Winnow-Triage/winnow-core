@@ -24,9 +24,46 @@ interface IntegrationConfig {
 
 export default function Settings() {
     const [isCheckingOut, setIsCheckingOut] = useState<string | null>(null);
+    const [isManaging, setIsManaging] = useState(false);
+
+    const { data: organization, isLoading: isOrgLoading } = useQuery<{ id: string, name: string, subscriptionTier: string }>({
+        queryKey: ['current-organization'],
+        queryFn: async () => {
+            const { data } = await api.get('/organizations/current');
+            return data;
+        }
+    });
+
+    const subscriptionTier: string = organization?.subscriptionTier || "Free";
+
+    const getButtonText = (targetTier: string, currentTier: string, checkingOut: string | null) => {
+        if (checkingOut === targetTier) return "Redirecting...";
+        if (currentTier === targetTier) return "Current Plan";
+
+        const tiers = ["Free", "Starter", "Pro", "Enterprise"];
+        const currentIndex = tiers.indexOf(currentTier);
+        const targetIndex = tiers.indexOf(targetTier);
+
+        if (currentIndex !== -1 && targetIndex !== -1 && targetIndex < currentIndex) {
+            return `Downgrade to ${targetTier}`;
+        }
+
+        if (targetTier === "Enterprise") return "Contact Sales / Upgrade";
+        return `Upgrade to ${targetTier}`;
+    };
 
     const handleCheckout = async (tier: string) => {
         setIsCheckingOut(tier);
+
+        // If the action is a downgrade or an upgrade of an existing paid plan, route to the Customer Portal instead
+        // This prevents double billing by allowing Stripe to handle prorations/cancellations of the current active plan.
+        const actionText = getButtonText(tier, subscriptionTier, null);
+        if (actionText.includes("Downgrade") || (subscriptionTier !== "Free" && actionText.includes("Upgrade"))) {
+            await handleManageSubscription();
+            setIsCheckingOut(null);
+            return;
+        }
+
         try {
             const { data } = await api.post('/billing/checkout', { targetTier: tier });
             if (data?.checkoutUrl) {
@@ -37,6 +74,21 @@ export default function Settings() {
             toast.error("Failed to start checkout process. Please try again.");
         } finally {
             setIsCheckingOut(null);
+        }
+    };
+
+    const handleManageSubscription = async () => {
+        setIsManaging(true);
+        try {
+            const { data } = await api.post('/billing/portal');
+            if (data?.portalUrl) {
+                window.location.href = data.portalUrl;
+            }
+        } catch (error) {
+            console.error("Portal redirect failed:", error);
+            toast.error("Failed to open billing portal. Please try again.");
+        } finally {
+            setIsManaging(false);
         }
     };
 
@@ -61,13 +113,30 @@ export default function Settings() {
                         <CardContent className="space-y-4">
                             <div className="flex flex-col gap-2">
                                 <Label>Organization Name</Label>
-                                <Input disabled defaultValue="My Organization" />
+                                <Input disabled value={isOrgLoading ? "Loading..." : organization?.name || "Unknown Organization"} readOnly />
                             </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
 
-                <TabsContent value="billing" className="mt-6">
+                <TabsContent value="billing" className="mt-6 flex flex-col gap-6">
+                    {subscriptionTier !== "Free" && (
+                        <Card className="shadow-sm">
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <div>
+                                    <CardTitle>Current Subscription</CardTitle>
+                                    <CardDescription>You are currently on the <span className="font-semibold">{subscriptionTier}</span> plan.</CardDescription>
+                                </div>
+                                <Button
+                                    onClick={handleManageSubscription}
+                                    disabled={isManaging}
+                                >
+                                    {isManaging ? "Redirecting..." : "Manage Subscription / Update Payment Method"}
+                                </Button>
+                            </CardHeader>
+                        </Card>
+                    )}
+
                     <div className="grid gap-6 md:grid-cols-3">
                         <Card>
                             <CardHeader>
@@ -84,18 +153,21 @@ export default function Settings() {
                             <CardFooter>
                                 <Button
                                     className="w-full"
+                                    variant={subscriptionTier === "Starter" ? "secondary" : "default"}
                                     onClick={() => handleCheckout("Starter")}
-                                    disabled={isCheckingOut !== null}
+                                    disabled={isCheckingOut !== null || subscriptionTier === "Starter"}
                                 >
-                                    {isCheckingOut === "Starter" ? "Redirecting..." : "Upgrade to Starter"}
+                                    {getButtonText("Starter", subscriptionTier, isCheckingOut)}
                                 </Button>
                             </CardFooter>
                         </Card>
 
                         <Card className="border-primary relative">
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full">
-                                Recommended
-                            </div>
+                            {!["Pro", "Enterprise"].includes(subscriptionTier) && (
+                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full">
+                                    Recommended
+                                </div>
+                            )}
                             <CardHeader>
                                 <CardTitle>Pro</CardTitle>
                                 <CardDescription>$79 / month</CardDescription>
@@ -110,10 +182,11 @@ export default function Settings() {
                             <CardFooter>
                                 <Button
                                     className="w-full"
+                                    variant={subscriptionTier === "Pro" ? "secondary" : "default"}
                                     onClick={() => handleCheckout("Pro")}
-                                    disabled={isCheckingOut !== null}
+                                    disabled={isCheckingOut !== null || subscriptionTier === "Pro"}
                                 >
-                                    {isCheckingOut === "Pro" ? "Redirecting..." : "Upgrade to Pro"}
+                                    {getButtonText("Pro", subscriptionTier, isCheckingOut)}
                                 </Button>
                             </CardFooter>
                         </Card>
@@ -132,11 +205,12 @@ export default function Settings() {
                             </CardContent>
                             <CardFooter>
                                 <Button
-                                    className="w-full" variant="outline"
+                                    className="w-full"
+                                    variant={subscriptionTier === "Enterprise" ? "secondary" : "outline"}
                                     onClick={() => handleCheckout("Enterprise")}
-                                    disabled={isCheckingOut !== null}
+                                    disabled={isCheckingOut !== null || subscriptionTier === "Enterprise"}
                                 >
-                                    {isCheckingOut === "Enterprise" ? "Redirecting..." : "Contact Sales / Upgrade"}
+                                    {getButtonText("Enterprise", subscriptionTier, isCheckingOut)}
                                 </Button>
                             </CardFooter>
                         </Card>

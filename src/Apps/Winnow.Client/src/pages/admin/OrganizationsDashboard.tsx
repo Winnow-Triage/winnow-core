@@ -128,7 +128,7 @@ export default function OrganizationsDashboard() {
         const t = tier.toLowerCase()
         if (t === 'starter') return 'bg-blue-500/10 text-blue-500 border-blue-500/20 hover:bg-blue-500/20'
         if (t === 'pro') return 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20 hover:bg-indigo-500/20'
-        if (t === 'dedicated') return 'bg-slate-500/10 text-slate-400 border-slate-500/20 hover:bg-slate-500/20'
+        if (t === 'enterprise') return 'bg-slate-500/10 text-slate-400 border-slate-500/20 hover:bg-slate-500/20'
         return 'bg-muted text-foreground hover:bg-muted/80' // Free
     }
 
@@ -165,7 +165,7 @@ export default function OrganizationsDashboard() {
                             <SelectItem value="Free">Free</SelectItem>
                             <SelectItem value="Starter">Starter</SelectItem>
                             <SelectItem value="Pro">Pro</SelectItem>
-                            <SelectItem value="Dedicated">Dedicated</SelectItem>
+                            <SelectItem value="Enterprise">Enterprise</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -256,8 +256,8 @@ export default function OrganizationsDashboard() {
                                                 <DropdownMenuItem onClick={() => handleUpdateTier(org.id, 'Pro')} className="hover:bg-indigo-500/20 hover:text-indigo-500 focus:bg-indigo-500/20 cursor-pointer">
                                                     Set to Pro
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleUpdateTier(org.id, 'Dedicated')} className="hover:bg-slate-500/20 hover:text-slate-400 focus:bg-slate-500/20 cursor-pointer">
-                                                    Set to Dedicated
+                                                <DropdownMenuItem onClick={() => handleUpdateTier(org.id, 'Enterprise')} className="hover:bg-slate-500/20 hover:text-slate-400 focus:bg-slate-500/20 cursor-pointer">
+                                                    Set to Enterprise
                                                 </DropdownMenuItem>
 
                                                 <DropdownMenuSeparator className="bg-red-900/30" />
