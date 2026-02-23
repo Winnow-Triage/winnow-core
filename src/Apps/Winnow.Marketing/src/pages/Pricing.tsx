@@ -28,7 +28,7 @@ export function Pricing() {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-8 max-w-[1400px] mx-auto">
 
                     {/* Tier 1: Community */}
                     <div className="flex flex-col p-6 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800">
@@ -51,7 +51,28 @@ export function Pricing() {
                         </a>
                     </div>
 
-                    {/* Tier 2: Cloud Starter */}
+                    {/* Tier 2: Cloud Free */}
+                    <div className="flex flex-col p-6 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 relative overflow-hidden">
+                        <div className="mb-4">
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50">Cloud Free</h3>
+                            <p className="text-sm text-muted-foreground">To test the waters.</p>
+                        </div>
+                        <div className="mb-6">
+                            <span className="text-4xl font-bold text-slate-900 dark:text-slate-50">$0</span>
+                            <span className="text-muted-foreground ml-2">/ month</span>
+                        </div>
+                        <ul className="space-y-3 mb-8 flex-1">
+                            <PricingFeature>Fully Managed Hosting</PricingFeature>
+                            <PricingFeature>Up to 1,000 reports / mo</PricingFeature>
+                            <PricingFeature>1-Day Log Retention</PricingFeature>
+                            <PricingFeature>Community Support</PricingFeature>
+                        </ul>
+                        <a href="http://localhost:5173/signup?tier=free" className="w-full inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent px-8 py-3 text-sm font-medium text-slate-900 dark:text-slate-50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shadow-sm">
+                            Try for Free
+                        </a>
+                    </div>
+
+                    {/* Tier 3: Cloud Starter */}
                     <div className="flex flex-col p-6 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 relative overflow-hidden">
                         <div className="mb-4">
                             <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50">Cloud Starter</h3>
@@ -62,19 +83,19 @@ export function Pricing() {
                             <span className="text-muted-foreground ml-2">/ month</span>
                         </div>
                         <ul className="space-y-3 mb-8 flex-1">
-                            <PricingFeature>Fully Managed Hosting</PricingFeature>
-                            <PricingFeature>Shared Database</PricingFeature>
+                            <PricingFeature>Everything in Free</PricingFeature>
+                            <PricingFeature>Unlimited Reports</PricingFeature>
                             <PricingFeature>7-Day Log Retention</PricingFeature>
                             <PricingFeature>Standard Email Support</PricingFeature>
                         </ul>
                         <a href="http://localhost:5173/signup?tier=starter" className="w-full inline-flex items-center justify-center rounded-lg bg-blue-600 px-8 py-3 text-sm font-medium text-white hover:bg-blue-700 transition-colors shadow-md">
-                            Start Trial
+                            Upgrade to Starter
                         </a>
                     </div>
 
-                    {/* Tier 3: Cloud Pro */}
-                    <div className="flex flex-col p-6 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border-2 border-primary scale-105 z-10 relative">
-                        <div className="absolute top-0 right-0 bg-primary text-white text-xs font-bold px-3 py-1 rounded-bl-lg uppercase">
+                    {/* Tier 4: Cloud Pro */}
+                    <div className="flex flex-col p-6 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border-2 border-primary scale-105 z-10 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 bg-primary text-white text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg uppercase">
                             Most Popular
                         </div>
                         <div className="mb-4">
@@ -96,15 +117,15 @@ export function Pricing() {
                         </a>
                     </div>
 
-                    {/* Tier 4: Enterprise */}
+                    {/* Tier 5: Enterprise */}
                     <div className="relative flex flex-col p-8 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-sm">
                         <div className="mb-6">
                             <h3 className="text-xl font-bold text-white">Enterprise</h3>
                             <p className="text-sm text-slate-400">For enterprise compliance.</p>
                         </div>
                         <div className="mb-6">
-                            <span className="text-4xl font-bold text-white">$299</span>
-                            <span className="text-slate-400 ml-2">/ month</span>
+                            <span className="text-3xl font-bold text-white tracking-tight">Custom</span>
+                            <span className="text-slate-400 ml-2">Pricing</span>
                         </div>
                         <ul className="space-y-3 mb-8 flex-1">
                             <PricingFeature>Isolated Database Instance</PricingFeature>
