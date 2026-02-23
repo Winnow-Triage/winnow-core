@@ -89,7 +89,7 @@ public class CreateCheckoutSessionEndpoint(
 
         // 3. Create Stripe Checkout Session
         var frontendUrl = config["FrontendUrl"]?.TrimEnd('/') ?? "http://localhost:5173";
-        var billingUrl = $"{frontendUrl}/settings/billing";
+        var billingUrl = $"{frontendUrl}/settings?tab=billing";
 
         var sessionOptions = new SessionCreateOptions
         {

@@ -21,8 +21,16 @@ interface IntegrationConfig {
     // For simplicity, let's just assume we can overwrite.
     name: string;
 }
+import { useSearchParams } from 'react-router-dom';
 
 export default function Settings() {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const currentTab = searchParams.get('tab') || 'general';
+
+    const handleTabChange = (value: string) => {
+        setSearchParams({ tab: value });
+    };
+
     const [isCheckingOut, setIsCheckingOut] = useState<string | null>(null);
     const [isManaging, setIsManaging] = useState(false);
 
@@ -96,7 +104,7 @@ export default function Settings() {
         <div className="flex flex-col gap-6">
             <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
 
-            <Tabs defaultValue="integrations" className="w-full">
+            <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
                 <TabsList className="grid w-full grid-cols-4 max-w-[500px]">
                     <TabsTrigger value="general">General</TabsTrigger>
                     <TabsTrigger value="billing">Billing</TabsTrigger>
