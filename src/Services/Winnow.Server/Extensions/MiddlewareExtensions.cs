@@ -75,7 +75,12 @@ internal static class MiddlewareExtensions
         }
 
         // Middleware pipeline
-        // Middleware pipeline
+        if (!app.Environment.IsDevelopment())
+        {
+            app.UseHsts();
+        }
+        app.UseHttpsRedirection();
+
         app.UseCors();
         app.UseAuthentication();
         app.UseMiddleware<TenantMiddleware>();
