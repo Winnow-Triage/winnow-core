@@ -17,6 +17,9 @@ public class Integration : ITenantEntity
 
     public bool IsActive { get; set; } = true;
 
+    // Added as a hypothetical property for encryption-at-rest demonstration
+    public string? Token { get; set; }
+
     /// <summary>
     /// Updates the configuration using the polymorphic domain model.
     /// </summary>

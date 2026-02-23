@@ -1,13 +1,18 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Winnow.Server.Entities;
 using Winnow.Server.Infrastructure.MultiTenancy;
+using Winnow.Server.Infrastructure.Security;
 
 namespace Winnow.Server.Infrastructure.Persistence;
 
-public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantContext tenantContext) : IdentityDbContext<ApplicationUser>(options)
+public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantContext tenantContext, IConfiguration configuration) : IdentityDbContext<ApplicationUser>(options)
 {
+    private readonly string _encryptionKey = configuration["Encryption:MasterKey"]
+        ?? throw new InvalidOperationException("Encryption config: 'Encryption:MasterKey' is missing.");
+
     private static readonly JsonSerializerOptions _jsonOptions = new() { };
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -149,15 +154,20 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         });
 
         // Integration -> IntegrationConfig (polymorphic) configuration
+        var encryptedConverter = new EncryptedStringConverter(_encryptionKey);
+
         modelBuilder.Entity<Integration>(entity =>
         {
             entity.HasKey(i => i.Id);
 
             entity.Property(i => i.Config)
                 .HasConversion(
-                    v => System.Text.Json.JsonSerializer.Serialize(v, _jsonOptions),
-                    v => System.Text.Json.JsonSerializer.Deserialize<Winnow.Integrations.Domain.IntegrationConfig>(v, _jsonOptions)!
+                    v => JsonSerializer.Serialize(v, _jsonOptions),
+                    v => JsonSerializer.Deserialize<Winnow.Integrations.Domain.IntegrationConfig>(v, _jsonOptions)!
                 );
+
+            entity.Property(e => e.Token)
+                  .HasConversion(encryptedConverter);
         });
 
         // Apply global query filters to all ITenantEntity entities

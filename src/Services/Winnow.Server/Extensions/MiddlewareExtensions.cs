@@ -46,7 +46,7 @@ internal static class MiddlewareExtensions
                     var optionsBuilder = new DbContextOptionsBuilder<WinnowDbContext>();
                     optionsBuilder.UseSqlite(connectionString);
 
-                    using var tenantDb = new WinnowDbContext(optionsBuilder.Options, null!);
+                    using var tenantDb = new WinnowDbContext(optionsBuilder.Options, null!, app.Configuration);
 
                     try
                     {
