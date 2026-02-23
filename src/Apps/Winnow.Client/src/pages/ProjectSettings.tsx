@@ -6,6 +6,7 @@ import { Copy } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { useNavigate } from "react-router-dom";
 
 function RegenerateApiKeySection() {
     const { currentProject } = useProject();
@@ -106,9 +107,12 @@ function RegenerateApiKeySection() {
 }
 
 export default function ProjectSettings() {
-    const { currentProject, renameProject } = useProject();
+    const { currentProject, renameProject, deleteProject } = useProject();
     const [projectName, setProjectName] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (currentProject) {
@@ -127,6 +131,22 @@ export default function ProjectSettings() {
             toast.error("Failed to update project");
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleDeleteProject = async () => {
+        if (!currentProject) return;
+
+        setIsDeleting(true);
+        try {
+            await deleteProject(currentProject.id);
+            toast.success("Project deleted successfully");
+            navigate("/"); // Redirect to dashboard to prevent accidental double-deletes
+        } catch (error) {
+            toast.error("Failed to delete project");
+        } finally {
+            setIsDeleting(false);
+            setIsDeleteConfirmOpen(false);
         }
     };
 
@@ -183,6 +203,51 @@ export default function ProjectSettings() {
                         </p>
                     </div>
                     <RegenerateApiKeySection />
+                </div>
+
+                {/* Danger Zone */}
+                <div className="rounded-lg border border-red-500/20 bg-red-500/5 text-card-foreground shadow-sm flex flex-col">
+                    <div className="flex flex-col space-y-1.5 p-6">
+                        <h3 className="font-semibold leading-none tracking-tight text-red-600 dark:text-red-400">Danger Zone</h3>
+                        <p className="text-sm text-muted-foreground">
+                            Irreversible actions regarding this project. Proceed with extreme caution.
+                        </p>
+                    </div>
+                    <div className="p-6 pt-0 space-y-4">
+                        <div className="flex flex-col space-y-2">
+                            <h4 className="text-sm font-medium leading-none">Delete Project</h4>
+                            <p className="text-sm text-muted-foreground">
+                                Permanently delete this project, all of its recorded events, and API keys. This action cannot be undone.
+                            </p>
+                            <div className="pt-2">
+                                <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="destructive">
+                                            Delete Project
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Delete Project</DialogTitle>
+                                            <DialogDescription>
+                                                Are you absolutely sure you want to delete <b>{currentProject.name}</b>?
+                                                <br /><br />
+                                                This will permanently erase all reports, API keys, and collected data associated with this project. This action is irreversible.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <DialogFooter>
+                                            <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>
+                                                Cancel
+                                            </Button>
+                                            <Button variant="destructive" onClick={handleDeleteProject} disabled={isDeleting}>
+                                                {isDeleting ? "Deleting..." : "Yes, delete everything"}
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

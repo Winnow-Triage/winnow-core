@@ -16,6 +16,7 @@ interface ProjectContextType {
     refreshProjects: () => Promise<void>;
     createProject: (name: string) => Promise<Project>;
     renameProject: (id: string, newName: string) => Promise<void>;
+    deleteProject: (id: string) => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -104,8 +105,37 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const deleteProject = async (id: string) => {
+        const token = localStorage.getItem("authToken");
+        if (!token) return;
+
+        try {
+            await api.delete(`/projects/${id}`);
+
+            setProjects(prev => {
+                const updated = prev.filter(p => p.id !== id);
+
+                // If we deleted the current project, auto-select a new one
+                if (currentProject?.id === id) {
+                    if (updated.length > 0) {
+                        selectProject(updated[0].id);
+                    } else {
+                        setCurrentProject(null);
+                        localStorage.removeItem("lastProjectId");
+                        queryClient.invalidateQueries();
+                    }
+                }
+
+                return updated;
+            });
+        } catch (error: any) {
+            console.error("Delete project error", error);
+            throw new Error(error.response?.data?.message || "Failed to delete project");
+        }
+    };
+
     return (
-        <ProjectContext.Provider value={{ projects, currentProject, isLoading, selectProject, refreshProjects, createProject, renameProject }}>
+        <ProjectContext.Provider value={{ projects, currentProject, isLoading, selectProject, refreshProjects, createProject, renameProject, deleteProject }}>
             {children}
         </ProjectContext.Provider>
     );
