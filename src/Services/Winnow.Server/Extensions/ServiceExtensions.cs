@@ -23,7 +23,7 @@ namespace Winnow.Server.Extensions;
 
 internal static class ServiceExtensions
 {
-    private static readonly string[] HealthCheckReadyTags = new[] { "ready" };
+    private static readonly string[] HealthCheckReadyTags = ["ready"];
 
     public static IServiceCollection AddWinnowServices(this IServiceCollection services, IConfiguration config)
     {
