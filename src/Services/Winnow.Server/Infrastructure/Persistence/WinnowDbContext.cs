@@ -160,6 +160,11 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         {
             entity.HasKey(i => i.Id);
 
+            entity.HasOne(i => i.Project)
+                .WithMany(p => p.Integrations)
+                .HasForeignKey(i => i.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             entity.Property(i => i.Config)
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, _jsonOptions),

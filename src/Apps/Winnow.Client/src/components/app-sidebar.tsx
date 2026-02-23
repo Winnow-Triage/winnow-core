@@ -53,7 +53,7 @@ const items = [
         icon: Inbox,
     },
     {
-        title: "Settings",
+        title: "Org Settings",
         url: "/settings",
         icon: Settings,
     },

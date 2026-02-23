@@ -1,27 +1,16 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { useProject } from '@/context/ProjectContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Edit, FolderGit2, Github, Plus, Trash2, Trello } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
-interface IntegrationConfig {
-    id: string;
-    provider: string;
-    // In a real app we wouldn't return full settings to list, but for now we might need them or just parse them safely
-    // Actually the list endpoint returns: { id, provider, name }
-    // We might need a way to get details or just use the upsert to overwrite.
-    // For simplicity, let's just assume we can overwrite.
-    name: string;
-}
+
 import { useSearchParams } from 'react-router-dom';
 
 export default function Settings() {
@@ -148,14 +137,16 @@ export default function Settings() {
     };
 
     return (
-        <div className="flex flex-col gap-6">
-            <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+        <div className="max-w-4xl w-full mx-auto py-8">
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold tracking-tight">Organization Settings</h1>
+                <p className="text-muted-foreground">Manage settings and access for {organization?.name || "your organization"}</p>
+            </div>
 
             <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-                <TabsList className="grid w-full grid-cols-4 max-w-[500px]">
+                <TabsList className="grid w-full grid-cols-3 max-w-[500px]">
                     <TabsTrigger value="general">General</TabsTrigger>
                     <TabsTrigger value="billing">Billing</TabsTrigger>
-                    <TabsTrigger value="integrations">Integrations</TabsTrigger>
                     <TabsTrigger value="ai">AI Models</TabsTrigger>
                 </TabsList>
 
@@ -249,7 +240,31 @@ export default function Settings() {
                         </Card>
                     )}
 
-                    <div className="grid gap-6 md:grid-cols-3">
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Cloud Free</CardTitle>
+                                <CardDescription>$0 / month</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
+                                    <li>Fully Managed Hosting</li>
+                                    <li>Up to 1,000 reports / mo</li>
+                                    <li>1-Day Log Retention</li>
+                                    <li>Community Support</li>
+                                </ul>
+                            </CardContent>
+                            <CardFooter>
+                                <Button
+                                    className="w-full"
+                                    variant={subscriptionTier === "Free" ? "secondary" : "outline"}
+                                    onClick={() => handleCheckout("Free")}
+                                    disabled={isCheckingOut !== null || subscriptionTier === "Free"}
+                                >
+                                    {getButtonText("Free", subscriptionTier, isCheckingOut)}
+                                </Button>
+                            </CardFooter>
+                        </Card>
                         <Card>
                             <CardHeader>
                                 <CardTitle>Starter</CardTitle>
@@ -329,9 +344,7 @@ export default function Settings() {
                     </div>
                 </TabsContent>
 
-                <TabsContent value="integrations" className="mt-6">
-                    <IntegrationsSettings />
-                </TabsContent>
+
 
                 <TabsContent value="ai" className="mt-6">
                     <Card>
@@ -350,295 +363,4 @@ export default function Settings() {
 }
 
 
-function IntegrationsSettings() {
-    const queryClient = useQueryClient();
-    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const { currentProject } = useProject();
 
-    const { data: integrations, isLoading } = useQuery<IntegrationConfig[]>({
-        queryKey: ['integrations', currentProject?.id],
-        queryFn: async () => {
-            const { data } = await api.get('/integrations');
-            return data;
-        },
-        enabled: !!currentProject,
-    });
-
-    const deleteMutation = useMutation({
-        mutationFn: async (id: string) => {
-            await api.delete(`/integrations/${id}`);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['integrations'] });
-            toast.success("Integration removed");
-        }
-    });
-
-    return (
-        <div className="space-y-6">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <div className="space-y-1">
-                        <CardTitle>Active Integrations</CardTitle>
-                        <CardDescription>Manage your connections to external issue trackers.</CardDescription>
-                    </div>
-                    <Button onClick={() => { setEditingId(null); setIsAddDialogOpen(true); }}>
-                        <Plus className="mr-2 h-4 w-4" /> Add Integration
-                    </Button>
-                </CardHeader>
-                <CardContent>
-                    {isLoading ? (
-                        <div>Loading...</div>
-                    ) : integrations?.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                            No integrations configured. Add one to get started.
-                        </div>
-                    ) : (
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {integrations?.map((config) => (
-                                <Card key={config.id} className="relative overflow-hidden group">
-                                    <div className={`absolute top-0 left-0 w-1 h-full ${config.provider.toLowerCase() === 'github' ? 'bg-slate-800' :
-                                        config.provider.toLowerCase() === 'trello' ? 'bg-blue-600' :
-                                            'bg-blue-500' // Jira
-                                        }`} />
-                                    <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-base font-medium flex items-center gap-2">
-                                            {config.provider.toLowerCase() === 'github' && <Github className="h-5 w-5" />}
-                                            {config.provider.toLowerCase() === 'trello' && <Trello className="h-5 w-5" />}
-                                            {config.provider.toLowerCase() === 'jira' && <FolderGit2 className="h-5 w-5" />}
-                                            {config.name}
-                                        </CardTitle>
-                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                                onClick={() => {
-                                                    setEditingId(config.id);
-                                                    setIsAddDialogOpen(true);
-                                                }}
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                onClick={() => {
-                                                    if (confirm('Are you sure you want to remove this integration?')) {
-                                                        deleteMutation.mutate(config.id);
-                                                    }
-                                                }}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="text-xs text-muted-foreground capitalize">
-                                            {config.provider} Provider
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-
-            <AddIntegrationDialog
-                open={isAddDialogOpen}
-                onOpenChange={setIsAddDialogOpen}
-                editId={editingId}
-            />
-        </div>
-    );
-}
-
-function AddIntegrationDialog({ open, onOpenChange, editId }: { open: boolean, onOpenChange: (open: boolean) => void, editId: string | null }) {
-    const queryClient = useQueryClient();
-    const { currentProject } = useProject();
-    const [provider, setProvider] = useState<string>("GitHub");
-    const [formData, setFormData] = useState<any>({});
-
-    // Fetch details if in edit mode
-    useQuery({
-        queryKey: ['integration', editId, currentProject?.id],
-        queryFn: async () => {
-            if (!editId) return null;
-            const { data } = await api.get(`/integrations/${editId}`);
-            setProvider(data.provider);
-            try {
-                setFormData(JSON.parse(data.settingsJson));
-            } catch (e) { console.error("Failed to parse settings", e); }
-            return data;
-        },
-        enabled: !!editId && open && !!currentProject
-    });
-
-    // Reset form when opening in 'add' mode
-    React.useEffect(() => {
-        if (open && !editId) {
-            setProvider("GitHub");
-            setFormData({});
-        }
-    }, [open, editId]);
-
-    const saveMutation = useMutation({
-        mutationFn: async (data: any) => {
-            await api.post('/integrations', {
-                id: editId, // Include ID if editing
-                provider: provider,
-                settingsJson: JSON.stringify(data),
-                isActive: true
-            });
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['integrations'] });
-            toast.success("Integration saved");
-            onOpenChange(false);
-            setFormData({});
-        },
-        onError: () => {
-            toast.error("Failed to save integration");
-        }
-    });
-
-    const handleSave = () => {
-        saveMutation.mutate(formData);
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>{editId ? 'Edit Integration' : 'Add Integration'}</DialogTitle>
-                    <DialogDescription>
-                        {editId ? 'Modify existing connection settings.' : 'Configure a new connection to an external system.'}
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                        <Label>Provider</Label>
-                        <Select value={provider} onValueChange={(val) => { setProvider(val); setFormData({}); }} disabled={!!editId}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select provider" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="GitHub">GitHub</SelectItem>
-                                <SelectItem value="Trello">Trello</SelectItem>
-                                <SelectItem value="Jira">Jira</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    {provider === 'GitHub' && (
-                        <>
-                            <div className="grid gap-2">
-                                <Label>Owner (User/Org)</Label>
-                                <Input
-                                    value={formData.owner || ''}
-                                    onChange={e => setFormData({ ...formData, owner: e.target.value })}
-                                    placeholder="e.g. microsoft"
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Repository</Label>
-                                <Input
-                                    value={formData.repo || ''}
-                                    onChange={e => setFormData({ ...formData, repo: e.target.value })}
-                                    placeholder="e.g. vscode"
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Personal Access Token</Label>
-                                <Input
-                                    type="password"
-                                    value={formData.apiKey || ''}
-                                    onChange={e => setFormData({ ...formData, apiKey: e.target.value })}
-                                    placeholder={editId ? "****** (Unchanged)" : "ghp_..."}
-                                />
-                            </div>
-                        </>
-                    )}
-
-                    {provider === 'Trello' && (
-                        <>
-                            <div className="grid gap-2">
-                                <Label>API Key</Label>
-                                <Input
-                                    type="password"
-                                    value={formData.apiKey || ''}
-                                    onChange={e => setFormData({ ...formData, apiKey: e.target.value })}
-                                    placeholder={editId ? "****** (Unchanged)" : ""}
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Token</Label>
-                                <Input
-                                    type="password"
-                                    value={formData.token || ''}
-                                    onChange={e => setFormData({ ...formData, token: e.target.value })}
-                                    placeholder={editId ? "****** (Unchanged)" : ""}
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>List ID</Label>
-                                <Input
-                                    value={formData.listId || ''}
-                                    onChange={e => setFormData({ ...formData, listId: e.target.value })}
-                                    placeholder="Check board URL .json"
-                                />
-                            </div>
-                        </>
-                    )}
-
-                    {provider === 'Jira' && (
-                        <>
-                            <div className="grid gap-2">
-                                <Label>Jira Base URL</Label>
-                                <Input
-                                    value={formData.baseUrl || ''}
-                                    onChange={e => setFormData({ ...formData, baseUrl: e.target.value })}
-                                    placeholder="https://your-domain.atlassian.net"
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>User Email</Label>
-                                <Input
-                                    value={formData.userEmail || ''}
-                                    onChange={e => setFormData({ ...formData, userEmail: e.target.value })}
-                                    placeholder="user@example.com"
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>API Token</Label>
-                                <Input
-                                    type="password"
-                                    value={formData.apiToken || ''}
-                                    onChange={e => setFormData({ ...formData, apiToken: e.target.value })}
-                                    placeholder={editId ? "****** (Unchanged)" : ""}
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Project Key</Label>
-                                <Input
-                                    value={formData.projectKey || ''}
-                                    onChange={e => setFormData({ ...formData, projectKey: e.target.value })}
-                                    placeholder="PROJ"
-                                />
-                            </div>
-                        </>
-                    )}
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSave} disabled={saveMutation.isPending}>
-                        {saveMutation.isPending ? 'Saving...' : 'Save Configuration'}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}

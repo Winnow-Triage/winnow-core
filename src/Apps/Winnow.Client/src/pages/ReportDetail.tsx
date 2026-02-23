@@ -58,6 +58,7 @@ interface ReportDetailData {
     stackTrace: string;
     status: string;
     createdAt: string;
+    projectId: string;
     parentReportId?: string;
     parentReportMessage?: string;
     suggestedParentId?: string;
@@ -184,6 +185,7 @@ export default function ReportDetail() {
 
                     <ExportMenu
                         reportId={report.id}
+                        projectId={report.projectId}
                         isExported={report.status === 'Exported'}
                         onExport={() => {
                             queryClient.invalidateQueries({ queryKey: ['report', id] });
@@ -684,11 +686,11 @@ export default function ReportDetail() {
     );
 }
 
-function ExportMenu({ reportId, onExport, isExported }: { reportId: string, onExport: () => void, isExported: boolean }) {
+function ExportMenu({ reportId, projectId, onExport, isExported }: { reportId: string, projectId: string, onExport: () => void, isExported: boolean }) {
     const { data: integrations } = useQuery<{ id: string, provider: string, name: string }[]>({
-        queryKey: ['integrations'],
+        queryKey: ['integrations', projectId],
         queryFn: async () => {
-            const { data } = await api.get('/integrations');
+            const { data } = await api.get(`/projects/${projectId}/integrations`);
             return data;
         },
         retry: false

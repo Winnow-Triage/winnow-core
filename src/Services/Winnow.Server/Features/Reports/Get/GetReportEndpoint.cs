@@ -28,6 +28,11 @@ public class GetReportResponse
     public Guid Id { get; set; }
 
     /// <summary>
+    /// The project this report belongs to.
+    /// </summary>
+    public Guid ProjectId { get; set; }
+
+    /// <summary>
     /// The title or subject of the report.
     /// </summary>
     public string Title { get; set; } = string.Empty;
@@ -335,6 +340,7 @@ public sealed class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services
         await Send.OkAsync(new GetReportResponse
         {
             Id = report.Id,
+            ProjectId = report.ProjectId,
             Title = report.Title,
             Message = report.Message,
             StackTrace = report.StackTrace,

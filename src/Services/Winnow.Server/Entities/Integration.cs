@@ -13,6 +13,10 @@ public class Integration : ITenantEntity
 
     public Guid OrganizationId { get; set; } // Tenant isolation
 
+    public Guid ProjectId { get; set; }
+
+    public Project Project { get; set; } = null!;
+
     public IntegrationConfig Config { get; private set; } = null!; // Polymorphic domain model
 
     public bool IsActive { get; set; } = true;

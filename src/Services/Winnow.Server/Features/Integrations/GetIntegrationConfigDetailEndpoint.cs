@@ -4,7 +4,15 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Integrations;
 
-public sealed class GetIntegrationConfigDetailEndpoint(WinnowDbContext db) : EndpointWithoutRequest<UpsertIntegrationConfigRequest>
+public class IntegrationDetailResponse
+{
+    public Guid Id { get; set; }
+    public string Provider { get; set; } = string.Empty;
+    public string SettingsJson { get; set; } = "{}";
+    public bool IsActive { get; set; } = true;
+}
+
+public sealed class GetIntegrationConfigDetailEndpoint(WinnowDbContext db) : EndpointWithoutRequest<IntegrationDetailResponse>
 {
 
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
@@ -16,7 +24,7 @@ public sealed class GetIntegrationConfigDetailEndpoint(WinnowDbContext db) : End
         {
             s.Summary = "Get integration details";
             s.Description = "Retrieves the full configuration for an integration, including masked settings.";
-            s.Response<UpsertIntegrationConfigRequest>(200, "Integration details");
+            s.Response<IntegrationDetailResponse>(200, "Integration details");
             s.Response(404, "Integration not found");
         });
     }
@@ -35,7 +43,7 @@ public sealed class GetIntegrationConfigDetailEndpoint(WinnowDbContext db) : End
         // Serialize Config to JSON (secrets will be masked by the domain model)
         var maskedJson = JsonSerializer.Serialize(integration.Config, _jsonOptions);
 
-        var response = new UpsertIntegrationConfigRequest
+        var response = new IntegrationDetailResponse
         {
             Id = integration.Id,
             Provider = integration.Provider,

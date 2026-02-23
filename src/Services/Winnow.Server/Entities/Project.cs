@@ -16,4 +16,5 @@ public class Project : ITenantEntity
     public Team? Team { get; set; }
     public Organization? Organization { get; set; }
     public ApplicationUser? Owner { get; set; }
+    public ICollection<Integration> Integrations { get; set; } = new List<Integration>();
 }
