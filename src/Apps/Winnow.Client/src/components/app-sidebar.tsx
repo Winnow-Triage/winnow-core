@@ -1,5 +1,5 @@
 import { FileText, LayoutDashboard, Settings, Inbox, Layers } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import {
     Sidebar,
     SidebarContent,
@@ -106,6 +106,7 @@ function ProjectSwitcher() {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [newProjectName, setNewProjectName] = useState("")
     const [isCreating, setIsCreating] = useState(false)
+    const navigate = useNavigate()
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -113,9 +114,14 @@ function ProjectSwitcher() {
 
         setIsCreating(true)
         try {
-            await createProject(newProjectName)
+            const newProject = await createProject(newProjectName)
             setIsDialogOpen(false)
             setNewProjectName("")
+
+            // Navigate to setup page and pass the API key
+            if (newProject?.apiKey) {
+                navigate('/setup', { state: { apiKey: newProject.apiKey } })
+            }
         } catch (error) {
             console.error("Failed to create project", error)
         } finally {

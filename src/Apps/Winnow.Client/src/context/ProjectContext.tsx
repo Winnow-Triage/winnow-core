@@ -14,7 +14,7 @@ interface ProjectContextType {
     isLoading: boolean;
     selectProject: (projectId: string) => void;
     refreshProjects: () => Promise<void>;
-    createProject: (name: string) => Promise<void>;
+    createProject: (name: string) => Promise<Project>;
     renameProject: (id: string, newName: string) => Promise<void>;
 }
 
@@ -71,14 +71,15 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const createProject = async (name: string) => {
+    const createProject = async (name: string): Promise<Project> => {
         const token = localStorage.getItem("authToken");
-        if (!token) return;
+        if (!token) throw new Error("Not authenticated");
 
         try {
             const { data: newProject } = await api.post("/projects", { name });
             setProjects(prev => [...prev, newProject]);
             selectProject(newProject.id); // Auto-select new project
+            return newProject;
         } catch (error: any) {
             console.error("Create project error", error);
             throw new Error(error.response?.data?.message || "Failed to create project");
