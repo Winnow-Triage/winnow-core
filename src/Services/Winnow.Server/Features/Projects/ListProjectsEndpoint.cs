@@ -45,9 +45,34 @@ public sealed class ListProjectsEndpoint(WinnowDbContext dbContext, ITenantConte
             return;
         }
 
-        var projects = await dbContext.Projects
+        // Get user role in the organization
+        var membership = await dbContext.OrganizationMembers
+            .FirstOrDefaultAsync(om => om.UserId == userId && om.OrganizationId == tenantContext.CurrentOrganizationId.Value, ct);
+
+        if (membership == null)
+        {
+            ThrowError("User is not a member of this organization", 403);
+            return;
+        }
+
+        var query = dbContext.Projects
             .AsNoTracking()
-            .Where(p => p.OwnerId == userId && p.OrganizationId == tenantContext.CurrentOrganizationId.Value)
+            .Where(p => p.OrganizationId == tenantContext.CurrentOrganizationId.Value);
+
+        // Access control:
+        // - Admins see all projects in the organization.
+        // - Members see projects assigned to their teams OR projects with NO team assigned.
+        if (membership.Role != "Admin")
+        {
+            var userTeamIds = await dbContext.TeamMembers
+                .Where(tm => tm.UserId == userId && tm.Team!.OrganizationId == tenantContext.CurrentOrganizationId.Value)
+                .Select(tm => tm.TeamId)
+                .ToListAsync(ct);
+
+            query = query.Where(p => p.TeamId == null || userTeamIds.Contains(p.TeamId.Value));
+        }
+
+        var projects = await query
             .Select(p => new ProjectDto(p.Id, p.Name, "", p.TeamId))
             .ToListAsync(ct);
 

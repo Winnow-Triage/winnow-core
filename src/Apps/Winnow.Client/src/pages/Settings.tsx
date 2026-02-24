@@ -12,7 +12,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useProject } from '@/context/ProjectContext';
 import type { Project } from '@/context/ProjectContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2 } from 'lucide-react';
+import { Trash2, Users, UserPlus, X } from 'lucide-react';
 
 export default function Settings() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -369,10 +369,20 @@ export default function Settings() {
 
 function TeamsManager({ organizationId }: { organizationId?: string }) {
     const { projects, refreshProjects } = useProject();
-    const { data: teams, isLoading, refetch } = useQuery<{ id: string, name: string, createdAt: string, projectCount: number }[]>({
+    const [memberSelects, setMemberSelects] = useState<Record<string, string>>({});
+    const { data: teams, isLoading, refetch } = useQuery<{ id: string, name: string, createdAt: string, projectCount: number, members: { userId: string, fullName: string }[] }[]>({
         queryKey: ['teams', organizationId],
         queryFn: async () => {
             const { data } = await api.get('/teams');
+            return data;
+        },
+        enabled: !!organizationId
+    });
+
+    const { data: orgMembers } = useQuery<{ userId: string, fullName: string, email: string, role: string }[]>({
+        queryKey: ['org-members', organizationId],
+        queryFn: async () => {
+            const { data } = await api.get('/organizations/current/members');
             return data;
         },
         enabled: !!organizationId
@@ -425,6 +435,29 @@ function TeamsManager({ organizationId }: { organizationId?: string }) {
             toast.success(teamId ? "Project assigned to team" : "Project unassigned from team");
         } catch (error) {
             toast.error("Failed to update project assignment");
+        }
+    };
+
+    const handleAddTeamMember = async (teamId: string, userId: string) => {
+        if (!userId) return;
+        setMemberSelects(prev => ({ ...prev, [teamId]: userId }));
+        try {
+            await api.post(`/teams/${teamId}/members`, { userId });
+            await refetch();
+            toast.success("Member added to team");
+            setMemberSelects(prev => ({ ...prev, [teamId]: "" }));
+        } catch (error) {
+            toast.error("Failed to add member to team");
+        }
+    };
+
+    const handleRemoveTeamMember = async (teamId: string, userId: string) => {
+        try {
+            await api.delete(`/teams/${teamId}/members/${userId}`);
+            await refetch();
+            toast.success("Member removed from team");
+        } catch (error) {
+            toast.error("Failed to remove member from team");
         }
     };
 
@@ -484,6 +517,50 @@ function TeamsManager({ organizationId }: { organizationId?: string }) {
                                     {projects.filter((p: Project) => p.teamId === team.id).length === 0 && (
                                         <p className="text-xs text-muted-foreground italic">No projects assigned to this team.</p>
                                     )}
+                                </div>
+
+                                <div className="p-4 border-t bg-muted/5">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h4 className="text-sm font-medium flex items-center gap-2">
+                                            <Users className="h-4 w-4 text-muted-foreground" />
+                                            Team Members
+                                        </h4>
+                                        <Select
+                                            value={memberSelects[team.id] || ""}
+                                            onValueChange={(userId) => handleAddTeamMember(team.id, userId)}
+                                        >
+                                            <SelectTrigger className="h-7 w-[160px] text-xs">
+                                                <UserPlus className="h-3 w-3 mr-1" />
+                                                <span>Add Member...</span>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {orgMembers?.filter(om => !(team.members || []).some(tm => tm.userId === om.userId)).map(member => (
+                                                    <SelectItem key={member.userId} value={member.userId}>
+                                                        {member.fullName}
+                                                    </SelectItem>
+                                                ))}
+                                                {orgMembers?.filter(om => !(team.members || []).some(tm => tm.userId === om.userId)).length === 0 && (
+                                                    <div className="p-2 text-xs text-muted-foreground text-center">All members already in team</div>
+                                                )}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {(team.members || []).map(member => (
+                                            <div key={member.userId} className="flex items-center gap-1.5 px-2 py-1 bg-background border rounded-full text-xs">
+                                                <span>{member.fullName}</span>
+                                                <button
+                                                    onClick={() => handleRemoveTeamMember(team.id, member.userId)}
+                                                    className="hover:text-destructive text-muted-foreground"
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {(team.members || []).length === 0 && (
+                                            <p className="text-xs text-muted-foreground italic">No members in this team.</p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         ))

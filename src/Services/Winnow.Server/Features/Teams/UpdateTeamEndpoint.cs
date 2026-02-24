@@ -53,7 +53,14 @@ public sealed class UpdateTeamEndpoint(WinnowDbContext db, ITenantContext tenant
             Id = team.Id,
             Name = team.Name,
             CreatedAt = team.CreatedAt,
-            ProjectCount = await db.Projects.CountAsync(p => p.TeamId == team.Id, ct)
+            ProjectCount = await db.Projects.CountAsync(p => p.TeamId == team.Id, ct),
+            Members = await db.TeamMembers
+                .Where(tm => tm.TeamId == team.Id)
+                .Select(tm => new TeamMemberSummary
+                {
+                    UserId = tm.UserId,
+                    FullName = tm.User!.FullName
+                }).ToListAsync(ct)
         }, ct);
     }
 }

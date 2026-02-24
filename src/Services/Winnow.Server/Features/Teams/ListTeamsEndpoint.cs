@@ -11,6 +11,13 @@ public class TeamResponse
     public string Name { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public int ProjectCount { get; set; }
+    public List<TeamMemberSummary> Members { get; set; } = new();
+}
+
+public class TeamMemberSummary
+{
+    public string UserId { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
 }
 
 public sealed class ListTeamsEndpoint(WinnowDbContext db, ITenantContext tenantContext)
@@ -41,7 +48,14 @@ public sealed class ListTeamsEndpoint(WinnowDbContext db, ITenantContext tenantC
                 Id = t.Id,
                 Name = t.Name,
                 CreatedAt = t.CreatedAt,
-                ProjectCount = t.Projects.Count
+                ProjectCount = t.Projects.Count,
+                Members = db.TeamMembers
+                    .Where(tm => tm.TeamId == t.Id)
+                    .Select(tm => new TeamMemberSummary
+                    {
+                        UserId = tm.UserId,
+                        FullName = tm.User!.FullName
+                    }).ToList()
             })
             .ToListAsync(ct);
 

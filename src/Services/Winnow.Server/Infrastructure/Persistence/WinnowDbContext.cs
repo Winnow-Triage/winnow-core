@@ -86,6 +86,27 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                 .WithOne(p => p.Team)
                 .HasForeignKey(p => p.TeamId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany<TeamMember>()
+                .WithOne(tm => tm.Team)
+                .HasForeignKey(tm => tm.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TeamMember>(entity =>
+        {
+            entity.HasKey(tm => tm.Id);
+
+            entity.HasIndex(tm => new { tm.TeamId, tm.UserId })
+                .IsUnique();
+
+            entity.HasOne(tm => tm.Team)
+                .WithMany()
+                .HasForeignKey(tm => tm.TeamId);
+
+            entity.HasOne(tm => tm.User)
+                .WithMany()
+                .HasForeignKey(tm => tm.UserId);
         });
 
         modelBuilder.Entity<OrganizationMember>(entity =>
@@ -185,6 +206,7 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
 
     public DbSet<Organization> Organizations { get; set; } = null!;
     public DbSet<Team> Teams { get; set; } = null!;
+    public DbSet<TeamMember> TeamMembers { get; set; } = null!;
     public DbSet<OrganizationMember> OrganizationMembers { get; set; } = null!;
     public DbSet<Report> Reports { get; set; } = null!;
     public DbSet<Asset> Assets { get; set; } = null!;
