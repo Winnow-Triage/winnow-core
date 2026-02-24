@@ -117,6 +117,10 @@ export const addOrganizationMember = async (orgId: string, role: string = "owner
     return response.data;
 };
 
+export const removeOrganizationMember = async (orgId: string, userId: string) => {
+    await api.delete(`/admin/organizations/${orgId}/members/${userId}`);
+};
+
 // Admin User Management
 export interface UserSummary {
     id: string;

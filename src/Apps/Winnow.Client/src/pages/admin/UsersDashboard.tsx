@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { getAllUsers, adminCreateUser, toggleUserLock, impersonateUser, getAllOrganizations, type UserSummary, type OrganizationSummary } from "@/lib/api"
+import { getAllUsers, adminCreateUser, toggleUserLock, impersonateUser, getAllOrganizations, addOrganizationMember, removeOrganizationMember, type UserSummary, type OrganizationSummary } from "@/lib/api"
 import {
     Table,
     TableBody,
@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { MoreHorizontal, Plus, ShieldCheck, Lock, Unlock, UserMinus } from "lucide-react"
+import { MoreHorizontal, Plus, ShieldCheck, Lock, Unlock, UserMinus, Building, X } from "lucide-react"
 import { formatTimeAgo } from "@/lib/utils"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
@@ -49,6 +49,13 @@ export default function UsersDashboard() {
     const [selectedStatus, setSelectedStatus] = useState("all")
     const [isCreating, setIsCreating] = useState(false)
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+
+    // Membership Management State
+    const [isMembershipDialogOpen, setIsMembershipDialogOpen] = useState(false)
+    const [userToManage, setUserToManage] = useState<UserSummary | null>(null)
+    const [orgToJoin, setOrgToJoin] = useState<string>("")
+    const [roleToJoin, setRoleToJoin] = useState<string>("Member")
+    const [isUpdatingMembership, setIsUpdatingMembership] = useState(false)
 
     // New User State
     const [newUser, setNewUser] = useState({
@@ -123,6 +130,45 @@ export default function UsersDashboard() {
             toast.error("Failed to create user")
         } finally {
             setIsCreating(false)
+        }
+    }
+
+    const handleAddMembership = async () => {
+        if (!userToManage || !orgToJoin) return
+
+        try {
+            setIsUpdatingMembership(true)
+            await addOrganizationMember(orgToJoin, roleToJoin, userToManage.id)
+            toast.success("User added to organization")
+            setOrgToJoin("")
+            // Refresh the specific user's data or the whole list
+            fetchUsers()
+        } catch (error) {
+            console.error("Failed to add membership:", error)
+            toast.error("Failed to add user to organization")
+        } finally {
+            setIsUpdatingMembership(false)
+        }
+    }
+
+    const handleRemoveMembership = async (orgId: string) => {
+        if (!userToManage) return
+
+        try {
+            setIsUpdatingMembership(true)
+            await removeOrganizationMember(orgId, userToManage.id)
+            toast.success("User removed from organization")
+            fetchUsers()
+            // Update local state for immediate feedback if needed
+            setUserToManage(prev => prev ? {
+                ...prev,
+                organizations: prev.organizations.filter(o => o.id !== orgId)
+            } : null)
+        } catch (error) {
+            console.error("Failed to remove membership:", error)
+            toast.error("Failed to remove user from organization")
+        } finally {
+            setIsUpdatingMembership(false)
         }
     }
 
@@ -280,6 +326,12 @@ export default function UsersDashboard() {
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end" className="border-red-900/50 min-w-[180px]">
+                                                <DropdownMenuItem onClick={() => {
+                                                    setUserToManage(user)
+                                                    setIsMembershipDialogOpen(true)
+                                                }} className="text-red-400 focus:text-red-400 focus:bg-red-500/10">
+                                                    <Building className="mr-2 h-4 w-4" /> Manage Organizations
+                                                </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => handleImpersonate(user)} className="text-orange-400 focus:text-orange-400 focus:bg-orange-500/10">
                                                     <ShieldCheck className="mr-2 h-4 w-4" /> Impersonate
                                                 </DropdownMenuItem>
@@ -351,6 +403,96 @@ export default function UsersDashboard() {
                         >
                             {isCreating ? "Creating..." : "Create Account"}
                         </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Manage Membership Dialog */}
+            <AlertDialog open={isMembershipDialogOpen} onOpenChange={setIsMembershipDialogOpen}>
+                <AlertDialogContent className="border-red-900/50 bg-background sm:max-w-[500px]">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-red-500 text-xl font-bold">Manage Organizations</AlertDialogTitle>
+                        <AlertDialogDescription className="text-muted-foreground">
+                            Add or remove <strong>{userToManage?.fullName}</strong> from organizations.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    <div className="space-y-6 py-4">
+                        {/* Current Memberships */}
+                        <div className="space-y-3">
+                            <h3 className="text-sm font-semibold uppercase tracking-wider text-red-400/80">Active Memberships</h3>
+                            <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                                {userToManage?.organizations.map(org => (
+                                    <div key={org.id} className="flex items-center justify-between p-2 rounded-md bg-red-950/20 border border-red-900/30 group">
+                                        <div className="flex items-center space-x-2">
+                                            <Building className="h-4 w-4 text-red-500/70" />
+                                            <span className="text-sm font-medium">{org.name}</span>
+                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleRemoveMembership(org.id)}
+                                            className="h-8 px-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+                                            disabled={isUpdatingMembership}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                {userToManage?.organizations.length === 0 && (
+                                    <div className="text-center py-4 text-xs text-muted-foreground italic border border-dashed border-red-900/30 rounded-md">
+                                        No active memberships found.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Add New Membership */}
+                        <div className="space-y-3 border-t border-red-900/20 pt-4">
+                            <h3 className="text-sm font-semibold uppercase tracking-wider text-red-400/80">Add to Organization</h3>
+                            <div className="flex gap-2">
+                                <div className="flex-1">
+                                    <Select value={orgToJoin} onValueChange={setOrgToJoin}>
+                                        <SelectTrigger className="bg-background/50 border-red-900/50">
+                                            <SelectValue placeholder="Select organization..." />
+                                        </SelectTrigger>
+                                        <SelectContent className="border-red-900/50">
+                                            {organizations
+                                                .filter(o => !userToManage?.organizations.some(mo => mo.id === o.id))
+                                                .map(org => (
+                                                    <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
+                                                ))
+                                            }
+                                            {organizations.length === 0 && (
+                                                <SelectItem value="none" disabled>No organizations found</SelectItem>
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="w-[120px]">
+                                    <Select value={roleToJoin} onValueChange={setRoleToJoin}>
+                                        <SelectTrigger className="bg-background/50 border-red-900/50">
+                                            <SelectValue placeholder="Role" />
+                                        </SelectTrigger>
+                                        <SelectContent className="border-red-900/50">
+                                            <SelectItem value="owner">Owner</SelectItem>
+                                            <SelectItem value="Member">Member</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <Button
+                                    onClick={handleAddMembership}
+                                    disabled={!orgToJoin || isUpdatingMembership}
+                                    className="bg-red-600 hover:bg-red-700 text-white"
+                                >
+                                    Add
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="border-red-900/50 hover:bg-red-950/20">Close</AlertDialogCancel>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
