@@ -12,8 +12,13 @@
 #
 # Both providers share the same assembly (Winnow.Server), so migration names
 # are suffixed to avoid collisions:
-#   - SQLite:   <Name>         → Migrations/
+#   - SQLite:   <Name>         → Migrations/Sqlite
 #   - Postgres: <Name>Pg       → Migrations/Postgres/
+#
+# IMPORTANT: Because both providers share the same DbContext, EF Core uses
+# a single model snapshot. To generate clean CreateTable migrations for each
+# provider, we must temporarily hide the other provider's migration directory
+# so EF Core doesn't diff against the wrong snapshot.
 #
 # The script uses the DatabaseProvider env var override, which the
 # WinnowDbContextFactory reads via AddEnvironmentVariables().
@@ -35,9 +40,19 @@ echo ""
 echo "▶ [1/2] Generating SQLite migration..."
 (
   cd "$SERVER_DIR"
+  # Hide Postgres migrations so SQLite generates from its own snapshot
+  if [ -d Migrations/Postgres ]; then
+    mv Migrations/Postgres Migrations/Postgres.bak
+  fi
+
   DatabaseProvider=Sqlite dotnet ef migrations add "$MIGRATION_NAME" \
-    --output-dir Migrations \
-    --namespace Winnow.Server.Migrations
+    --output-dir Migrations/Sqlite \
+    --namespace Winnow.Server.Migrations.Sqlite
+
+  # Restore Postgres migrations
+  if [ -d Migrations/Postgres.bak ]; then
+    mv Migrations/Postgres.bak Migrations/Postgres
+  fi
 )
 echo "✅ SQLite migration created."
 echo ""
@@ -46,9 +61,19 @@ echo ""
 echo "▶ [2/2] Generating PostgreSQL migration..."
 (
   cd "$SERVER_DIR"
+  # Hide SQLite migrations so Postgres generates from its own snapshot
+  if [ -d Migrations/Sqlite ]; then
+    mv Migrations/Sqlite Migrations/Sqlite.bak
+  fi
+
   DatabaseProvider=Postgres dotnet ef migrations add "${MIGRATION_NAME}Pg" \
     --output-dir Migrations/Postgres \
     --namespace Winnow.Server.Migrations.Postgres
+
+  # Restore SQLite migrations
+  if [ -d Migrations/Sqlite.bak ]; then
+    mv Migrations/Sqlite.bak Migrations/Sqlite
+  fi
 )
 echo "✅ PostgreSQL migration created."
 echo ""
@@ -57,7 +82,7 @@ echo "============================================"
 echo " ✅ Both migrations generated successfully!"
 echo "============================================"
 echo ""
-echo "  SQLite:   Migrations/${MIGRATION_NAME}"
+echo "  SQLite:   Migrations/Sqlite/${MIGRATION_NAME}"
 echo "  Postgres: Migrations/Postgres/${MIGRATION_NAME}Pg"
 echo ""
 echo "Review the generated files, then commit."

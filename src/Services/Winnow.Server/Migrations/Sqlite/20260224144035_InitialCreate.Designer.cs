@@ -8,11 +8,11 @@ using Winnow.Server.Infrastructure.Persistence;
 
 #nullable disable
 
-namespace Winnow.Server.Migrations
+namespace Winnow.Server.Migrations.Sqlite
 {
     [DbContext(typeof(WinnowDbContext))]
-    [Migration("20260223232903_AddStripeSubscriptionId")]
-    partial class AddStripeSubscriptionId
+    [Migration("20260224144035_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

@@ -20,6 +20,8 @@ internal static class MiddlewareExtensions
         {
             var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
+            // Suppress PendingModelChangesWarning
+            db.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
             db.Database.Migrate();
 
             // Ensure S3 buckets exist

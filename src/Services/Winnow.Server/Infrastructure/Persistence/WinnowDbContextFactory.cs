@@ -40,8 +40,11 @@ public class WinnowDbContextFactory : IDesignTimeDbContextFactory<WinnowDbContex
         }
         else
         {
-            optionsBuilder.UseSqlite(tenantContext.ConnectionString);
+            optionsBuilder.UseSqlite(tenantContext.ConnectionString,
+                sqlite => sqlite.MigrationsAssembly("Winnow.Server"));
         }
+
+        optionsBuilder.ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsAssembly, ProviderMigrationsAssembly>();
 
         return new WinnowDbContext(optionsBuilder.Options, tenantContext, configuration);
     }

@@ -1,7 +1,7 @@
+using DotNet.Testcontainers.Configurations;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using DotNet.Testcontainers.Configurations;
 using Testcontainers.PostgreSql;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
@@ -58,10 +58,12 @@ public class DatabaseMigrationTests : IAsyncLifetime
     private static WinnowDbContext CreateSqliteContext(SqliteConnection connection, IConfiguration config)
     {
         var options = new DbContextOptionsBuilder<WinnowDbContext>()
-            .UseSqlite(connection)
+            .UseSqlite(connection,
+                sqlite => sqlite.MigrationsAssembly("Winnow.Server"))
             // Suppress the PendingModelChangesWarning - this is expected when the model
             // is built differently at design time vs runtime (e.g., different tenant context values)
             .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning))
+            .ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsAssembly, Winnow.Server.Infrastructure.Persistence.ProviderMigrationsAssembly>()
             .Options;
 
         return new WinnowDbContext(options, new StubTenantContext(), config);
@@ -72,6 +74,7 @@ public class DatabaseMigrationTests : IAsyncLifetime
         var options = new DbContextOptionsBuilder<WinnowDbContext>()
             .UseNpgsql(connectionString,
                 npgsql => npgsql.MigrationsAssembly("Winnow.Server"))
+            .ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsAssembly, Winnow.Server.Infrastructure.Persistence.ProviderMigrationsAssembly>()
             .Options;
 
         return new WinnowDbContext(options, new StubTenantContext(), config);

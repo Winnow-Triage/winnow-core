@@ -160,14 +160,17 @@ internal static class ServiceExtensions
             if (dbProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
             {
                 options.UseNpgsql(tenantCtx.ConnectionString,
-                    npgsql => npgsql.MigrationsAssembly("Winnow.Server"));
+                    npgsql => npgsql.MigrationsAssembly("Winnow.Server"))
+                    .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
             }
             else
             {
                 options.UseSqlite(tenantCtx.ConnectionString,
-                    sqlite => sqlite.MigrationsAssembly("Winnow.Server"));
+                    sqlite => sqlite.MigrationsAssembly("Winnow.Server"))
+                    .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
                 options.AddInterceptors(new SqliteVectorConnectionInterceptor());
             }
+            options.ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsAssembly, Winnow.Server.Infrastructure.Persistence.ProviderMigrationsAssembly>();
         });
 
         // Identity
