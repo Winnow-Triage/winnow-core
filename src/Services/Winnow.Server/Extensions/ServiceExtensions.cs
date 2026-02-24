@@ -3,6 +3,7 @@ using FastEndpoints.Swagger;
 using MassTransit;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.SemanticKernel;
 using Winnow.Server.Domain.Services;
 using Winnow.Server.Entities;
@@ -149,8 +150,25 @@ internal static class ServiceExtensions
         // Dashboard service
         services.AddScoped<IDashboardService, DashboardService>();
 
-        // Database
-        services.AddDbContext<WinnowDbContext>(); // Configuration happens in OnConfiguring dynamically
+        // Database — provider-aware registration
+        var dbProvider = config["DatabaseProvider"] ?? "Sqlite";
+        services.AddSingleton(new DatabaseProviderInfo(dbProvider));
+
+        services.AddDbContext<WinnowDbContext>((sp, options) =>
+        {
+            var tenantCtx = sp.GetRequiredService<ITenantContext>();
+            if (dbProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
+            {
+                options.UseNpgsql(tenantCtx.ConnectionString,
+                    npgsql => npgsql.MigrationsAssembly("Winnow.Server"));
+            }
+            else
+            {
+                options.UseSqlite(tenantCtx.ConnectionString,
+                    sqlite => sqlite.MigrationsAssembly("Winnow.Server"));
+                options.AddInterceptors(new SqliteVectorConnectionInterceptor());
+            }
+        });
 
         // Identity
         services.AddIdentity<ApplicationUser, IdentityRole>()
