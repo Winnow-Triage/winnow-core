@@ -12,6 +12,8 @@ public class CreateOrganizationInvitationRequest
     public Guid OrgId { get; set; }
     public string Email { get; set; } = string.Empty;
     public string Role { get; set; } = "Member";
+    public List<Guid> TeamIds { get; set; } = [];
+    public List<Guid> ProjectIds { get; set; } = [];
 }
 
 public sealed class CreateOrganizationInvitationEndpoint(
@@ -56,7 +58,9 @@ public sealed class CreateOrganizationInvitationEndpoint(
             OrganizationId = req.OrgId,
             Email = req.Email,
             Role = req.Role,
-            Token = token
+            Token = token,
+            InitialTeamIds = req.TeamIds,
+            InitialProjectIds = req.ProjectIds
         };
 
         db.OrganizationInvitations.Add(invitation);

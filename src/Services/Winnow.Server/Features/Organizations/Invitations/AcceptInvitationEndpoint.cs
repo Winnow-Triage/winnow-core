@@ -73,7 +73,27 @@ public sealed class AcceptInvitationEndpoint(
 
         db.OrganizationMembers.Add(member);
 
-        // 3. Delete the invitation
+        // 3. Assign to Initial Teams
+        foreach (var teamId in invitation.InitialTeamIds)
+        {
+            db.TeamMembers.Add(new TeamMember
+            {
+                TeamId = teamId,
+                UserId = user.Id
+            });
+        }
+
+        // 4. Assign to Initial Projects
+        foreach (var projectId in invitation.InitialProjectIds)
+        {
+            db.ProjectMembers.Add(new ProjectMember
+            {
+                ProjectId = projectId,
+                UserId = user.Id
+            });
+        }
+
+        // 5. Delete the invitation
         db.OrganizationInvitations.Remove(invitation);
 
         await db.SaveChangesAsync(ct);

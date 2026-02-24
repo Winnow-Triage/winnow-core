@@ -73,7 +73,12 @@ public sealed class ListProjectsEndpoint(WinnowDbContext dbContext, ITenantConte
                 .Select(tm => tm.TeamId)
                 .ToListAsync(ct);
 
-            query = query.Where(p => p.TeamId == null || userTeamIds.Contains(p.TeamId.Value));
+            var directProjectIds = await dbContext.ProjectMembers
+                .Where(pm => pm.UserId == userId && pm.Project!.OrganizationId == tenantContext.CurrentOrganizationId.Value)
+                .Select(pm => pm.ProjectId)
+                .ToListAsync(ct);
+
+            query = query.Where(p => p.TeamId == null || userTeamIds.Contains(p.TeamId.Value) || directProjectIds.Contains(p.Id));
         }
 
         var projects = await query

@@ -128,6 +128,24 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         });
 
         // Project relationships
+        modelBuilder.Entity<ProjectMember>(entity =>
+        {
+            entity.HasKey(pm => pm.Id);
+
+            entity.HasIndex(pm => new { pm.ProjectId, pm.UserId })
+                .IsUnique();
+
+            entity.HasOne(pm => pm.Project)
+                .WithMany()
+                .HasForeignKey(pm => pm.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(pm => pm.User)
+                .WithMany()
+                .HasForeignKey(pm => pm.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<Project>(entity =>
         {
             entity.HasKey(p => p.Id);
@@ -208,6 +226,18 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                 .WithMany()
                 .HasForeignKey(oi => oi.OrganizationId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(oi => oi.InitialTeamIds)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, _jsonOptions),
+                    v => JsonSerializer.Deserialize<List<Guid>>(v, _jsonOptions) ?? new List<Guid>()
+                );
+
+            entity.Property(oi => oi.InitialProjectIds)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, _jsonOptions),
+                    v => JsonSerializer.Deserialize<List<Guid>>(v, _jsonOptions) ?? new List<Guid>()
+                );
         });
 
         // Note: Global query filters for tenant isolation are applied at runtime
@@ -226,5 +256,6 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
     public DbSet<Asset> Assets { get; set; } = null!;
     public DbSet<Integration> Integrations { get; set; } = null!;
     public DbSet<Project> Projects { get; set; } = null!;
+    public DbSet<ProjectMember> ProjectMembers { get; set; } = null!;
     public DbSet<OrganizationInvitation> OrganizationInvitations { get; set; } = null!;
 }

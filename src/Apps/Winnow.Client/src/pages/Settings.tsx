@@ -922,7 +922,27 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
 function InviteMemberModal({ isOpen, onClose, organizationId }: { isOpen: boolean, onClose: () => void, organizationId?: string }) {
     const [email, setEmail] = useState("");
     const [role, setRole] = useState("Member");
+    const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
+    const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
     const [isInviting, setIsInviting] = useState(false);
+
+    const { data: teams } = useQuery<{ id: string, name: string }[]>({
+        queryKey: ['teams', organizationId],
+        queryFn: async () => {
+            const { data } = await api.get('/teams');
+            return data;
+        },
+        enabled: isOpen && !!organizationId
+    });
+
+    const { data: projects } = useQuery<{ id: string, name: string }[]>({
+        queryKey: ['org-projects', organizationId],
+        queryFn: async () => {
+            const { data } = await api.get('/projects?OrgWide=true');
+            return data;
+        },
+        enabled: isOpen && !!organizationId
+    });
 
     const handleInvite = async () => {
         if (!email.trim() || !organizationId) return;
@@ -931,11 +951,15 @@ function InviteMemberModal({ isOpen, onClose, organizationId }: { isOpen: boolea
             await api.post(`/organizations/${organizationId}/invitations`, {
                 orgId: organizationId,
                 email: email.trim(),
-                role: role
+                role: role,
+                teamIds: selectedTeams,
+                projectIds: selectedProjects
             });
             toast.success(`Invite sent to ${email}`);
             onClose();
             setEmail("");
+            setSelectedTeams([]);
+            setSelectedProjects([]);
         } catch (error) {
             console.error("Failed to send invite:", error);
             toast.error("Failed to send invitation. Please try again.");
@@ -975,6 +999,48 @@ function InviteMemberModal({ isOpen, onClose, organizationId }: { isOpen: boolea
                                 <SelectItem value="Member">Member</SelectItem>
                             </SelectContent>
                         </Select>
+                    </div>
+
+                    <div className="space-y-3">
+                        <Label>Assign to Teams (Optional)</Label>
+                        <div className="grid grid-cols-2 gap-2 max-h-[120px] overflow-y-auto p-2 border rounded-md">
+                            {teams?.map(team => (
+                                <div key={team.id} className="flex items-center space-x-2">
+                                    <input
+                                        type="checkbox"
+                                        id={`team-${team.id}`}
+                                        checked={selectedTeams.includes(team.id)}
+                                        onChange={(e) => {
+                                            if (e.target.checked) setSelectedTeams([...selectedTeams, team.id]);
+                                            else setSelectedTeams(selectedTeams.filter(id => id !== team.id));
+                                        }}
+                                        className="rounded border-zinc-700 bg-zinc-900"
+                                    />
+                                    <label htmlFor={`team-${team.id}`} className="text-xs truncate">{team.name}</label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        <Label>Assign to Projects (Optional)</Label>
+                        <div className="grid grid-cols-2 gap-2 max-h-[120px] overflow-y-auto p-2 border rounded-md">
+                            {projects?.map(project => (
+                                <div key={project.id} className="flex items-center space-x-2">
+                                    <input
+                                        type="checkbox"
+                                        id={`project-${project.id}`}
+                                        checked={selectedProjects.includes(project.id)}
+                                        onChange={(e) => {
+                                            if (e.target.checked) setSelectedProjects([...selectedProjects, project.id]);
+                                            else setSelectedProjects(selectedProjects.filter(id => id !== project.id));
+                                        }}
+                                        className="rounded border-zinc-700 bg-zinc-900"
+                                    />
+                                    <label htmlFor={`project-${project.id}`} className="text-xs truncate">{project.name}</label>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
                 <DialogFooter>

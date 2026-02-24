@@ -12,6 +12,9 @@ public class OrganizationInvitation
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime ExpiresAt { get; set; } = DateTime.UtcNow.AddHours(24);
 
+    public List<Guid> InitialTeamIds { get; set; } = [];
+    public List<Guid> InitialProjectIds { get; set; } = [];
+
     // Navigation property
     public Organization Organization { get; set; } = null!;
 }
