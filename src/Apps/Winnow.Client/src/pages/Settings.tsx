@@ -103,7 +103,7 @@ export default function Settings() {
         // This prevents double billing by allowing Stripe to handle prorations/cancellations of the current active plan.
         const actionText = getButtonText(tier, subscriptionTier, null);
         if (actionText.includes("Downgrade") || (subscriptionTier !== "Free" && actionText.includes("Upgrade"))) {
-            await handleManageSubscription();
+            await handleManageSubscription(tier === "Free" ? "cancel" : "update");
             setIsCheckingOut(null);
             return;
         }
@@ -121,10 +121,10 @@ export default function Settings() {
         }
     };
 
-    const handleManageSubscription = async () => {
+    const handleManageSubscription = async (action?: string) => {
         setIsManaging(true);
         try {
-            const { data } = await api.post('/billing/portal');
+            const { data } = await api.post('/billing/portal', { action: action ?? null });
             if (data?.portalUrl) {
                 window.location.href = data.portalUrl;
             }
@@ -231,7 +231,7 @@ export default function Settings() {
                                     <CardDescription>You are currently on the <span className="font-semibold">{subscriptionTier}</span> plan.</CardDescription>
                                 </div>
                                 <Button
-                                    onClick={handleManageSubscription}
+                                    onClick={() => handleManageSubscription()}
                                     disabled={isManaging}
                                 >
                                     {isManaging ? "Redirecting..." : "Manage Subscription / Update Payment Method"}
@@ -241,12 +241,12 @@ export default function Settings() {
                     )}
 
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                        <Card>
+                        <Card className="flex flex-col h-full">
                             <CardHeader>
                                 <CardTitle>Cloud Free</CardTitle>
                                 <CardDescription>$0 / month</CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="flex-1">
                                 <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
                                     <li>Fully Managed Hosting</li>
                                     <li>Up to 1,000 reports / mo</li>
@@ -265,12 +265,12 @@ export default function Settings() {
                                 </Button>
                             </CardFooter>
                         </Card>
-                        <Card>
+                        <Card className="flex flex-col h-full">
                             <CardHeader>
                                 <CardTitle>Starter</CardTitle>
                                 <CardDescription>$15 / month</CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="flex-1">
                                 <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
                                     <li>Up to 3 members</li>
                                     <li>Basic reporting</li>
@@ -289,7 +289,7 @@ export default function Settings() {
                             </CardFooter>
                         </Card>
 
-                        <Card className={`relative ${!["Pro", "Enterprise"].includes(subscriptionTier) ? "border-primary" : ""}`}>
+                        <Card className={`relative flex flex-col h-full ${!["Pro", "Enterprise"].includes(subscriptionTier) ? "border-primary" : ""}`}>
                             {!["Pro", "Enterprise"].includes(subscriptionTier) && (
                                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full">
                                     Recommended
@@ -299,7 +299,7 @@ export default function Settings() {
                                 <CardTitle>Pro</CardTitle>
                                 <CardDescription>$79 / month</CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="flex-1">
                                 <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
                                     <li>Unlimited members</li>
                                     <li>Advanced reporting & AI</li>
@@ -318,13 +318,13 @@ export default function Settings() {
                             </CardFooter>
                         </Card>
 
-                        <Card>
+                        <Card className="flex flex-col h-full bg-zinc-950 text-zinc-50 border-zinc-800 dark:bg-zinc-900">
                             <CardHeader>
-                                <CardTitle>Enterprise</CardTitle>
-                                <CardDescription>$2,000 / month</CardDescription>
+                                <CardTitle className="text-zinc-50">Enterprise</CardTitle>
+                                <CardDescription className="text-zinc-400">Custom Pricing</CardDescription>
                             </CardHeader>
-                            <CardContent>
-                                <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
+                            <CardContent className="flex-1">
+                                <ul className="list-disc pl-4 space-y-1 text-sm text-zinc-400 marker:text-zinc-600">
                                     <li>Dedicated tenant infrastructure</li>
                                     <li>Custom integrations</li>
                                     <li>SLA & Account Manager</li>
@@ -332,12 +332,11 @@ export default function Settings() {
                             </CardContent>
                             <CardFooter>
                                 <Button
-                                    className="w-full"
-                                    variant={subscriptionTier === "Enterprise" ? "secondary" : "outline"}
-                                    onClick={() => handleCheckout("Enterprise")}
-                                    disabled={isCheckingOut !== null || subscriptionTier === "Enterprise"}
+                                    className={`w-full ${subscriptionTier === "Enterprise" ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-800" : "bg-white text-zinc-950 hover:bg-zinc-200"}`}
+                                    onClick={() => window.location.href = "mailto:sales@winnowtriage.com?subject=Enterprise%20Plan%20Inquiry"}
+                                    disabled={subscriptionTier === "Enterprise"}
                                 >
-                                    {getButtonText("Enterprise", subscriptionTier, isCheckingOut)}
+                                    {subscriptionTier === "Enterprise" ? "Current Plan" : "Contact Sales / Upgrade"}
                                 </Button>
                             </CardFooter>
                         </Card>

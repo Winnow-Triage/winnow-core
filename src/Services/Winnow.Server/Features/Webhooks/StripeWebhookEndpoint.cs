@@ -83,6 +83,7 @@ public class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext db, IL
             {
                 Name = $"Stripe Customer {subscription.CustomerId}", // Placeholder name until user claims/updates it
                 StripeCustomerId = subscription.CustomerId,
+                StripeSubscriptionId = subscription.Id,
                 SubscriptionTier = "Free",
                 CreatedAt = DateTime.UtcNow
             };
@@ -102,11 +103,13 @@ public class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext db, IL
             };
 
             organization.SubscriptionTier = tierString;
+            organization.StripeSubscriptionId = subscription.Id;
             logger.LogInformation("Updated Organization {OrganizationId} tier to {Tier}", organization.Id, tierString);
         }
         else
         {
             organization.SubscriptionTier = "Free";
+            organization.StripeSubscriptionId = subscription.Id;
             logger.LogInformation("Downgraded Organization {OrganizationId} tier to Free due to status: {Status}", organization.Id, subscription.Status);
         }
 
@@ -128,6 +131,7 @@ public class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext db, IL
         }
 
         organization.SubscriptionTier = "Free";
+        organization.StripeSubscriptionId = null;
         await db.SaveChangesAsync(ct);
         logger.LogInformation("Downgraded Organization {OrganizationId} tier to Free due to subscription deletion.", organization.Id);
     }

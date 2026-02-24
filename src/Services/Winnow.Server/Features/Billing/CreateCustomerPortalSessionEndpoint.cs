@@ -6,7 +6,11 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Billing;
 
-
+public class PortalRequest
+{
+    /// <summary>Optional deep-link action: "update" or "cancel".</summary>
+    public string? Action { get; set; }
+}
 
 public class PortalResponse
 {
@@ -18,15 +22,16 @@ public class CreateCustomerPortalSessionEndpoint(
     IConfiguration config,
     ILogger<CreateCustomerPortalSessionEndpoint> logger,
     ITenantContext tenantContext)
-    : EndpointWithoutRequest<PortalResponse>
+    : Endpoint<PortalRequest, PortalResponse>
 {
     public override void Configure()
     {
         Post("/billing/portal");
+        DontThrowIfValidationFails();
         // Endpoint requires authentication by default since AllowAnonymous() is NOT called.
     }
 
-    public override async Task HandleAsync(CancellationToken ct)
+    public override async Task HandleAsync(PortalRequest req, CancellationToken ct)
     {
         if (!tenantContext.CurrentOrganizationId.HasValue)
         {
@@ -71,6 +76,33 @@ public class CreateCustomerPortalSessionEndpoint(
             Customer = organization.StripeCustomerId,
             ReturnUrl = returnUrl,
         };
+
+        // Attach portal deep-link FlowData when an action and saved subscription ID are available.
+        var subscriptionId = organization.StripeSubscriptionId;
+
+        if (!string.IsNullOrEmpty(subscriptionId) && !string.IsNullOrEmpty(req.Action))
+        {
+            options.FlowData = req.Action.ToLowerInvariant() switch
+            {
+                "update" => new SessionFlowDataOptions
+                {
+                    Type = "subscription_update",
+                    SubscriptionUpdate = new SessionFlowDataSubscriptionUpdateOptions
+                    {
+                        Subscription = subscriptionId,
+                    },
+                },
+                "cancel" => new SessionFlowDataOptions
+                {
+                    Type = "subscription_cancel",
+                    SubscriptionCancel = new SessionFlowDataSubscriptionCancelOptions
+                    {
+                        Subscription = subscriptionId,
+                    },
+                },
+                _ => null,
+            };
+        }
 
         var service = new Stripe.BillingPortal.SessionService();
         var session = await service.CreateAsync(options, cancellationToken: ct);
