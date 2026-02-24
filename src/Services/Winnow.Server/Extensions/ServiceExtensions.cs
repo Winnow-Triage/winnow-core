@@ -92,6 +92,7 @@ internal static class ServiceExtensions
         services.AddScoped<IEmbeddingService, EmbeddingService>();
         services.AddSingleton<IVectorCalculator, VectorCalculator>();
         services.AddHostedService<ClusterRefinementJob>();
+        services.AddHostedService<InvitationCleanupJob>();
         services.AddHostedService<AdminSeeder>();
 
         // Storage (S3/MinIO)
