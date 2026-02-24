@@ -10,7 +10,7 @@ public class UpdateOrganizationRequest
     public string Name { get; set; } = string.Empty;
 }
 
-public class UpdateOrganizationEndpoint(
+public sealed class UpdateOrganizationEndpoint(
     WinnowDbContext db,
     ITenantContext tenantContext)
     : Endpoint<UpdateOrganizationRequest, CurrentOrganizationResponse>

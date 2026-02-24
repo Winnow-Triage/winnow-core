@@ -26,7 +26,7 @@ public class OrganizationSummaryResponse
 /// <summary>
 /// Admin endpoint to list all organizations, bypassing tenant isolation.
 /// </summary>
-public class ListAllOrganizationsEndpoint(WinnowDbContext dbContext) : Endpoint<EmptyRequest, List<OrganizationSummaryResponse>>
+public sealed class ListAllOrganizationsEndpoint(WinnowDbContext dbContext) : Endpoint<EmptyRequest, List<OrganizationSummaryResponse>>
 {
     public override void Configure()
     {

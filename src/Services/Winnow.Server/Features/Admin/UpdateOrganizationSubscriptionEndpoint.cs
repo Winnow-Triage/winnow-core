@@ -31,7 +31,7 @@ public class UpdateOrganizationSubscriptionResponse
 /// <summary>
 /// Admin endpoint to manually override an organization's subscription tier.
 /// </summary>
-public class UpdateOrganizationSubscriptionEndpoint(WinnowDbContext dbContext) : Endpoint<UpdateOrganizationSubscriptionRequest, UpdateOrganizationSubscriptionResponse>
+public sealed class UpdateOrganizationSubscriptionEndpoint(WinnowDbContext dbContext) : Endpoint<UpdateOrganizationSubscriptionRequest, UpdateOrganizationSubscriptionResponse>
 {
     private static readonly HashSet<string> _allowedTiers = new(StringComparer.OrdinalIgnoreCase)
     {

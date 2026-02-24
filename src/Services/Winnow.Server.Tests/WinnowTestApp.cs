@@ -1,5 +1,6 @@
 using System.Data.Common;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
@@ -29,6 +30,11 @@ public class WinnowTestApp(Action<IServiceCollection>? configureTestServices = n
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Use a non-Development environment so appsettings.Development.json
+        // (which sets "DatabaseProvider": "Postgres") is never loaded.
+        // This prevents the production ServiceExtensions from registering Npgsql.
+        builder.UseEnvironment("Testing");
+
         builder.ConfigureTestServices(services =>
         {
             // Allow test-specific service configuration
@@ -85,6 +91,10 @@ public class WinnowTestApp(Action<IServiceCollection>? configureTestServices = n
             {
                 options.UseSqlite(_sqliteConnection);
                 options.AddInterceptors(new TestSqliteVectorConnectionInterceptor());
+                // Suppress PendingModelChangesWarning — the test uses EnsureCreated,
+                // so out-of-date migration snapshots are irrelevant.
+                options.ConfigureWarnings(w =>
+                    w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
             });
         });
     }
@@ -100,33 +110,42 @@ public class WinnowTestApp(Action<IServiceCollection>? configureTestServices = n
 
     /// <summary>
     /// Creates a test project in the database with a known API key for authentication.
+    /// Returns the generated API key for use in tests.
     /// </summary>
-    public async Task<Guid> CreateTestProjectAsync(string apiKey = "test-api-key")
+    public async Task<(Guid ProjectId, string ApiKey)> CreateTestProjectAsync(string? userEmail = null, string? userPassword = null)
     {
         using var scope = Services.CreateScope();
-        using var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Winnow.Server.Entities.ApplicationUser>>();
+        var apiKeyService = scope.ServiceProvider.GetRequiredService<Winnow.Server.Infrastructure.Security.IApiKeyService>();
 
         // Ensure database is created
         await db.Database.EnsureCreatedAsync();
 
         // Create a dummy user for the project owner (since Project has required OwnerId foreign key)
-        // We'll use a known test user ID
         var testUserId = Guid.NewGuid().ToString();
-        var testUser = new Winnow.Server.Entities.ApplicationUser
-        {
-            Id = testUserId,
-            UserName = "test-user",
-            Email = "test@example.com",
-            FullName = "Test User",
-            CreatedAt = DateTime.UtcNow
-        };
+        var testUserEmail = userEmail ?? "test@example.com";
+        var testUserPassword = userPassword ?? "Password123!"; // Default password for tests
 
         // Check if user already exists
         var existingUser = await db.Users.FindAsync(testUserId);
         if (existingUser == null)
         {
-            db.Users.Add(testUser);
-            await db.SaveChangesAsync();
+            // Use UserManager to create user with hashed password
+            var user = new Winnow.Server.Entities.ApplicationUser
+            {
+                Id = testUserId,
+                UserName = testUserEmail,
+                Email = testUserEmail,
+                FullName = "Test User",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var result = await userManager.CreateAsync(user, testUserPassword);
+            if (!result.Succeeded)
+            {
+                throw new Exception($"Failed to create test user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+            }
         }
 
         // Create a test organization
@@ -153,11 +172,14 @@ public class WinnowTestApp(Action<IServiceCollection>? configureTestServices = n
 
         db.OrganizationMembers.Add(organizationMember);
 
+        // Generate API key in the correct format: wm_live_{ProjectId}_{RandomSecret}
+        var projectId = Guid.NewGuid();
+        var generatedApiKey = apiKeyService.GeneratePlaintextKey(projectId);
         var project = new Winnow.Server.Entities.Project
         {
-            Id = Guid.NewGuid(),
+            Id = projectId,
             Name = "Test Project",
-            ApiKeyHash = apiKey,
+            ApiKeyHash = apiKeyService.HashKey(generatedApiKey),
             OwnerId = testUserId,
             OrganizationId = organizationId,
             CreatedAt = DateTime.UtcNow
@@ -165,7 +187,7 @@ public class WinnowTestApp(Action<IServiceCollection>? configureTestServices = n
 
         db.Projects.Add(project);
         await db.SaveChangesAsync();
-        return project.Id;
+        return (projectId, generatedApiKey);
     }
 
     /// <summary>
@@ -179,6 +201,13 @@ public class WinnowTestApp(Action<IServiceCollection>? configureTestServices = n
         // Delete all data but keep tables
         await db.Database.EnsureDeletedAsync();
         await db.Database.EnsureCreatedAsync();
+
+        // Re-disable foreign key constraints after recreation
+        using (var command = _sqliteConnection!.CreateCommand())
+        {
+            command.CommandText = "PRAGMA foreign_keys = OFF;";
+            command.ExecuteNonQuery();
+        }
     }
 
     /// <summary>

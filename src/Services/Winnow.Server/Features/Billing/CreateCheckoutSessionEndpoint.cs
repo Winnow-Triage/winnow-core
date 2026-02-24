@@ -17,7 +17,7 @@ public class CheckoutResponse
     public Uri CheckoutUrl { get; set; } = default!;
 }
 
-public class CreateCheckoutSessionEndpoint(
+public sealed class CreateCheckoutSessionEndpoint(
     WinnowDbContext db,
     IConfiguration config,
     ILogger<CreateCheckoutSessionEndpoint> logger,

@@ -5,7 +5,7 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Organizations;
 
-public class DeleteOrganizationEndpoint(
+public sealed class DeleteOrganizationEndpoint(
     WinnowDbContext db,
     ITenantContext tenantContext)
     : EndpointWithoutRequest

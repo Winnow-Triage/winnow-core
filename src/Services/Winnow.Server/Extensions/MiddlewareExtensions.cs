@@ -63,7 +63,7 @@ internal static class MiddlewareExtensions
                             ");
 
                             tenantDb.Database.ExecuteSqlRaw(@"
-                                INSERT OR IGNORE INTO Projects (Id, Name, ApiKey, CreatedAt, OwnerId)
+                                INSERT OR IGNORE INTO Projects (Id, Name, ApiKeyHash, CreatedAt, OwnerId)
                                 VALUES ('00000000-0000-0000-0000-000000000001', 'Default Project', 'wm_live_' || substr(hex(randomblob(16)), 1, 20), '2024-01-01', '00000000-0000-0000-0000-000000000001');
                             ");
 

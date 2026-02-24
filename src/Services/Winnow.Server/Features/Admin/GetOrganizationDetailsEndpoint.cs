@@ -69,7 +69,7 @@ public class MemberSummary
 /// <summary>
 /// Admin endpoint to get detailed statistics for a specific organization.
 /// </summary>
-public class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : Endpoint<GetOrganizationDetailsRequest, OrganizationDetailsResponse>
+public sealed class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : Endpoint<GetOrganizationDetailsRequest, OrganizationDetailsResponse>
 {
     public override void Configure()
     {

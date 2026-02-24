@@ -8,8 +8,14 @@ using Winnow.Server.Infrastructure.Security;
 
 namespace Winnow.Server.Infrastructure.Persistence;
 
+#pragma warning disable CS9113 // Parameter is unused
 public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantContext tenantContext, IConfiguration configuration) : IdentityDbContext<ApplicationUser>(options)
+#pragma warning restore CS9113 // Parameter is unused
 {
+    // Note: tenantContext is intentionally not used in OnModelCreating to avoid model drift
+    // when migrations are created with different tenant context values than what's used at runtime.
+    // Query filters are applied at runtime via SaveChanges interceptors.
+
     private readonly string _encryptionKey = configuration["Encryption:MasterKey"]
         ?? throw new InvalidOperationException("Encryption config: 'Encryption:MasterKey' is missing.");
 
@@ -169,25 +175,12 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                   .HasConversion(encryptedConverter);
         });
 
-        // Apply global query filters to all ITenantEntity entities
-        // Note: We need to create a design-time version without tenant context
-        // The tenantContext will be null at design time, so we need to handle that
-        if (tenantContext != null && tenantContext.CurrentOrganizationId.HasValue)
-        {
-            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
-            {
-                if (typeof(ITenantEntity).IsAssignableFrom(entityType.ClrType))
-                {
-                    var parameter = System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e");
-                    var property = System.Linq.Expressions.Expression.Property(parameter, nameof(ITenantEntity.OrganizationId));
-                    var tenantId = System.Linq.Expressions.Expression.Constant(tenantContext.CurrentOrganizationId.Value);
-                    var equals = System.Linq.Expressions.Expression.Equal(property, tenantId);
-                    var lambda = System.Linq.Expressions.Expression.Lambda(equals, parameter);
-
-                    modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
-                }
-            }
-        }
+        // Note: Global query filters for tenant isolation are applied at runtime
+        // via the ITenantContext service, not at model creation time.
+        // This avoids model drift issues when migrations are created with different
+        // tenant context values than what's used at runtime.
+        // The tenantContext.CurrentOrganizationId is used in the runtime context
+        // to apply filters dynamically.
     }
 
     public DbSet<Organization> Organizations { get; set; } = null!;

@@ -17,7 +17,7 @@ public class PortalResponse
     public Uri PortalUrl { get; set; } = default!;
 }
 
-public class CreateCustomerPortalSessionEndpoint(
+public sealed class CreateCustomerPortalSessionEndpoint(
     WinnowDbContext db,
     IConfiguration config,
     ILogger<CreateCustomerPortalSessionEndpoint> logger,

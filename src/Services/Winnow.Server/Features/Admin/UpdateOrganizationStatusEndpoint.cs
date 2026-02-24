@@ -13,7 +13,7 @@ public class UpdateOrganizationStatusRequest
 /// <summary>
 /// Admin endpoint to suspend or activate an organization.
 /// </summary>
-public class UpdateOrganizationStatusEndpoint(WinnowDbContext dbContext) : Endpoint<UpdateOrganizationStatusRequest>
+public sealed class UpdateOrganizationStatusEndpoint(WinnowDbContext dbContext) : Endpoint<UpdateOrganizationStatusRequest>
 {
     public override void Configure()
     {

@@ -6,7 +6,7 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Projects;
 
-public class DeleteProjectEndpoint(
+public sealed class DeleteProjectEndpoint(
     WinnowDbContext dbContext,
     ITenantContext tenantContext)
     : EndpointWithoutRequest

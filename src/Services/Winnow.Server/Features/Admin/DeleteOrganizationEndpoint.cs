@@ -16,7 +16,7 @@ public class DeleteOrganizationRequest
 /// Admin endpoint to hard delete an organization.
 /// Attempts to clean up S3 assets before deleting the database record.
 /// </summary>
-public class DeleteOrganizationEndpoint(
+public sealed class DeleteOrganizationEndpoint(
     WinnowDbContext dbContext,
     IAmazonS3 s3,
     S3Settings s3Settings,

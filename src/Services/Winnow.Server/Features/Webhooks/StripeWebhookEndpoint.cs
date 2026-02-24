@@ -7,7 +7,7 @@ using Winnow.Server.Infrastructure.Persistence;
 namespace Winnow.Server.Features.Webhooks;
 
 [AllowAnonymous]
-public class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext db, ILogger<StripeWebhookEndpoint> logger) : EndpointWithoutRequest
+public sealed class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext db, ILogger<StripeWebhookEndpoint> logger) : EndpointWithoutRequest
 {
     public override void Configure()
     {

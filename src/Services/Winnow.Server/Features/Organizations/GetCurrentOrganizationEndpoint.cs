@@ -13,7 +13,7 @@ public class CurrentOrganizationResponse
     public DateTime CreatedAt { get; set; }
 }
 
-public class GetCurrentOrganizationEndpoint(
+public sealed class GetCurrentOrganizationEndpoint(
     WinnowDbContext db,
     ITenantContext tenantContext)
     : EndpointWithoutRequest<CurrentOrganizationResponse>

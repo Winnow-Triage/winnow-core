@@ -15,8 +15,9 @@ public class GetReportsTests : IAsyncLifetime
     private readonly Mock<IEmbeddingService> _embeddingServiceMock;
     private readonly Mock<IStorageService> _storageServiceMock;
     private Guid _projectId;
-    private const string TestApiKey = "test-api-key-123";
+    private string _apiKey = string.Empty;
     private string? _userId;
+    private string? _jwtToken;
 
     public GetReportsTests()
     {
@@ -62,14 +63,33 @@ public class GetReportsTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        // Create a test project in the database
-        _projectId = await _app.CreateTestProjectAsync(TestApiKey);
+        // Create a test project in the database and get the generated API key
+        // Use a unique email to avoid conflicts between tests
+        var (projectId, apiKey) = await _app.CreateTestProjectAsync($"getreports-test-{Guid.NewGuid():N}@example.com");
+        _projectId = projectId;
+        _apiKey = apiKey;
 
         // Get the user ID from the created project
         using var scope = _app.Services.CreateScope();
         using var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
         var project = await db.Projects.FindAsync(_projectId);
         _userId = project?.OwnerId;
+
+        // Login to get JWT token
+        var user = await db.Users.FindAsync(_userId);
+        if (user != null)
+        {
+            var loginRequest = new Features.Auth.LoginRequest
+            {
+                Email = user.Email!,
+                Password = "Password123!" // Default password set by CreateTestProjectAsync
+            };
+            _client.DefaultRequestHeaders.Add("X-Tenant-ID", "test-tenant");
+            var loginResponse = await _client.PostAsJsonAsync("/auth/login", loginRequest);
+            var authResult = await loginResponse.Content.ReadFromJsonAsync<Features.Auth.AuthResponse>();
+            _jwtToken = authResult?.Token;
+            _client.DefaultRequestHeaders.Clear();
+        }
     }
 
     public async Task DisposeAsync()
@@ -101,7 +121,9 @@ public class GetReportsTests : IAsyncLifetime
         };
 
         _client.DefaultRequestHeaders.Clear();
-        _client.DefaultRequestHeaders.Add("X-Winnow-Key", TestApiKey);
+        // Use API key authentication (IngestReportEndpoint uses ApiKey scheme)
+        _client.DefaultRequestHeaders.Add("X-Winnow-Key", _apiKey);
+        _client.DefaultRequestHeaders.Add("X-Tenant-ID", "test-tenant");
 
         var response = await _client.PostAsJsonAsync("/reports", request);
         response.EnsureSuccessStatusCode();
@@ -143,12 +165,36 @@ public class GetReportsTests : IAsyncLifetime
     public async Task GetReports_RespectsProjectId()
     {
         // Arrange: Create a report in Project A and one in Project B
-        var projectAId = await _app.CreateTestProjectAsync("project-a-key");
-        var projectBId = await _app.CreateTestProjectAsync("project-b-key");
+        // Use unique emails to avoid conflicts between tests
+        var (projectAId, projectAApiKey) = await _app.CreateTestProjectAsync($"getreports-a-{Guid.NewGuid():N}@example.com");
+        var (projectBId, projectBApiKey) = await _app.CreateTestProjectAsync($"getreports-b-{Guid.NewGuid():N}@example.com");
+
+        // Get JWT token for Project A
+        using (var scopeA = _app.Services.CreateScope())
+        {
+            using var dbA = scopeA.ServiceProvider.GetRequiredService<WinnowDbContext>();
+            var projectA = await dbA.Projects.FindAsync(projectAId);
+            var userA = await dbA.Users.FindAsync(projectA?.OwnerId);
+            if (userA != null)
+            {
+                var loginRequest = new Features.Auth.LoginRequest
+                {
+                    Email = userA.Email!,
+                    Password = "Password123!"
+                };
+                _client.DefaultRequestHeaders.Add("X-Tenant-ID", "test-tenant");
+                var loginResponse = await _client.PostAsJsonAsync("/auth/login", loginRequest);
+                var authResult = await loginResponse.Content.ReadFromJsonAsync<Features.Auth.AuthResponse>();
+                _jwtToken = authResult?.Token;
+                _client.DefaultRequestHeaders.Clear();
+            }
+        }
 
         // Create report in Project A
         _client.DefaultRequestHeaders.Clear();
-        _client.DefaultRequestHeaders.Add("X-Winnow-Key", "project-a-key");
+        // Use API key authentication (IngestReportEndpoint uses ApiKey scheme)
+        _client.DefaultRequestHeaders.Add("X-Winnow-Key", projectAApiKey);
+        _client.DefaultRequestHeaders.Add("X-Tenant-ID", "test-tenant");
         var requestA = new Winnow.Server.Features.Reports.Create.IngestReportRequest
         {
             Title = "Project A Report",
@@ -159,9 +205,32 @@ public class GetReportsTests : IAsyncLifetime
         var resultA = await responseA.Content.ReadFromJsonAsync<Winnow.Server.Features.Reports.Create.IngestReportResponse>();
         var reportAId = resultA!.Id;
 
-        // Create report in Project B  
+        // Get JWT token for Project B
+        using (var scopeB = _app.Services.CreateScope())
+        {
+            using var dbB = scopeB.ServiceProvider.GetRequiredService<WinnowDbContext>();
+            var projectB = await dbB.Projects.FindAsync(projectBId);
+            var userB = await dbB.Users.FindAsync(projectB?.OwnerId);
+            if (userB != null)
+            {
+                var loginRequest = new Features.Auth.LoginRequest
+                {
+                    Email = userB.Email!,
+                    Password = "Password123!"
+                };
+                _client.DefaultRequestHeaders.Add("X-Tenant-ID", "test-tenant");
+                var loginResponse = await _client.PostAsJsonAsync("/auth/login", loginRequest);
+                var authResult = await loginResponse.Content.ReadFromJsonAsync<Features.Auth.AuthResponse>();
+                _jwtToken = authResult?.Token;
+                _client.DefaultRequestHeaders.Clear();
+            }
+        }
+
+        // Create report in Project B
         _client.DefaultRequestHeaders.Clear();
-        _client.DefaultRequestHeaders.Add("X-Winnow-Key", "project-b-key");
+        // Use API key authentication (IngestReportEndpoint uses ApiKey scheme)
+        _client.DefaultRequestHeaders.Add("X-Winnow-Key", projectBApiKey);
+        _client.DefaultRequestHeaders.Add("X-Tenant-ID", "test-tenant");
         var requestB = new Winnow.Server.Features.Reports.Create.IngestReportRequest
         {
             Title = "Project B Report",

@@ -16,7 +16,9 @@ public class DeduplicationTests : IAsyncLifetime
     private readonly Mock<IEmbeddingService> _embeddingServiceMock;
     private readonly Mock<IStorageService> _storageServiceMock;
     private Guid _projectId;
-    private const string TestApiKey = "test-api-key-123";
+    private string _apiKey = string.Empty;
+    private string? _userId;
+    private string? _jwtToken;
 
     public DeduplicationTests()
     {
@@ -76,8 +78,32 @@ public class DeduplicationTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        // Create a test project in the database
-        _projectId = await _app.CreateTestProjectAsync(TestApiKey);
+        // Create a test project in the database and get the generated API key
+        var (projectId, apiKey) = await _app.CreateTestProjectAsync("dedup-test@example.com", "Password123!");
+        _projectId = projectId;
+        _apiKey = apiKey;
+
+        // Get the user ID from the created project and login to get JWT token
+        using var scope = _app.Services.CreateScope();
+        using var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
+        var project = await db.Projects.FindAsync(_projectId);
+        _userId = project?.OwnerId;
+
+        // Login to get JWT token
+        var user = await db.Users.FindAsync(_userId);
+        if (user != null)
+        {
+            var loginRequest = new Features.Auth.LoginRequest
+            {
+                Email = user.Email!,
+                Password = "Password123!" // Default password set by CreateTestProjectAsync
+            };
+            _client.DefaultRequestHeaders.Add("X-Tenant-ID", "test-tenant");
+            var loginResponse = await _client.PostAsJsonAsync("/auth/login", loginRequest);
+            var authResult = await loginResponse.Content.ReadFromJsonAsync<Features.Auth.AuthResponse>();
+            _jwtToken = authResult?.Token;
+            _client.DefaultRequestHeaders.Clear();
+        }
     }
 
     public async Task DisposeAsync()
@@ -102,7 +128,9 @@ public class DeduplicationTests : IAsyncLifetime
         };
 
         _client.DefaultRequestHeaders.Clear();
-        _client.DefaultRequestHeaders.Add("X-Winnow-Key", TestApiKey);
+        // Use API key authentication (IngestReportEndpoint uses ApiKey scheme)
+        _client.DefaultRequestHeaders.Add("X-Winnow-Key", _apiKey);
+        _client.DefaultRequestHeaders.Add("X-Tenant-ID", "test-tenant");
 
         var response = await _client.PostAsJsonAsync("/reports", request);
         response.EnsureSuccessStatusCode();
