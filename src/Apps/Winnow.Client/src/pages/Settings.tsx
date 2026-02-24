@@ -923,8 +923,8 @@ function InviteMemberModal({ isOpen, onClose, organizationId }: { isOpen: boolea
     const [email, setEmail] = useState("");
     const [role, setRole] = useState("Member");
     const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
-    const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
     const [isInviting, setIsInviting] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
 
     const { data: teams } = useQuery<{ id: string, name: string }[]>({
         queryKey: ['teams', organizationId],
@@ -935,14 +935,9 @@ function InviteMemberModal({ isOpen, onClose, organizationId }: { isOpen: boolea
         enabled: isOpen && !!organizationId
     });
 
-    const { data: projects } = useQuery<{ id: string, name: string }[]>({
-        queryKey: ['org-projects', organizationId],
-        queryFn: async () => {
-            const { data } = await api.get('/projects?OrgWide=true');
-            return data;
-        },
-        enabled: isOpen && !!organizationId
-    });
+    const filteredTeams = teams?.filter(team =>
+        team.name.toLowerCase().includes(searchTerm.toLowerCase())
+    ) || [];
 
     const handleInvite = async () => {
         if (!email.trim() || !organizationId) return;
@@ -952,14 +947,14 @@ function InviteMemberModal({ isOpen, onClose, organizationId }: { isOpen: boolea
                 orgId: organizationId,
                 email: email.trim(),
                 role: role,
-                teamIds: selectedTeams,
-                projectIds: selectedProjects
+                teamIds: selectedTeams
             });
             toast.success(`Invite sent to ${email}`);
             onClose();
+            // Reset state
             setEmail("");
             setSelectedTeams([]);
-            setSelectedProjects([]);
+            setSearchTerm("");
         } catch (error) {
             console.error("Failed to send invite:", error);
             toast.error("Failed to send invitation. Please try again.");
@@ -970,85 +965,93 @@ function InviteMemberModal({ isOpen, onClose, organizationId }: { isOpen: boolea
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-[425px] p-0 flex flex-col overflow-hidden border-border bg-background">
+                <DialogHeader className="p-6 pb-0">
                     <DialogTitle>Invite Member</DialogTitle>
-                    <DialogDescription>
-                        Send an invitation to join your organization and assign an initial role.
+                    <DialogDescription className="text-muted-foreground">
+                        Send an invitation to join your organization and assign an initial role/teams.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4 py-4">
+
+                <div className="space-y-6 p-6 overflow-y-auto">
                     <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
+                        <Label className="text-sm font-semibold text-muted-foreground">Email Address</Label>
                         <Input
-                            id="email"
-                            placeholder="colleague@company.com"
+                            placeholder="colleague@example.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
+                            className="bg-muted/50 border-border focus:ring-primary"
                         />
                     </div>
+
                     <div className="space-y-2">
-                        <Label htmlFor="role">Initial Role</Label>
+                        <Label className="text-sm font-semibold text-muted-foreground">Initial Role</Label>
                         <Select value={role} onValueChange={setRole}>
-                            <SelectTrigger id="role w-full">
+                            <SelectTrigger className="bg-muted/50 border-border">
                                 <SelectValue placeholder="Select a role" />
                             </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="owner">Owner</SelectItem>
-                                <SelectItem value="Admin">Admin</SelectItem>
+                            <SelectContent className="bg-popover border-border">
+                                <SelectItem value="Admin">Administrator</SelectItem>
                                 <SelectItem value="Member">Member</SelectItem>
+                                <SelectItem value="Viewer">Viewer</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
 
                     <div className="space-y-3">
-                        <Label>Assign to Teams (Optional)</Label>
-                        <div className="grid grid-cols-2 gap-2 max-h-[120px] overflow-y-auto p-2 border rounded-md">
-                            {teams?.map(team => (
-                                <div key={team.id} className="flex items-center space-x-2">
-                                    <input
-                                        type="checkbox"
-                                        id={`team-${team.id}`}
-                                        checked={selectedTeams.includes(team.id)}
-                                        onChange={(e) => {
-                                            if (e.target.checked) setSelectedTeams([...selectedTeams, team.id]);
-                                            else setSelectedTeams(selectedTeams.filter(id => id !== team.id));
-                                        }}
-                                        className="rounded border-zinc-700 bg-zinc-900"
-                                    />
-                                    <label htmlFor={`team-${team.id}`} className="text-xs truncate">{team.name}</label>
-                                </div>
-                            ))}
+                        <div className="flex items-center justify-between">
+                            <Label className="text-sm font-semibold text-muted-foreground">Assign to Teams</Label>
+                            {teams && teams.length > 5 && (
+                                <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                    {teams.length} total
+                                </span>
+                            )}
                         </div>
-                    </div>
 
-                    <div className="space-y-3">
-                        <Label>Assign to Projects (Optional)</Label>
-                        <div className="grid grid-cols-2 gap-2 max-h-[120px] overflow-y-auto p-2 border rounded-md">
-                            {projects?.map(project => (
-                                <div key={project.id} className="flex items-center space-x-2">
-                                    <input
-                                        type="checkbox"
-                                        id={`project-${project.id}`}
-                                        checked={selectedProjects.includes(project.id)}
-                                        onChange={(e) => {
-                                            if (e.target.checked) setSelectedProjects([...selectedProjects, project.id]);
-                                            else setSelectedProjects(selectedProjects.filter(id => id !== project.id));
-                                        }}
-                                        className="rounded border-zinc-700 bg-zinc-900"
-                                    />
-                                    <label htmlFor={`project-${project.id}`} className="text-xs truncate">{project.name}</label>
+                        <div className="space-y-2">
+                            <Input
+                                placeholder="Search teams..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="h-8 text-xs bg-muted/30 border-border"
+                            />
+
+                            <div className="max-h-40 overflow-y-auto border border-border rounded-md p-1 bg-muted/20">
+                                <div className="flex flex-col">
+                                    {filteredTeams.length === 0 && (
+                                        <div className="p-4 text-xs text-muted-foreground text-center">
+                                            {searchTerm ? 'No matching teams' : 'No teams found'}
+                                        </div>
+                                    )}
+                                    {filteredTeams.map(team => (
+                                        <label
+                                            key={team.id}
+                                            className="flex items-center gap-3 p-2 hover:bg-accent rounded cursor-pointer transition-colors"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedTeams.includes(team.id)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) setSelectedTeams([...selectedTeams, team.id]);
+                                                    else setSelectedTeams(selectedTeams.filter(id => id !== team.id));
+                                                }}
+                                                className="h-4 w-4 rounded border-input bg-background accent-primary cursor-pointer"
+                                            />
+                                            <span className="text-sm text-foreground truncate">{team.name}</span>
+                                        </label>
+                                    ))}
                                 </div>
-                            ))}
+                            </div>
                         </div>
                     </div>
                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={onClose} disabled={isInviting}>
+
+                <DialogFooter className="p-6 bg-muted/30 border-t border-border">
+                    <Button variant="outline" onClick={onClose} disabled={isInviting} className="border-border hover:bg-accent">
                         Cancel
                     </Button>
                     <Button onClick={handleInvite} disabled={isInviting || !email.trim()}>
-                        {isInviting ? "Sending..." : "Send Invite"}
+                        {isInviting ? "Sending..." : "Send Invitation"}
                     </Button>
                 </DialogFooter>
             </DialogContent>
