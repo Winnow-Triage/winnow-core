@@ -1,4 +1,4 @@
-import { Building2, ShieldAlert, Settings } from "lucide-react"
+import { Building2, Users, ShieldAlert, Settings } from "lucide-react"
 import { Link } from "react-router-dom"
 import {
     Sidebar,
@@ -17,6 +17,11 @@ const items = [
         title: "Organizations",
         url: "/admin/organizations",
         icon: Building2,
+    },
+    {
+        title: "Accounts",
+        url: "/admin/users",
+        icon: Users,
     },
     {
         title: "System Health",

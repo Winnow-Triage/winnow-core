@@ -18,6 +18,7 @@ import SuspendedPage from './pages/SuspendedPage'
 import AdminLayout from './components/admin/AdminLayout'
 import AdminProtectedRoute from './components/admin/AdminProtectedRoute'
 import OrganizationsDashboard from './pages/admin/OrganizationsDashboard'
+import UsersDashboard from './pages/admin/UsersDashboard'
 import SystemHealth from './pages/admin/SystemHealth'
 import AdminSettings from './pages/admin/AdminSettings'
 
@@ -41,6 +42,7 @@ export default function App() {
               <Route element={<AdminLayout />}>
                 <Route index element={<Navigate to="/admin/organizations" replace />} />
                 <Route path="organizations" element={<OrganizationsDashboard />} />
+                <Route path="users" element={<UsersDashboard />} />
                 <Route path="health" element={<SystemHealth />} />
                 <Route path="settings" element={<AdminSettings />} />
               </Route>

@@ -117,6 +117,37 @@ export const addOrganizationMember = async (orgId: string, role: string = "owner
     return response.data;
 };
 
+// Admin User Management
+export interface UserSummary {
+    id: string;
+    email: string;
+    fullName: string;
+    roles: string[];
+    createdAt: string;
+    isLockedOut: boolean;
+    organizations: { id: string, name: string }[];
+}
+
+export const getAllUsers = async (): Promise<UserSummary[]> => {
+    const response = await api.get('/admin/users');
+    return response.data;
+};
+
+export const adminCreateUser = async (data: { email: string, fullName: string, password: string, role: string }) => {
+    const response = await api.post('/admin/users', data);
+    return response.data;
+};
+
+export const toggleUserLock = async (userId: string) => {
+    const response = await api.post(`/admin/users/${userId}/toggle-lock`, { id: userId });
+    return response.data;
+};
+
+export const impersonateUser = async (userId: string) => {
+    const response = await api.post(`/admin/users/${userId}/impersonate`, { id: userId });
+    return response.data;
+};
+
 export interface SystemHealthCheck {
     name: string;
     status: string;
