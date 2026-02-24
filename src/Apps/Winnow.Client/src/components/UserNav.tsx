@@ -51,8 +51,11 @@ export default function UserNav() {
                     </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/settings/user")}>
+                    User Settings
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/settings")}>
-                    Settings
+                    Workspace Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="text-red-500 focus:text-red-500">

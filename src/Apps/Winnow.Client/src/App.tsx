@@ -14,6 +14,7 @@ import ProjectSettings from './pages/ProjectSettings'
 import ProjectSetup from './pages/ProjectSetup'
 import AuthPage from './pages/AuthPage'
 import SuspendedPage from './pages/SuspendedPage'
+import UserSettings from './pages/UserSettings'
 
 import AdminLayout from './components/admin/AdminLayout'
 import AdminProtectedRoute from './components/admin/AdminProtectedRoute'
@@ -75,6 +76,7 @@ export default function App() {
                       <Route path="clusters" element={<Clusters />} />
                       <Route path="debug" element={<DebugConsole />} />
                       <Route path="settings" element={<Settings />} />
+                      <Route path="settings/user" element={<UserSettings />} />
                       <Route path="project-settings" element={<ProjectSettings />} />
                       <Route path="setup" element={<ProjectSetup />} />
                     </Route>

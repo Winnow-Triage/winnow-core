@@ -121,6 +121,21 @@ export const removeOrganizationMember = async (orgId: string, userId: string) =>
     await api.delete(`/admin/organizations/${orgId}/members/${userId}`);
 };
 
+// Account Management
+export const getAccountDetails = async () => {
+    const { data } = await api.get('/account/me');
+    return data;
+};
+
+export const updateAccountDetails = async (fullName: string, email: string) => {
+    const { data } = await api.put('/account/me', { fullName, email });
+    return data;
+};
+
+export const changePassword = async (currentPassword: string, newPassword: string) => {
+    await api.post('/account/change-password', { currentPassword, newPassword });
+};
+
 // Admin User Management
 export interface UserSummary {
     id: string;
