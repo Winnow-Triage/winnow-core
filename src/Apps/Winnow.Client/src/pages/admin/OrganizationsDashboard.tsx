@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { getAllOrganizations, updateOrganizationSubscription, updateOrganizationStatus, deleteOrganization, type OrganizationSummary } from "@/lib/api"
+import { getAllOrganizations, updateOrganizationSubscription, updateOrganizationStatus, deleteOrganization, createOrganization, addOrganizationMember, type OrganizationSummary } from "@/lib/api"
 import {
     Table,
     TableBody,
@@ -30,6 +30,7 @@ import { Badge } from "@/components/ui/badge"
 import { MoreHorizontal } from "lucide-react"
 import { formatTimeAgo } from "@/lib/utils"
 import { toast } from "sonner"
+import { Plus } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
 import {
@@ -51,6 +52,12 @@ export default function OrganizationsDashboard() {
     const [orgToDelete, setOrgToDelete] = useState<OrganizationSummary | null>(null)
     const [deleteConfirmationText, setDeleteConfirmationText] = useState("")
     const [isDeleting, setIsDeleting] = useState(false)
+
+    // Creation Modal State
+    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+    const [newOrgName, setNewOrgName] = useState("")
+    const [newOrgTier, setNewOrgTier] = useState("Free")
+    const [isCreating, setIsCreating] = useState(false)
 
     const fetchOrganizations = async () => {
         try {
@@ -124,6 +131,39 @@ export default function OrganizationsDashboard() {
         }
     }
 
+    const handleCreateOrganization = async () => {
+        if (!newOrgName.trim()) {
+            toast.error("Organization name is required")
+            return
+        }
+
+        try {
+            setIsCreating(true)
+            await createOrganization(newOrgName, newOrgTier)
+            toast.success("Organization created successfully")
+            setIsCreateDialogOpen(false)
+            setNewOrgName("")
+            setNewOrgTier("Free")
+            fetchOrganizations()
+        } catch (error) {
+            console.error("Failed to create organization:", error)
+            toast.error("Failed to create organization")
+        } finally {
+            setIsCreating(false)
+        }
+    }
+
+    const handleJoinOrganization = async (org: OrganizationSummary) => {
+        try {
+            await addOrganizationMember(org.id)
+            toast.success(`You have joined ${org.name} as an owner`)
+            fetchOrganizations()
+        } catch (error) {
+            console.error("Failed to join organization:", error)
+            toast.error("Failed to join organization")
+        }
+    }
+
     const getTierBadgeColor = (tier: string) => {
         const t = tier.toLowerCase()
         if (t === 'starter') return 'bg-blue-500/10 text-blue-500 border-blue-500/20 hover:bg-blue-500/20'
@@ -141,9 +181,14 @@ export default function OrganizationsDashboard() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight text-red-500">Tenant Organizations</h1>
-                <p className="text-muted-foreground">Manage all tenants across the system.</p>
+            <div className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-red-500">Tenant Organizations</h1>
+                    <p className="text-muted-foreground">Manage all tenants across the system.</p>
+                </div>
+                <Button onClick={() => setIsCreateDialogOpen(true)} className="bg-red-600 hover:bg-red-700 text-white">
+                    <Plus className="mr-2 h-4 w-4" /> Create Organization
+                </Button>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
@@ -244,6 +289,13 @@ export default function OrganizationsDashboard() {
                                                     {org.isSuspended ? "Activate Tenant" : "Suspend Tenant"}
                                                 </DropdownMenuItem>
 
+                                                <DropdownMenuItem
+                                                    onClick={() => handleJoinOrganization(org)}
+                                                    className="hover:bg-green-500/20 focus:bg-green-500/20 cursor-pointer"
+                                                >
+                                                    Join Organization
+                                                </DropdownMenuItem>
+
                                                 <DropdownMenuSeparator className="bg-red-900/30" />
 
                                                 <div className="text-xs text-muted-foreground px-2 py-1.5 font-semibold">Subscription</div>
@@ -314,6 +366,59 @@ export default function OrganizationsDashboard() {
                             className="bg-red-600 hover:bg-red-700 text-white font-bold disabled:opacity-50"
                         >
                             {isDeleting ? "Deleting..." : "Permanently Delete"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                <AlertDialogContent className="border-red-900/50 bg-background">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-red-500 text-xl font-bold">
+                            Create New Organization
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-muted-foreground">
+                            Enter the details for the new tenant organization.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    <div className="my-4 space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Organization Name</label>
+                            <Input
+                                value={newOrgName}
+                                onChange={(e) => setNewOrgName(e.target.value)}
+                                className="bg-background border-red-900/50 focus-visible:ring-red-500"
+                                placeholder="Acme Corp"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Subscription Tier</label>
+                            <Select value={newOrgTier} onValueChange={setNewOrgTier}>
+                                <SelectTrigger className="bg-background border-red-900/50 focus:ring-red-500">
+                                    <SelectValue placeholder="Select Tier" />
+                                </SelectTrigger>
+                                <SelectContent className="border-red-900/50">
+                                    <SelectItem value="Free">Free</SelectItem>
+                                    <SelectItem value="Starter">Starter</SelectItem>
+                                    <SelectItem value="Pro">Pro</SelectItem>
+                                    <SelectItem value="Enterprise">Enterprise</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="border-red-900/50 hover:bg-red-950/20">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={(e) => {
+                                e.preventDefault();
+                                handleCreateOrganization();
+                            }}
+                            disabled={!newOrgName.trim() || isCreating}
+                            className="bg-red-600 hover:bg-red-700 text-white font-bold disabled:opacity-50"
+                        >
+                            {isCreating ? "Creating..." : "Create Organization"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

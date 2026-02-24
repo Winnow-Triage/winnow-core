@@ -98,6 +98,25 @@ export const updateOrganizationSubscription = async (id: string, tier: string) =
     return response.data;
 };
 
+export const createOrganization = async (name: string, tier: string = "Free") => {
+    const response = await api.post('/admin/organizations', {
+        name,
+        subscriptionTier: tier
+    });
+    return response.data;
+};
+
+
+
+export const addOrganizationMember = async (orgId: string, role: string = "owner", userId?: string) => {
+    const response = await api.post(`/admin/organizations/${orgId}/members`, {
+        organizationId: orgId,
+        role,
+        userId
+    });
+    return response.data;
+};
+
 export interface SystemHealthCheck {
     name: string;
     status: string;
