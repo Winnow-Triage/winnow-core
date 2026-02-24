@@ -44,11 +44,24 @@ public sealed class DeleteProjectEndpoint(
         }
 
         var project = await dbContext.Projects
-            .FirstOrDefaultAsync(p => p.Id == projectId && p.OwnerId == userId && p.OrganizationId == tenantContext.CurrentOrganizationId.Value, ct);
+            .FirstOrDefaultAsync(p => p.Id == projectId && p.OrganizationId == tenantContext.CurrentOrganizationId.Value, ct);
 
         if (project == null)
         {
             await Send.NotFoundAsync(cancellation: ct);
+            return;
+        }
+
+        // Check if user is the project owner OR an admin in the organization
+        var membership = await dbContext.OrganizationMembers
+            .FirstOrDefaultAsync(om => om.OrganizationId == tenantContext.CurrentOrganizationId.Value && om.UserId == userId, ct);
+
+        var isAdmin = membership?.IsAdmin() ?? false;
+        var isOwner = project.OwnerId == userId;
+
+        if (!isAdmin && !isOwner)
+        {
+            await Send.ForbiddenAsync(ct);
             return;
         }
 
