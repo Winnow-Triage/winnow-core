@@ -196,6 +196,20 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                   .HasConversion(encryptedConverter);
         });
 
+        // Organization -> Invitation relationship
+        modelBuilder.Entity<OrganizationInvitation>(entity =>
+        {
+            entity.HasKey(oi => oi.Id);
+
+            entity.HasIndex(oi => oi.Token)
+                .IsUnique();
+
+            entity.HasOne(oi => oi.Organization)
+                .WithMany()
+                .HasForeignKey(oi => oi.OrganizationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // Note: Global query filters for tenant isolation are applied at runtime
         // via the ITenantContext service, not at model creation time.
         // This avoids model drift issues when migrations are created with different
@@ -212,4 +226,5 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
     public DbSet<Asset> Assets { get; set; } = null!;
     public DbSet<Integration> Integrations { get; set; } = null!;
     public DbSet<Project> Projects { get; set; } = null!;
+    public DbSet<OrganizationInvitation> OrganizationInvitations { get; set; } = null!;
 }

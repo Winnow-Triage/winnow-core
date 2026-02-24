@@ -169,7 +169,8 @@ public class ArchitectureTests
         // Allow Features.Shared to be used by all slices
         // This is a design choice - Shared contains common utilities for Features
 
-        Assert.Empty(violations);
+        var detailedViolations = string.Join("\n", violations);
+        Assert.True(violations.Count == 0, $"Vertical slice dependency violations found:\n{detailedViolations}");
     }
 
     [Fact]
@@ -268,7 +269,7 @@ public class ArchitectureTests
                     isEndpointWithoutRequest = true;
                     break;
                 }
-                
+
                 if (baseType.IsGenericType && baseType.Name.StartsWith("Endpoint`"))
                 {
                     var genericArgs = baseType.GetGenericArguments();
@@ -295,7 +296,7 @@ public class ArchitectureTests
                         break;
                     }
                 }
-                
+
                 baseType = baseType.BaseType;
             }
 
@@ -307,7 +308,7 @@ public class ArchitectureTests
 
             // Check for Request class - either from base type or by naming convention
             Type? requestTypeFromNamespace = requestTypeFromBase;
-            
+
             if (requestTypeFromNamespace == null)
             {
                 // Check by naming convention
@@ -335,7 +336,7 @@ public class ArchitectureTests
                     .And()
                     .HaveNameEndingWith("Request")
                     .GetTypes();
-                
+
                 // Find a request class that's not EmptyRequest
                 requestTypeFromNamespace = requestClasses.FirstOrDefault(t => t.Name != "EmptyRequest");
             }

@@ -912,27 +912,36 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
                 <InviteMemberModal
                     isOpen={isInviteModalOpen}
                     onClose={() => setIsInviteModalOpen(false)}
+                    organizationId={organizationId}
                 />
             </CardContent>
         </Card>
     );
 }
 
-function InviteMemberModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+function InviteMemberModal({ isOpen, onClose, organizationId }: { isOpen: boolean, onClose: () => void, organizationId?: string }) {
     const [email, setEmail] = useState("");
     const [role, setRole] = useState("Member");
     const [isInviting, setIsInviting] = useState(false);
 
     const handleInvite = async () => {
-        if (!email.trim()) return;
+        if (!email.trim() || !organizationId) return;
         setIsInviting(true);
-        // Placeholder for real invite logic
-        setTimeout(() => {
+        try {
+            await api.post(`/organizations/${organizationId}/invitations`, {
+                orgId: organizationId,
+                email: email.trim(),
+                role: role
+            });
             toast.success(`Invite sent to ${email}`);
-            setIsInviting(false);
             onClose();
             setEmail("");
-        }, 1000);
+        } catch (error) {
+            console.error("Failed to send invite:", error);
+            toast.error("Failed to send invitation. Please try again.");
+        } finally {
+            setIsInviting(false);
+        }
     };
 
     return (

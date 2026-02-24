@@ -19,6 +19,7 @@ using Winnow.Server.Infrastructure.Scheduling;
 using Winnow.Server.Infrastructure.Security;
 using Winnow.Server.Services.Ai;
 using Winnow.Server.Services.Ai.Strategies;
+using Winnow.Server.Services.Emails;
 using Winnow.Server.Services.Storage;
 
 namespace Winnow.Server.Extensions;
@@ -149,6 +150,9 @@ internal static class ServiceExtensions
 
         // Dashboard service
         services.AddScoped<IDashboardService, DashboardService>();
+
+        // Email Service
+        services.AddScoped<ILocalEmailService, LocalEmailService>();
 
         // Database — provider-aware registration
         var dbProvider = config["DatabaseProvider"] ?? "Sqlite";

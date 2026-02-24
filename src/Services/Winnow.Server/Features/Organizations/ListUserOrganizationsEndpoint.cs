@@ -1,9 +1,25 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Features.Auth;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Organizations;
+
+/// <summary>
+/// Organization data transfer object.
+/// </summary>
+public class OrganizationDto
+{
+    /// <summary>
+    /// Gets or sets the unique identifier of the organization.
+    /// </summary>
+    public Guid Id { get; set; }
+
+    /// <summary>
+    /// Gets or sets the name of the organization.
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+}
+
 
 public sealed class ListUserOrganizationsEndpoint(WinnowDbContext db)
     : EndpointWithoutRequest<List<OrganizationDto>>
