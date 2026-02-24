@@ -15,7 +15,8 @@ public class OrganizationMember
     // Helper methods
     public bool IsAdmin()
     {
-        return Role == "Admin";
+        return string.Equals(Role, "Admin", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(Role, "owner", StringComparison.OrdinalIgnoreCase);
     }
 
     public bool HasAccessToOrganization(Guid organizationId)

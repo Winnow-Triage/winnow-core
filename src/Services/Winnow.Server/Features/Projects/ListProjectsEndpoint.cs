@@ -16,28 +16,30 @@ namespace Winnow.Server.Features.Projects;
 /// <param name="TeamId">The ID of the team this project belongs to, if any.</param>
 public record ProjectDto(Guid Id, string Name, string ApiKey, Guid? TeamId = null);
 
-public sealed class ListProjectsEndpoint(WinnowDbContext dbContext, ITenantContext tenantContext) : EndpointWithoutRequest<List<ProjectDto>>
+public class ListProjectsRequest
+{
+    public bool OrgWide { get; set; }
+}
+
+public sealed class ListProjectsEndpoint(WinnowDbContext dbContext, ITenantContext tenantContext) : Endpoint<ListProjectsRequest, List<ProjectDto>>
 {
     public override void Configure()
     {
         Get("/projects");
         Summary(s =>
         {
-            s.Summary = "List user projects";
-            s.Description = "Retrieves a list of all projects owned by the authenticated user.";
+            s.Summary = "List projects";
+            s.Description = "Retrieves a list of projects. If OrgWide is true and user is admin, returns all projects in the organization.";
             s.Response<List<ProjectDto>>(200, "List of projects");
             s.Response(401, "Unauthorized");
         });
         Options(x => x.RequireAuthorization());
-        // We will enable strict auth in Program.cs, but we can also enforce it here
-        // Claims: assuming standard JWT claims
     }
 
-    public override async Task HandleAsync(CancellationToken ct)
+    public override async Task HandleAsync(ListProjectsRequest req, CancellationToken ct)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId is null) ThrowError("Unauthorized", 401);
-
 
         if (!tenantContext.CurrentOrganizationId.HasValue)
         {
@@ -60,9 +62,11 @@ public sealed class ListProjectsEndpoint(WinnowDbContext dbContext, ITenantConte
             .Where(p => p.OrganizationId == tenantContext.CurrentOrganizationId.Value);
 
         // Access control:
-        // - Admins see all projects in the organization.
+        // - Admins/Owners ALWAYS see all projects in the organization.
         // - Members see projects assigned to their teams OR projects with NO team assigned.
-        if (membership.Role != "Admin")
+        bool shouldFilterByTeams = !membership.IsAdmin();
+
+        if (shouldFilterByTeams)
         {
             var userTeamIds = await dbContext.TeamMembers
                 .Where(tm => tm.UserId == userId && tm.Team!.OrganizationId == tenantContext.CurrentOrganizationId.Value)

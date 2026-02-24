@@ -60,6 +60,13 @@ public sealed class UpdateTeamEndpoint(WinnowDbContext db, ITenantContext tenant
                 {
                     UserId = tm.UserId,
                     FullName = tm.User!.FullName
+                }).ToListAsync(ct),
+            Projects = await db.Projects
+                .Where(p => p.TeamId == team.Id)
+                .Select(p => new TeamProjectSummary
+                {
+                    Id = p.Id,
+                    Name = p.Name
                 }).ToListAsync(ct)
         }, ct);
     }

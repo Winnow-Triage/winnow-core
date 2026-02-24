@@ -12,7 +12,24 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useProject } from '@/context/ProjectContext';
 import type { Project } from '@/context/ProjectContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Users, UserPlus, X } from 'lucide-react';
+import { Users, UserPlus, MoreHorizontal, Settings2 } from 'lucide-react';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger
+} from "@/components/ui/alert-dialog";
 
 export default function Settings() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -368,9 +385,15 @@ export default function Settings() {
 }
 
 function TeamsManager({ organizationId }: { organizationId?: string }) {
-    const { projects, refreshProjects } = useProject();
+    const { projects, refreshProjects, setOrgWide } = useProject();
+    const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
     const [memberSelects, setMemberSelects] = useState<Record<string, string>>({});
-    const { data: teams, isLoading, refetch } = useQuery<{ id: string, name: string, createdAt: string, projectCount: number, members: { userId: string, fullName: string }[] }[]>({
+
+    React.useEffect(() => {
+        setOrgWide(true);
+        return () => setOrgWide(false);
+    }, [setOrgWide]);
+    const { data: teams, isLoading, refetch } = useQuery<{ id: string, name: string, createdAt: string, projectCount: number, members: { userId: string, fullName: string }[], projects: { id: string, name: string }[] }[]>({
         queryKey: ['teams', organizationId],
         queryFn: async () => {
             const { data } = await api.get('/teams');
@@ -390,7 +413,6 @@ function TeamsManager({ organizationId }: { organizationId?: string }) {
 
     const [newTeamName, setNewTeamName] = useState("");
     const [isCreating, setIsCreating] = useState(false);
-    const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
     const handleCreateTeam = async () => {
         if (!newTeamName.trim()) return;
@@ -408,7 +430,6 @@ function TeamsManager({ organizationId }: { organizationId?: string }) {
     };
 
     const handleDeleteTeam = async (id: string) => {
-        setIsDeleting(id);
         try {
             await api.delete(`/teams/${id}`);
             await refetch();
@@ -416,8 +437,6 @@ function TeamsManager({ organizationId }: { organizationId?: string }) {
             toast.success("Team deleted successfully");
         } catch (error) {
             toast.error("Failed to delete team");
-        } finally {
-            setIsDeleting(null);
         }
     };
 
@@ -463,6 +482,12 @@ function TeamsManager({ organizationId }: { organizationId?: string }) {
 
     if (isLoading) return <div>Loading teams...</div>;
 
+    const selectedTeam = teams?.find(t => t.id === selectedTeamId);
+
+    const formatCount = (count: number, label: string) => {
+        return `${count} ${label}${count === 1 ? '' : 's'}`;
+    };
+
     return (
         <Card>
             <CardHeader>
@@ -482,87 +507,33 @@ function TeamsManager({ organizationId }: { organizationId?: string }) {
                     </Button>
                 </div>
 
-                <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {teams?.length === 0 ? (
-                        <div className="p-8 text-center text-muted-foreground text-sm border rounded-md">
+                        <div className="p-8 text-center text-muted-foreground text-sm border rounded-md col-span-full">
                             No teams found. Create one to get started.
                         </div>
                     ) : (
                         teams?.map((team) => (
-                            <div key={team.id} className="border rounded-md overflow-hidden">
-                                <div className="flex items-center justify-between p-4 bg-muted/30 border-b">
-                                    <div>
-                                        <h3 className="font-semibold">{team.name}</h3>
-                                        <p className="text-xs text-muted-foreground">{projects.filter((p: Project) => p.teamId === team.id).length} projects assigned</p>
-                                    </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                        onClick={() => handleDeleteTeam(team.id)}
-                                        disabled={isDeleting === team.id}
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
+                            <button
+                                key={team.id}
+                                onClick={() => setSelectedTeamId(team.id)}
+                                className="group flex flex-col items-start p-4 text-left border rounded-lg hover:border-primary/50 hover:bg-muted/30 transition-all"
+                            >
+                                <div className="flex items-center justify-between w-full mb-1">
+                                    <h3 className="font-semibold group-hover:text-primary transition-colors">{team.name}</h3>
+                                    <Settings2 className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </div>
-                                <div className="p-4 space-y-2">
-                                    {projects.filter((p: Project) => p.teamId === team.id).map((project: Project) => (
-                                        <div key={project.id} className="flex items-center justify-between text-sm py-1">
-                                            <span>{project.name}</span>
-                                            <Button variant="ghost" size="sm" onClick={() => handleAssignProject(project.id, "none")} className="h-6 px-2 text-xs">
-                                                Unassign
-                                            </Button>
-                                        </div>
-                                    ))}
-                                    {projects.filter((p: Project) => p.teamId === team.id).length === 0 && (
-                                        <p className="text-xs text-muted-foreground italic">No projects assigned to this team.</p>
-                                    )}
+                                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                        <Users className="h-3 w-3" />
+                                        {formatCount(team.members?.length || 0, "member")}
+                                    </span>
+                                    <span>•</span>
+                                    <span>
+                                        {formatCount(team.projectCount, "project")}
+                                    </span>
                                 </div>
-
-                                <div className="p-4 border-t bg-muted/5">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h4 className="text-sm font-medium flex items-center gap-2">
-                                            <Users className="h-4 w-4 text-muted-foreground" />
-                                            Team Members
-                                        </h4>
-                                        <Select
-                                            value={memberSelects[team.id] || ""}
-                                            onValueChange={(userId) => handleAddTeamMember(team.id, userId)}
-                                        >
-                                            <SelectTrigger className="h-7 w-[160px] text-xs">
-                                                <UserPlus className="h-3 w-3 mr-1" />
-                                                <span>Add Member...</span>
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {orgMembers?.filter(om => !(team.members || []).some(tm => tm.userId === om.userId)).map(member => (
-                                                    <SelectItem key={member.userId} value={member.userId}>
-                                                        {member.fullName}
-                                                    </SelectItem>
-                                                ))}
-                                                {orgMembers?.filter(om => !(team.members || []).some(tm => tm.userId === om.userId)).length === 0 && (
-                                                    <div className="p-2 text-xs text-muted-foreground text-center">All members already in team</div>
-                                                )}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {(team.members || []).map(member => (
-                                            <div key={member.userId} className="flex items-center gap-1.5 px-2 py-1 bg-background border rounded-full text-xs">
-                                                <span>{member.fullName}</span>
-                                                <button
-                                                    onClick={() => handleRemoveTeamMember(team.id, member.userId)}
-                                                    className="hover:text-destructive text-muted-foreground"
-                                                >
-                                                    <X className="h-3 w-3" />
-                                                </button>
-                                            </div>
-                                        ))}
-                                        {(team.members || []).length === 0 && (
-                                            <p className="text-xs text-muted-foreground italic">No members in this team.</p>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                            </button>
                         ))
                     )}
                 </div>
@@ -571,33 +542,243 @@ function TeamsManager({ organizationId }: { organizationId?: string }) {
                     <h3>Unassigned Projects</h3>
                 </div>
 
-                <div className="border rounded-md divide-y">
+                <div className="grid gap-3">
                     {projects.filter((p: Project) => !p.teamId).length === 0 ? (
-                        <div className="p-4 text-center text-muted-foreground text-sm">
+                        <div className="p-4 text-center text-muted-foreground text-sm border rounded-md">
                             All projects are assigned to teams.
                         </div>
                     ) : (
                         projects.filter((p: Project) => !p.teamId).map((project: Project) => (
-                            <div key={project.id} className="flex items-center justify-between p-4">
+                            <div key={project.id} className="flex items-center justify-between p-3 border rounded-md">
                                 <span className="text-sm font-medium">{project.name}</span>
-                                <div className="flex items-center gap-2">
-                                    <Select onValueChange={(value: string) => handleAssignProject(project.id, value)}>
-                                        <SelectTrigger className="h-8 w-[180px] text-xs">
-                                            <SelectValue placeholder="Assign to team..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {teams?.map((team: any) => (
-                                                <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                <Select onValueChange={(value: string) => handleAssignProject(project.id, value)}>
+                                    <SelectTrigger className="h-8 w-[180px] text-xs">
+                                        <SelectValue placeholder="Assign to team..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {teams?.map((team: any) => (
+                                            <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         ))
                     )}
                 </div>
+
+                <TeamDetailsDrawer
+                    team={selectedTeam}
+                    onClose={() => setSelectedTeamId(null)}
+                    orgMembers={orgMembers || []}
+                    projects={selectedTeam?.projects || []}
+                    onAddMember={(userId) => handleAddTeamMember(selectedTeamId!, userId)}
+                    onRemoveMember={(userId) => handleRemoveTeamMember(selectedTeamId!, userId)}
+                    onDeleteTeam={() => {
+                        handleDeleteTeam(selectedTeamId!);
+                        setSelectedTeamId(null);
+                    }}
+                    onUnassignProject={(projectId) => handleAssignProject(projectId, "none")}
+                    memberSelectValue={selectedTeamId ? (memberSelects[selectedTeamId] || "") : ""}
+                />
             </CardContent>
         </Card>
+    );
+}
+
+function TeamDetailsDrawer({
+    team,
+    onClose,
+    orgMembers,
+    projects,
+    onAddMember,
+    onRemoveMember,
+    onDeleteTeam,
+    onUnassignProject,
+    memberSelectValue
+}: {
+    team: any,
+    onClose: () => void,
+    orgMembers: any[],
+    projects: any[],
+    onAddMember: (userId: string) => void,
+    onRemoveMember: (userId: string) => void,
+    onDeleteTeam: () => void,
+    onUnassignProject: (projectId: string) => void,
+    memberSelectValue: string
+}) {
+    return (
+        <Sheet open={!!team} onOpenChange={(open) => !open && onClose()}>
+            <SheetContent className="sm:max-w-[500px] w-full p-0 flex flex-col">
+                <SheetHeader className="p-6 pb-2">
+                    <SheetTitle>{team?.name}</SheetTitle>
+                    <SheetDescription>
+                        Manage team members and assigned projects.
+                    </SheetDescription>
+                </SheetHeader>
+
+                <ScrollArea className="flex-1 px-6">
+                    <div className="space-y-8 py-4">
+                        {/* Members Section */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                                    <Users className="h-4 w-4" />
+                                    Members
+                                </h4>
+                                <Select value={memberSelectValue} onValueChange={onAddMember}>
+                                    <SelectTrigger className="h-8 w-[160px] text-xs">
+                                        <UserPlus className="h-3 w-3 mr-1" />
+                                        <span>Add Member...</span>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {orgMembers.filter(om => !(team?.members || []).some((tm: any) => tm.userId === om.userId)).map(member => (
+                                            <SelectItem key={member.userId} value={member.userId}>
+                                                {member.fullName}
+                                            </SelectItem>
+                                        ))}
+                                        {orgMembers.filter(om => !(team?.members || []).some((tm: any) => tm.userId === om.userId)).length === 0 && (
+                                            <div className="p-2 text-xs text-muted-foreground text-center">All members already in team</div>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="border rounded-md">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="hover:bg-transparent bg-muted/50">
+                                            <TableHead className="w-[200px]">User</TableHead>
+                                            <TableHead>Role</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {(team?.members || []).length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="h-24 text-center text-muted-foreground italic">
+                                                    No members in this team.
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            team?.members.map((member: any) => (
+                                                <TableRow key={member.userId} className="group">
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-3">
+                                                            <Avatar className="h-8 w-8">
+                                                                <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                                                                    {member.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <div className="flex flex-col">
+                                                                <span className="font-medium text-sm">{member.fullName}</span>
+                                                                {/* Example email placeholder since it's not in the team response currently */}
+                                                                <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">
+                                                                    {orgMembers.find(om => om.userId === member.userId)?.email || "n/a"}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-xs text-muted-foreground">
+                                                        Member
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuItem
+                                                                    onClick={() => onRemoveMember(member.userId)}
+                                                                    className="text-destructive focus:text-destructive"
+                                                                >
+                                                                    Remove from team
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Projects Section */}
+                        <div className="space-y-4">
+                            <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                                Assigned Projects
+                            </h4>
+                            <div className="grid gap-2">
+                                {projects.length === 0 ? (
+                                    <div className="border border-dashed rounded-lg p-8 text-center bg-muted/20">
+                                        <p className="text-sm text-muted-foreground">No projects assigned to this team.</p>
+                                    </div>
+                                ) : (
+                                    projects.map((project) => (
+                                        <div key={project.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/5">
+                                            <span className="text-sm font-medium">{project.name}</span>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => onUnassignProject(project.id)}
+                                                className="text-xs h-7 text-muted-foreground hover:text-foreground"
+                                            >
+                                                Unassign
+                                            </Button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Danger Zone */}
+                        <div className="pt-8 opacity-50 hover:opacity-100 transition-opacity">
+                            <div className="p-4 border border-destructive/20 rounded-lg bg-destructive/5 space-y-3">
+                                <div>
+                                    <h4 className="text-sm font-bold text-destructive uppercase tracking-tight">Danger Zone</h4>
+                                    <p className="text-xs text-muted-foreground">This action will permanently remove the team. Projects will be unassigned but not deleted.</p>
+                                </div>
+
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            className="w-full"
+                                        >
+                                            Delete Team
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will permanently delete the <span className="font-bold text-foreground">{team?.name}</span> team.
+                                                Assigned projects will be unassigned but not deleted. This action cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={onDeleteTeam}
+                                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                            >
+                                                Yes, delete team
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
+                        </div>
+                    </div>
+                </ScrollArea>
+            </SheetContent>
+        </Sheet>
     );
 }
 

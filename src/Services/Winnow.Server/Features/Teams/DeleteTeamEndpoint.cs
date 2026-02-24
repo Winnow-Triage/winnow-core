@@ -39,15 +39,19 @@ public sealed class DeleteTeamEndpoint(WinnowDbContext db, ITenantContext tenant
             return;
         }
 
-        // Check if there are projects in this team and unassign them if necessary, 
-        // or just rely on cascade behavior if that's what we want.
-        // According to DbContext, projects have OnDelete(DeleteBehavior.Cascade) for Teams.
-        // Wait, let's check WinnowDbContext.cs again.
-        // modelBuilder.Entity<Team>().HasMany(t => t.Projects).WithOne(p => p.Team).HasForeignKey(p => p.TeamId).OnDelete(DeleteBehavior.Cascade);
+        // Unassign projects (set TeamId to null)
+        await db.Projects
+            .Where(p => p.TeamId == team.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.TeamId, (Guid?)null), ct);
+
+        // Remove team members
+        await db.TeamMembers
+            .Where(tm => tm.TeamId == team.Id)
+            .ExecuteDeleteAsync(ct);
 
         db.Teams.Remove(team);
         await db.SaveChangesAsync(ct);
 
-        await Send.NoContentAsync(ct);
+        await Send.NoContentAsync(cancellation: ct);
     }
 }

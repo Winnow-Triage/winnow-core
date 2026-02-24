@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 
 export interface Project {
@@ -13,6 +13,8 @@ interface ProjectContextType {
     projects: Project[];
     currentProject: Project | null;
     isLoading: boolean;
+    orgWide: boolean;
+    setOrgWide: (value: boolean) => void;
     selectProject: (projectId: string) => void;
     refreshProjects: () => Promise<void>;
     createProject: (name: string) => Promise<Project>;
@@ -24,47 +26,51 @@ const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const queryClient = useQueryClient();
-    const [projects, setProjects] = useState<Project[]>([]);
     const [currentProject, setCurrentProject] = useState<Project | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [orgWide, setOrgWide] = useState(false);
 
-    useEffect(() => {
-        refreshProjects();
-    }, []);
-
-    const refreshProjects = async () => {
-        setIsLoading(true);
-        const token = localStorage.getItem("authToken");
-
-        if (!token) {
-            setIsLoading(false);
-            return;
+    const { data: projects = [], isLoading } = useQuery<Project[]>({
+        queryKey: ['projects', orgWide],
+        queryFn: async ({ queryKey }) => {
+            const [_, isOrgWide] = queryKey;
+            const token = localStorage.getItem("authToken");
+            if (!token) return [];
+            const { data } = await api.get("/projects", { params: { orgWide: isOrgWide } });
+            return data;
+        },
+        // We set the current project once the initial load is done if not already set
+        meta: {
+            onSuccess: (data: Project[]) => {
+                if (!currentProject && data.length > 0) {
+                    const savedProjectId = localStorage.getItem("lastProjectId");
+                    const matchedProject = data.find((p: Project) => p.id === savedProjectId) || data[0];
+                    if (matchedProject) {
+                        setCurrentProject(matchedProject);
+                        localStorage.setItem("lastProjectId", matchedProject.id);
+                    }
+                }
+            }
         }
+    });
 
-        try {
-            const { data } = await api.get("/projects");
-            setProjects(data);
-
-            // Restore selection or default to first
+    // Handle initial selection recovery manually because meta.onSuccess is deprecated/tricky in v5
+    useEffect(() => {
+        if (!isLoading && projects.length > 0 && !currentProject) {
             const savedProjectId = localStorage.getItem("lastProjectId");
-            const matchedProject = data.find((p: Project) => p.id === savedProjectId) || data[0];
-
+            const matchedProject = projects.find((p: Project) => p.id === savedProjectId) || projects[0];
             if (matchedProject) {
                 setCurrentProject(matchedProject);
                 localStorage.setItem("lastProjectId", matchedProject.id);
             }
-        } catch (error: any) {
-            console.error("Failed to fetch projects", error);
-            if (error.response?.status === 401) {
-                // Token expired or invalid - handled by interceptor
-            }
-        } finally {
-            setIsLoading(false);
         }
+    }, [projects, isLoading, currentProject]);
+
+    const refreshProjects = async () => {
+        await queryClient.invalidateQueries({ queryKey: ['projects'] });
     };
 
     const selectProject = (projectId: string) => {
-        const project = projects.find(p => p.id === projectId);
+        const project = projects.find((p: Project) => p.id === projectId);
         if (project) {
             setCurrentProject(project);
             localStorage.setItem("lastProjectId", project.id);
@@ -74,12 +80,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     };
 
     const createProject = async (name: string): Promise<Project> => {
-        const token = localStorage.getItem("authToken");
-        if (!token) throw new Error("Not authenticated");
-
         try {
             const { data: newProject } = await api.post("/projects", { name });
-            setProjects(prev => [...prev, newProject]);
+            await refreshProjects();
             selectProject(newProject.id); // Auto-select new project
             return newProject;
         } catch (error: any) {
@@ -89,14 +92,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     };
 
     const renameProject = async (id: string, newName: string) => {
-        const token = localStorage.getItem("authToken");
-        if (!token) return;
-
         try {
             await api.put(`/projects/${id}`, { name: newName });
-
-            // Update local state without full refetch
-            setProjects(prev => prev.map(p => p.id === id ? { ...p, name: newName } : p));
+            await refreshProjects();
             if (currentProject?.id === id) {
                 setCurrentProject(prev => prev ? { ...prev, name: newName } : null);
             }
@@ -107,28 +105,22 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     };
 
     const deleteProject = async (id: string) => {
-        const token = localStorage.getItem("authToken");
-        if (!token) return;
-
         try {
             await api.delete(`/projects/${id}`);
+            await refreshProjects();
 
-            setProjects(prev => {
-                const updated = prev.filter(p => p.id !== id);
-
-                // If we deleted the current project, auto-select a new one
-                if (currentProject?.id === id) {
-                    if (updated.length > 0) {
-                        selectProject(updated[0].id);
-                    } else {
-                        setCurrentProject(null);
-                        localStorage.removeItem("lastProjectId");
-                        queryClient.invalidateQueries();
-                    }
+            if (currentProject?.id === id) {
+                // The query will have updated the projects list already due to invalidate
+                // but we need to pick a new one for currentProject
+                const nextProject = projects.find((p: Project) => p.id !== id);
+                if (nextProject) {
+                    selectProject(nextProject.id);
+                } else {
+                    setCurrentProject(null);
+                    localStorage.removeItem("lastProjectId");
+                    queryClient.invalidateQueries();
                 }
-
-                return updated;
-            });
+            }
         } catch (error: any) {
             console.error("Delete project error", error);
             throw new Error(error.response?.data?.message || "Failed to delete project");
@@ -136,7 +128,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <ProjectContext.Provider value={{ projects, currentProject, isLoading, selectProject, refreshProjects, createProject, renameProject, deleteProject }}>
+        <ProjectContext.Provider value={{ projects, currentProject, isLoading, orgWide, setOrgWide, selectProject, refreshProjects, createProject, renameProject, deleteProject }}>
             {children}
         </ProjectContext.Provider>
     );
