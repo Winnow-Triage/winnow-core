@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # # 1. The Database
+  # 1. The Database
   # postgres:
   #   image: postgres:15-alpine
   #   environment:
@@ -26,18 +26,28 @@ services:
     volumes:
       - minio_data:/data
 
-  # 3. The "Bouncer" (Virus & File Check)
-  bouncer:
-    build:
-      context: ./src/Services/Winnow.Bouncer # Folder containing the Go Dockerfile
-      dockerfile: Dockerfile
-    depends_on:
-      - minio
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: winnow-mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025" # The beautiful Web UI
+      - "1025:1025" # The SMTP port your C# app will send mail to
     environment:
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: minioadmin
-      S3_ENDPOINT: http://minio:9000
-      S3_BUCKET: winnow-quarantine
+      - MP_MAX_MESSAGES=500
+
+  # 3. The "Bouncer" (Virus & File Check)
+  # bouncer:
+  #   build:
+  #     context: ./src/Services/Winnow.Bouncer # Folder containing the Go Dockerfile
+  #     dockerfile: Dockerfile
+  #   depends_on:
+  #     - minio
+  #   environment:
+  #     AWS_ACCESS_KEY_ID: minioadmin
+  #     AWS_SECRET_ACCESS_KEY: minioadmin
+  #     S3_ENDPOINT: http://minio:9000
+  #     S3_BUCKET: winnow-quarantine
 
   # # 4. Your .NET API
   # api:
