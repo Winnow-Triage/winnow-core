@@ -1,0 +1,78 @@
+stages:
+  - build
+  - test
+  - drift
+
+variables:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  POSTGRES_USER: winnow
+  POSTGRES_PASSWORD: winnow_test
+  POSTGRES_DB: winnow_test
+
+# ── Job 1: Build ──────────────────────────────────────────────────────────────
+build:
+  stage: build
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+  script:
+    - dotnet restore Winnow.sln
+    - dotnet build Winnow.sln --no-restore
+  artifacts:
+    paths:
+      - "**/bin/"
+      - "**/obj/"
+    expire_in: 1 hour
+
+# ── Job 2: Test ───────────────────────────────────────────────────────────────
+test:
+  stage: test
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+  needs: [build]
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+      variables:
+        POSTGRES_USER: $POSTGRES_USER
+        POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+        POSTGRES_DB: $POSTGRES_DB
+  variables:
+    ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=$POSTGRES_DB;Username=$POSTGRES_USER;Password=$POSTGRES_PASSWORD"
+  script:
+    - dotnet test Winnow.sln --no-build --verbosity normal
+
+# ── Job 3: Drift Detection ───────────────────────────────────────────────────
+drift-sqlite:
+  stage: drift
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+  needs: [build]
+  variables:
+    DatabaseProvider: Sqlite
+  script:
+    - dotnet tool install --global dotnet-ef
+    - export PATH="$PATH:$HOME/.dotnet/tools"
+    - cd src/Services/Winnow.Server
+    - echo "🔍 Checking SQLite for pending model changes..."
+    - dotnet ef migrations has-pending-model-changes
+    - echo "✅ SQLite migrations are in sync."
+
+drift-postgres:
+  stage: drift
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+  needs: [build]
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+      variables:
+        POSTGRES_USER: $POSTGRES_USER
+        POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+        POSTGRES_DB: winnow_drift
+  variables:
+    DatabaseProvider: Postgres
+    ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=winnow_drift;Username=$POSTGRES_USER;Password=$POSTGRES_PASSWORD"
+  script:
+    - dotnet tool install --global dotnet-ef
+    - export PATH="$PATH:$HOME/.dotnet/tools"
+    - cd src/Services/Winnow.Server
+    - echo "🔍 Checking Postgres for pending model changes..."
+    - dotnet ef migrations has-pending-model-changes
+    - echo "✅ Postgres migrations are in sync."

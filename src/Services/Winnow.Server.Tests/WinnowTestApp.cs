@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
@@ -139,7 +140,7 @@ public class WinnowTestApp(Action<IServiceCollection>? configureTestServices = n
         };
 
         db.Organizations.Add(organization);
-        
+
         // Add user as member of organization
         var organizationMember = new Winnow.Server.Entities.OrganizationMember
         {
@@ -149,14 +150,14 @@ public class WinnowTestApp(Action<IServiceCollection>? configureTestServices = n
             Role = "owner",
             JoinedAt = DateTime.UtcNow
         };
-        
+
         db.OrganizationMembers.Add(organizationMember);
 
         var project = new Winnow.Server.Entities.Project
         {
             Id = Guid.NewGuid(),
             Name = "Test Project",
-            ApiKey = apiKey,
+            ApiKeyHash = apiKey,
             OwnerId = testUserId,
             OrganizationId = organizationId,
             CreatedAt = DateTime.UtcNow
@@ -188,6 +189,11 @@ public class WinnowTestApp(Action<IServiceCollection>? configureTestServices = n
         private readonly SqliteConnection _connection;
 
         public TestTenantContext(string tenantId, SqliteConnection connection)
+            : base(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["DatabaseProvider"] = "Sqlite",
+                ["ConnectionStrings:Sqlite"] = connection.ConnectionString
+            }).Build())
         {
             TenantId = tenantId;
             _connection = connection;

@@ -49,7 +49,7 @@ public class TenantAuthTests : IAsyncLifetime
         // Check if default organization already exists (from migration)
         var defaultOrganizationId = new Guid("11111111-1111-1111-1111-111111111111");
         var defaultOrganization = await db.Organizations.FindAsync(defaultOrganizationId);
-        
+
         if (defaultOrganization == null)
         {
             defaultOrganization = new Organization
@@ -61,11 +61,11 @@ public class TenantAuthTests : IAsyncLifetime
             };
             db.Organizations.Add(defaultOrganization);
         }
-        
+
         // Check if user is already an organization member
         var existingMember = await db.OrganizationMembers
             .FirstOrDefaultAsync(m => m.UserId == user.Id && m.OrganizationId == defaultOrganization.Id);
-        
+
         if (existingMember == null)
         {
             var orgMember = new OrganizationMember
@@ -86,7 +86,7 @@ public class TenantAuthTests : IAsyncLifetime
             Name = "Auth Test Project",
             OwnerId = user.Id,
             OrganizationId = defaultOrganization.Id,
-            ApiKey = "wm_live_auth_test_key"
+            ApiKeyHash = "wm_live_auth_test_key",
         };
         db.Projects.Add(project);
         await db.SaveChangesAsync();
