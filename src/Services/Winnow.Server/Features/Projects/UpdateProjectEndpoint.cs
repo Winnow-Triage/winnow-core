@@ -16,6 +16,11 @@ public class UpdateProjectRequest
     /// The new name for the project.
     /// </summary>
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The ID of the team to assign this project to.
+    /// </summary>
+    public Guid? TeamId { get; set; }
 }
 
 /// <summary>
@@ -82,6 +87,7 @@ public sealed class UpdateProjectEndpoint(
 
         // Update properties
         project.Name = req.Name.Trim();
+        project.TeamId = req.TeamId;
 
         await dbContext.SaveChangesAsync(ct);
 

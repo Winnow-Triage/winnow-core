@@ -64,6 +64,27 @@ public class AuthResponse
     /// API Key for the default project.
     /// </summary>
     public string ApiKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the user needs to select an organization to complete login.
+    /// </summary>
+    public bool RequiresOrganizationSelection { get; set; }
+
+    /// <summary>
+    /// List of organizations the user belongs to.
+    /// </summary>
+    public List<OrganizationDto> Organizations { get; set; } = new();
+
+    /// <summary>
+    /// The ID of the currently active organization.
+    /// </summary>
+    public Guid ActiveOrganizationId { get; set; }
+}
+
+public class OrganizationDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
 }
 
 public sealed class RegisterEndpoint(
@@ -152,7 +173,8 @@ public sealed class RegisterEndpoint(
             Email = user.Email,
             FullName = user.FullName,
             DefaultProjectId = project.Id,
-            ApiKey = plaintextKey
+            ApiKey = plaintextKey,
+            ActiveOrganizationId = organization.Id
         });
     }
 

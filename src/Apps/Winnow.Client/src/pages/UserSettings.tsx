@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getAccountDetails, updateAccountDetails, changePassword } from "@/lib/api";
+import { getAccountDetails, updateAccountDetails, changePassword, api } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -89,8 +89,9 @@ export default function UserSettings() {
             </div>
 
             <Tabs value={currentTab} onValueChange={(val) => setSearchParams({ tab: val })} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+                <TabsList className="grid w-full grid-cols-3 max-w-[500px]">
                     <TabsTrigger value="profile">Profile</TabsTrigger>
+                    <TabsTrigger value="organizations">Organizations</TabsTrigger>
                     <TabsTrigger value="security">Security</TabsTrigger>
                 </TabsList>
 
@@ -132,6 +133,10 @@ export default function UserSettings() {
                             </Button>
                         </CardFooter>
                     </Card>
+                </TabsContent>
+
+                <TabsContent value="organizations" className="mt-6">
+                    <OrganizationSwitcher />
                 </TabsContent>
 
                 <TabsContent value="security" className="mt-6">
@@ -186,5 +191,84 @@ export default function UserSettings() {
                 </TabsContent>
             </Tabs>
         </div>
+    );
+}
+
+function OrganizationSwitcher() {
+    const { data: orgs, isLoading } = useQuery<{ id: string, name: string }[]>({
+        queryKey: ["user-organizations"],
+        queryFn: async () => {
+            const { data } = await api.get("/organizations");
+            return data;
+        }
+    });
+
+    const [isSwitching, setIsSwitching] = useState<string | null>(null);
+
+    const handleSwitch = async (orgId: string) => {
+        setIsSwitching(orgId);
+        try {
+            // Re-authenticate with explicit org ID. 
+            const { data } = await api.post("/auth/switch", {
+                organizationId: orgId
+            });
+
+            if (data.token) {
+                // Fully discard stale data
+                localStorage.removeItem("lastProjectId");
+
+                localStorage.setItem("authToken", data.token);
+                localStorage.setItem("user", JSON.stringify({
+                    id: data.userId,
+                    email: data.email,
+                    name: data.fullName,
+                    defaultProjectId: data.defaultProjectId,
+                    organizationId: data.activeOrganizationId
+                }));
+                toast.success(`Switched to ${orgs?.find(o => o.id === orgId)?.name}`);
+
+                // Force reload to refresh all contexts (TanStack Query, Sidebar, etc)
+                setTimeout(() => {
+                    window.location.href = "/dashboard";
+                }, 1000);
+            }
+        } catch (error) {
+            console.error("Failed to switch organization:", error);
+            // If it failed (maybe session expired), go to login
+            toast.error("Session expired. Redirecting to login...");
+            setTimeout(() => {
+                window.location.href = "/login";
+            }, 2000);
+        } finally {
+            setIsSwitching(null);
+        }
+    };
+
+    if (isLoading) return <div>Loading organizations...</div>;
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Switch Organization</CardTitle>
+                <CardDescription>Quickly switch between workspaces you belong to.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="grid gap-2">
+                    {orgs?.map((org) => (
+                        <div key={org.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                            <span className="font-medium">{org.name}</span>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleSwitch(org.id)}
+                                disabled={!!isSwitching}
+                            >
+                                {isSwitching === org.id ? "Switching..." : "Switch"}
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
     );
 }

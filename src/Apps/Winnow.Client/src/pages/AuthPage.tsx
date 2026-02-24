@@ -13,6 +13,10 @@ export default function AuthPage() {
     const [isSignUp, setIsSignUp] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [requiresOrgSelection, setRequiresOrgSelection] = useState(false)
+    const [availableOrgs, setAvailableOrgs] = useState<any[]>([])
+    const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null)
+    const [authPayload, setAuthPayload] = useState<any>(null)
 
     useEffect(() => {
         setIsSignUp(location.pathname === '/signup')
@@ -33,7 +37,7 @@ export default function AuthPage() {
             const endpoint = isSignUp ? "/auth/register" : "/auth/login";
             const payload = isSignUp
                 ? { email, password, fullName }
-                : { email, password };
+                : { email, password, organizationId: selectedOrgId };
 
             let data;
             try {
@@ -54,14 +58,24 @@ export default function AuthPage() {
                 throw new Error(errorMessage);
             }
 
+            // Check if organization selection is required
+            if (data.requiresOrganizationSelection) {
+                setRequiresOrgSelection(true);
+                setAvailableOrgs(data.organizations);
+                setAuthPayload({ email, password }); // Save for the next call
+                return;
+            }
+
             // Store Auth Data
+            localStorage.removeItem("lastProjectId");
             localStorage.setItem("authToken", data.token);
             // Also keep 'user' for legacy/compatibility if needed, but store rich object
             localStorage.setItem("user", JSON.stringify({
                 id: data.userId,
                 email: data.email,
                 name: data.fullName,
-                defaultProjectId: data.defaultProjectId
+                defaultProjectId: data.defaultProjectId,
+                organizationId: data.activeOrganizationId
             }));
 
             // Navigation
@@ -180,40 +194,80 @@ export default function AuthPage() {
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        {isSignUp && (
-                            <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                <Label htmlFor="name">Full Name</Label>
-                                <Input id="name" placeholder="John Doe" required />
+                        {requiresOrgSelection ? (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <div className="text-sm font-medium">Select an organization to continue:</div>
+                                <div className="grid gap-2">
+                                    {availableOrgs.map((org) => (
+                                        <Button
+                                            key={org.id}
+                                            variant={selectedOrgId === org.id ? "default" : "outline"}
+                                            className="w-full justify-start text-left font-normal"
+                                            onClick={() => setSelectedOrgId(org.id)}
+                                            type="button"
+                                        >
+                                            <div className="flex flex-col items-start">
+                                                <span>{org.name}</span>
+                                            </div>
+                                        </Button>
+                                    ))}
+                                </div>
+                                <input type="hidden" id="email" value={authPayload?.email || ""} />
+                                <input type="hidden" id="password" value={authPayload?.password || ""} />
+                                <Button
+                                    className="w-full mt-4"
+                                    type="submit"
+                                    disabled={!selectedOrgId || isLoading}
+                                >
+                                    {isLoading ? "Signing in..." : "Continue to Dashboard"}
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    className="w-full text-xs"
+                                    onClick={() => setRequiresOrgSelection(false)}
+                                    type="button"
+                                >
+                                    Back to login
+                                </Button>
                             </div>
-                        )}
+                        ) : (
+                            <>
+                                {isSignUp && (
+                                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <Label htmlFor="name">Full Name</Label>
+                                        <Input id="name" placeholder="John Doe" required />
+                                    </div>
+                                )}
 
-                        {error && (
-                            <div className="p-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 rounded-md animate-prev-slide-in-right">
-                                {error}
-                            </div>
-                        )}
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input id="email" type="email" placeholder="name@example.com" required />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="password">Password</Label>
-                            <Input id="password" type="password" required />
-                            {isSignUp && (
-                                <p className="text-xs text-muted-foreground">
-                                    Minimum 6 characters. Requires upper & lower case letters, a digit, and a non-alphanumeric character (e.g., !, @, #).
-                                </p>
-                            )}
-                        </div>
+                                {error && (
+                                    <div className="p-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 rounded-md animate-prev-slide-in-right">
+                                        {error}
+                                    </div>
+                                )}
+                                <div className="space-y-2">
+                                    <Label htmlFor="email">Email</Label>
+                                    <Input id="email" type="email" placeholder="name@example.com" required />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="password">Password</Label>
+                                    <Input id="password" type="password" required />
+                                    {isSignUp && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Minimum 6 characters. Requires upper & lower case letters, a digit, and a non-alphanumeric character (e.g., !, @, #).
+                                        </p>
+                                    )}
+                                </div>
 
-                        <Button
-                            className={`w-full text-md h-11 ${isSignUp ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}`}
-                            variant={isSignUp ? 'default' : 'default'} // Keeping default (dark) for Login, overriding class for SignUp
-                            type="submit"
-                            disabled={isLoading}
-                        >
-                            {isLoading ? "Processing..." : (isSignUp ? "Get Started" : "Sign In")}
-                        </Button>
+                                <Button
+                                    className={`w-full text-md h-11 ${isSignUp ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}`}
+                                    variant={isSignUp ? 'default' : 'default'} // Keeping default (dark) for Login, overriding class for SignUp
+                                    type="submit"
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? "Processing..." : (isSignUp ? "Get Started" : "Sign In")}
+                                </Button>
+                            </>
+                        )}
                     </form>
 
                     <div className="text-center text-sm">

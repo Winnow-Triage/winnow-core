@@ -13,6 +13,7 @@ public class Organization
     // Navigation properties
     public ICollection<Team> Teams { get; set; } = new List<Team>();
     public ICollection<OrganizationMember> Members { get; set; } = new List<OrganizationMember>();
+    public ICollection<Project> Projects { get; set; } = new List<Project>();
 
     // Helper methods
     public bool IsPaidTier()

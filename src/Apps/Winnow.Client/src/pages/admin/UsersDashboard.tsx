@@ -101,6 +101,7 @@ export default function UsersDashboard() {
         try {
             const data = await impersonateUser(user.id)
             // Store the new token and reload the app
+            localStorage.removeItem("lastProjectId")
             localStorage.setItem("authToken", data.token)
             toast.success(`Now impersonating ${user.email}`)
             setTimeout(() => {

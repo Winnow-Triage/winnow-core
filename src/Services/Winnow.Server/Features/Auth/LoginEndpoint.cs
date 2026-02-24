@@ -24,6 +24,11 @@ public class LoginRequest
     /// User's password.
     /// </summary>
     public string Password { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Optional organization ID to log in under.
+    /// </summary>
+    public Guid? OrganizationId { get; set; }
 }
 
 public sealed class LoginEndpoint(
@@ -92,18 +97,57 @@ public sealed class LoginEndpoint(
             organizationMemberships = new List<OrganizationMember> { organizationMember };
         }
 
-        // Get the first organization (could be the default or user's primary)
-        var primaryOrganization = organizationMemberships.First();
-        tenantContext.CurrentOrganizationId = primaryOrganization.OrganizationId;
+        Guid selectedOrganizationId;
+
+        // Determine which organization to use
+        if (req.OrganizationId.HasValue)
+        {
+            // Verify user belongs to the requested organization
+            var membership = organizationMemberships.FirstOrDefault(om => om.OrganizationId == req.OrganizationId.Value);
+            if (membership == null)
+            {
+                ThrowError("You do not have access to this organization.");
+            }
+            selectedOrganizationId = req.OrganizationId.Value;
+        }
+        else if (organizationMemberships.Count > 1)
+        {
+            // User belongs to multiple organizations and hasn't selected one yet
+            var orgIds = organizationMemberships.Select(om => om.OrganizationId).ToList();
+            var orgs = await dbContext.Organizations
+                .Where(o => orgIds.Contains(o.Id))
+                .Select(o => new OrganizationDto
+                {
+                    Id = o.Id,
+                    Name = o.Name
+                })
+                .ToListAsync(ct);
+
+            await Send.OkAsync(new AuthResponse
+            {
+                RequiresOrganizationSelection = true,
+                Organizations = orgs,
+                Email = user.Email ?? "",
+                FullName = user.FullName,
+                UserId = user.Id
+            });
+            return;
+        }
+        else
+        {
+            // User belongs to exactly one organization
+            selectedOrganizationId = organizationMemberships.First().OrganizationId;
+        }
+
+        tenantContext.CurrentOrganizationId = selectedOrganizationId;
 
         // Get default project (first one owned by user and in the same organization)
         var project = await dbContext.Projects
-            .Where(p => p.OwnerId == user.Id && p.OrganizationId == primaryOrganization.OrganizationId)
+            .Where(p => p.OwnerId == user.Id && p.OrganizationId == selectedOrganizationId)
             .OrderBy(p => p.CreatedAt)
             .FirstOrDefaultAsync(ct);
 
-        // If no project exists (legacy user?), create one on the fly? Or just return null/empty.
-        // For now, let's assume one exists or create a fallback.
+        // If no project exists, create a default one for the organization
         if (project == null)
         {
             var projectId = Guid.NewGuid();
@@ -113,7 +157,7 @@ public sealed class LoginEndpoint(
                 Id = projectId,
                 Name = "Personal Project",
                 OwnerId = user.Id,
-                OrganizationId = primaryOrganization.OrganizationId,
+                OrganizationId = selectedOrganizationId,
                 ApiKeyHash = apiKeyService.HashKey(plaintextKey)
             };
             dbContext.Projects.Add(project);
@@ -129,7 +173,8 @@ public sealed class LoginEndpoint(
             Email = user.Email ?? "",
             FullName = user.FullName,
             DefaultProjectId = project.Id,
-            ApiKey = "" // Cannot return hashed key
+            ApiKey = "", // Cannot return hashed key
+            ActiveOrganizationId = selectedOrganizationId
         });
     }
 

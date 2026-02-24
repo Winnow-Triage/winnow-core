@@ -6,16 +6,25 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
+    DropdownMenuSub,
+    DropdownMenuSubTrigger,
+    DropdownMenuSubContent,
+    DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { useQuery } from "@tanstack/react-query"
+import { api } from "@/lib/api"
+import { toast } from "sonner"
+import { useState } from "react"
+import { Check, Building2 } from "lucide-react"
 
 export default function UserNav() {
     const navigate = useNavigate()
 
     // Retrieve user from localStorage
     const userString = localStorage.getItem("user")
-    const user = userString ? JSON.parse(userString) : { name: "User", email: "user@example.com" }
+    const user = userString ? JSON.parse(userString) : { name: "User", email: "user@example.com", organizationId: "" }
 
     // Get initials
     const initials = user.name
@@ -24,6 +33,46 @@ export default function UserNav() {
         .join("")
         .toUpperCase()
         .substring(0, 2);
+
+    const { data: orgs } = useQuery<{ id: string, name: string }[]>({
+        queryKey: ["user-organizations"],
+        queryFn: async () => {
+            const { data } = await api.get("/organizations");
+            return data;
+        }
+    });
+
+    const [isSwitching, setIsSwitching] = useState<string | null>(null);
+
+    const handleSwitch = async (orgId: string) => {
+        if (isSwitching || orgId === user.organizationId) return;
+        setIsSwitching(orgId);
+        try {
+            const { data } = await api.post("/auth/switch", { organizationId: orgId });
+            if (data.token) {
+                // Fully discard stale data
+                localStorage.removeItem("lastProjectId");
+
+                localStorage.setItem("authToken", data.token);
+                localStorage.setItem("user", JSON.stringify({
+                    id: data.userId,
+                    email: data.email,
+                    name: data.fullName,
+                    defaultProjectId: data.defaultProjectId,
+                    organizationId: data.activeOrganizationId
+                }));
+                toast.success(`Switched to ${orgs?.find(o => o.id === orgId)?.name}`);
+                setTimeout(() => {
+                    window.location.href = "/dashboard";
+                }, 500);
+            }
+        } catch (error) {
+            console.error("Failed to switch organization:", error);
+            toast.error("Failed to switch organization");
+        } finally {
+            setIsSwitching(null);
+        }
+    };
 
     const handleLogout = () => {
         localStorage.removeItem("authToken")
@@ -57,6 +106,34 @@ export default function UserNav() {
                 <DropdownMenuItem onClick={() => navigate("/settings")}>
                     Workspace Settings
                 </DropdownMenuItem>
+
+                {orgs && orgs.length > 1 && (
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                            <Building2 className="mr-2 h-4 w-4" />
+                            <span>Switch Workspace</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                            <DropdownMenuSubContent className="w-48">
+                                {orgs.map((org) => {
+                                    const isCurrent = org.id === user.organizationId;
+                                    return (
+                                        <DropdownMenuItem
+                                            key={org.id}
+                                            onClick={() => handleSwitch(org.id)}
+                                            disabled={!!isSwitching}
+                                            className="flex items-center"
+                                        >
+                                            <span className="truncate">{org.name}</span>
+                                            {isCurrent && <Check className="ml-auto h-4 w-4" />}
+                                        </DropdownMenuItem>
+                                    );
+                                })}
+                            </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                )}
+
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="text-red-500 focus:text-red-500">
                     Log out

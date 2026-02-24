@@ -48,7 +48,7 @@ public sealed class ListAllOrganizationsEndpoint(WinnowDbContext dbContext) : En
         var organizations = await dbContext.Organizations
             .IgnoreQueryFilters()
             .Include(o => o.Teams)
-            .ThenInclude(t => t.Projects)
+            .Include(o => o.Projects)
             .Include(o => o.Members)
             .ToListAsync(ct);
 
@@ -62,7 +62,7 @@ public sealed class ListAllOrganizationsEndpoint(WinnowDbContext dbContext) : En
             IsSuspended = o.IsSuspended,
             TeamCount = o.Teams.Count,
             MemberCount = o.Members.Count,
-            ProjectCount = o.Teams.Sum(t => t.Projects.Count)
+            ProjectCount = o.Projects.Count
         }).ToList();
 
         await Send.OkAsync(result, ct);

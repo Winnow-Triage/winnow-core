@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
-
-
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useProject } from '@/context/ProjectContext';
+import type { Project } from '@/context/ProjectContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Trash2 } from 'lucide-react';
 
 export default function Settings() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -144,8 +145,9 @@ export default function Settings() {
             </div>
 
             <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-                <TabsList className="grid w-full grid-cols-3 max-w-[500px]">
+                <TabsList className="grid w-full grid-cols-4 max-w-[600px]">
                     <TabsTrigger value="general">General</TabsTrigger>
+                    <TabsTrigger value="teams">Teams</TabsTrigger>
                     <TabsTrigger value="billing">Billing</TabsTrigger>
                     <TabsTrigger value="ai">AI Models</TabsTrigger>
                 </TabsList>
@@ -220,6 +222,10 @@ export default function Settings() {
                             </div>
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <TabsContent value="teams" className="mt-6 flex flex-col gap-6">
+                    <TeamsManager organizationId={organization?.id} />
                 </TabsContent>
 
                 <TabsContent value="billing" className="mt-6 flex flex-col gap-6">
@@ -358,6 +364,163 @@ export default function Settings() {
                 </TabsContent>
             </Tabs>
         </div>
+    );
+}
+
+function TeamsManager({ organizationId }: { organizationId?: string }) {
+    const { projects, refreshProjects } = useProject();
+    const { data: teams, isLoading, refetch } = useQuery<{ id: string, name: string, createdAt: string, projectCount: number }[]>({
+        queryKey: ['teams', organizationId],
+        queryFn: async () => {
+            const { data } = await api.get('/teams');
+            return data;
+        },
+        enabled: !!organizationId
+    });
+
+    const [newTeamName, setNewTeamName] = useState("");
+    const [isCreating, setIsCreating] = useState(false);
+    const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+    const handleCreateTeam = async () => {
+        if (!newTeamName.trim()) return;
+        setIsCreating(true);
+        try {
+            await api.post('/teams', { name: newTeamName.trim() });
+            setNewTeamName("");
+            await refetch();
+            toast.success("Team created successfully");
+        } catch (error) {
+            toast.error("Failed to create team");
+        } finally {
+            setIsCreating(false);
+        }
+    };
+
+    const handleDeleteTeam = async (id: string) => {
+        setIsDeleting(id);
+        try {
+            await api.delete(`/teams/${id}`);
+            await refetch();
+            await refreshProjects();
+            toast.success("Team deleted successfully");
+        } catch (error) {
+            toast.error("Failed to delete team");
+        } finally {
+            setIsDeleting(null);
+        }
+    };
+
+    const handleAssignProject = async (projectId: string, teamId: string | null) => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return;
+
+        try {
+            await api.put(`/projects/${projectId}`, {
+                name: project.name,
+                teamId: teamId === "none" ? null : teamId
+            });
+            await refreshProjects();
+            await refetch();
+            toast.success(teamId ? "Project assigned to team" : "Project unassigned from team");
+        } catch (error) {
+            toast.error("Failed to update project assignment");
+        }
+    };
+
+    if (isLoading) return <div>Loading teams...</div>;
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Teams</CardTitle>
+                <CardDescription>Manage teams within your organization. Projects can be assigned to teams for better organization.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="flex gap-2">
+                    <Input
+                        placeholder="New team name..."
+                        value={newTeamName}
+                        onChange={(e) => setNewTeamName(e.target.value)}
+                        className="max-w-sm"
+                    />
+                    <Button onClick={handleCreateTeam} disabled={isCreating || !newTeamName.trim()}>
+                        {isCreating ? "Creating..." : "Add Team"}
+                    </Button>
+                </div>
+
+                <div className="space-y-4">
+                    {teams?.length === 0 ? (
+                        <div className="p-8 text-center text-muted-foreground text-sm border rounded-md">
+                            No teams found. Create one to get started.
+                        </div>
+                    ) : (
+                        teams?.map((team) => (
+                            <div key={team.id} className="border rounded-md overflow-hidden">
+                                <div className="flex items-center justify-between p-4 bg-muted/30 border-b">
+                                    <div>
+                                        <h3 className="font-semibold">{team.name}</h3>
+                                        <p className="text-xs text-muted-foreground">{projects.filter((p: Project) => p.teamId === team.id).length} projects assigned</p>
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        onClick={() => handleDeleteTeam(team.id)}
+                                        disabled={isDeleting === team.id}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                                <div className="p-4 space-y-2">
+                                    {projects.filter((p: Project) => p.teamId === team.id).map((project: Project) => (
+                                        <div key={project.id} className="flex items-center justify-between text-sm py-1">
+                                            <span>{project.name}</span>
+                                            <Button variant="ghost" size="sm" onClick={() => handleAssignProject(project.id, "none")} className="h-6 px-2 text-xs">
+                                                Unassign
+                                            </Button>
+                                        </div>
+                                    ))}
+                                    {projects.filter((p: Project) => p.teamId === team.id).length === 0 && (
+                                        <p className="text-xs text-muted-foreground italic">No projects assigned to this team.</p>
+                                    )}
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                <div className="pt-6 border-t font-semibold">
+                    <h3>Unassigned Projects</h3>
+                </div>
+
+                <div className="border rounded-md divide-y">
+                    {projects.filter((p: Project) => !p.teamId).length === 0 ? (
+                        <div className="p-4 text-center text-muted-foreground text-sm">
+                            All projects are assigned to teams.
+                        </div>
+                    ) : (
+                        projects.filter((p: Project) => !p.teamId).map((project: Project) => (
+                            <div key={project.id} className="flex items-center justify-between p-4">
+                                <span className="text-sm font-medium">{project.name}</span>
+                                <div className="flex items-center gap-2">
+                                    <Select onValueChange={(value: string) => handleAssignProject(project.id, value)}>
+                                        <SelectTrigger className="h-8 w-[180px] text-xs">
+                                            <SelectValue placeholder="Assign to team..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {teams?.map((team: any) => (
+                                                <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </CardContent>
+        </Card>
     );
 }
 

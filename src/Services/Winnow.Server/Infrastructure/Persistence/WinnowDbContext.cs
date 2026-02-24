@@ -117,7 +117,7 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(p => p.Organization)
-                .WithMany()
+                .WithMany(o => o.Projects)
                 .HasForeignKey(p => p.OrganizationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
