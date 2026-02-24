@@ -2,6 +2,7 @@ using FastEndpoints;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Stripe;
+using Winnow.Server.Entities;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Webhooks;
@@ -89,6 +90,20 @@ public sealed class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext
             };
 
             db.Organizations.Add(organization);
+
+            // Create a Default Project for the new organization
+            var projectId = Guid.NewGuid();
+            var apiKeyService = HttpContext.RequestServices.GetRequiredService<Winnow.Server.Infrastructure.Security.IApiKeyService>();
+            var plaintextKey = apiKeyService.GeneratePlaintextKey(projectId);
+            var project = new Project
+            {
+                Id = projectId,
+                Name = "Default Project",
+                OwnerId = "", // Owner not yet known
+                OrganizationId = organization.Id,
+                ApiKeyHash = apiKeyService.HashKey(plaintextKey)
+            };
+            db.Projects.Add(project);
         }
 
         if (subscription.Status == "active" || subscription.Status == "trialing")

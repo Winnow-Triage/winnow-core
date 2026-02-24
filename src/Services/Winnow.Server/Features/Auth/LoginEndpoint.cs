@@ -92,6 +92,20 @@ public sealed class LoginEndpoint(
 
             dbContext.Organizations.Add(organization);
             dbContext.OrganizationMembers.Add(organizationMember);
+
+            // Create a Default Project for the new organization
+            var projectId = Guid.NewGuid();
+            var plaintextKey = apiKeyService.GeneratePlaintextKey(projectId);
+            var initialProject = new Project
+            {
+                Id = projectId,
+                Name = "Default Project",
+                OwnerId = user.Id,
+                OrganizationId = organization.Id,
+                ApiKeyHash = apiKeyService.HashKey(plaintextKey)
+            };
+            dbContext.Projects.Add(initialProject);
+
             await dbContext.SaveChangesAsync(ct);
 
             organizationMemberships = new List<OrganizationMember> { organizationMember };
@@ -141,27 +155,15 @@ public sealed class LoginEndpoint(
 
         tenantContext.CurrentOrganizationId = selectedOrganizationId;
 
-        // Get default project (first one owned by user and in the same organization)
+        // Get default project (first one in this organization)
         var project = await dbContext.Projects
-            .Where(p => p.OwnerId == user.Id && p.OrganizationId == selectedOrganizationId)
+            .Where(p => p.OrganizationId == selectedOrganizationId)
             .OrderBy(p => p.CreatedAt)
             .FirstOrDefaultAsync(ct);
 
-        // If no project exists, create a default one for the organization
         if (project == null)
         {
-            var projectId = Guid.NewGuid();
-            var plaintextKey = apiKeyService.GeneratePlaintextKey(projectId);
-            project = new Project
-            {
-                Id = projectId,
-                Name = "Personal Project",
-                OwnerId = user.Id,
-                OrganizationId = selectedOrganizationId,
-                ApiKeyHash = apiKeyService.HashKey(plaintextKey)
-            };
-            dbContext.Projects.Add(project);
-            await dbContext.SaveChangesAsync(ct);
+            ThrowError("Your organization has no projects. Please contact an administrator.");
         }
 
         var token = await GenerateJwtAsync(user);

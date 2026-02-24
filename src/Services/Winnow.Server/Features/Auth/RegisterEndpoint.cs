@@ -151,7 +151,7 @@ public sealed class RegisterEndpoint(
         var project = new Project
         {
             Id = projectId,
-            Name = $"{req.FullName}'s Project",
+            Name = "Default Project",
             OwnerId = user.Id,
             OrganizationId = organization.Id,
             ApiKeyHash = apiKeyService.HashKey(plaintextKey)

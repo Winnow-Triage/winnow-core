@@ -15,12 +15,16 @@ public class CreateOrganizationResponse
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string SubscriptionTier { get; set; } = string.Empty;
+    public Guid DefaultProjectId { get; set; }
+    public string DefaultProjectApiKey { get; set; } = string.Empty;
 }
 
 /// <summary>
 /// Admin endpoint to manually create a new organization/tenant.
 /// </summary>
-public sealed class CreateOrganizationEndpoint(WinnowDbContext dbContext) : Endpoint<CreateOrganizationRequest, CreateOrganizationResponse>
+public sealed class CreateOrganizationEndpoint(
+    WinnowDbContext dbContext,
+    Winnow.Server.Infrastructure.Security.IApiKeyService apiKeyService) : Endpoint<CreateOrganizationRequest, CreateOrganizationResponse>
 {
     public override void Configure()
     {
@@ -48,13 +52,29 @@ public sealed class CreateOrganizationEndpoint(WinnowDbContext dbContext) : Endp
         };
 
         dbContext.Organizations.Add(organization);
+
+        // Create a Default Project for the new organization
+        var projectId = Guid.NewGuid();
+        var plaintextKey = apiKeyService.GeneratePlaintextKey(projectId);
+        var project = new Project
+        {
+            Id = projectId,
+            Name = "Default Project",
+            OwnerId = "", // Admin created orgs might not have an owner yet
+            OrganizationId = organization.Id,
+            ApiKeyHash = apiKeyService.HashKey(plaintextKey)
+        };
+        dbContext.Projects.Add(project);
+
         await dbContext.SaveChangesAsync(ct);
 
         await Send.OkAsync(new CreateOrganizationResponse
         {
             Id = organization.Id,
             Name = organization.Name,
-            SubscriptionTier = organization.SubscriptionTier
+            SubscriptionTier = organization.SubscriptionTier,
+            DefaultProjectId = project.Id,
+            DefaultProjectApiKey = plaintextKey
         }, ct);
     }
 }

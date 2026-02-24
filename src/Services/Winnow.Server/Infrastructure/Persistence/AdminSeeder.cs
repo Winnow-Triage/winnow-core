@@ -97,7 +97,33 @@ public class AdminSeeder : IHostedService
             _logger.LogInformation("Initial 'Winnow Admin' organization created.");
         }
 
-        // 4. Ensure SuperAdmin user is owner of the 'Winnow Admin' organization
+        // 4. Ensure 'Winnow Admin' has a default project
+        var adminProject = await dbContext.Projects
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(p => p.OrganizationId == adminOrg.Id, cancellationToken);
+
+        if (adminProject == null)
+        {
+            _logger.LogInformation("Creating default project for 'Winnow Admin' organization.");
+            var apiKeyService = scope.ServiceProvider.GetRequiredService<Winnow.Server.Infrastructure.Security.IApiKeyService>();
+            var projectId = Guid.NewGuid();
+            var plaintextKey = apiKeyService.GeneratePlaintextKey(projectId);
+
+            adminProject = new Project
+            {
+                Id = projectId,
+                Name = "Default Project",
+                OwnerId = adminUser?.Id ?? "",
+                OrganizationId = adminOrg.Id,
+                ApiKeyHash = apiKeyService.HashKey(plaintextKey)
+            };
+
+            dbContext.Projects.Add(adminProject);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("Default project created for 'Winnow Admin'. API Key: {Key}", plaintextKey);
+        }
+
+        // 5. Ensure SuperAdmin user is owner of the 'Winnow Admin' organization
         if (adminUser != null)
         {
             var existingMembership = await dbContext.OrganizationMembers

@@ -20,8 +20,7 @@ public sealed class SwitchOrganizationEndpoint(
     UserManager<ApplicationUser> userManager,
     WinnowDbContext dbContext,
     Winnow.Server.Infrastructure.MultiTenancy.ITenantContext tenantContext,
-    IConfiguration config,
-    Winnow.Server.Infrastructure.Security.IApiKeyService apiKeyService) : Endpoint<SwitchOrganizationRequest, AuthResponse>
+    IConfiguration config) : Endpoint<SwitchOrganizationRequest, AuthResponse>
 {
     public override void Configure()
     {
@@ -58,26 +57,15 @@ public sealed class SwitchOrganizationEndpoint(
 
         tenantContext.CurrentOrganizationId = req.OrganizationId;
 
-        // Get default project for this org
+        // Get any project in this org
         var project = await dbContext.Projects
-            .Where(p => p.OwnerId == userId && p.OrganizationId == req.OrganizationId)
+            .Where(p => p.OrganizationId == req.OrganizationId)
             .OrderBy(p => p.CreatedAt)
             .FirstOrDefaultAsync(ct);
 
         if (project == null)
         {
-            var projectId = Guid.NewGuid();
-            var plaintextKey = apiKeyService.GeneratePlaintextKey(projectId);
-            project = new Project
-            {
-                Id = projectId,
-                Name = "Personal Project",
-                OwnerId = userId,
-                OrganizationId = req.OrganizationId,
-                ApiKeyHash = apiKeyService.HashKey(plaintextKey)
-            };
-            dbContext.Projects.Add(project);
-            await dbContext.SaveChangesAsync(ct);
+            ThrowError("This organization has no projects. Please contact an administrator.");
         }
 
         // Use the same JWT generation logic as LoginEndpoint (simplified here but should be consistent)
