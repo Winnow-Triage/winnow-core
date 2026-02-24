@@ -162,8 +162,9 @@ export default function Settings() {
             </div>
 
             <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-                <TabsList className="grid w-full grid-cols-4 max-w-[600px]">
+                <TabsList className="grid w-full grid-cols-5 max-w-[700px]">
                     <TabsTrigger value="general">General</TabsTrigger>
+                    <TabsTrigger value="members">Members</TabsTrigger>
                     <TabsTrigger value="teams">Teams</TabsTrigger>
                     <TabsTrigger value="billing">Billing</TabsTrigger>
                     <TabsTrigger value="ai">AI Models</TabsTrigger>
@@ -239,6 +240,10 @@ export default function Settings() {
                             </div>
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <TabsContent value="members" className="mt-6 flex flex-col gap-6">
+                    <MembersManager organizationId={organization?.id} />
                 </TabsContent>
 
                 <TabsContent value="teams" className="mt-6 flex flex-col gap-6">
@@ -783,4 +788,196 @@ function TeamDetailsDrawer({
 }
 
 
+
+function MembersManager({ organizationId }: { organizationId?: string }) {
+    const { data: teams } = useQuery<{ id: string, name: string, members: { userId: string }[] }[]>({
+        queryKey: ['teams', organizationId],
+        queryFn: async () => {
+            const { data } = await api.get('/teams');
+            return data;
+        },
+        enabled: !!organizationId
+    });
+
+    const { data: orgMembers, isLoading } = useQuery<{ userId: string, fullName: string, email: string, role: string, JoinedAt?: string }[]>({
+        queryKey: ['org-members', organizationId],
+        queryFn: async () => {
+            const { data } = await api.get('/organizations/current/members');
+            return data;
+        },
+        enabled: !!organizationId
+    });
+
+    const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+
+    if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading members...</div>;
+
+    // Helper to get teams for a user
+    const getUserTeams = (userId: string) => {
+        if (!teams) return [];
+        return teams.filter(t => t.members.some(m => m.userId === userId));
+    };
+
+    const formatTeamList = (teams: any[]) => {
+        if (teams.length === 0) return "No teams";
+        if (teams.length === 1) return teams[0].name;
+        return `${teams[0].name}, +${teams.length - 1} more`;
+    };
+
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <div>
+                    <CardTitle>Organization Directory</CardTitle>
+                    <CardDescription>Manage your organization's members and their global roles.</CardDescription>
+                </div>
+                <Button onClick={() => setIsInviteModalOpen(true)}>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Invite Member
+                </Button>
+            </CardHeader>
+            <CardContent>
+                <div className="border rounded-md">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="bg-muted/50 hover:bg-muted/50">
+                                <TableHead>User</TableHead>
+                                <TableHead>Global Role</TableHead>
+                                <TableHead>Teams</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {orgMembers?.map((member) => {
+                                const userTeams = getUserTeams(member.userId);
+                                return (
+                                    <TableRow key={member.userId}>
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <Avatar className="h-9 w-9">
+                                                    <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                                                        {member.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex flex-col">
+                                                    <span className="font-semibold text-sm">{member.fullName}</span>
+                                                    <span className="text-xs text-muted-foreground">{member.email}</span>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="text-sm">
+                                                {member.role === 'owner' ? 'Org Owner' : member.role}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm">{formatTeamList(userTeams)}</span>
+                                                {userTeams.length > 0 && (
+                                                    <span className="text-[10px] text-muted-foreground">
+                                                        {userTeams.length} {userTeams.length === 1 ? 'team' : 'teams'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                                                <span className="text-xs font-medium">Active</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem>Edit Role</DropdownMenuItem>
+                                                    <DropdownMenuItem className="text-destructive focus:text-destructive">
+                                                        Remove from Organization
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                </div>
+
+                <InviteMemberModal
+                    isOpen={isInviteModalOpen}
+                    onClose={() => setIsInviteModalOpen(false)}
+                />
+            </CardContent>
+        </Card>
+    );
+}
+
+function InviteMemberModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+    const [email, setEmail] = useState("");
+    const [role, setRole] = useState("Member");
+    const [isInviting, setIsInviting] = useState(false);
+
+    const handleInvite = async () => {
+        if (!email.trim()) return;
+        setIsInviting(true);
+        // Placeholder for real invite logic
+        setTimeout(() => {
+            toast.success(`Invite sent to ${email}`);
+            setIsInviting(false);
+            onClose();
+            setEmail("");
+        }, 1000);
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Invite Member</DialogTitle>
+                    <DialogDescription>
+                        Send an invitation to join your organization and assign an initial role.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="email">Email Address</Label>
+                        <Input
+                            id="email"
+                            placeholder="colleague@company.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="role">Initial Role</Label>
+                        <Select value={role} onValueChange={setRole}>
+                            <SelectTrigger id="role w-full">
+                                <SelectValue placeholder="Select a role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="owner">Owner</SelectItem>
+                                <SelectItem value="Admin">Admin</SelectItem>
+                                <SelectItem value="Member">Member</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={onClose} disabled={isInviting}>
+                        Cancel
+                    </Button>
+                    <Button onClick={handleInvite} disabled={isInviting || !email.trim()}>
+                        {isInviting ? "Sending..." : "Send Invite"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
