@@ -191,8 +191,9 @@ export default function OrganizationsDashboard() {
                 </Button>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-                <div className="flex w-full sm:max-w-md items-center space-x-2">
+            <div className="flex flex-col sm:flex-row gap-4 items-end">
+                <div className="flex-1 w-full space-y-2">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Search</label>
                     <Input
                         placeholder="Search organizations..."
                         value={searchQuery}
@@ -200,9 +201,10 @@ export default function OrganizationsDashboard() {
                         className="bg-background/50 border-red-900/50 focus-visible:ring-red-500"
                     />
                 </div>
-                <div className="w-full sm:w-auto">
+                <div className="w-full sm:w-[200px] space-y-2">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tier</label>
                     <Select value={tierFilter} onValueChange={setTierFilter}>
-                        <SelectTrigger className="w-full sm:w-[180px] bg-background/50 border-red-900/50 focus:ring-red-500">
+                        <SelectTrigger className="w-full bg-background/50 border-red-900/50 focus:ring-red-500">
                             <SelectValue placeholder="Filter by Tier" />
                         </SelectTrigger>
                         <SelectContent className="border-red-900/50">

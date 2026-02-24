@@ -11,13 +11,11 @@ import {
 
 export default function AdminSettings() {
     return (
-        <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto py-8">
+        <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-red-500">Admin Settings</h1>
-                    <p className="text-muted-foreground mt-2">
-                        Global configuration and dangerous administrative actions.
-                    </p>
+                    <p className="text-muted-foreground">Global configuration and dangerous administrative actions.</p>
                 </div>
             </div>
 
