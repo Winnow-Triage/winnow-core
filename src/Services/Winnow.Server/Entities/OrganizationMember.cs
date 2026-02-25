@@ -7,6 +7,7 @@ public class OrganizationMember
     public Guid OrganizationId { get; set; }
     public string Role { get; set; } = "Member"; // Admin, Member, etc.
     public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
+    public bool IsLocked { get; set; }
 
     // Navigation properties
     public ApplicationUser? User { get; set; }

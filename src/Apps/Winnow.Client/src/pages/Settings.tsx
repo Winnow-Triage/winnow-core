@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { api, resendInvitation, cancelInvitation, removeOrganizationMember, toggleMemberLock } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -799,7 +799,7 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
         enabled: !!organizationId
     });
 
-    const { data: orgMembers, isLoading } = useQuery<{ id: string, fullName: string | null, email: string, globalRole: string, status: string, joinedAt?: string }[]>({
+    const { data: orgMembers, isLoading, refetch: refetchMembers } = useQuery<{ id: string, fullName: string | null, email: string, globalRole: string, status: string, isLocked: boolean, joinedAt?: string }[]>({
         queryKey: ['org-members', organizationId],
         queryFn: async () => {
             const { data } = await api.get('/organizations/current/members');
@@ -809,6 +809,50 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
     });
 
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+
+    const handleResendInvitation = async (invitationId: string, email: string) => {
+        if (!organizationId) return;
+        try {
+            await resendInvitation(organizationId, invitationId);
+            toast.success(`Invitation resent to ${email}`);
+            await refetchMembers();
+        } catch (error) {
+            toast.error("Failed to resend invitation");
+        }
+    };
+
+    const handleCancelInvitation = async (invitationId: string) => {
+        if (!organizationId) return;
+        try {
+            await cancelInvitation(organizationId, invitationId);
+            toast.success("Invitation cancelled");
+            await refetchMembers();
+        } catch (error) {
+            toast.error("Failed to cancel invitation");
+        }
+    };
+
+    const handleRemoveMember = async (userId: string) => {
+        if (!organizationId) return;
+        try {
+            await removeOrganizationMember(organizationId, userId);
+            toast.success("Member removed from organization");
+            await refetchMembers();
+        } catch (error) {
+            toast.error("Failed to remove member");
+        }
+    };
+
+    const handleToggleMemberLock = async (userId: string) => {
+        if (!organizationId) return;
+        try {
+            const data = await toggleMemberLock(organizationId, userId);
+            toast.success(data.isLocked ? "Member access locked" : "Member access restored");
+            await refetchMembers();
+        } catch (error) {
+            toast.error("Failed to update member lock status");
+        }
+    };
 
     if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading members...</div>;
 
@@ -895,8 +939,10 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
                                                 </div>
                                             ) : (
                                                 <div className="flex items-center gap-1.5">
-                                                    <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                                                    <span className="text-xs font-medium">Active</span>
+                                                    <div className={`h-1.5 w-1.5 rounded-full ${member.isLocked ? 'bg-zinc-400' : 'bg-green-500'}`} />
+                                                    <span className="text-xs font-medium">
+                                                        {member.isLocked ? 'Locked' : 'Active'}
+                                                    </span>
                                                 </div>
                                             )}
                                         </TableCell>
@@ -908,10 +954,31 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    {!isPending && <DropdownMenuItem>Edit Role</DropdownMenuItem>}
-                                                    <DropdownMenuItem className="text-destructive focus:text-destructive">
-                                                        {isPending ? 'Cancel Invitation' : 'Remove from Organization'}
-                                                    </DropdownMenuItem>
+                                                    {isPending ? (
+                                                        <>
+                                                            <DropdownMenuItem onClick={() => handleResendInvitation(member.id, member.email)}>
+                                                                Resend Invitation
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={() => handleCancelInvitation(member.id)}
+                                                                className="text-destructive focus:text-destructive"
+                                                            >
+                                                                Cancel Invitation
+                                                            </DropdownMenuItem>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <DropdownMenuItem onClick={() => handleToggleMemberLock(member.id)}>
+                                                                {member.isLocked ? 'Restore Access' : 'Lock Access'}
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={() => handleRemoveMember(member.id)}
+                                                                className="text-destructive focus:text-destructive"
+                                                            >
+                                                                Remove from Organization
+                                                            </DropdownMenuItem>
+                                                        </>
+                                                    )}
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </TableCell>

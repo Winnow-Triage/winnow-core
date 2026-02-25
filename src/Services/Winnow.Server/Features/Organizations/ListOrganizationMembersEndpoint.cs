@@ -14,6 +14,7 @@ public class OrganizationDirectoryMemberDto
     public string GlobalRole { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public DateTime? JoinedAt { get; set; }
+    public bool IsLocked { get; set; }
 }
 
 public sealed class ListOrganizationMembersEndpoint(WinnowDbContext db, ITenantContext tenantContext)
@@ -51,7 +52,8 @@ public sealed class ListOrganizationMembersEndpoint(WinnowDbContext db, ITenantC
                 Email = om.User!.Email!,
                 GlobalRole = om.Role,
                 Status = "Active",
-                JoinedAt = om.JoinedAt
+                JoinedAt = om.JoinedAt,
+                IsLocked = om.IsLocked
             })
             .ToListAsync(ct);
 

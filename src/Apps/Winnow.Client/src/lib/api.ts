@@ -118,7 +118,20 @@ export const addOrganizationMember = async (orgId: string, role: string = "owner
 };
 
 export const removeOrganizationMember = async (orgId: string, userId: string) => {
-    await api.delete(`/admin/organizations/${orgId}/members/${userId}`);
+    await api.delete(`/organizations/${orgId}/members/${userId}`);
+};
+
+export const toggleMemberLock = async (orgId: string, userId: string) => {
+    const response = await api.put(`/organizations/${orgId}/members/${userId}/lock`, {});
+    return response.data;
+};
+
+export const resendInvitation = async (orgId: string, invitationId: string) => {
+    await api.post(`/organizations/${orgId}/invitations/${invitationId}/resend`, {});
+};
+
+export const cancelInvitation = async (orgId: string, invitationId: string) => {
+    await api.delete(`/organizations/${orgId}/invitations/${invitationId}`);
 };
 
 // Account Management
