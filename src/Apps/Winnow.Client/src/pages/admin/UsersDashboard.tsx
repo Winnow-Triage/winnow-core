@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { getAllUsers, adminCreateUser, toggleUserLock, impersonateUser, getAllOrganizations, addOrganizationMember, removeOrganizationMember, type UserSummary, type OrganizationSummary } from "@/lib/api"
+import { getAllUsers, adminCreateUser, toggleUserLock, impersonateUser, getAllOrganizations, addOrganizationMember, adminRemoveOrganizationMember, adminDeleteUser, type UserSummary, type OrganizationSummary } from "@/lib/api"
 import {
     Table,
     TableBody,
@@ -56,6 +56,11 @@ export default function UsersDashboard() {
     const [orgToJoin, setOrgToJoin] = useState<string>("")
     const [roleToJoin, setRoleToJoin] = useState<string>("Member")
     const [isUpdatingMembership, setIsUpdatingMembership] = useState(false)
+
+    // Delete User State
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+    const [userToDelete, setUserToDelete] = useState<UserSummary | null>(null)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     // New User State
     const [newUser, setNewUser] = useState({
@@ -157,7 +162,7 @@ export default function UsersDashboard() {
 
         try {
             setIsUpdatingMembership(true)
-            await removeOrganizationMember(orgId, userToManage.id)
+            await adminRemoveOrganizationMember(orgId, userToManage.id)
             toast.success("User removed from organization")
             fetchUsers()
             // Update local state for immediate feedback if needed
@@ -170,6 +175,24 @@ export default function UsersDashboard() {
             toast.error("Failed to remove user from organization")
         } finally {
             setIsUpdatingMembership(false)
+        }
+    }
+
+    const handleDeleteUser = async () => {
+        if (!userToDelete) return
+
+        try {
+            setIsDeleting(true)
+            await adminDeleteUser(userToDelete.id)
+            toast.success("User deleted successfully")
+            setIsDeleteDialogOpen(false)
+            setUserToDelete(null)
+            fetchUsers()
+        } catch (error) {
+            console.error("Failed to delete user:", error)
+            toast.error("Failed to delete user account")
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -344,7 +367,13 @@ export default function UsersDashboard() {
                                                     )}
                                                 </DropdownMenuItem>
                                                 <DropdownMenuSeparator className="bg-red-900/30" />
-                                                <DropdownMenuItem className="text-red-500 focus:text-red-500 focus:bg-red-500/10">
+                                                <DropdownMenuItem
+                                                    onClick={() => {
+                                                        setUserToDelete(user)
+                                                        setIsDeleteDialogOpen(true)
+                                                    }}
+                                                    className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
+                                                >
                                                     <UserMinus className="mr-2 h-4 w-4" /> Delete User
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
@@ -494,6 +523,32 @@ export default function UsersDashboard() {
 
                     <AlertDialogFooter>
                         <AlertDialogCancel className="border-red-900/50 hover:bg-red-950/20">Close</AlertDialogCancel>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Delete Account Dialog */}
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogContent className="border-red-900/50 bg-background sm:max-w-[425px]">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-red-500 text-xl font-bold flex items-center">
+                            <UserMinus className="mr-2 h-5 w-5" /> Delete User Account
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-muted-foreground pt-2">
+                            Are you absolutely sure you want to delete <strong>{userToDelete?.fullName}</strong> ({userToDelete?.email})?
+                            <br /><br />
+                            This action is <strong>permanent</strong> and will remove their identity record and all organization memberships.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="mt-4">
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteUser}
+                            disabled={isDeleting}
+                            className="bg-red-600 hover:bg-red-700 text-white font-bold"
+                        >
+                            {isDeleting ? "Deleting..." : "Permanently Delete"}
+                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

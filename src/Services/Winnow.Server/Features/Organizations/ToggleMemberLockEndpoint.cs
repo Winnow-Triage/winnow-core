@@ -9,7 +9,7 @@ public sealed class ToggleMemberLockEndpoint(WinnowDbContext db)
 {
     public override void Configure()
     {
-        Put("/organizations/{orgId:guid}/members/{userId}/lock");
+        Put("/organizations/{orgId}/members/{userId}/lock");
         Summary(s =>
         {
             s.Summary = "Toggle member lock status";
@@ -19,8 +19,17 @@ public sealed class ToggleMemberLockEndpoint(WinnowDbContext db)
 
     public override async Task HandleAsync(CancellationToken ct)
     {
-        var orgId = Route<Guid>("orgId");
+        var orgIdRaw = Route<string>("orgId");
         var memberUserId = Route<string>("userId");
+        Console.WriteLine($"[LOCK] Attempting to toggle lock for user {memberUserId} in organization {orgIdRaw}");
+
+        Guid orgId = Guid.Empty;
+        if (!Guid.TryParse(orgIdRaw, out orgId))
+        {
+            Console.WriteLine($"[LOCK] INVALID ORGID: {orgIdRaw}");
+            AddError("Invalid organization context");
+            ThrowIfAnyErrors();
+        }
 
         var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(currentUserId))

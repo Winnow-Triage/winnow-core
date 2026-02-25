@@ -121,6 +121,10 @@ export const removeOrganizationMember = async (orgId: string, userId: string) =>
     await api.delete(`/organizations/${orgId}/members/${userId}`);
 };
 
+export const adminRemoveOrganizationMember = async (orgId: string, userId: string) => {
+    await api.delete(`/admin/organizations/${orgId}/members/${userId}`);
+};
+
 export const toggleMemberLock = async (orgId: string, userId: string) => {
     const response = await api.put(`/organizations/${orgId}/members/${userId}/lock`, {});
     return response.data;
@@ -178,6 +182,10 @@ export const toggleUserLock = async (userId: string) => {
 export const impersonateUser = async (userId: string) => {
     const response = await api.post(`/admin/users/${userId}/impersonate`, { id: userId });
     return response.data;
+};
+
+export const adminDeleteUser = async (userId: string) => {
+    await api.delete(`/admin/users/${userId}`);
 };
 
 export interface SystemHealthCheck {

@@ -52,7 +52,37 @@ public sealed class DeleteOrganizationEndpoint(
         await TryDeletePrefixAsync(s3Settings.QuarantineBucket, orgPrefix, ct);
         await TryDeletePrefixAsync(s3Settings.CleanBucket, orgPrefix, ct);
 
-        // Delete the organization from DB (Cascade delete will handle Teams, Projects, Reports, Assets)
+        // Manual cleanup to satisfy Restrict constraints
+        // 1. Delete all reports associated with projects in this organization
+        var projectIds = await dbContext.Projects
+            .Where(p => p.OrganizationId == req.Id)
+            .Select(p => p.Id)
+            .ToListAsync(ct);
+
+        if (projectIds.Count > 0)
+        {
+            var reports = await dbContext.Reports
+                .Where(r => projectIds.Contains(r.ProjectId))
+                .ToListAsync(ct);
+
+            if (reports.Count > 0)
+            {
+                logger.LogInformation("Cleaning up {Count} reports for organization {OrgId}", reports.Count, req.Id);
+                dbContext.Reports.RemoveRange(reports);
+                await dbContext.SaveChangesAsync(ct);
+            }
+
+            // 2. Delete all projects
+            var projects = await dbContext.Projects
+                .Where(p => p.OrganizationId == req.Id)
+                .ToListAsync(ct);
+
+            logger.LogInformation("Cleaning up {Count} projects for organization {OrgId}", projects.Count, req.Id);
+            dbContext.Projects.RemoveRange(projects);
+            await dbContext.SaveChangesAsync(ct);
+        }
+
+        // 3. Delete the organization from DB (Cascade delete will handle Teams, Members, Invitations)
         dbContext.Organizations.Remove(org);
         await dbContext.SaveChangesAsync(ct);
 

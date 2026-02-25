@@ -9,7 +9,7 @@ public sealed class RemoveOrganizationMemberEndpoint(WinnowDbContext db)
 {
     public override void Configure()
     {
-        Delete("/organizations/{orgId:guid}/members/{userId}");
+        Delete("/organizations/{orgId}/members/{userId}");
         Summary(s =>
         {
             s.Summary = "Remove a member from the organization";
@@ -19,8 +19,17 @@ public sealed class RemoveOrganizationMemberEndpoint(WinnowDbContext db)
 
     public override async Task HandleAsync(CancellationToken ct)
     {
-        var orgId = Route<Guid>("orgId");
+        var orgIdRaw = Route<string>("orgId");
         var memberUserId = Route<string>("userId");
+        Console.WriteLine($"[REMOVE] Attempting to remove user {memberUserId} from organization {orgIdRaw}");
+
+        Guid orgId = Guid.Empty;
+        if (!Guid.TryParse(orgIdRaw, out orgId))
+        {
+            Console.WriteLine($"[REMOVE] INVALID ORGID: {orgIdRaw}");
+            AddError("Invalid organization context");
+            ThrowIfAnyErrors(400);
+        }
 
         var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(currentUserId))

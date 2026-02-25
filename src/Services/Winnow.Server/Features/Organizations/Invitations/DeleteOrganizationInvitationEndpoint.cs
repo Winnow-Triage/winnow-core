@@ -9,7 +9,7 @@ public sealed class DeleteOrganizationInvitationEndpoint(WinnowDbContext db)
 {
     public override void Configure()
     {
-        Delete("/organizations/{orgId:guid}/invitations/{invitationId:guid}");
+        Delete("/organizations/{orgId}/invitations/{invitationId}");
         Summary(s =>
         {
             s.Summary = "Delete a pending invitation";
@@ -19,8 +19,18 @@ public sealed class DeleteOrganizationInvitationEndpoint(WinnowDbContext db)
 
     public override async Task HandleAsync(CancellationToken ct)
     {
-        var orgId = Route<Guid>("orgId");
-        var invitationId = Route<Guid>("invitationId");
+        var orgIdRaw = Route<string>("orgId");
+        var invitationIdRaw = Route<string>("invitationId");
+        Console.WriteLine($"[CANCEL] Attempting to delete invitation. OrgId (raw): {orgIdRaw}, InvId (raw): {invitationIdRaw}");
+
+        Guid orgId = Guid.Empty;
+        Guid invitationId = Guid.Empty;
+        if (!Guid.TryParse(orgIdRaw, out orgId) || !Guid.TryParse(invitationIdRaw, out invitationId))
+        {
+            Console.WriteLine($"[CANCEL] INVALID GUIDS. OrgId: {orgIdRaw}, InvId: {invitationIdRaw}");
+            AddError("Invalid parameters");
+            ThrowIfAnyErrors();
+        }
 
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))

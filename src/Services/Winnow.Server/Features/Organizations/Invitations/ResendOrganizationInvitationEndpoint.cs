@@ -17,7 +17,7 @@ public sealed class ResendOrganizationInvitationEndpoint(
 {
     public override void Configure()
     {
-        Post("/organizations/{orgId:guid}/invitations/{invitationId:guid}/resend");
+        Post("/organizations/{orgId}/invitations/{invitationId}/resend");
         Summary(s =>
         {
             s.Summary = "Resend a pending invitation";
@@ -27,8 +27,18 @@ public sealed class ResendOrganizationInvitationEndpoint(
 
     public override async Task HandleAsync(CancellationToken ct)
     {
-        var orgId = Route<Guid>("orgId");
-        var invitationId = Route<Guid>("invitationId");
+        var orgIdRaw = Route<string>("orgId");
+        var invitationIdRaw = Route<string>("invitationId");
+        Console.WriteLine($"[RESEND] Attempting to resend invitation. OrgId (raw): {orgIdRaw}, InvId (raw): {invitationIdRaw}");
+
+        Guid orgId = Guid.Empty;
+        Guid invitationId = Guid.Empty;
+        if (!Guid.TryParse(orgIdRaw, out orgId) || !Guid.TryParse(invitationIdRaw, out invitationId))
+        {
+            Console.WriteLine($"[RESEND] INVALID GUIDS. OrgId: {orgIdRaw}, InvId: {invitationIdRaw}");
+            AddError("Invalid parameters");
+            ThrowIfAnyErrors();
+        }
 
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
