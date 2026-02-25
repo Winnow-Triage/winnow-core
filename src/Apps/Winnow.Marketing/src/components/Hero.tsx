@@ -3,9 +3,9 @@ import { LightboxImage } from './ui/LightboxImage';
 
 export function Hero() {
     return (
-        <section className="pb-20 pt-20 md:pt-24 overflow-hidden">
-            <div className="container mx-auto grid items-center gap-6">
-                <div className="flex max-w-[980px] flex-col items-center gap-2 mx-auto text-center">
+        <section className="pb-20 pt-20 md:pt-24 overflow-hidden w-full flex flex-col items-center">
+            <div className="w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col items-center gap-6">
+                <div className="flex w-full max-w-[980px] flex-col items-center gap-2 text-center">
                     <h1 className="text-3xl font-extrabold leading-tight tracking-tighter md:text-5xl lg:text-6xl lg:leading-[1.1]">
                         Stop Drowning in <br className="hidden sm:inline" />
                         <span className="text-brand-gradient">
