@@ -1,42 +1,16 @@
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ProjectProvider } from "../context/ProjectContext";
-import { getMe } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+    const { isAuthenticated, isLoading } = useAuth();
     const navigate = useNavigate();
-    const [isLoading, setIsLoading] = useState(true);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-    useEffect(() => {
-        const checkAuth = async () => {
-            try {
-                const user = await getMe();
-                // Update local storage if needed to keep it in sync
-                localStorage.setItem("user", JSON.stringify({
-                    id: user.id,
-                    email: user.email,
-                    name: user.fullName,
-                    isEmailVerified: user.isEmailVerified,
-                    defaultProjectId: user.defaultProjectId,
-                    organizationId: user.activeOrganizationId
-                }));
-                setIsAuthenticated(true);
-            } catch (error) {
-                console.error("Auth check failed:", error);
-                setIsAuthenticated(false);
-                navigate("/login");
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        checkAuth();
-    }, [navigate]);
+    // No useEffect needed here as AuthProvider handles the initial check
 
     if (isLoading) {
         return (
@@ -47,6 +21,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     }
 
     if (!isAuthenticated) {
+        navigate("/login");
         return null;
     }
 

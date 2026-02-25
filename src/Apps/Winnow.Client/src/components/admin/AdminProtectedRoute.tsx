@@ -1,35 +1,13 @@
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getMe } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 interface AdminProtectedRouteProps {
     children: React.ReactNode;
 }
 
 export default function AdminProtectedRoute({ children }: AdminProtectedRouteProps) {
+    const { user, isAuthenticated, isLoading } = useAuth();
     const navigate = useNavigate();
-    const [isLoading, setIsLoading] = useState(true);
-    const [isAuthorized, setIsAuthorized] = useState<boolean>(false);
-
-    useEffect(() => {
-        const checkAdmin = async () => {
-            try {
-                const user = await getMe();
-                if (user.roles.includes("SuperAdmin")) {
-                    setIsAuthorized(true);
-                } else {
-                    navigate("/dashboard");
-                }
-            } catch (error) {
-                console.error("Admin auth check failed:", error);
-                navigate("/login");
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        checkAdmin();
-    }, [navigate]);
 
     if (isLoading) {
         return (
@@ -39,11 +17,13 @@ export default function AdminProtectedRoute({ children }: AdminProtectedRoutePro
         );
     }
 
-    if (!isAuthorized) {
+    if (!isAuthenticated) {
+        navigate("/login");
         return null;
     }
 
-    if (isAuthorized === null) {
+    if (!user?.roles.includes("SuperAdmin")) {
+        navigate("/dashboard");
         return null;
     }
 

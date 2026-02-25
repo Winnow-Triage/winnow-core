@@ -98,7 +98,11 @@ internal static class MiddlewareExtensions
         {
             c.Endpoints.Configurator = ep =>
             {
-                if (ep.EndpointType.Namespace?.StartsWith("Winnow.Server.Features.Auth") == true)
+                if (ep.EndpointType.Name == "GetMeEndpoint")
+                {
+                    ep.Options(b => b.RequireRateLimiting("api"));
+                }
+                else if (ep.EndpointType.Namespace?.StartsWith("Winnow.Server.Features.Auth") == true)
                 {
                     ep.Options(b => b.RequireRateLimiting("strict"));
                 }

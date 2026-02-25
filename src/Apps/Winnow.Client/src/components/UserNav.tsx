@@ -14,20 +14,20 @@ import {
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useQuery } from "@tanstack/react-query"
-import { api, logoutUser } from "@/lib/api"
+import { api } from "@/lib/api"
 import { toast } from "sonner"
 import { useState } from "react"
 import { Check, Building2 } from "lucide-react"
+import { useAuth } from "@/context/AuthContext"
 
 export default function UserNav() {
     const navigate = useNavigate()
+    const { user, logout } = useAuth()
 
-    // Retrieve user from localStorage
-    const userString = localStorage.getItem("user")
-    const user = userString ? JSON.parse(userString) : { name: "User", email: "user@example.com", organizationId: "" }
+    if (!user) return null;
 
     // Get initials
-    const initials = user.name
+    const initials = user.fullName
         .split(" ")
         .map((n: string) => n[0])
         .join("")
@@ -45,7 +45,7 @@ export default function UserNav() {
     const [isSwitching, setIsSwitching] = useState<string | null>(null);
 
     const handleSwitch = async (orgId: string) => {
-        if (isSwitching || orgId === user.organizationId) return;
+        if (isSwitching || orgId === user.activeOrganizationId) return;
         setIsSwitching(orgId);
         try {
             const { data } = await api.post("/auth/switch", { organizationId: orgId });
@@ -73,13 +73,10 @@ export default function UserNav() {
 
     const handleLogout = async () => {
         try {
-            await logoutUser();
+            await logout();
             navigate("/login");
         } catch (error) {
             console.error("Logout failed:", error);
-            // Fallback: clear local storage and redirect anyway
-            localStorage.removeItem("user");
-            localStorage.removeItem("lastProjectId");
             navigate("/login");
         }
     }
@@ -96,7 +93,7 @@ export default function UserNav() {
             <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{user.name}</p>
+                        <p className="text-sm font-medium leading-none">{user.fullName}</p>
                         <p className="text-xs leading-none text-muted-foreground">
                             {user.email}
                         </p>
@@ -109,7 +106,6 @@ export default function UserNav() {
                 <DropdownMenuItem onClick={() => navigate("/settings")}>
                     Workspace Settings
                 </DropdownMenuItem>
-
                 {orgs && orgs.length > 1 && (
                     <DropdownMenuSub>
                         <DropdownMenuSubTrigger>
@@ -119,7 +115,7 @@ export default function UserNav() {
                         <DropdownMenuPortal>
                             <DropdownMenuSubContent className="w-48">
                                 {orgs.map((org) => {
-                                    const isCurrent = org.id === user.organizationId;
+                                    const isCurrent = org.id === user.activeOrganizationId;
                                     return (
                                         <DropdownMenuItem
                                             key={org.id}

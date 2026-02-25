@@ -34,74 +34,77 @@ import { AboutDialog } from "@/components/AboutDialog"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import UserNav from "@/components/UserNav"
 import VerificationBanner from "./components/VerificationBanner"
+import { AuthProvider } from "./context/AuthContext"
 
 import { WinnowLogo } from "./components/WinnowLogo"
 
 export default function App() {
   return (
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-      <Routes>
-        <Route path="/login" element={<AuthPage />} />
-        <Route path="/signup" element={<AuthPage />} />
-        <Route path="/suspended" element={<SuspendedPage />} />
-        <Route path="/accept-invite" element={<AcceptInvitationPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<AuthPage />} />
+          <Route path="/signup" element={<AuthPage />} />
+          <Route path="/suspended" element={<SuspendedPage />} />
+          <Route path="/accept-invite" element={<AcceptInvitationPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
 
-        <Route path="/admin/*" element={
-          <AdminProtectedRoute>
-            <Routes>
-              <Route element={<AdminLayout />}>
-                <Route index element={<Navigate to="/admin/organizations" replace />} />
-                <Route path="organizations" element={<OrganizationsDashboard />} />
-                <Route path="users" element={<UsersDashboard />} />
-                <Route path="health" element={<SystemHealth />} />
-                <Route path="settings" element={<AdminSettings />} />
-              </Route>
-            </Routes>
-          </AdminProtectedRoute>
-        } />
+          <Route path="/admin/*" element={
+            <AdminProtectedRoute>
+              <Routes>
+                <Route element={<AdminLayout />}>
+                  <Route index element={<Navigate to="/admin/organizations" replace />} />
+                  <Route path="organizations" element={<OrganizationsDashboard />} />
+                  <Route path="users" element={<UsersDashboard />} />
+                  <Route path="health" element={<SystemHealth />} />
+                  <Route path="settings" element={<AdminSettings />} />
+                </Route>
+              </Routes>
+            </AdminProtectedRoute>
+          } />
 
-        <Route path="/*" element={
-          <ProtectedRoute>
-            <VerificationBanner />
-            <SidebarProvider>
-              <AppSidebar />
-              <SidebarInset>
-                <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-                  <SidebarTrigger className="-ml-1" />
-                  <div className="w-[1px] h-4 bg-border mx-2" />
-                  <WinnowLogo size={24} />
-                  <div className="ml-auto flex items-center gap-2">
-                    <AboutDialog />
-                    <ModeToggle />
-                    <UserNav />
+          <Route path="/*" element={
+            <ProtectedRoute>
+              <VerificationBanner />
+              <SidebarProvider>
+                <AppSidebar />
+                <SidebarInset>
+                  <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+                    <SidebarTrigger className="-ml-1" />
+                    <div className="w-[1px] h-4 bg-border mx-2" />
+                    <WinnowLogo size={24} />
+                    <div className="ml-auto flex items-center gap-2">
+                      <AboutDialog />
+                      <ModeToggle />
+                      <UserNav />
+                    </div>
+                  </header>
+                  <div className="flex flex-1 flex-col gap-4 p-4">
+                    <Routes>
+                      <Route path="/" element={<Layout />}>
+                        <Route index element={<Navigate to="/dashboard" replace />} />
+                        <Route path="/dashboard" element={<ClusterDashboard />} />
+                        <Route path="/triage/review" element={<ReviewSuggestions />} />
+                        <Route path="reports" element={<AllReports />} />
+                        <Route path="reports/:id" element={<ReportDetail />} />
+                        <Route path="clusters" element={<Clusters />} />
+                        <Route path="debug" element={<DebugConsole />} />
+                        <Route path="settings" element={<Settings />} />
+                        <Route path="settings/user" element={<UserSettings />} />
+                        <Route path="project-settings" element={<ProjectSettings />} />
+                        <Route path="setup" element={<ProjectSetup />} />
+                      </Route>
+                    </Routes>
                   </div>
-                </header>
-                <div className="flex flex-1 flex-col gap-4 p-4">
-                  <Routes>
-                    <Route path="/" element={<Layout />}>
-                      <Route index element={<Navigate to="/dashboard" replace />} />
-                      <Route path="/dashboard" element={<ClusterDashboard />} />
-                      <Route path="/triage/review" element={<ReviewSuggestions />} />
-                      <Route path="reports" element={<AllReports />} />
-                      <Route path="reports/:id" element={<ReportDetail />} />
-                      <Route path="clusters" element={<Clusters />} />
-                      <Route path="debug" element={<DebugConsole />} />
-                      <Route path="settings" element={<Settings />} />
-                      <Route path="settings/user" element={<UserSettings />} />
-                      <Route path="project-settings" element={<ProjectSettings />} />
-                      <Route path="setup" element={<ProjectSetup />} />
-                    </Route>
-                  </Routes>
-                </div>
-              </SidebarInset>
-            </SidebarProvider>
-          </ProtectedRoute>
-        } />
-      </Routes>
-      <Toaster />
+                </SidebarInset>
+              </SidebarProvider>
+            </ProtectedRoute>
+          } />
+        </Routes>
+        <Toaster />
+      </AuthProvider>
     </ThemeProvider>
   )
 }
