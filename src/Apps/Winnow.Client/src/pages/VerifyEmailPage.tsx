@@ -29,6 +29,17 @@ export default function VerifyEmailPage() {
             try {
                 // GET request as defined in VerifyEmailEndpoint
                 await api.get(`/auth/verify-email?userId=${userId}&token=${encodeURIComponent(token)}`);
+
+                // Update local storage if user is already logged in as this person
+                const userString = localStorage.getItem("user");
+                if (userString) {
+                    const user = JSON.parse(userString);
+                    if (user.id === userId) {
+                        user.isEmailVerified = true;
+                        localStorage.setItem("user", JSON.stringify(user));
+                    }
+                }
+
                 setStatus('success');
             } catch (err: any) {
                 console.error("Email Verification Error:", err);

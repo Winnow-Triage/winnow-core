@@ -43,10 +43,12 @@ export default function UserSettings() {
             await updateAccountDetails(fullName.trim(), email.trim());
             // Update local storage to reflect changes in UI immediately
             const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+            const isEmailChanged = email.trim().toLowerCase() !== storedUser.email?.toLowerCase();
             localStorage.setItem("user", JSON.stringify({
                 ...storedUser,
                 name: fullName.trim(),
-                email: email.trim()
+                email: email.trim(),
+                isEmailVerified: isEmailChanged ? false : storedUser.isEmailVerified
             }));
 
             await refetch();

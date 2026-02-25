@@ -174,6 +174,7 @@ public sealed class LoginEndpoint(
             UserId = user.Id,
             Email = user.Email ?? "",
             FullName = user.FullName,
+            IsEmailVerified = user.EmailConfirmed,
             DefaultProjectId = project.Id,
             ApiKey = "", // Cannot return hashed key
             ActiveOrganizationId = selectedOrganizationId
@@ -190,8 +191,10 @@ public sealed class LoginEndpoint(
             new(ClaimTypes.NameIdentifier, user.Id),
             new(ClaimTypes.Email, user.Email!),
             new(ClaimTypes.Name, user.FullName),
+            new("email_verified", user.EmailConfirmed.ToString().ToLowerInvariant()),
             new("tenant_id", tenantContext.TenantId ?? "default")
         };
+
 
         // Add organization ID claim if user has one
         if (tenantContext.CurrentOrganizationId.HasValue)

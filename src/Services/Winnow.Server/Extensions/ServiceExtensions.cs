@@ -290,7 +290,11 @@ internal static class ServiceExtensions
                 s.OperationProcessors.Add(new Winnow.Server.Infrastructure.Security.Swagger.SwaggerSecurityProcessor());
             };
         });
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy("RequireVerifiedEmail", policy =>
+                policy.RequireClaim("email_verified", "true"));
+        });
 
         // Rate Limiting
         services.AddRateLimiter(options =>

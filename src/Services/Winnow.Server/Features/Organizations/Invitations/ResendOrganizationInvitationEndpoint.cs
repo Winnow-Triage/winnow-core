@@ -18,11 +18,13 @@ public sealed class ResendOrganizationInvitationEndpoint(
     public override void Configure()
     {
         Post("/organizations/{orgId}/invitations/{invitationId}/resend");
+        Policies("RequireVerifiedEmail");
         Summary(s =>
         {
             s.Summary = "Resend a pending invitation";
-            s.Description = "Regenerates the token and re-sends the invite email.";
+            s.Description = "Regenerates the token and re-sends the invite email. Email verification required.";
         });
+        Description(d => d.WithDescription("Email verification required to perform this action."));
     }
 
     public override async Task HandleAsync(CancellationToken ct)

@@ -33,6 +33,7 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { AboutDialog } from "@/components/AboutDialog"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import UserNav from "@/components/UserNav"
+import VerificationBanner from "./components/VerificationBanner"
 
 export default function App() {
   return (
@@ -62,6 +63,7 @@ export default function App() {
 
         <Route path="/*" element={
           <ProtectedRoute>
+            <VerificationBanner />
             <SidebarProvider>
               <AppSidebar />
               <SidebarInset>

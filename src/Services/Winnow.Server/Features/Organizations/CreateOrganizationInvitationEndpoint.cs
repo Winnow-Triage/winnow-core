@@ -23,6 +23,8 @@ public sealed class CreateOrganizationInvitationEndpoint(
     public override void Configure()
     {
         Post("/organizations/{orgId}/invitations");
+        Policies("RequireVerifiedEmail");
+        Description(d => d.WithDescription("Email verification required to perform this action."));
     }
 
     public override async Task HandleAsync(CreateOrganizationInvitationRequest req, CancellationToken ct)

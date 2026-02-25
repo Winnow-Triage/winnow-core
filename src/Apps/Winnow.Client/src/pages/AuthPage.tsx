@@ -89,6 +89,7 @@ export default function AuthPage() {
                 id: data.userId,
                 email: data.email,
                 name: data.fullName,
+                isEmailVerified: data.isEmailVerified,
                 defaultProjectId: data.defaultProjectId,
                 organizationId: data.activeOrganizationId
             }));

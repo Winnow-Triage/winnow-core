@@ -33,6 +33,7 @@ public sealed class ExportReportEndpoint(WinnowDbContext db, IExporterFactory ex
     public override void Configure()
     {
         Post("/reports/{Id}/export");
+        Policies("RequireVerifiedEmail");
         Summary(s =>
         {
             s.Summary = "Export a report";
@@ -41,7 +42,7 @@ public sealed class ExportReportEndpoint(WinnowDbContext db, IExporterFactory ex
             s.Response(404, "Report not found");
             s.Response(400, "Export failed");
         });
-        Options(x => x.RequireAuthorization());
+        Description(d => d.WithDescription("Email verification required to perform this action."));
     }
 
     public override async Task HandleAsync(ExportReportRequest req, CancellationToken ct)

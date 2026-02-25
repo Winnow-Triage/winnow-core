@@ -98,6 +98,11 @@ public class AuthResponse
     /// The ID of the currently active organization.
     /// </summary>
     public Guid ActiveOrganizationId { get; set; }
+
+    /// <summary>
+    /// Whether the user's email is verified.
+    /// </summary>
+    public bool IsEmailVerified { get; set; }
 }
 
 public class OrganizationDto
@@ -216,6 +221,7 @@ public sealed class RegisterEndpoint(
             UserId = user.Id,
             Email = user.Email,
             FullName = user.FullName,
+            IsEmailVerified = user.EmailConfirmed,
             DefaultProjectId = project.Id,
             ApiKey = plaintextKey,
             ActiveOrganizationId = organization.Id
@@ -231,7 +237,8 @@ public sealed class RegisterEndpoint(
         {
             new(ClaimTypes.NameIdentifier, user.Id),
             new(ClaimTypes.Email, user.Email!),
-            new(ClaimTypes.Name, user.FullName)
+            new(ClaimTypes.Name, user.FullName),
+            new("email_verified", user.EmailConfirmed.ToString().ToLowerInvariant())
         };
 
         // Add organization ID claim if available in tenant context
