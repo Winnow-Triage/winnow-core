@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useQuery } from "@tanstack/react-query"
-import { api } from "@/lib/api"
+import { api, logoutUser } from "@/lib/api"
 import { toast } from "sonner"
 import { useState } from "react"
 import { Check, Building2 } from "lucide-react"
@@ -49,23 +49,20 @@ export default function UserNav() {
         setIsSwitching(orgId);
         try {
             const { data } = await api.post("/auth/switch", { organizationId: orgId });
-            if (data.token) {
-                // Fully discard stale data
-                localStorage.removeItem("lastProjectId");
+            // Fully discard stale data
+            localStorage.removeItem("lastProjectId");
 
-                localStorage.setItem("authToken", data.token);
-                localStorage.setItem("user", JSON.stringify({
-                    id: data.userId,
-                    email: data.email,
-                    name: data.fullName,
-                    defaultProjectId: data.defaultProjectId,
-                    organizationId: data.activeOrganizationId
-                }));
-                toast.success(`Switched to ${orgs?.find(o => o.id === orgId)?.name}`);
-                setTimeout(() => {
-                    window.location.href = "/dashboard";
-                }, 500);
-            }
+            localStorage.setItem("user", JSON.stringify({
+                id: data.userId,
+                email: data.email,
+                name: data.fullName,
+                defaultProjectId: data.defaultProjectId,
+                organizationId: data.activeOrganizationId
+            }));
+            toast.success(`Switched to ${orgs?.find(o => o.id === orgId)?.name}`);
+            setTimeout(() => {
+                window.location.href = "/dashboard";
+            }, 500);
         } catch (error) {
             console.error("Failed to switch organization:", error);
             toast.error("Failed to switch organization");
@@ -74,11 +71,17 @@ export default function UserNav() {
         }
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem("authToken")
-        localStorage.removeItem("user")
-        localStorage.removeItem("lastProjectId")
-        navigate("/login")
+    const handleLogout = async () => {
+        try {
+            await logoutUser();
+            navigate("/login");
+        } catch (error) {
+            console.error("Logout failed:", error);
+            // Fallback: clear local storage and redirect anyway
+            localStorage.removeItem("user");
+            localStorage.removeItem("lastProjectId");
+            navigate("/login");
+        }
     }
 
     return (

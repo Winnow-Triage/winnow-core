@@ -18,7 +18,6 @@ public class ImpersonateUserRequest
 
 public class ImpersonateUserResponse
 {
-    public string Token { get; set; } = string.Empty;
     public string TargetUserEmail { get; set; } = string.Empty;
 }
 
@@ -101,9 +100,17 @@ public sealed class ImpersonateUserEndpoint(
         var securityToken = tokenHandler.CreateToken(tokenDescriptor);
         var tokenString = tokenHandler.WriteToken(securityToken);
 
+        var cookieOptions = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = HttpContext.Request.IsHttps,
+            SameSite = SameSiteMode.Strict,
+            Expires = DateTimeOffset.UtcNow.AddHours(2)
+        };
+        HttpContext.Response.Cookies.Append("winnow_auth", tokenString, cookieOptions);
+
         await Send.OkAsync(new ImpersonateUserResponse
         {
-            Token = tokenString,
             TargetUserEmail = targetUser.Email ?? "unknown"
         }, ct);
     }

@@ -22,9 +22,6 @@ export default function VerificationBanner() {
             const response = await api.post("/auth/resend-verification");
 
             if (response.data.message?.includes("already verified")) {
-                const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-                storedUser.isEmailVerified = true;
-                localStorage.setItem("user", JSON.stringify(storedUser));
                 toast.success("Email is already verified!");
                 setTimeout(() => window.location.reload(), 1000);
                 return;

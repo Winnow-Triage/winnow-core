@@ -104,10 +104,9 @@ export default function UsersDashboard() {
 
     const handleImpersonate = async (user: UserSummary) => {
         try {
-            const data = await impersonateUser(user.id)
-            // Store the new token and reload the app
+            await impersonateUser(user.id)
+            // Store the new token (handled by cookie now) and reload the app
             localStorage.removeItem("lastProjectId")
-            localStorage.setItem("authToken", data.token)
             toast.success(`Now impersonating ${user.email}`)
             setTimeout(() => {
                 window.location.href = "/dashboard"

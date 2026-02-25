@@ -83,8 +83,9 @@ export default function Settings() {
         setIsDeletingOrg(true);
         try {
             await api.delete('/organizations/current');
-            // Remove token and push to login since org no longer exists
-            localStorage.removeItem('authToken');
+            // Logout user since org no longer exists
+            const { logoutUser } = await import("@/lib/api");
+            await logoutUser();
             toast.success("Organization deleted. You have been logged out.");
             navigate('/login');
         } catch (error) {

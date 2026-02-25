@@ -68,12 +68,19 @@ public sealed class SwitchOrganizationEndpoint(
             ThrowError("This organization has no projects. Please contact an administrator.");
         }
 
-        // Use the same JWT generation logic as LoginEndpoint (simplified here but should be consistent)
         var token = await GenerateJwtAsync(user, req.OrganizationId);
+
+        var cookieOptions = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = HttpContext.Request.IsHttps,
+            SameSite = SameSiteMode.Strict,
+            Expires = DateTimeOffset.UtcNow.AddDays(7)
+        };
+        HttpContext.Response.Cookies.Append("winnow_auth", token, cookieOptions);
 
         await Send.OkAsync(new AuthResponse
         {
-            Token = token,
             UserId = user.Id,
             Email = user.Email ?? "",
             FullName = user.FullName,

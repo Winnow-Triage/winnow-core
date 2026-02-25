@@ -168,9 +168,17 @@ public sealed class LoginEndpoint(
 
         var token = await GenerateJwtAsync(user);
 
+        var cookieOptions = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = HttpContext.Request.IsHttps,
+            SameSite = SameSiteMode.Strict,
+            Expires = DateTimeOffset.UtcNow.AddDays(7)
+        };
+        HttpContext.Response.Cookies.Append("winnow_auth", token, cookieOptions);
+
         await Send.OkAsync(new AuthResponse
         {
-            Token = token,
             UserId = user.Id,
             Email = user.Email ?? "",
             FullName = user.FullName,

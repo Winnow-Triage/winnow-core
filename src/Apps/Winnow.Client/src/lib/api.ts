@@ -2,15 +2,12 @@ import axios from 'axios';
 
 export const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5294',
+    withCredentials: true,
 });
 
 // Add authentication interceptor
+// Add authentication interceptor
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-        config.headers['Authorization'] = `Bearer ${token}`;
-    }
-
     // Add project ID to all requests
     const projectId = localStorage.getItem('lastProjectId');
     if (projectId) {
@@ -25,8 +22,7 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            // Token expired or invalid
-            localStorage.removeItem('authToken');
+            // Session expired or invalid
             localStorage.removeItem('user');
             localStorage.removeItem('lastProjectId');
 
@@ -41,7 +37,6 @@ api.interceptors.response.use(
             const errorMessage = error.response?.data?.message?.toLowerCase() || '';
             if (errorMessage.includes('suspended')) {
                 // Clear session data to forcefully block further authenticated attempts under this tenant
-                localStorage.removeItem('authToken');
                 localStorage.removeItem('user');
                 localStorage.removeItem('lastProjectId');
 
@@ -136,6 +131,18 @@ export const resendInvitation = async (orgId: string, invitationId: string) => {
 
 export const cancelInvitation = async (orgId: string, invitationId: string) => {
     await api.delete(`/organizations/${orgId}/invitations/${invitationId}`);
+};
+
+// Auth
+export const logoutUser = async () => {
+    await api.post('/auth/logout');
+    localStorage.removeItem('user');
+    localStorage.removeItem('lastProjectId');
+};
+
+export const getMe = async () => {
+    const { data } = await api.get('/auth/me');
+    return data;
 };
 
 // Account Management

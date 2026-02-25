@@ -232,6 +232,18 @@ internal static class ServiceExtensions
                 IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
                     System.Text.Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? "super_secret_key_at_least_32_chars_long_for_safety"))
             };
+
+            options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    if (context.Request.Cookies.TryGetValue("winnow_auth", out var token))
+                    {
+                        context.Token = token;
+                    }
+                    return Task.CompletedTask;
+                }
+            };
         })
         .AddScheme<Winnow.Server.Infrastructure.Security.ApiKeyAuthenticationOptions, Winnow.Server.Infrastructure.Security.ApiKeyAuthenticationHandler>(Winnow.Server.Infrastructure.Security.ApiKeyAuthenticationOptions.DefaultScheme, null);
 

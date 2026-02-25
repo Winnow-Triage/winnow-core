@@ -10,7 +10,8 @@ namespace Winnow.Server.Features.Auth;
 public sealed class ResendVerificationEndpoint(
     UserManager<ApplicationUser> userManager,
     IEmailService emailService,
-    IMemoryCache cache) : EndpointWithoutRequest
+    IMemoryCache cache,
+    IConfiguration config) : EndpointWithoutRequest
 {
     public override void Configure()
     {
@@ -31,10 +32,28 @@ public sealed class ResendVerificationEndpoint(
             return;
         }
 
-        // ... existing code ...
+        var user = await userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        if (user.EmailConfirmed)
+        {
+            await Send.OkAsync(new { Message = "Email already verified." }, ct);
+            return;
+        }
+
+        var cacheKey = $"resend-verification-{user.Id}";
+        if (cache.TryGetValue(cacheKey, out _))
+        {
+            await Send.ErrorsAsync(429, ct); // Rate limit reached
+            return;
+        }
 
         var emailToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
-        var verificationUrl = $"http://localhost:5173/verify-email?userId={user.Id}&token={Uri.EscapeDataString(emailToken)}";
+        var verificationUrl = $"{config["AppUrl"]}/verify-email?userId={user.Id}&token={Uri.EscapeDataString(emailToken)}";
 
         await emailService.SendEmailVerificationAsync(user.Email!, new Uri(verificationUrl));
 

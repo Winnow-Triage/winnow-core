@@ -215,25 +215,22 @@ function OrganizationSwitcher() {
                 organizationId: orgId
             });
 
-            if (data.token) {
-                // Fully discard stale data
-                localStorage.removeItem("lastProjectId");
+            // Fully discard stale data
+            localStorage.removeItem("lastProjectId");
 
-                localStorage.setItem("authToken", data.token);
-                localStorage.setItem("user", JSON.stringify({
-                    id: data.userId,
-                    email: data.email,
-                    name: data.fullName,
-                    defaultProjectId: data.defaultProjectId,
-                    organizationId: data.activeOrganizationId
-                }));
-                toast.success(`Switched to ${orgs?.find(o => o.id === orgId)?.name}`);
+            localStorage.setItem("user", JSON.stringify({
+                id: data.userId,
+                email: data.email,
+                name: data.fullName,
+                defaultProjectId: data.defaultProjectId,
+                organizationId: data.activeOrganizationId
+            }));
+            toast.success(`Switched to ${orgs?.find(o => o.id === orgId)?.name}`);
 
-                // Force reload to refresh all contexts (TanStack Query, Sidebar, etc)
-                setTimeout(() => {
-                    window.location.href = "/dashboard";
-                }, 1000);
-            }
+            // Force reload to refresh all contexts (TanStack Query, Sidebar, etc)
+            setTimeout(() => {
+                window.location.href = "/dashboard";
+            }, 1000);
         } catch (error) {
             console.error("Failed to switch organization:", error);
             // If it failed (maybe session expired), go to login

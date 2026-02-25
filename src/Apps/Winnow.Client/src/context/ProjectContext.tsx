@@ -33,8 +33,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         queryKey: ['projects', orgWide],
         queryFn: async ({ queryKey }) => {
             const [_, isOrgWide] = queryKey;
-            const token = localStorage.getItem("authToken");
-            if (!token) return [];
             const { data } = await api.get("/projects", { params: { orgWide: isOrgWide } });
             return data;
         },

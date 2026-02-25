@@ -81,9 +81,8 @@ export default function AuthPage() {
                 return;
             }
 
-            // Store Auth Data
+            // Store User Data
             localStorage.removeItem("lastProjectId");
-            localStorage.setItem("authToken", data.token);
             // Also keep 'user' for legacy/compatibility if needed, but store rich object
             localStorage.setItem("user", JSON.stringify({
                 id: data.userId,
