@@ -16,6 +16,6 @@
         "vitest": "^4.0.18"
     },
     "dependencies": {
-        "html2canvas-pro": "^1.6.7"
+        "html-to-image": "^1.11.11"
     }
 }
