@@ -10,6 +10,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog"
+import { WinnowLogo } from "./WinnowLogo"
 
 export function AboutDialog() {
     const { data: organization } = useQuery({
@@ -33,12 +34,7 @@ export function AboutDialog() {
             <DialogContent className="sm:max-width-[425px]">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
-                            <span className="text-white text-xs font-black italic">W</span>
-                        </div>
-                        <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                            Winnow Triage
-                        </span>
+                        <WinnowLogo size={32} />
                     </DialogTitle>
                     <DialogDescription className="pt-2 text-base">
                         Intelligent error grouping and triage for modern SaaS.

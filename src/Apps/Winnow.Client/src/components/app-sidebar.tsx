@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { WinnowLogo } from "./WinnowLogo"
 
 
 // Menu items.
@@ -71,10 +72,6 @@ export function AppSidebar() {
                             <ProjectSwitcher />
                         </SidebarMenuButton>
                     </SidebarMenuItem>
-                </SidebarGroup>
-
-                <SidebarGroup>
-                    <SidebarGroupLabel>Winnow Triage</SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu>
                             {items.map((item) => (

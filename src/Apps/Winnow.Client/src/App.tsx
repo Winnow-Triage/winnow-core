@@ -35,6 +35,8 @@ import ProtectedRoute from "@/components/ProtectedRoute"
 import UserNav from "@/components/UserNav"
 import VerificationBanner from "./components/VerificationBanner"
 
+import { WinnowLogo } from "./components/WinnowLogo"
+
 export default function App() {
   return (
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
@@ -70,7 +72,7 @@ export default function App() {
                 <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
                   <SidebarTrigger className="-ml-1" />
                   <div className="w-[1px] h-4 bg-border mx-2" />
-                  <span className="font-medium">Winnow Triage</span>
+                  <WinnowLogo size={24} />
                   <div className="ml-auto flex items-center gap-2">
                     <AboutDialog />
                     <ModeToggle />

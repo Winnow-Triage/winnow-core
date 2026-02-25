@@ -1,3 +1,5 @@
+import { WinnowLogo } from './WinnowLogo';
+
 export function Footer() {
     return (
         <footer className="bg-slate-950 py-12 md:py-16 text-slate-400">
@@ -6,7 +8,7 @@ export function Footer() {
                     {/* Brand Column */}
                     <div className="col-span-2 md:col-span-1">
                         <a href="/" className="flex items-center space-x-2 font-bold text-white text-xl mb-4">
-                            Winnow
+                            <WinnowLogo size={32} />
                         </a>
                         <p className="text-sm leading-relaxed max-w-xs">
                             Triage at the speed of AI. Stop drowning in duplicate bug reports and start fixing what matters.

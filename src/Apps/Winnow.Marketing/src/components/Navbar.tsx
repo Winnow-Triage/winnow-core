@@ -1,5 +1,6 @@
 import { Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { WinnowLogo } from './WinnowLogo';
 
 export function Navbar() {
     const [isDark, setIsDark] = useState(false);
@@ -32,7 +33,7 @@ export function Navbar() {
             <div className="container mx-auto flex h-14 items-center">
                 <div className="mr-4 flex">
                     <a className="mr-6 flex items-center space-x-2 font-bold" href="/">
-                        Winnow
+                        <WinnowLogo size={32} />
                     </a>
                 </div>
                 <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">

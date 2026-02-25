@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { ModeToggle } from "@/components/mode-toggle"
 import { api } from "@/lib/api"
 import { PasswordRules, validatePassword } from "@/components/PasswordRules"
+import { WinnowLogo } from "@/components/WinnowLogo"
 
 export default function AuthPage() {
     const location = useLocation()
@@ -128,12 +129,7 @@ export default function AuthPage() {
 
                 {/* Logo - Top Left */}
                 <div className="absolute top-8 left-8 z-20">
-                    <div className="flex items-center gap-2 font-bold text-2xl tracking-tight text-white/90">
-                        <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white shadow-lg shadow-blue-900/50">
-                            <span className="font-mono text-lg">W</span>
-                        </div>
-                        Winnow
-                    </div>
+                    <WinnowLogo size={32} className="text-white" />
                 </div>
 
                 {/* Rotating Quote - Centered */}
