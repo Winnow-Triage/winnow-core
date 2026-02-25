@@ -3,23 +3,27 @@ import { LightboxImage } from './ui/LightboxImage';
 
 export function Hero() {
     return (
-        <section className="container mx-auto grid items-center gap-6 pb-20 pt-32 md:py-32">
-            <div className="flex max-w-[980px] flex-col items-center gap-2 mx-auto text-center">
-                <h1 className="text-3xl font-extrabold leading-tight tracking-tighter md:text-5xl lg:text-6xl lg:leading-[1.1]">
-                    Stop Drowning in <br className="hidden sm:inline" />
-                    Duplicate Bug Reports.
-                </h1>
-                <p className="max-w-[750px] text-lg text-muted-foreground sm:text-xl">
-                    Winnow uses AI to instantly group, analyze, and triage user feedback from your apps.
-                    Catch issues before they flood your inbox.
-                </p>
-                <div className="flex gap-4 mt-4">
-                    <a
-                        href="#playground"
-                        className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
-                    >
-                        Try the Playground <MoveRight className="ml-2 h-4 w-4" />
-                    </a>
+        <section className="pb-20 pt-20 md:pt-24 overflow-hidden">
+            <div className="container mx-auto grid items-center gap-6">
+                <div className="flex max-w-[980px] flex-col items-center gap-2 mx-auto text-center">
+                    <h1 className="text-3xl font-extrabold leading-tight tracking-tighter md:text-5xl lg:text-6xl lg:leading-[1.1]">
+                        Stop Drowning in <br className="hidden sm:inline" />
+                        <span className="text-brand-gradient">
+                            Duplicate Bug Reports.
+                        </span>
+                    </h1>
+                    <p className="max-w-[750px] text-lg text-muted-foreground sm:text-xl">
+                        Winnow uses AI to instantly group, analyze, and triage user feedback from your apps.
+                        Catch issues before they flood your inbox.
+                    </p>
+                    <div className="flex gap-4 mt-4">
+                        <a
+                            href="#playground"
+                            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+                        >
+                            Try the Playground <MoveRight className="ml-2 h-4 w-4" />
+                        </a>
+                    </div>
                 </div>
             </div>
 

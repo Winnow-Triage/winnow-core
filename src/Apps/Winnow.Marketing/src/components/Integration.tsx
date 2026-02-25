@@ -91,7 +91,7 @@ export function Integration() {
             <div className="container mx-auto px-4 md:px-6">
                 <div className="text-center mb-12">
                     <h2 className="text-3xl font-bold tracking-tighter md:text-4xl text-slate-900 dark:text-white">
-                        Drop it in. <span className="text-blue-600 dark:text-blue-500">Debug in production.</span>
+                        Drop it in. <span className="text-brand-gradient">Debug in production.</span>
                     </h2>
                     <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">
                         Get started in minutes with our lightweight SDKs.

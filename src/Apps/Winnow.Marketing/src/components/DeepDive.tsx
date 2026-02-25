@@ -44,7 +44,10 @@ function DeepDiveRow({
             </div>
 
             {/* Image Content */}
-            <div className="flex-1 w-full">
+            <div className="flex-1 w-full relative">
+                {/* Exact Hero-style Glow Effect */}
+                <div className={`absolute -inset-1 opacity-20 blur-3xl rounded-xl -z-10 bg-gradient-to-r from-blue-600 to-purple-600`} />
+
                 <div className={`relative rounded-xl shadow-2xl overflow-hidden border ${borderColor} bg-white dark:bg-slate-900`}>
                     {/* Browser Chrome */}
                     <div className={`h-8 border-b ${chromeBorder} ${chromeBg} flex items-center px-4 space-x-2`}>
@@ -82,12 +85,12 @@ function DeepDiveRow({
 
 export function DeepDive() {
     return (
-        <section className="bg-slate-50 dark:bg-slate-900/50 py-16 md:py-24 border-y border-slate-200 dark:border-slate-800">
-            <div className="container mx-auto px-4 md:px-6 space-y-20 md:space-y-32">
+        <section className="relative bg-slate-50 dark:bg-slate-900/50 py-16 md:py-24 border-y border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="container mx-auto px-4 md:px-6 space-y-20 md:space-y-32 relative z-10">
 
                 {/* Row 1: Intelligence */}
                 <DeepDiveRow
-                    title={<>Your Triage Assistant, <br /><span className="text-primary">Not Just a Log.</span></>}
+                    title={<>Your Triage Assistant, <br /><span className="text-brand-gradient">Not Just a Log.</span></>}
                     description='Most tools dump raw logs on you. Winnow uses Vector AI (Phi-3 and MiniLM) to analyze the semantic meaning of errors, like grouping "Login Failed" and "Auth Error" into the same cluster automatically.'
                     imageSrc="/clusters-dashboard-light.png"
                     imageDarkSrc="/clusters-dashboard-dark.png"
@@ -111,14 +114,14 @@ export function DeepDive() {
 
                 {/* Row 2: Context */}
                 <DeepDiveRow
-                    title={<>Full Stack Context. <br /><span className="text-primary">From React to Godot.</span></>}
+                    title={<>Full Stack Context. <br /><span className="text-brand-gradient">From React to Godot.</span></>}
                     description="Whether it's a JavaScript console error or a C# Exception in Unity/Godot, Winnow captures the full stack trace, variable state, and session logs."
                     imageSrc="/dashboard-mockup-light.png"
                     imageDarkSrc="/dashboard-mockup-dark.png"
                     imageAlt="Report Detail View"
                     reverse={true}
                 >
-                    <a href="#" className="inline-flex items-center font-medium text-primary hover:underline underline-offset-4">
+                    <a href="#" className="inline-flex items-center font-medium  text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300 hover:underline underline-offset-4">
                         Explore Integrations <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                 </DeepDiveRow>
@@ -130,7 +133,6 @@ export function DeepDive() {
                     imageSrc="/triage-review-light.png"
                     imageDarkSrc="/triage-review-dark.png"
                     imageAlt="Merge Review Interface"
-                    theme="warning"
                 >
                     <div className="flex items-center space-x-4">
                         <div className="flex items-center text-sm font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-1 rounded-full border border-amber-200 dark:border-amber-800">
@@ -142,7 +144,7 @@ export function DeepDive() {
 
                 {/* Row 4: Integrations */}
                 <DeepDiveRow
-                    title={<>Don't Change <br /><span className="text-primary">Your Workflow.</span></>}
+                    title={<>Don't Change <br /><span className="text-brand-gradient">Your Workflow.</span></>}
                     description="Winnow isn't another project management tool. It's the filter. Once you've triaged a cluster, export it to Trello, Jira, or GitHub with a single click. We send the logs, the context, and the summary right to your engineers."
                     imageSrc="/triage-export-light.png"
                     imageDarkSrc="/triage-export-dark.png"

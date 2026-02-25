@@ -129,6 +129,34 @@
   .animate-spin-slow {
     animation: spin-slow 12s linear infinite;
   }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.8s ease-out forwards;
+  }
+
+  .text-brand-gradient {
+    @apply bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent;
+  }
+
+  @keyframes drift {
+
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1);
+    }
+
+    33% {
+      transform: translate(30px, -20px) scale(1.05);
+    }
+
+    66% {
+      transform: translate(-20px, 30px) scale(0.95);
+    }
+  }
+
+  .animate-drift {
+    animation: drift 15s ease-in-out infinite;
+  }
 }
 
 @layer base {

@@ -26,8 +26,12 @@ const features = [
 
 export function Features() {
     return (
-        <section className="bg-slate-50 dark:bg-slate-800/50 py-16 md:py-24">
-            <div className="container mx-auto px-4 md:px-6">
+        <section className="relative bg-slate-50 dark:bg-slate-800/50 py-16 md:py-24 overflow-hidden">
+            {/* Ambient Animated Glows */}
+            <div className="absolute top-1/4 left-1/4 w-[2000px] h-[2000px] bg-blue-600/5 blur-[1000px] rounded-full animate-drift pointer-events-none"></div>
+            <div className="absolute bottom-1/4 right-1/4 w-[2000px] h-[2000px] bg-purple-600/5 blur-[1000px] rounded-full animate-drift [animation-delay:-7s] pointer-events-none"></div>
+
+            <div className="container mx-auto px-4 md:px-6 relative z-10">
                 <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
                     {features.map((feature, index) => (
                         <div
@@ -40,7 +44,11 @@ export function Features() {
                             <div className={`mb-6 inline-flex rounded-2xl ${feature.bg} p-4`}>
                                 <feature.icon className={`h-12 w-12 ${feature.color}`} />
                             </div>
-                            <h3 className="mb-3 text-2xl font-bold tracking-tight">{feature.title}</h3>
+                            <h3 className="mb-3 text-2xl font-bold tracking-tight">
+                                <span className="group-hover:text-brand-gradient transition-colors duration-300">
+                                    {feature.title}
+                                </span>
+                            </h3>
                             <p className="text-muted-foreground leading-relaxed text-lg">
                                 {feature.description}
                             </p>

@@ -47,7 +47,7 @@ export function Footer() {
                 </div>
 
                 <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 text-sm">
-                    <p>© 2026 Winnow Inc. All rights reserved.</p>
+                    <p>© 2026 Winnow Triage, LLC. All rights reserved.</p>
                     <p>Built with ❤️ in Fort Worth.</p>
                 </div>
             </div>
