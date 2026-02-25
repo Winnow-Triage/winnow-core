@@ -6,16 +6,18 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Organizations;
 
-public class OrganizationMemberResponse
+public class OrganizationDirectoryMemberDto
 {
-    public string UserId { get; set; } = string.Empty;
-    public string FullName { get; set; } = string.Empty;
+    public Guid Id { get; set; }
     public string Email { get; set; } = string.Empty;
-    public string Role { get; set; } = string.Empty;
+    public string? FullName { get; set; }
+    public string GlobalRole { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public DateTime? JoinedAt { get; set; }
 }
 
 public sealed class ListOrganizationMembersEndpoint(WinnowDbContext db, ITenantContext tenantContext)
-    : EndpointWithoutRequest<List<OrganizationMemberResponse>>
+    : EndpointWithoutRequest<List<OrganizationDirectoryMemberDto>>
 {
     public override void Configure()
     {
@@ -23,7 +25,7 @@ public sealed class ListOrganizationMembersEndpoint(WinnowDbContext db, ITenantC
         Summary(s =>
         {
             s.Summary = "List all members of the current organization";
-            s.Description = "Returns a list of all users who are members of the active organization.";
+            s.Description = "Returns a unified list of active members and pending invitations for the active organization.";
         });
     }
 
@@ -34,18 +36,45 @@ public sealed class ListOrganizationMembersEndpoint(WinnowDbContext db, ITenantC
             ThrowError("No organization context.");
         }
 
+        var orgId = tenantContext.CurrentOrganizationId.Value;
+
+        // 1. Query Active Members
         var members = await db.OrganizationMembers
-            .Where(om => om.OrganizationId == tenantContext.CurrentOrganizationId.Value)
+            .Where(om => om.OrganizationId == orgId)
             .Include(om => om.User)
-            .Select(om => new OrganizationMemberResponse
+            .Select(om => new OrganizationDirectoryMemberDto
             {
-                UserId = om.UserId,
+                // Note: Identity User Id is generally a string. 
+                // We'll try to parse it to Guid as requested by the DTO spec.
+                Id = Guid.Parse(om.UserId),
                 FullName = om.User!.FullName,
                 Email = om.User!.Email!,
-                Role = om.Role
+                GlobalRole = om.Role,
+                Status = "Active",
+                JoinedAt = om.JoinedAt
             })
             .ToListAsync(ct);
 
-        await Send.OkAsync(members, ct);
+        // 2. Query Pending Invitations
+        var invitations = await db.OrganizationInvitations
+            .Where(oi => oi.OrganizationId == orgId)
+            .Select(oi => new OrganizationDirectoryMemberDto
+            {
+                Id = oi.Id,
+                FullName = null,
+                Email = oi.Email,
+                GlobalRole = oi.Role,
+                Status = "Pending",
+                JoinedAt = oi.CreatedAt
+            })
+            .ToListAsync(ct);
+
+        // 3. Combine and Sort
+        var result = members
+            .Concat(invitations)
+            .OrderBy(x => x.Email)
+            .ToList();
+
+        await Send.OkAsync(result, ct);
     }
 }

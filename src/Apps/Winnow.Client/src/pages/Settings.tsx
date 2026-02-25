@@ -407,7 +407,7 @@ function TeamsManager({ organizationId }: { organizationId?: string }) {
         enabled: !!organizationId
     });
 
-    const { data: orgMembers } = useQuery<{ userId: string, fullName: string, email: string, role: string }[]>({
+    const { data: orgMembers } = useQuery<{ id: string, fullName: string | null, email: string, globalRole: string, status: string }[]>({
         queryKey: ['org-members', organizationId],
         queryFn: async () => {
             const { data } = await api.get('/organizations/current/members');
@@ -636,13 +636,13 @@ function TeamDetailsDrawer({
                                         <span>Add Member...</span>
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {orgMembers.filter(om => !(team?.members || []).some((tm: any) => tm.userId === om.userId)).map(member => (
-                                            <SelectItem key={member.userId} value={member.userId}>
-                                                {member.fullName}
+                                        {orgMembers.filter(om => om.status === 'Active' && !(team?.members || []).some((tm: any) => tm.userId === om.id)).map(member => (
+                                            <SelectItem key={member.id} value={member.id}>
+                                                {member.fullName || member.email}
                                             </SelectItem>
                                         ))}
-                                        {orgMembers.filter(om => !(team?.members || []).some((tm: any) => tm.userId === om.userId)).length === 0 && (
-                                            <div className="p-2 text-xs text-muted-foreground text-center">All members already in team</div>
+                                        {orgMembers.filter(om => om.status === 'Active' && !(team?.members || []).some((tm: any) => tm.userId === om.id)).length === 0 && (
+                                            <div className="p-2 text-xs text-muted-foreground text-center">All active members already in team</div>
                                         )}
                                     </SelectContent>
                                 </Select>
@@ -678,7 +678,7 @@ function TeamDetailsDrawer({
                                                                 <span className="font-medium text-sm">{member.fullName}</span>
                                                                 {/* Example email placeholder since it's not in the team response currently */}
                                                                 <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">
-                                                                    {orgMembers.find(om => om.userId === member.userId)?.email || "n/a"}
+                                                                    {orgMembers.find(om => om.id === member.userId)?.email || "n/a"}
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -799,7 +799,7 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
         enabled: !!organizationId
     });
 
-    const { data: orgMembers, isLoading } = useQuery<{ userId: string, fullName: string, email: string, role: string, JoinedAt?: string }[]>({
+    const { data: orgMembers, isLoading } = useQuery<{ id: string, fullName: string | null, email: string, globalRole: string, status: string, joinedAt?: string }[]>({
         queryKey: ['org-members', organizationId],
         queryFn: async () => {
             const { data } = await api.get('/organizations/current/members');
@@ -850,25 +850,31 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
                         </TableHeader>
                         <TableBody>
                             {orgMembers?.map((member) => {
-                                const userTeams = getUserTeams(member.userId);
+                                const userTeams = getUserTeams(member.id);
+                                const isPending = member.status === 'Pending';
+
                                 return (
-                                    <TableRow key={member.userId}>
+                                    <TableRow key={member.id}>
                                         <TableCell>
                                             <div className="flex items-center gap-3">
                                                 <Avatar className="h-9 w-9">
                                                     <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                                                        {member.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                                                        {member.fullName
+                                                            ? member.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase()
+                                                            : "?"}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div className="flex flex-col">
-                                                    <span className="font-semibold text-sm">{member.fullName}</span>
+                                                    <span className="font-semibold text-sm">
+                                                        {member.fullName || member.email}
+                                                    </span>
                                                     <span className="text-xs text-muted-foreground">{member.email}</span>
                                                 </div>
                                             </div>
                                         </TableCell>
                                         <TableCell>
                                             <span className="text-sm">
-                                                {member.role === 'owner' ? 'Org Owner' : member.role}
+                                                {member.globalRole === 'owner' ? 'Org Owner' : member.globalRole}
                                             </span>
                                         </TableCell>
                                         <TableCell>
@@ -882,10 +888,17 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <div className="flex items-center gap-1.5">
-                                                <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                                                <span className="text-xs font-medium">Active</span>
-                                            </div>
+                                            {isPending ? (
+                                                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-amber-600 bg-amber-50 border border-amber-100">
+                                                    <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                                    <span className="text-[10px] font-semibold uppercase tracking-wider">Pending Invite</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                                                    <span className="text-xs font-medium">Active</span>
+                                                </div>
+                                            )}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <DropdownMenu>
@@ -895,9 +908,9 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem>Edit Role</DropdownMenuItem>
+                                                    {!isPending && <DropdownMenuItem>Edit Role</DropdownMenuItem>}
                                                     <DropdownMenuItem className="text-destructive focus:text-destructive">
-                                                        Remove from Organization
+                                                        {isPending ? 'Cancel Invitation' : 'Remove from Organization'}
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
