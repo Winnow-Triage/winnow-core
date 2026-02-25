@@ -1022,7 +1022,7 @@ namespace Winnow.Server.Migrations.Sqlite
             migrationBuilder.CreateIndex(
                 name: "IX_ProjectMembers_ProjectId_UserId",
                 table: "ProjectMembers",
-                columns: new[] { "ProjectId", "UserId" },
+                columns: ["ProjectId", "UserId"],
                 unique: true);
 
             migrationBuilder.CreateIndex(

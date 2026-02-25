@@ -73,7 +73,7 @@ public class AuthResponse
     /// <summary>
     /// List of organizations the user belongs to.
     /// </summary>
-    public List<OrganizationDto> Organizations { get; set; } = new();
+    public List<OrganizationDto> Organizations { get; set; } = [];
 
     /// <summary>
     /// The ID of the currently active organization.

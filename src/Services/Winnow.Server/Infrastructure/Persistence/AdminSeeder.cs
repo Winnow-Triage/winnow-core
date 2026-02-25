@@ -11,20 +11,11 @@ namespace Winnow.Server.Infrastructure.Persistence;
 /// <summary>
 /// Seed the SuperAdmin role, the initial admin user, and the default organization.
 /// </summary>
-public class AdminSeeder : IHostedService
+public class AdminSeeder(IServiceProvider serviceProvider, ILogger<AdminSeeder> logger) : IHostedService
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<AdminSeeder> _logger;
-
-    public AdminSeeder(IServiceProvider serviceProvider, ILogger<AdminSeeder> logger)
-    {
-        _serviceProvider = serviceProvider;
-        _logger = logger;
-    }
-
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        using var scope = _serviceProvider.CreateScope();
+        using var scope = serviceProvider.CreateScope();
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
@@ -34,7 +25,7 @@ public class AdminSeeder : IHostedService
         if (!await roleManager.RoleExistsAsync("SuperAdmin"))
         {
             await roleManager.CreateAsync(new IdentityRole("SuperAdmin"));
-            _logger.LogInformation("SuperAdmin role created.");
+            logger.LogInformation("SuperAdmin role created.");
         }
 
         // 2. Ensure initial SuperAdmin user exists
@@ -43,7 +34,7 @@ public class AdminSeeder : IHostedService
 
         if (adminUser == null)
         {
-            _logger.LogInformation("Creating initial superadmin user: {Email}", adminEmail);
+            logger.LogInformation("Creating initial superadmin user: {Email}", adminEmail);
             adminUser = new ApplicationUser
             {
                 UserName = adminEmail,
@@ -57,11 +48,11 @@ public class AdminSeeder : IHostedService
             if (createResult.Succeeded)
             {
                 await userManager.AddToRoleAsync(adminUser, "SuperAdmin");
-                _logger.LogInformation("Initial superadmin user created successfully.");
+                logger.LogInformation("Initial superadmin user created successfully.");
             }
             else
             {
-                _logger.LogError("Failed to create initial superadmin user: {Errors}",
+                logger.LogError("Failed to create initial superadmin user: {Errors}",
                     string.Join(", ", createResult.Errors.Select(e => e.Description)));
             }
         }
@@ -71,7 +62,7 @@ public class AdminSeeder : IHostedService
             if (!await userManager.IsInRoleAsync(adminUser, "SuperAdmin"))
             {
                 await userManager.AddToRoleAsync(adminUser, "SuperAdmin");
-                _logger.LogInformation("Assigned SuperAdmin role to existing user {Email}.", adminEmail);
+                logger.LogInformation("Assigned SuperAdmin role to existing user {Email}.", adminEmail);
             }
         }
 
@@ -82,7 +73,7 @@ public class AdminSeeder : IHostedService
 
         if (adminOrg == null)
         {
-            _logger.LogInformation("Bootstrapping initial 'Winnow Admin' organization.");
+            logger.LogInformation("Bootstrapping initial 'Winnow Admin' organization.");
 
             adminOrg = new Organization
             {
@@ -94,7 +85,7 @@ public class AdminSeeder : IHostedService
 
             dbContext.Organizations.Add(adminOrg);
             await dbContext.SaveChangesAsync(cancellationToken);
-            _logger.LogInformation("Initial 'Winnow Admin' organization created.");
+            logger.LogInformation("Initial 'Winnow Admin' organization created.");
         }
 
         // 4. Ensure 'Winnow Admin' has a default project
@@ -104,7 +95,7 @@ public class AdminSeeder : IHostedService
 
         if (adminProject == null)
         {
-            _logger.LogInformation("Creating default project for 'Winnow Admin' organization.");
+            logger.LogInformation("Creating default project for 'Winnow Admin' organization.");
             var apiKeyService = scope.ServiceProvider.GetRequiredService<Winnow.Server.Infrastructure.Security.IApiKeyService>();
             var projectId = Guid.NewGuid();
             var plaintextKey = apiKeyService.GeneratePlaintextKey(projectId);
@@ -120,7 +111,7 @@ public class AdminSeeder : IHostedService
 
             dbContext.Projects.Add(adminProject);
             await dbContext.SaveChangesAsync(cancellationToken);
-            _logger.LogInformation("Default project created for 'Winnow Admin'. API Key: {Key}", plaintextKey);
+            logger.LogInformation("Default project created for 'Winnow Admin'. API Key: {Key}", plaintextKey);
         }
 
         // 5. Ensure SuperAdmin user is owner of the 'Winnow Admin' organization
@@ -143,7 +134,7 @@ public class AdminSeeder : IHostedService
 
                 dbContext.OrganizationMembers.Add(membership);
                 await dbContext.SaveChangesAsync(cancellationToken);
-                _logger.LogInformation("Assigned superadmin user {Email} as owner of 'Winnow Admin' organization.", adminEmail);
+                logger.LogInformation("Assigned superadmin user {Email} as owner of 'Winnow Admin' organization.", adminEmail);
             }
         }
     }

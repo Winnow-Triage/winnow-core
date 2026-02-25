@@ -108,7 +108,7 @@ public sealed class LoginEndpoint(
 
             await dbContext.SaveChangesAsync(ct);
 
-            organizationMemberships = new List<OrganizationMember> { organizationMember };
+            organizationMemberships = [organizationMember];
         }
 
         Guid selectedOrganizationId;

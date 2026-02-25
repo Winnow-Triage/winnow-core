@@ -45,7 +45,7 @@ public sealed class CreateOrganizationInvitationEndpoint(
         }
 
         // 2. Generate the invitation
-        var org = await db.Organizations.FindAsync(new object[] { req.OrgId }, ct);
+        var org = await db.Organizations.FindAsync([req.OrgId], ct);
         if (org == null)
         {
             await Send.NotFoundAsync(ct);

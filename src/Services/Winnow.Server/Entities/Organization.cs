@@ -11,9 +11,9 @@ public class Organization
     public bool IsSuspended { get; set; }
 
     // Navigation properties
-    public ICollection<Team> Teams { get; set; } = new List<Team>();
-    public ICollection<OrganizationMember> Members { get; set; } = new List<OrganizationMember>();
-    public ICollection<Project> Projects { get; set; } = new List<Project>();
+    public ICollection<Team> Teams { get; set; } = [];
+    public ICollection<OrganizationMember> Members { get; set; } = [];
+    public ICollection<Project> Projects { get; set; } = [];
 
     // Helper methods
     public bool IsPaidTier()

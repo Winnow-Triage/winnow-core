@@ -920,7 +920,7 @@ namespace Winnow.Server.Migrations.Sqlite
             migrationBuilder.CreateIndex(
                 name: "IX_TeamMembers_TeamId_UserId",
                 table: "TeamMembers",
-                columns: new[] { "TeamId", "UserId" },
+                columns: ["TeamId", "UserId"],
                 unique: true);
 
             migrationBuilder.CreateIndex(

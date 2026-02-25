@@ -11,8 +11,8 @@ public class TeamResponse
     public string Name { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public int ProjectCount { get; set; }
-    public List<TeamMemberSummary> Members { get; set; } = new();
-    public List<TeamProjectSummary> Projects { get; set; } = new();
+    public List<TeamMemberSummary> Members { get; set; } = [];
+    public List<TeamProjectSummary> Projects { get; set; } = [];
 }
 
 public class TeamProjectSummary

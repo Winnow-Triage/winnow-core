@@ -109,7 +109,7 @@ public sealed class DeleteOrganizationEndpoint(
                     var deleteRequest = new DeleteObjectsRequest
                     {
                         BucketName = bucketName,
-                        Objects = listResponse.S3Objects.Select(o => new KeyVersion { Key = o.Key }).ToList()
+                        Objects = [.. listResponse.S3Objects.Select(o => new KeyVersion { Key = o.Key })]
                     };
                     await s3.DeleteObjectsAsync(deleteRequest, ct);
                     logger.LogInformation("Deleted {Count} objects from bucket {Bucket} for prefix {Prefix}", listResponse.S3Objects.Count, bucketName, prefix);

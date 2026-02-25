@@ -1,5 +1,6 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Organizations;
@@ -31,7 +32,7 @@ public sealed class ToggleMemberLockEndpoint(WinnowDbContext db)
             ThrowIfAnyErrors();
         }
 
-        var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(currentUserId))
         {
             await Send.ForbiddenAsync(ct);
@@ -59,6 +60,6 @@ public sealed class ToggleMemberLockEndpoint(WinnowDbContext db)
         member.IsLocked = !member.IsLocked;
         await db.SaveChangesAsync(ct);
 
-        await Send.OkAsync(new { IsLocked = member.IsLocked }, ct);
+        await Send.OkAsync(new {member.IsLocked }, ct);
     }
 }

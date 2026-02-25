@@ -52,7 +52,7 @@ public sealed class CreateTeamEndpoint(WinnowDbContext db, ITenantContext tenant
             Name = team.Name,
             CreatedAt = team.CreatedAt,
             ProjectCount = 0,
-            Members = new()
+            Members = []
         }, ct);
     }
 }
