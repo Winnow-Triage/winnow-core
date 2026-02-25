@@ -3,6 +3,8 @@ using FastEndpoints;
 using Microsoft.AspNetCore.Identity;
 using Winnow.Server.Entities;
 
+using Winnow.Server.Services.Emails;
+
 namespace Winnow.Server.Features.Account;
 
 public class UpdateAccountRequest
@@ -11,7 +13,9 @@ public class UpdateAccountRequest
     public string Email { get; set; } = string.Empty;
 }
 
-public sealed class UpdateAccountDetailsEndpoint(UserManager<ApplicationUser> userManager)
+public sealed class UpdateAccountDetailsEndpoint(
+    UserManager<ApplicationUser> userManager,
+    IEmailService emailService)
     : Endpoint<UpdateAccountRequest, AccountDetailsResponse>
 {
     public override void Configure()
@@ -55,6 +59,21 @@ public sealed class UpdateAccountDetailsEndpoint(UserManager<ApplicationUser> us
 
             user.Email = req.Email.Trim();
             user.UserName = req.Email.Trim(); // Sync Email and UserName
+            user.EmailConfirmed = false;
+
+            // Generate and send new verification token
+            var emailToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
+            var verificationUrl = $"http://localhost:5173/verify-email?userId={user.Id}&token={Uri.EscapeDataString(emailToken)}";
+
+            try
+            {
+                await emailService.SendEmailVerificationAsync(user.Email, new Uri(verificationUrl));
+            }
+            catch (Exception ex)
+            {
+                // Log but don't fail the update
+                Console.WriteLine($"[ACCOUNT] Failed to send verification email for {user.Email}: {ex.Message}");
+            }
         }
 
         var result = await userManager.UpdateAsync(user);

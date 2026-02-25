@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ModeToggle } from "@/components/mode-toggle"
 import { api } from "@/lib/api"
+import { PasswordRules, validatePassword } from "@/components/PasswordRules"
 
 export default function AuthPage() {
     const location = useLocation()
@@ -17,6 +18,8 @@ export default function AuthPage() {
     const [availableOrgs, setAvailableOrgs] = useState<any[]>([])
     const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null)
     const [authPayload, setAuthPayload] = useState<any>(null)
+    const [password, setPassword] = useState("")
+    const [confirmPassword, setConfirmPassword] = useState("")
 
     useEffect(() => {
         setIsSignUp(location.pathname === '/signup')
@@ -29,9 +32,21 @@ export default function AuthPage() {
 
         // Note: Inputs in the form need 'name' attributes for FormData to work
         const email = (document.getElementById('email') as HTMLInputElement).value;
-        const password = (document.getElementById('password') as HTMLInputElement).value;
         const nameInput = document.getElementById('name') as HTMLInputElement;
         const fullName = nameInput ? nameInput.value : "";
+
+        if (isSignUp) {
+            if (!validatePassword(password)) {
+                setError("Please ensure your password meets all requirements.");
+                setIsLoading(false);
+                return;
+            }
+            if (password !== confirmPassword) {
+                setError("Passwords do not match.");
+                setIsLoading(false);
+                return;
+            }
+        }
 
         try {
             const endpoint = isSignUp ? "/auth/register" : "/auth/login";
@@ -250,20 +265,38 @@ export default function AuthPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="password">Password</Label>
-                                    <Input id="password" type="password" required />
-                                    <div className="flex justify-end">
-                                        <button
-                                            type="button"
-                                            onClick={() => navigate('/forgot-password')}
-                                            className="text-xs text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
-                                        >
-                                            Forgot password?
-                                        </button>
-                                    </div>
+                                    <Input
+                                        id="password"
+                                        type="password"
+                                        required
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                    />
+                                    {!isSignUp && (
+                                        <div className="flex justify-end animate-in fade-in slide-in-from-top-1 duration-300">
+                                            <button
+                                                type="button"
+                                                onClick={() => navigate('/forgot-password')}
+                                                className="text-xs text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
+                                            >
+                                                Forgot password?
+                                            </button>
+                                        </div>
+                                    )}
                                     {isSignUp && (
-                                        <p className="text-xs text-muted-foreground">
-                                            Minimum 6 characters. Requires upper & lower case letters, a digit, and a non-alphanumeric character (e.g., !, @, #).
-                                        </p>
+                                        <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                            <PasswordRules password={password} />
+                                            <div className="space-y-2">
+                                                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                                                <Input
+                                                    id="confirmPassword"
+                                                    type="password"
+                                                    required
+                                                    value={confirmPassword}
+                                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
 

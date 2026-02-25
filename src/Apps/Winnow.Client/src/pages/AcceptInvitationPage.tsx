@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, CheckCircle2, Circle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PasswordRules, validatePassword } from "@/components/PasswordRules";
 
 export default function AcceptInvitationPage() {
     const [searchParams] = useSearchParams();
@@ -23,15 +24,7 @@ export default function AcceptInvitationPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [backendErrors, setBackendErrors] = useState<string[]>([]);
 
-    const passwordRules = [
-        { label: "At least 8 characters", test: (p: string) => p.length >= 8 },
-        { label: "At least one uppercase letter", test: (p: string) => /[A-Z]/.test(p) },
-        { label: "At least one lowercase letter", test: (p: string) => /[a-z]/.test(p) },
-        { label: "At least one number", test: (p: string) => /[0-9]/.test(p) },
-        { label: "At least one special character", test: (p: string) => /[^A-Za-z0-9]/.test(p) },
-    ];
-
-    const isPasswordValid = passwordRules.every(rule => rule.test(password));
+    const isPasswordValid = validatePassword(password);
     const doPasswordsMatch = password === confirmPassword && password.length > 0;
 
     useEffect(() => {
@@ -175,27 +168,7 @@ export default function AcceptInvitationPage() {
                                 className="focus-visible:ring-primary"
                             />
 
-                            <div className="space-y-2 p-3 bg-muted/50 rounded-lg border border-border/50 text-sm">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-tight mb-1">Password Requirements</p>
-                                <div className="grid grid-cols-1 gap-1.5">
-                                    {passwordRules.map((rule, i) => {
-                                        const isValid = rule.test(password);
-                                        return (
-                                            <div key={i} className={cn(
-                                                "flex items-center gap-2 transition-colors duration-200",
-                                                isValid ? "text-primary font-medium" : "text-muted-foreground"
-                                            )}>
-                                                {isValid ? (
-                                                    <CheckCircle2 className="h-3.5 w-3.5" />
-                                                ) : (
-                                                    <Circle className="h-3.5 w-3.5" />
-                                                )}
-                                                <span className="text-xs">{rule.label}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
+                            <PasswordRules password={password} />
                         </div>
 
                         <div className="space-y-2">

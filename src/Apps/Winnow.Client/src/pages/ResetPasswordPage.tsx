@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ModeToggle } from "@/components/mode-toggle"
 import { api } from "@/lib/api"
+import { PasswordRules, validatePassword } from "@/components/PasswordRules"
 
 export default function ResetPasswordPage() {
     const navigate = useNavigate()
@@ -12,6 +13,8 @@ export default function ResetPasswordPage() {
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
+    const [newPassword, setNewPassword] = useState("")
+    const [confirmPassword, setConfirmPassword] = useState("")
 
     const email = searchParams.get('email') || ""
     const token = searchParams.get('token') || ""
@@ -27,8 +30,11 @@ export default function ResetPasswordPage() {
         setIsLoading(true)
         setError(null)
 
-        const newPassword = (document.getElementById('password') as HTMLInputElement).value;
-        const confirmPassword = (document.getElementById('confirm-password') as HTMLInputElement).value;
+        if (!validatePassword(newPassword)) {
+            setError("Please ensure your password meets all requirements.");
+            setIsLoading(false);
+            return;
+        }
 
         if (newPassword !== confirmPassword) {
             setError("Passwords do not match.");
@@ -91,12 +97,27 @@ export default function ResetPasswordPage() {
 
                         <div className="space-y-2">
                             <Label htmlFor="password">New Password</Label>
-                            <Input id="password" type="password" required disabled={!email || !token} />
+                            <Input
+                                id="password"
+                                type="password"
+                                required
+                                disabled={!email || !token}
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                            />
+                            <PasswordRules password={newPassword} className="mt-2" />
                         </div>
 
                         <div className="space-y-2">
                             <Label htmlFor="confirm-password">Confirm New Password</Label>
-                            <Input id="confirm-password" type="password" required disabled={!email || !token} />
+                            <Input
+                                id="confirm-password"
+                                type="password"
+                                required
+                                disabled={!email || !token}
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                            />
                         </div>
 
                         <Button className="w-full" type="submit" disabled={isLoading || !email || !token}>

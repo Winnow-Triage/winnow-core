@@ -195,7 +195,19 @@ internal static class ServiceExtensions
         });
 
         // Identity
-        services.AddIdentity<ApplicationUser, IdentityRole>()
+        services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+        {
+            // Password settings
+            options.Password.RequireDigit = true;
+            options.Password.RequireLowercase = true;
+            options.Password.RequireNonAlphanumeric = true;
+            options.Password.RequireUppercase = true;
+            options.Password.RequiredLength = 8;
+            options.Password.RequiredUniqueChars = 1;
+
+            // User settings
+            options.User.RequireUniqueEmail = true;
+        })
             .AddRoles<IdentityRole>()
             .AddEntityFrameworkStores<WinnowDbContext>()
             .AddDefaultTokenProviders();

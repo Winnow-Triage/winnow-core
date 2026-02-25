@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using FastEndpoints;
+using FluentValidation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using Winnow.Server.Entities;
@@ -29,6 +30,23 @@ public class RegisterRequest
     /// User's password.
     /// </summary>
     public string Password { get; set; } = string.Empty;
+}
+
+public class RegisterValidator : Validator<RegisterRequest>
+{
+    public RegisterValidator()
+    {
+        RuleFor(x => x.FullName).NotEmpty().WithMessage("Full Name is required.");
+        RuleFor(x => x.Email).NotEmpty().EmailAddress().WithMessage("A valid email address is required.");
+        RuleFor(x => x.Password)
+            .NotEmpty().WithMessage("Password is required.")
+            .MinimumLength(8).WithMessage("Password must be at least 8 characters long.")
+            .MaximumLength(128).WithMessage("Password cannot exceed 128 characters.")
+            .Matches("[A-Z]").WithMessage("Password must contain at least one uppercase letter.")
+            .Matches("[a-z]").WithMessage("Password must contain at least one lowercase letter.")
+            .Matches("[0-9]").WithMessage("Password must contain at least one digit.")
+            .Matches("[^a-zA-Z0-9]").WithMessage("Password must contain at least one special character.");
+    }
 }
 
 /// <summary>
@@ -166,16 +184,24 @@ public sealed class RegisterEndpoint(
         // Set tenant context
         tenantContext.CurrentOrganizationId = organization.Id;
 
-        // 4. Send Welcome Email
+        // 4. Send Welcome & Verification Emails
         try
         {
             Console.WriteLine($"[REGISTER] Sending welcome email to {user.Email}");
             await emailService.SendWelcomeEmailAsync(user.Email!, user.FullName);
             Console.WriteLine($"[REGISTER] Welcome email sent to {user.Email}");
+
+            // Generate verification token
+            var emailToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
+            var verificationUrl = $"http://localhost:5173/verify-email?userId={user.Id}&token={Uri.EscapeDataString(emailToken)}";
+
+            Console.WriteLine($"[REGISTER] Sending verification email to {user.Email}");
+            await emailService.SendEmailVerificationAsync(user.Email!, new Uri(verificationUrl));
+            Console.WriteLine($"[REGISTER] Verification email sent to {user.Email}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[REGISTER] FAILED to send welcome email to {user.Email}: {ex.Message}");
+            Console.WriteLine($"[REGISTER] FAILED to send emails to {user.Email}: {ex.Message}");
             // Don't throw, we want registration to succeed even if email fails
             // TODO: Add a way to retry sending the email later
             // TODO: Add an indicator in the system health dashboard that 

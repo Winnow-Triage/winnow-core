@@ -18,6 +18,7 @@ import UserSettings from './pages/UserSettings'
 import AcceptInvitationPage from './pages/AcceptInvitationPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
 
 import AdminLayout from './components/admin/AdminLayout'
 import AdminProtectedRoute from './components/admin/AdminProtectedRoute'
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/accept-invite" element={<AcceptInvitationPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
 
         <Route path="/admin/*" element={
           <AdminProtectedRoute>
