@@ -27,6 +27,7 @@ import AdminSettings from './pages/admin/AdminSettings'
 import { Toaster } from "sonner"
 
 import { ModeToggle } from "@/components/mode-toggle"
+import { AboutDialog } from "@/components/AboutDialog"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import UserNav from "@/components/UserNav"
 
@@ -63,6 +64,7 @@ export default function App() {
                   <div className="w-[1px] h-4 bg-border mx-2" />
                   <span className="font-medium">Winnow Triage</span>
                   <div className="ml-auto flex items-center gap-2">
+                    <AboutDialog />
                     <ModeToggle />
                     <UserNav />
                   </div>

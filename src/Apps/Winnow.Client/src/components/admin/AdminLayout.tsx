@@ -1,6 +1,7 @@
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar"
 import { AdminSidebar } from "./AdminSidebar"
 import { ModeToggle } from "@/components/mode-toggle"
+import { AboutDialog } from "@/components/AboutDialog"
 import UserNav from "@/components/UserNav"
 import { Outlet } from "react-router-dom"
 
@@ -17,6 +18,7 @@ export default function AdminLayout() {
                         <span className="font-medium text-red-500 tracking-wide uppercase text-sm">Super Admin Portal</span>
                     </div>
                     <div className="ml-auto flex items-center gap-2">
+                        <AboutDialog />
                         <ModeToggle />
                         <UserNav />
                     </div>
