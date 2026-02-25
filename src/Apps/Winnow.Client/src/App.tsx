@@ -16,6 +16,8 @@ import AuthPage from './pages/AuthPage'
 import SuspendedPage from './pages/SuspendedPage'
 import UserSettings from './pages/UserSettings'
 import AcceptInvitationPage from './pages/AcceptInvitationPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 
 import AdminLayout from './components/admin/AdminLayout'
 import AdminProtectedRoute from './components/admin/AdminProtectedRoute'
@@ -39,6 +41,8 @@ export default function App() {
         <Route path="/signup" element={<AuthPage />} />
         <Route path="/suspended" element={<SuspendedPage />} />
         <Route path="/accept-invite" element={<AcceptInvitationPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         <Route path="/admin/*" element={
           <AdminProtectedRoute>

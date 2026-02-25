@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Entities;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Services.Emails;
 
 namespace Winnow.Server.Features.Organizations.Invitations;
 
@@ -17,7 +18,8 @@ public class AcceptInvitationRequest
 
 public sealed class AcceptInvitationEndpoint(
     WinnowDbContext db,
-    UserManager<ApplicationUser> userManager) : Endpoint<AcceptInvitationRequest>
+    UserManager<ApplicationUser> userManager,
+    IEmailService emailService) : Endpoint<AcceptInvitationRequest>
 {
     public override void Configure()
     {
@@ -27,6 +29,7 @@ public sealed class AcceptInvitationEndpoint(
 
     public override async Task HandleAsync(AcceptInvitationRequest req, CancellationToken ct)
     {
+        Console.WriteLine($"[INVITE-ACCEPT] HandleAsync started for token: {req.Token}");
         var invitation = await db.OrganizationInvitations
             .Include(oi => oi.Organization)
             .FirstOrDefaultAsync(oi => oi.Token == req.Token, ct);
@@ -97,6 +100,19 @@ public sealed class AcceptInvitationEndpoint(
         db.OrganizationInvitations.Remove(invitation);
 
         await db.SaveChangesAsync(ct);
+
+        // 6. Send Welcome Email
+        try
+        {
+            Console.WriteLine($"[INVITE-ACCEPT] Sending welcome email to {user.Email}");
+            await emailService.SendWelcomeEmailAsync(user.Email!, user.FullName);
+            Console.WriteLine($"[INVITE-ACCEPT] Welcome email sent to {user.Email}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[INVITE-ACCEPT] FAILED to send welcome email to {user.Email}: {ex.Message}");
+            // Don't throw, we want registration to succeed even if email fails
+        }
 
         await Send.OkAsync(new { Message = "Invitation accepted successfully" }, ct);
     }

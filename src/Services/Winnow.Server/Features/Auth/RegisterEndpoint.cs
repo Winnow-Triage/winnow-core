@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using Winnow.Server.Entities;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Services.Emails;
 
 namespace Winnow.Server.Features.Auth;
 
@@ -92,7 +93,8 @@ public sealed class RegisterEndpoint(
     WinnowDbContext dbContext,
     Winnow.Server.Infrastructure.MultiTenancy.ITenantContext tenantContext,
     IConfiguration config,
-    Winnow.Server.Infrastructure.Security.IApiKeyService apiKeyService) : Endpoint<RegisterRequest, AuthResponse>
+    Winnow.Server.Infrastructure.Security.IApiKeyService apiKeyService,
+    IEmailService emailService) : Endpoint<RegisterRequest, AuthResponse>
 {
     public override void Configure()
     {
@@ -109,6 +111,7 @@ public sealed class RegisterEndpoint(
 
     public override async Task HandleAsync(RegisterRequest req, CancellationToken ct)
     {
+        Console.WriteLine($"[REGISTER] HandleAsync started for email: {req.Email}");
         // 1. Create User
         var user = new ApplicationUser
         {
@@ -163,7 +166,22 @@ public sealed class RegisterEndpoint(
         // Set tenant context
         tenantContext.CurrentOrganizationId = organization.Id;
 
-        // 4. Generate JWT
+        // 4. Send Welcome Email
+        try
+        {
+            Console.WriteLine($"[REGISTER] Sending welcome email to {user.Email}");
+            await emailService.SendWelcomeEmailAsync(user.Email!, user.FullName);
+            Console.WriteLine($"[REGISTER] Welcome email sent to {user.Email}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[REGISTER] FAILED to send welcome email to {user.Email}: {ex.Message}");
+            // Don't throw, we want registration to succeed even if email fails
+            // TODO: Add a way to retry sending the email later
+            // TODO: Add an indicator in the system health dashboard that 
+        }
+
+        // 5. Generate JWT
         var token = GenerateJwt(user);
 
         await Send.OkAsync(new AuthResponse

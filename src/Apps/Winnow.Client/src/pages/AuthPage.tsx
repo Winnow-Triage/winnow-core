@@ -251,6 +251,15 @@ export default function AuthPage() {
                                 <div className="space-y-2">
                                     <Label htmlFor="password">Password</Label>
                                     <Input id="password" type="password" required />
+                                    <div className="flex justify-end">
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate('/forgot-password')}
+                                            className="text-xs text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
+                                        >
+                                            Forgot password?
+                                        </button>
+                                    </div>
                                     {isSignUp && (
                                         <p className="text-xs text-muted-foreground">
                                             Minimum 6 characters. Requires upper & lower case letters, a digit, and a non-alphanumeric character (e.g., !, @, #).

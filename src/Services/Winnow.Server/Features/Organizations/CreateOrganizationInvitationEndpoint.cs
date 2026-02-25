@@ -18,7 +18,7 @@ public class CreateOrganizationInvitationRequest
 
 public sealed class CreateOrganizationInvitationEndpoint(
     WinnowDbContext db,
-    ILocalEmailService emailService) : Endpoint<CreateOrganizationInvitationRequest>
+    IEmailService emailService) : Endpoint<CreateOrganizationInvitationRequest>
 {
     public override void Configure()
     {
@@ -67,8 +67,8 @@ public sealed class CreateOrganizationInvitationEndpoint(
         await db.SaveChangesAsync(ct);
 
         // 3. Send the email
-        var inviteLink = $"http://localhost:5173/accept-invite?token={token}";
-        await emailService.SendInvitationEmailAsync(req.Email, org.Name, inviteLink);
+        var inviteLink = new Uri($"http://localhost:5173/accept-invite?token={token}");
+        await emailService.SendOrganizationInviteAsync(req.Email, org.Name, inviteLink);
 
         await Send.OkAsync(new { Message = "Invitation sent successfully" }, ct);
     }

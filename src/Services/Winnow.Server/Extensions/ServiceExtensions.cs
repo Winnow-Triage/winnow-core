@@ -1,3 +1,6 @@
+using Amazon;
+using Amazon.Extensions.NETCore.Setup;
+using Amazon.SimpleEmail;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using MassTransit;
@@ -153,7 +156,20 @@ internal static class ServiceExtensions
         services.AddScoped<IDashboardService, DashboardService>();
 
         // Email Service
-        services.AddScoped<ILocalEmailService, LocalEmailService>();
+        var emailSettings = new EmailSettings();
+        config.GetSection("EmailSettings").Bind(emailSettings);
+        services.AddSingleton(emailSettings);
+
+        if (emailSettings.Provider == "AwsSes")
+        {
+            services.AddDefaultAWSOptions(config.GetAWSOptions());
+            services.AddAWSService<IAmazonSimpleEmailService>();
+            services.AddScoped<IEmailService, AwsSesEmailService>();
+        }
+        else
+        {
+            services.AddScoped<IEmailService, SmtpEmailService>();
+        }
 
         // Database — provider-aware registration
         var dbProvider = config["DatabaseProvider"] ?? "Sqlite";

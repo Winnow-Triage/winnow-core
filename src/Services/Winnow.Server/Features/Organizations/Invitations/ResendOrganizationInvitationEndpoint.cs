@@ -13,7 +13,7 @@ public class ResendOrganizationInvitationRequest
 
 public sealed class ResendOrganizationInvitationEndpoint(
     WinnowDbContext db,
-    ILocalEmailService emailService) : EndpointWithoutRequest
+    IEmailService emailService) : EndpointWithoutRequest
 {
     public override void Configure()
     {
@@ -78,8 +78,8 @@ public sealed class ResendOrganizationInvitationEndpoint(
         await db.SaveChangesAsync(ct);
 
         // Resend email
-        var inviteLink = $"http://localhost:5173/accept-invite?token={invitation.Token}";
-        await emailService.SendInvitationEmailAsync(invitation.Email, invitation.Organization.Name, inviteLink);
+        var inviteLink = new Uri($"http://localhost:5173/accept-invite?token={invitation.Token}");
+        await emailService.SendOrganizationInviteAsync(invitation.Email, invitation.Organization.Name, inviteLink);
 
         await Send.OkAsync(new { Message = "Invitation resent successfully" }, ct);
     }
