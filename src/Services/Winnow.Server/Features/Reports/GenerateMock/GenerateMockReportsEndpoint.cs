@@ -33,6 +33,7 @@ public sealed class GenerateMockReportsEndpoint(
     WinnowDbContext db,
     IPublishEndpoint publishEndpoint,
     Winnow.Server.Services.Ai.IEmbeddingService embeddingService,
+    Winnow.Server.Services.Quota.IQuotaService quotaService,
     ILogger<GenerateMockReportsEndpoint> logger) : Endpoint<GenerateMockReportsRequest>
 {
     private static readonly JsonSerializerOptions options = new()
@@ -109,8 +110,19 @@ public sealed class GenerateMockReportsEndpoint(
         try
         {
             var mockReports = JsonSerializer.Deserialize<List<MockReportDto>>(json, options) ?? throw new Exception("Failed to deserialize mock reports.");
+
+            var tenantContext = db.GetService<ITenantContext>();
+            var currentOrgId = tenantContext.CurrentOrganizationId ?? Guid.Empty;
+            var tenantId = ((TenantContext)tenantContext).TenantId;
+
             foreach (var dt in mockReports)
             {
+                var quotaStatus = await quotaService.GetIngestionQuotaStatusAsync(currentOrgId, ct);
+                if (quotaStatus.isLocked)
+                {
+                    await quotaService.EnforceRetroactiveRansomAsync(currentOrgId, ct);
+                }
+
                 // Generate embedding for the mock report
                 var textToEmbed = $"{dt.Title}\n{dt.Message}";
                 var embeddingFloats = await embeddingService.GetEmbeddingAsync(textToEmbed);
@@ -124,13 +136,14 @@ public sealed class GenerateMockReportsEndpoint(
                     Status = "New",
                     CreatedAt = DateTime.UtcNow,
                     ProjectId = projectId, // Set the project ID
-                    Embedding = embeddingBytes // Include the embedding
+                    OrganizationId = currentOrgId,
+                    Embedding = embeddingBytes, // Include the embedding
+                    IsOverage = quotaStatus.isOverage,
+                    IsLocked = quotaStatus.isLocked
                 };
 
                 db.Reports.Add(report);
                 await db.SaveChangesAsync(ct);
-
-                var tenantId = ((TenantContext)db.GetService<ITenantContext>()).TenantId;
 
                 await publishEndpoint.Publish(new ReportCreatedEvent
                 {

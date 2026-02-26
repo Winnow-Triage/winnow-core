@@ -44,6 +44,7 @@ public sealed class SimulateTrafficEndpoint(
     IPublishEndpoint publishEndpoint,
     WinnowDbContext dbContext,
     ITenantContext tenantContext,
+    Winnow.Server.Services.Quota.IQuotaService quotaService,
     Winnow.Server.Services.Ai.IEmbeddingService embeddingService) : Endpoint<SimulateTrafficRequest, SimulateTrafficResponse>
 {
     public override void Configure()
@@ -95,6 +96,14 @@ public sealed class SimulateTrafficEndpoint(
 
         for (int i = 0; i < req.Count; i++)
         {
+            var currentOrgId = tenantContext.CurrentOrganizationId ?? Guid.Empty;
+
+            var quotaStatus = await quotaService.GetIngestionQuotaStatusAsync(currentOrgId, ct);
+            if (quotaStatus.isLocked)
+            {
+                await quotaService.EnforceRetroactiveRansomAsync(currentOrgId, ct);
+            }
+
             var template = templates[random.Next(templates.Count)];
             var title = $"{template.Title} {random.Next(1000, 9999)}";
 
@@ -112,7 +121,10 @@ public sealed class SimulateTrafficEndpoint(
                 CreatedAt = DateTime.UtcNow,
                 Status = "New",
                 ProjectId = projectId, // Use the validated project ID
-                Embedding = embeddingBytes // Include the embedding
+                OrganizationId = currentOrgId,
+                Embedding = embeddingBytes, // Include the embedding
+                IsOverage = quotaStatus.isOverage,
+                IsLocked = quotaStatus.isLocked
             };
 
             dbContext.Reports.Add(report);
