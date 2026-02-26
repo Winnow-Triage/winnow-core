@@ -51,7 +51,6 @@ internal class ReportCreatedConsumer(
             var embeddingFloats = new float[report.Embedding.Length / sizeof(float)];
             Buffer.BlockCopy(report.Embedding, 0, embeddingFloats, 0, report.Embedding.Length);
 
-            const double DistanceThreshold = 0.35;
             var parameters = new List<object> { report.Embedding, projectId };
 
             var sql = @"
@@ -126,7 +125,7 @@ internal class ReportCreatedConsumer(
                             report.Status = "Duplicate";
                             report.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
                         }
-                        else if (bestMatch.Distance <= DistanceThreshold)
+                        else if (bestMatch.Distance <= 0.35)
                         {
                             var parentReport = await dbContext.Reports
                                 .FirstOrDefaultAsync(t => t.Id == bestMatch.Id && t.ProjectId == projectId, context.CancellationToken);
@@ -149,6 +148,11 @@ internal class ReportCreatedConsumer(
                                     report.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
                                 }
                             }
+                        }
+                        else if (bestMatch.Distance <= 0.55)
+                        {
+                            report.SuggestedParentId = targetParentId;
+                            report.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
                         }
                     }
                 }
