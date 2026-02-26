@@ -59,12 +59,12 @@ internal static class ServiceExtensions
             .WithScopedLifetime()
         );
 
-        // Register embedding providers
+        // Register embedding providers as Singleton so ONNX models stay in memory
         services.Scan(scan => scan
             .FromAssemblyOf<IEmbeddingProvider>()
             .AddClasses(classes => classes.AssignableTo<IEmbeddingProvider>())
             .As<IEmbeddingProvider>()
-            .WithScopedLifetime()
+            .WithSingletonLifetime()
         );
 
         // Core HTTP & caching with resilience pipelines
@@ -93,7 +93,7 @@ internal static class ServiceExtensions
         services.AddMemoryCache();
 
         // AI Services
-        services.AddScoped<IEmbeddingService, EmbeddingService>();
+        services.AddSingleton<IEmbeddingService, EmbeddingService>();
         services.AddSingleton<IVectorCalculator, VectorCalculator>();
         services.AddHostedService<ClusterRefinementJob>();
         services.AddHostedService<InvitationCleanupJob>();
