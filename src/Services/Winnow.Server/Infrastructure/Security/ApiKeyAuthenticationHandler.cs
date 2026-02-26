@@ -18,7 +18,7 @@ public class ApiKeyAuthenticationHandler(
     ILoggerFactory logger,
     UrlEncoder encoder,
     WinnowDbContext dbContext,
-    Winnow.Server.Infrastructure.Security.IApiKeyService apiKeyService) : AuthenticationHandler<ApiKeyAuthenticationOptions>(options, logger, encoder)
+    IApiKeyService apiKeyService) : AuthenticationHandler<ApiKeyAuthenticationOptions>(options, logger, encoder)
 {
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
@@ -67,6 +67,7 @@ public class ApiKeyAuthenticationHandler(
                 new Claim(ClaimTypes.NameIdentifier, project.Id.ToString()),
                 new Claim(ClaimTypes.Name, project.Name),
                 new Claim("ProjectId", project.Id.ToString()),
+                new Claim("OrganizationId", project.OrganizationId.ToString()),
                 new Claim(ClaimTypes.Role, "Project")
             };
 

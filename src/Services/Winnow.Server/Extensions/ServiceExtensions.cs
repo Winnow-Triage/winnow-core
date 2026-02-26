@@ -39,6 +39,7 @@ internal static class ServiceExtensions
 
         // Security
         services.AddSingleton<IApiKeyService, ApiKeyService>();
+        services.AddScoped<Winnow.Server.Services.Quota.IQuotaService, Winnow.Server.Services.Quota.QuotaService>();
 
         // Stripe API Key Configuration
         Stripe.StripeConfiguration.ApiKey = config["Stripe:SecretKey"];

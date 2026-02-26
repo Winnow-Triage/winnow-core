@@ -84,16 +84,19 @@ public sealed class IngestReportEndpoint(
     {
         Post("/reports");
         AuthSchemes("ApiKey");
+        PreProcessor<Infrastructure.Security.QuotaEnforcementPreProcessor<IngestReportRequest>>();
         Description(b => b
             .WithName("IngestReport")
             .Accepts<IngestReportRequest>("application/json")
-            .Produces<IngestReportResponse>(202));
+            .Produces<IngestReportResponse>(202)
+            .Produces(402));
         Summary(s =>
         {
             s.Summary = "Ingest a new report";
             s.Description = "Accepts a new report via API key authentication. Processes embeddings and screenshots.";
             s.Response<IngestReportResponse>(202, "Report accepted for processing");
             s.Response(401, "Invalid API Key");
+            s.Response(402, "Quota exceeded");
         });
     }
 
