@@ -46,21 +46,21 @@ public sealed class GetBillingStatusEndpoint(WinnowDbContext db, ITenantContext 
             .Where(r => r.OrganizationId == orgId && r.CreatedAt >= startOfMonth)
             .CountAsync(ct);
 
-        int? limit = org.SubscriptionTier switch
+        int? limit = org.SubscriptionTier?.ToLowerInvariant() switch
         {
-            "Free" => 50,
-            "Starter" => 500,
-            "Pro" => null,
-            "Enterprise" => null,
+            "free" => 50,
+            "starter" => 500,
+            "pro" => null,
+            "enterprise" => null,
             _ => 50
         };
 
         var response = new BillingStatusResponse
         {
-            SubscriptionTier = org.SubscriptionTier,
+            SubscriptionTier = org.SubscriptionTier ?? "Free",
             ReportsUsedThisMonth = reportCount,
             ReportLimit = limit,
-            HasActiveSubscription = !string.IsNullOrEmpty(org.StripeSubscriptionId) && org.SubscriptionTier != "Free"
+            HasActiveSubscription = !string.IsNullOrEmpty(org.StripeSubscriptionId) && !string.Equals(org.SubscriptionTier, "Free", StringComparison.OrdinalIgnoreCase)
         };
 
         await Send.OkAsync(response, cancellation: ct);
