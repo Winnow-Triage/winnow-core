@@ -294,11 +294,18 @@ export default function Settings() {
                                     <div className="space-y-2">
                                         <Progress
                                             value={Math.min(100, Math.max(0, (billingStatus.reportsUsedThisMonth / billingStatus.reportLimit) * 100))}
-                                            className="h-2"
+                                            className="h-4"
+                                            indicatorColor={
+                                                (billingStatus.reportsUsedThisMonth / billingStatus.reportLimit) >= 2
+                                                    ? "bg-gradient-to-r from-red-600 to-red-400 shadow-[0_0_12px_rgba(239,68,68,0.8)]"
+                                                    : (billingStatus.reportsUsedThisMonth / billingStatus.reportLimit) >= 1
+                                                        ? "bg-gradient-to-r from-amber-600 to-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.8)] animate-pulse"
+                                                        : "bg-gradient-to-r from-blue-600 to-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.5)]"
+                                            }
                                         />
-                                        <div className="flex justify-between text-xs text-muted-foreground">
+                                        <div className="flex justify-between text-xs text-muted-foreground w-full">
                                             <span>0</span>
-                                            <span>{billingStatus.reportLimit}</span>
+                                            <span>{billingStatus.reportLimit} Limit</span>
                                         </div>
                                     </div>
                                 ) : (
