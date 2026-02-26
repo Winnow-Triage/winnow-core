@@ -27,7 +27,7 @@ internal class OpenAiEmbeddingProvider : IEmbeddingProvider
     {
         _logger = logger;
 
-        if (settings.Provider == "OpenAI" && !string.IsNullOrWhiteSpace(settings.OpenAI?.ApiKey))
+        if (settings.EmbeddingProvider == "OpenAI" && !string.IsNullOrWhiteSpace(settings.OpenAI?.ApiKey))
         {
             _apiKey = settings.OpenAI.ApiKey;
             _modelId = settings.OpenAI.ModelId;
@@ -100,7 +100,7 @@ internal class OpenAiEmbeddingProvider : IEmbeddingProvider
     /// <returns>True if this provider can handle the settings, false otherwise.</returns>
     public bool CanHandle(LlmSettings settings)
     {
-        return settings?.Provider == "OpenAI" &&
+        return settings?.EmbeddingProvider == "OpenAI" &&
                !string.IsNullOrWhiteSpace(settings.OpenAI?.ApiKey) &&
                !string.IsNullOrWhiteSpace(settings.OpenAI.ModelId);
     }

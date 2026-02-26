@@ -21,7 +21,7 @@ internal class LocalEmbeddingProvider : IEmbeddingProvider
     {
         _logger = logger;
 
-        if (settings.Provider == "Ollama" && !string.IsNullOrWhiteSpace(settings.Ollama?.Endpoint))
+        if (settings.EmbeddingProvider == "Ollama" && !string.IsNullOrWhiteSpace(settings.Ollama?.Endpoint))
         {
             _endpoint = settings.Ollama.Endpoint;
             _modelId = settings.Ollama.ModelId;
@@ -73,7 +73,7 @@ internal class LocalEmbeddingProvider : IEmbeddingProvider
 
             // Ollama embeddings might need normalization
             var embedding = embeddingResponse.Embedding;
-            
+
             // Normalize the embedding
             float norm = 0;
             for (int i = 0; i < embedding.Length; i++) norm += embedding[i] * embedding[i];
@@ -95,7 +95,7 @@ internal class LocalEmbeddingProvider : IEmbeddingProvider
 
     public bool CanHandle(LlmSettings settings)
     {
-        return settings?.Provider == "Ollama" && 
+        return settings?.EmbeddingProvider == "Ollama" &&
                !string.IsNullOrWhiteSpace(settings.Ollama?.Endpoint) &&
                !string.IsNullOrWhiteSpace(settings.Ollama.ModelId);
     }

@@ -150,9 +150,10 @@ internal class OnnxEmbeddingProvider : IEmbeddingProvider, IDisposable
     public bool CanHandle(LlmSettings settings)
     {
         // ONNX provider is always available as a fallback, but we prefer it when no specific provider is configured
-        // or when the provider is set to "Placeholder"
-        return string.IsNullOrEmpty(settings.Provider) || 
-               settings.Provider.Equals("Placeholder", StringComparison.OrdinalIgnoreCase) ||
+        // or when the provider is set to "Placeholder" or "Onnx"
+        return string.IsNullOrEmpty(settings?.EmbeddingProvider) ||
+               settings.EmbeddingProvider.Equals("Placeholder", StringComparison.OrdinalIgnoreCase) ||
+               settings.EmbeddingProvider.Equals("Onnx", StringComparison.OrdinalIgnoreCase) ||
                (File.Exists(_modelPath) && _session != null && _tokenizer != null);
     }
 

@@ -3,6 +3,7 @@ namespace Winnow.Server.Infrastructure.Configuration;
 public class LlmSettings
 {
     public string Provider { get; set; } = "Placeholder"; // "Placeholder", "Ollama", "OpenAI"
+    public string EmbeddingProvider { get; set; } = "Onnx"; // "Onnx", "Ollama", "OpenAI", "Placeholder"
     public OllamaSettings Ollama { get; set; } = new();
     public OpenAiSettings OpenAI { get; set; } = new();
 }
