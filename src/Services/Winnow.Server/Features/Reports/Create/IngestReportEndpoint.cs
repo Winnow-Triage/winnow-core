@@ -113,7 +113,7 @@ public sealed class IngestReportEndpoint(
         var currentOrgId = tenantContext.CurrentOrganizationId ?? Guid.Empty;
 
         // 1. Generate Embedding
-        var textToEmbed = $"{req.Title}\n{req.Message}";
+        var textToEmbed = $"{req.Title}\n{req.Message}\n{req.StackTrace}";
         var embeddingFloats = await embeddingService.GetEmbeddingAsync(textToEmbed);
         var embeddingBytes = new byte[embeddingFloats.Length * sizeof(float)];
         Buffer.BlockCopy(embeddingFloats, 0, embeddingBytes, 0, embeddingBytes.Length);

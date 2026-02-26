@@ -17,8 +17,7 @@ internal class MockEmbeddingProvider(ILogger<MockEmbeddingProvider> _logger) : I
 
     public bool CanHandle(LlmSettings settings)
     {
-        // Mock provider can always handle any settings as a fallback
-        return true;
+        return settings?.EmbeddingProvider?.Equals("Mock", StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private float[] GenerateMockEmbedding()
