@@ -19,6 +19,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -47,6 +48,14 @@ export default function Settings() {
         queryFn: async () => {
             const { data } = await api.get('/organizations/current');
             return data;
+        }
+    });
+
+    const { data: billingStatus, isLoading: isBillingLoading } = useQuery({
+        queryKey: ['billing-status'],
+        queryFn: async () => {
+            const { getBillingStatus } = await import('@/lib/api');
+            return getBillingStatus();
         }
     });
 
@@ -266,6 +275,45 @@ export default function Settings() {
                                     {isManaging ? "Redirecting..." : "Manage Subscription / Update Payment Method"}
                                 </Button>
                             </CardHeader>
+                        </Card>
+                    )}
+
+                    {/* Progress Bar Component */}
+                    {!isBillingLoading && billingStatus && (
+                        <Card className="shadow-sm">
+                            <CardHeader>
+                                <CardTitle>Monthly Usage</CardTitle>
+                                <CardDescription>
+                                    You have used {billingStatus.reportsUsedThisMonth} report{billingStatus.reportsUsedThisMonth === 1 ? '' : 's'} this month.
+                                    {billingStatus.reportLimit === null && " You have unlimited report ingestion."}
+                                    {billingStatus.reportLimit !== null && ` Your limit is ${billingStatus.reportLimit}.`}
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {billingStatus.reportLimit !== null ? (
+                                    <div className="space-y-2">
+                                        <Progress
+                                            value={Math.min(100, Math.max(0, (billingStatus.reportsUsedThisMonth / billingStatus.reportLimit) * 100))}
+                                            className="h-2"
+                                        />
+                                        <div className="flex justify-between text-xs text-muted-foreground">
+                                            <span>0</span>
+                                            <span>{billingStatus.reportLimit}</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                                        <div className="h-2 w-full bg-green-500/20 rounded-full overflow-hidden">
+                                            <div className="h-full bg-green-500 w-full" />
+                                        </div>
+                                    </div>
+                                )}
+                            </CardContent>
+                            {billingStatus.reportLimit !== null && billingStatus.reportsUsedThisMonth >= billingStatus.reportLimit && (
+                                <CardFooter className="bg-destructive/10 text-destructive text-sm p-4 rounded-b-lg border-t border-destructive/20">
+                                    You have reached your monthly ingestion limit. New reports will be rejected until you upgrade your plan or until the next billing cycle.
+                                </CardFooter>
+                            )}
                         </Card>
                     )}
 

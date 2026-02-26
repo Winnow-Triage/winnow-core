@@ -93,6 +93,18 @@ export const updateOrganizationSubscription = async (id: string, tier: string) =
     return response.data;
 };
 
+export interface BillingStatusResponse {
+    subscriptionTier: string;
+    reportsUsedThisMonth: number;
+    reportLimit: number | null;
+    hasActiveSubscription: boolean;
+}
+
+export const getBillingStatus = async (): Promise<BillingStatusResponse> => {
+    const response = await api.get('/billing/status');
+    return response.data;
+};
+
 export const createOrganization = async (name: string, tier: string = "Free") => {
     const response = await api.post('/admin/organizations', {
         name,
