@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, ExternalLink, MessageSquare, Clock, AlertCircle, Sparkles, Paperclip, ShieldCheck, ShieldAlert, Loader2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, MessageSquare, Clock, AlertCircle, AlertTriangle, Sparkles, Paperclip, ShieldCheck, ShieldAlert, Loader2 } from 'lucide-react';
 import { MediaGallery } from '@/components/MediaGallery';
 import { Input } from '@/components/ui/input';
 import { toast } from "sonner";
@@ -247,9 +247,9 @@ export default function ReportDetail() {
                 <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-center gap-3 shadow-sm">
                     <ShieldAlert className="h-6 w-6 text-red-600 dark:text-red-400 shrink-0" />
                     <div className="flex-1">
-                        <h4 className="font-bold text-lg">Report Locked (Grace Limit Exceeded)</h4>
+                        <h4 className="font-bold text-lg">Report Locked</h4>
                         <p className="text-sm opacity-90 mt-1">
-                            Your organization has significantly exceeded the monthly ingestion limits. This report data has been captured but is currently held for ransom.
+                            Your organization has exceeded its monthly ingestion limit. Upgrade to a higher tier to view this stack trace and unlock your remaining reports.
                         </p>
                     </div>
                     <Button asChild className="shrink-0 bg-red-600 hover:bg-red-700 text-white">
@@ -263,12 +263,14 @@ export default function ReportDetail() {
             {/* Overage Warning Banner */}
             {!report.isLocked && report.isOverage && (
                 <div className="bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800 rounded-lg p-3 flex items-center gap-3 text-sm">
-                    <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
-                    <div className="flex-1">
-                        <strong>Usage Warning:</strong> This report was ingested during your grace period. You will lose access to new reports if the grace limit is exceeded.
-                    </div>
-                    <Button asChild variant="outline" size="sm" className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100">
-                        <Link to="/settings?tab=billing">Manage Quota</Link>
+                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <p className="flex-1">
+                        <strong>Heads up:</strong> You've exceeded your tier's monthly ingestion limit. We're still capturing your data, but further reports will be locked soon.
+                    </p>
+                    <Button variant="outline" size="sm" asChild className="shrink-0 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-800 bg-transparent text-amber-900 dark:text-amber-100">
+                        <Link to="/settings?tab=billing">
+                            Manage Subscription
+                        </Link>
                     </Button>
                 </div>
             )}
