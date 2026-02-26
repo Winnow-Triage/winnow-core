@@ -165,7 +165,11 @@ internal class ReportCreatedConsumer(
         if (report.Embedding != null)
         {
             await dbContext.Database.ExecuteSqlInterpolatedAsync($@"
-                INSERT OR REPLACE INTO vec_reports(rowid, embedding)
+                DELETE FROM vec_reports WHERE rowid = (SELECT rowid FROM Reports WHERE Id = {report.Id})
+            ");
+
+            await dbContext.Database.ExecuteSqlInterpolatedAsync($@"
+                INSERT INTO vec_reports(rowid, embedding)
                 SELECT rowid, {report.Embedding}
                 FROM Reports
                 WHERE Id = {report.Id}

@@ -128,7 +128,11 @@ internal sealed class ClusterRefinementJob(
                     [embeddingBytes, leader.Id, projectId], ct);
 
                 await db.Database.ExecuteSqlRawAsync(
-                    "INSERT OR REPLACE INTO vec_reports(rowid, embedding) VALUES ((SELECT rowid FROM Reports WHERE Id = {0} AND ProjectId = {1}), {2})",
+                    "DELETE FROM vec_reports WHERE rowid = (SELECT rowid FROM Reports WHERE Id = {0})",
+                    [leader.Id], ct);
+
+                await db.Database.ExecuteSqlRawAsync(
+                    "INSERT INTO vec_reports(rowid, embedding) VALUES ((SELECT rowid FROM Reports WHERE Id = {0} AND ProjectId = {1}), {2})",
                     [leader.Id, projectId, embeddingBytes], ct);
 
                 leader.Embedding = embeddingBytes;
