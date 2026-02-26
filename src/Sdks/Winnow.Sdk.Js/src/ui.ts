@@ -5,6 +5,8 @@ export interface WinnowConfig {
     apiKey: string;
     apiUrl: string;
     tenantId?: string;
+    debug?: boolean;
+    onBeforeSend?: (reportPayload: any) => any | null;
 }
 
 export function initUI(config: WinnowConfig) {
@@ -465,6 +467,28 @@ export function initUI(config: WinnowConfig) {
             payload.Screenshot = currentScreenshot;
         }
 
+        let finalPayload: any = payload;
+
+        if (typeof config.onBeforeSend === 'function') {
+            const mutated = config.onBeforeSend(finalPayload);
+            if (mutated === null || mutated === undefined) {
+                if (config.debug) {
+                    console.log('Winnow SDK: Report dropped by onBeforeSend hook.');
+                }
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+                overlay.classList.remove('open');
+                return;
+            }
+            finalPayload = mutated;
+        }
+
+        if (config.debug) {
+            console.group('Winnow SDK: Sending Report');
+            console.log(JSON.stringify(finalPayload, null, 2));
+            console.groupEnd();
+        }
+
         try {
             const headers: Record<string, string> = {
                 'Content-Type': 'application/json',
@@ -478,7 +502,7 @@ export function initUI(config: WinnowConfig) {
             const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/reports`, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify(payload)
+                body: JSON.stringify(finalPayload)
             });
 
             if (!response.ok) throw new Error('Failed to submit');
