@@ -1,8 +1,8 @@
+using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;
-using System.Text.Json;
 using Winnow.Server.Infrastructure.Configuration;
 using Winnow.Server.Services.Ai.Strategies;
 
@@ -55,7 +55,7 @@ public class OnnxEmbeddingProviderTests
         Directory.CreateDirectory(aiModelDir);
         var modelPath = Path.Combine(aiModelDir, "model.onnx");
         var vocabPath = Path.Combine(aiModelDir, "vocab.txt");
-        
+
         // Create dummy files
         File.WriteAllText(modelPath, "dummy onnx content");
         File.WriteAllText(vocabPath, "dummy\nvocab\ncontent");
@@ -106,7 +106,7 @@ public class OnnxEmbeddingProviderTests
     {
         // Arrange
         var provider = new OnnxEmbeddingProvider(_loggerMock.Object, _hostEnvMock.Object);
-        
+
         var nullSettings = new LlmSettings { Provider = null! };
         var emptySettings = new LlmSettings { Provider = "" };
         var placeholderSettings = new LlmSettings { Provider = "Placeholder" };
@@ -122,9 +122,9 @@ public class OnnxEmbeddingProviderTests
     {
         // Arrange
         var provider = new OnnxEmbeddingProvider(_loggerMock.Object, _hostEnvMock.Object);
-        
-        var ollamaSettings = new LlmSettings { Provider = "Ollama" };
-        var openAiSettings = new LlmSettings { Provider = "OpenAI" };
+
+        var ollamaSettings = new LlmSettings { EmbeddingProvider = "Ollama" };
+        var openAiSettings = new LlmSettings { EmbeddingProvider = "OpenAI" };
 
         // Act & Assert
         Assert.False(provider.CanHandle(ollamaSettings));
@@ -181,7 +181,7 @@ public class LocalEmbeddingProviderTests
         // Arrange
         var settings = new LlmSettings
         {
-            Provider = "Ollama",
+            EmbeddingProvider = "Ollama",
             Ollama = new OllamaSettings
             {
                 Endpoint = "http://localhost:11434",
@@ -210,7 +210,7 @@ public class LocalEmbeddingProviderTests
         // Arrange
         var settings = new LlmSettings
         {
-            Provider = "Ollama",
+            EmbeddingProvider = "Ollama",
             Ollama = new OllamaSettings { Endpoint = "" } // Missing endpoint
         };
 
@@ -235,7 +235,7 @@ public class LocalEmbeddingProviderTests
         // Arrange
         var settings = new LlmSettings
         {
-            Provider = "OpenAI" // Not Ollama
+            EmbeddingProvider = "OpenAI" // Not Ollama
         };
 
         // Act
@@ -259,7 +259,7 @@ public class LocalEmbeddingProviderTests
         // Arrange
         var settings = new LlmSettings
         {
-            Provider = "Ollama",
+            EmbeddingProvider = "Ollama",
             Ollama = new OllamaSettings { Endpoint = "" } // Missing endpoint, will log warning
         };
         var provider = new LocalEmbeddingProvider(_loggerMock.Object, _httpClientFactoryMock.Object, settings);
@@ -288,17 +288,17 @@ public class LocalEmbeddingProviderTests
         // Arrange
         var settings = new LlmSettings
         {
-            Provider = "Ollama",
+            EmbeddingProvider = "Ollama",
             Ollama = new OllamaSettings
             {
                 Endpoint = "http://localhost:11434",
                 ModelId = "llama3"
             }
         };
-        
+
         var provider = new LocalEmbeddingProvider(_loggerMock.Object, _httpClientFactoryMock.Object, settings);
         var text = "Test text";
-        
+
         // Setup mock HTTP response with 384-dimensional embedding to match mock fallback size
         var mockEmbedding = new float[384];
         for (int i = 0; i < mockEmbedding.Length; i++)
@@ -310,7 +310,7 @@ public class LocalEmbeddingProviderTests
         {
             Content = new StringContent(responseJson)
         };
-        
+
         _httpMessageHandlerMock.Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
@@ -335,20 +335,20 @@ public class LocalEmbeddingProviderTests
         // Arrange
         var settings = new LlmSettings
         {
-            Provider = "Ollama",
+            EmbeddingProvider = "Ollama",
             Ollama = new OllamaSettings
             {
                 Endpoint = "http://localhost:11434",
                 ModelId = "llama3"
             }
         };
-        
+
         var provider = new LocalEmbeddingProvider(_loggerMock.Object, _httpClientFactoryMock.Object, settings);
         var text = "Test text";
-        
+
         // Setup mock HTTP error response
         var responseMessage = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError);
-        
+
         _httpMessageHandlerMock.Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
@@ -379,7 +379,7 @@ public class LocalEmbeddingProviderTests
         var provider = new LocalEmbeddingProvider(_loggerMock.Object, _httpClientFactoryMock.Object, new LlmSettings());
         var settings = new LlmSettings
         {
-            Provider = "Ollama",
+            EmbeddingProvider = "Ollama",
             Ollama = new OllamaSettings
             {
                 Endpoint = "http://localhost:11434",
@@ -401,7 +401,7 @@ public class LocalEmbeddingProviderTests
         var provider = new LocalEmbeddingProvider(_loggerMock.Object, _httpClientFactoryMock.Object, new LlmSettings());
         var settings = new LlmSettings
         {
-            Provider = "Ollama",
+            EmbeddingProvider = "Ollama",
             Ollama = new OllamaSettings
             {
                 Endpoint = "", // Missing endpoint
@@ -423,7 +423,7 @@ public class LocalEmbeddingProviderTests
         var provider = new LocalEmbeddingProvider(_loggerMock.Object, _httpClientFactoryMock.Object, new LlmSettings());
         var settings = new LlmSettings
         {
-            Provider = "Ollama",
+            EmbeddingProvider = "Ollama",
             Ollama = new OllamaSettings
             {
                 Endpoint = "http://localhost:11434",
@@ -445,7 +445,7 @@ public class LocalEmbeddingProviderTests
         var provider = new LocalEmbeddingProvider(_loggerMock.Object, _httpClientFactoryMock.Object, new LlmSettings());
         var settings = new LlmSettings
         {
-            Provider = "OpenAI" // Not Ollama
+            EmbeddingProvider = "OpenAI" // Not Ollama
         };
 
         // Act
@@ -494,7 +494,7 @@ public class OpenAiEmbeddingProviderTests
         // Arrange
         var settings = new LlmSettings
         {
-            Provider = "OpenAI",
+            EmbeddingProvider = "OpenAI",
             OpenAI = new OpenAiSettings
             {
                 ApiKey = "test-api-key-123",
@@ -523,7 +523,7 @@ public class OpenAiEmbeddingProviderTests
         // Arrange
         var settings = new LlmSettings
         {
-            Provider = "OpenAI",
+            EmbeddingProvider = "OpenAI",
             OpenAI = new OpenAiSettings { ApiKey = "" } // Missing API key
         };
 
@@ -548,7 +548,7 @@ public class OpenAiEmbeddingProviderTests
         // Arrange
         var settings = new LlmSettings
         {
-            Provider = "Ollama" // Not OpenAI
+            EmbeddingProvider = "Ollama" // Not OpenAI
         };
 
         // Act
@@ -596,17 +596,17 @@ public class OpenAiEmbeddingProviderTests
         // Arrange
         var settings = new LlmSettings
         {
-            Provider = "OpenAI",
+            EmbeddingProvider = "OpenAI",
             OpenAI = new OpenAiSettings
             {
                 ApiKey = "test-api-key-123",
                 ModelId = "gpt-4o"
             }
         };
-        
+
         var provider = new OpenAiEmbeddingProvider(_loggerMock.Object, _httpClientFactoryMock.Object, settings);
         var text = "Test text";
-        
+
         // Setup mock HTTP response with 384-dimensional embedding
         var mockEmbedding = new float[384];
         for (int i = 0; i < mockEmbedding.Length; i++)
@@ -624,7 +624,7 @@ public class OpenAiEmbeddingProviderTests
         {
             Content = new StringContent(responseJson)
         };
-        
+
         _httpMessageHandlerMock.Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
@@ -646,20 +646,20 @@ public class OpenAiEmbeddingProviderTests
         // Arrange
         var settings = new LlmSettings
         {
-            Provider = "OpenAI",
+            EmbeddingProvider = "OpenAI",
             OpenAI = new OpenAiSettings
             {
                 ApiKey = "test-api-key-123",
                 ModelId = "gpt-4o"
             }
         };
-        
+
         var provider = new OpenAiEmbeddingProvider(_loggerMock.Object, _httpClientFactoryMock.Object, settings);
         var text = "Test text";
-        
+
         // Setup mock HTTP error response
         var responseMessage = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError);
-        
+
         _httpMessageHandlerMock.Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
@@ -690,7 +690,7 @@ public class OpenAiEmbeddingProviderTests
         var provider = new OpenAiEmbeddingProvider(_loggerMock.Object, _httpClientFactoryMock.Object, new LlmSettings());
         var settings = new LlmSettings
         {
-            Provider = "OpenAI",
+            EmbeddingProvider = "OpenAI",
             OpenAI = new OpenAiSettings
             {
                 ApiKey = "test-api-key-123",
@@ -712,7 +712,7 @@ public class OpenAiEmbeddingProviderTests
         var provider = new OpenAiEmbeddingProvider(_loggerMock.Object, _httpClientFactoryMock.Object, new LlmSettings());
         var settings = new LlmSettings
         {
-            Provider = "OpenAI",
+            EmbeddingProvider = "OpenAI",
             OpenAI = new OpenAiSettings
             {
                 ApiKey = "", // Missing API key
@@ -734,7 +734,7 @@ public class OpenAiEmbeddingProviderTests
         var provider = new OpenAiEmbeddingProvider(_loggerMock.Object, _httpClientFactoryMock.Object, new LlmSettings());
         var settings = new LlmSettings
         {
-            Provider = "OpenAI",
+            EmbeddingProvider = "OpenAI",
             OpenAI = new OpenAiSettings
             {
                 ApiKey = "test-api-key-123",
@@ -756,7 +756,7 @@ public class OpenAiEmbeddingProviderTests
         var provider = new OpenAiEmbeddingProvider(_loggerMock.Object, _httpClientFactoryMock.Object, new LlmSettings());
         var settings = new LlmSettings
         {
-            Provider = "Ollama" // Not OpenAI
+            EmbeddingProvider = "Ollama" // Not OpenAI
         };
 
         // Act

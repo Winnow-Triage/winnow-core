@@ -72,8 +72,8 @@ public class WinnowTestApp(Action<IServiceCollection>? configureTestServices = n
             }
 
             // Create and open a SHARED in-memory SQLite connection
-            // Using Cache=Shared ensures all connections to ":memory:" use the same database
-            _sqliteConnection = new SqliteConnection("Data Source=:memory:;Cache=Shared");
+            // Using a unique file name with memory mode ensures test instances don't share the same DB
+            _sqliteConnection = new SqliteConnection($"Data Source=file:{Guid.NewGuid()}?mode=memory&cache=shared");
             _sqliteConnection.Open();
 
             // Disable foreign key constraints for testing to avoid needing to create related entities
@@ -83,13 +83,15 @@ public class WinnowTestApp(Action<IServiceCollection>? configureTestServices = n
                 command.ExecuteNonQuery();
             }
 
-            // Register a test tenant context that returns our in-memory connection
-            services.AddSingleton<ITenantContext>(new TestTenantContext(_tenantId, _sqliteConnection));
+            var connectionString = _sqliteConnection.ConnectionString;
 
-            // Register DbContext with the existing connection (not a new connection string)
+            // Register a test tenant context that returns our in-memory connection
+            services.AddSingleton<ITenantContext>(new TestTenantContext(_tenantId, connectionString));
+
+            // Register DbContext with the connection string
             services.AddDbContext<WinnowDbContext>((serviceProvider, options) =>
             {
-                options.UseSqlite(_sqliteConnection);
+                options.UseSqlite(connectionString);
                 options.AddInterceptors(new TestSqliteVectorConnectionInterceptor());
                 // Suppress PendingModelChangesWarning — the test uses EnsureCreated,
                 // so out-of-date migration snapshots are irrelevant.
@@ -215,20 +217,20 @@ public class WinnowTestApp(Action<IServiceCollection>? configureTestServices = n
     /// </summary>
     private class TestTenantContext : Winnow.Server.Infrastructure.MultiTenancy.TenantContext
     {
-        private readonly SqliteConnection _connection;
+        private readonly string _connectionString;
 
-        public TestTenantContext(string tenantId, SqliteConnection connection)
+        public TestTenantContext(string tenantId, string connectionString)
             : base(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["DatabaseProvider"] = "Sqlite",
-                ["ConnectionStrings:Sqlite"] = connection.ConnectionString
+                ["ConnectionStrings:Sqlite"] = connectionString
             }).Build())
         {
             TenantId = tenantId;
-            _connection = connection;
+            _connectionString = connectionString;
         }
 
-        public override string ConnectionString => _connection.ConnectionString;
+        public override string ConnectionString => _connectionString;
     }
 
     private class TestSqliteVectorConnectionInterceptor : DbConnectionInterceptor

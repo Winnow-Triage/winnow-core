@@ -209,8 +209,8 @@ public class DeduplicationTests : IAsyncLifetime
             .Setup(x => x.GetEmbeddingAsync(It.IsAny<string>()))
             .ReturnsAsync(() =>
             {
-                // Return different vector each time
-                var vector = Enumerable.Range(0, 384).Select(i => (float)(i + vectorCounter) / 384).ToArray();
+                var vector = new float[384];
+                if (vectorCounter < 384) vector[vectorCounter] = 1.0f;
                 vectorCounter++;
                 return vector;
             });

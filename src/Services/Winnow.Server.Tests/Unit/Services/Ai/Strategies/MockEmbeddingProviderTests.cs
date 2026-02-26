@@ -20,7 +20,7 @@ public class MockEmbeddingProviderTests
     public void Constructor_WhenCalled_InitializesSuccessfully()
     {
         // Arrange & Act done in constructor
-        
+
         // Assert
         Assert.NotNull(_provider);
     }
@@ -63,7 +63,7 @@ public class MockEmbeddingProviderTests
         Assert.NotNull(result2);
         Assert.Equal(384, result1.Length);
         Assert.Equal(384, result2.Length);
-        
+
         // Mock embeddings should be different (random)
         Assert.NotEqual(result1, result2);
     }
@@ -73,7 +73,7 @@ public class MockEmbeddingProviderTests
     {
         // Arrange
         var text = "Test text";
-        
+
         // Act
         var result = await _provider.GetEmbeddingAsync(text);
 
@@ -85,7 +85,7 @@ public class MockEmbeddingProviderTests
     }
 
     [Fact]
-    public void CanHandle_WithNullSettings_ReturnsTrue()
+    public void CanHandle_WithNullSettings_ReturnsFalse()
     {
         // Arrange
         LlmSettings? settings = null;
@@ -94,11 +94,11 @@ public class MockEmbeddingProviderTests
         var result = _provider.CanHandle(settings!);
 
         // Assert
-        Assert.True(result);
+        Assert.False(result);
     }
 
     [Fact]
-    public void CanHandle_WithEmptySettings_ReturnsTrue()
+    public void CanHandle_WithEmptySettings_ReturnsFalse()
     {
         // Arrange
         var settings = new LlmSettings();
@@ -107,17 +107,16 @@ public class MockEmbeddingProviderTests
         var result = _provider.CanHandle(settings);
 
         // Assert
-        Assert.True(result);
+        Assert.False(result);
     }
 
     [Fact]
-    public void CanHandle_WithOllamaSettings_ReturnsTrue()
+    public void CanHandle_WithMockSettings_ReturnsTrue()
     {
         // Arrange
         var settings = new LlmSettings
         {
-            Provider = "Ollama",
-            Ollama = new OllamaSettings { Endpoint = "http://localhost:11434", ModelId = "llama3" }
+            EmbeddingProvider = "Mock"
         };
 
         // Act
@@ -128,36 +127,19 @@ public class MockEmbeddingProviderTests
     }
 
     [Fact]
-    public void CanHandle_WithOpenAISettings_ReturnsTrue()
+    public void CanHandle_WithOtherProvider_ReturnsFalse()
     {
         // Arrange
         var settings = new LlmSettings
         {
-            Provider = "OpenAI",
-            OpenAI = new OpenAiSettings { ApiKey = "test-key", ModelId = "gpt-4o" }
+            EmbeddingProvider = "Onnx"
         };
 
         // Act
         var result = _provider.CanHandle(settings);
 
         // Assert
-        Assert.True(result);
-    }
-
-    [Fact]
-    public void CanHandle_WithPlaceholderSettings_ReturnsTrue()
-    {
-        // Arrange
-        var settings = new LlmSettings
-        {
-            Provider = "Placeholder"
-        };
-
-        // Act
-        var result = _provider.CanHandle(settings);
-
-        // Assert
-        Assert.True(result);
+        Assert.False(result);
     }
 
     [Fact]

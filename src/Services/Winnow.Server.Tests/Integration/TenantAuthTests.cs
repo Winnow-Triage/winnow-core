@@ -117,12 +117,16 @@ public class TenantAuthTests : IAsyncLifetime
         Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
         var result = await response.Content.ReadFromJsonAsync<AuthResponse>();
         Assert.NotNull(result);
-        Assert.NotEmpty(result.Token);
+
+        var cookie = response.Headers.GetValues("Set-Cookie").FirstOrDefault(c => c.StartsWith("winnow_auth="));
+        Assert.NotNull(cookie);
+        var token = cookie.Split(';')[0].Substring("winnow_auth=".Length);
+        Assert.NotEmpty(token);
 
         // Decode token to verify tenant_id claim
         var handler = new JwtSecurityTokenHandler();
-        var token = handler.ReadJwtToken(result.Token);
-        var tenantClaim = token.Claims.FirstOrDefault(c => c.Type == "tenant_id");
+        var jwtToken = handler.ReadJwtToken(token);
+        var tenantClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "tenant_id");
 
         Assert.NotNull(tenantClaim);
         Assert.Equal(TestTenantId, tenantClaim.Value);
@@ -136,8 +140,11 @@ public class TenantAuthTests : IAsyncLifetime
         _client.DefaultRequestHeaders.Add("X-Tenant-ID", TestTenantId);
         var loginResponse = await _client.PostAsJsonAsync("/auth/login", loginRequest);
         var authResult = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
-        var token = authResult!.Token;
-        var projectId = authResult.DefaultProjectId;
+
+        var cookie = loginResponse.Headers.GetValues("Set-Cookie").First(c => c.StartsWith("winnow_auth="));
+        var token = cookie.Split(';')[0].Substring("winnow_auth=".Length);
+
+        var projectId = authResult!.DefaultProjectId;
 
         // 2. Clear headers and set Authorization
         _client.DefaultRequestHeaders.Remove("X-Tenant-ID");
