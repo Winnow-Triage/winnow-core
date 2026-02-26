@@ -67,7 +67,7 @@ public class ApiKeyAuthenticationHandler(
                 new Claim(ClaimTypes.NameIdentifier, project.Id.ToString()),
                 new Claim(ClaimTypes.Name, project.Name),
                 new Claim("ProjectId", project.Id.ToString()),
-                new Claim("OrganizationId", project.OrganizationId.ToString()),
+                new Claim("organization", project.OrganizationId.ToString()),
                 new Claim(ClaimTypes.Role, "Project")
             };
 

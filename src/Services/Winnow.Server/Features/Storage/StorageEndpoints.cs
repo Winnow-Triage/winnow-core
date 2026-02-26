@@ -32,14 +32,14 @@ public sealed class GetUploadUrlEndpoint(IStorageService storage) : Endpoint<Get
 
         if (orgId == null || orgId == Guid.Empty)
         {
-            var orgClaim = User.FindFirst("OrganizationId");
+            var orgClaim = User.FindFirst("organization");
             if (orgClaim != null && Guid.TryParse(orgClaim.Value, out var parsedOrgId))
                 orgId = parsedOrgId;
         }
 
         if (projectId == null || projectId == Guid.Empty)
         {
-            var projectClaim = User.FindFirst("ProjectId");
+            var projectClaim = User.FindFirst("ProjectId") ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
             if (projectClaim != null && Guid.TryParse(projectClaim.Value, out var parsedProjectId))
                 projectId = parsedProjectId;
         }

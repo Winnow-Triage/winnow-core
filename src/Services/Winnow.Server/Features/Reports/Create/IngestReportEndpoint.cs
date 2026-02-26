@@ -117,6 +117,15 @@ public sealed class IngestReportEndpoint(
         var currentTenantId = ((TenantContext)tenantContext).TenantId;
         var currentOrgId = tenantContext.CurrentOrganizationId ?? Guid.Empty;
 
+        if (currentOrgId == Guid.Empty)
+        {
+            var orgClaim = User.FindFirst("organization");
+            if (orgClaim != null && Guid.TryParse(orgClaim.Value, out var parsedOrgId))
+            {
+                currentOrgId = parsedOrgId;
+            }
+        }
+
         // 1. Generate Embedding
         var textToEmbed = $"{req.Title}\n{req.Message}\n{req.StackTrace}";
         var embeddingFloats = await embeddingService.GetEmbeddingAsync(textToEmbed);
