@@ -17,27 +17,44 @@ Winnow.init({
 });`
     },
     csharp: {
-        label: 'C# / .NET',
-        code: `using Winnow.Sdk;
+        label: '.NET Core',
+        code: `using Winnow.Sdk.DotNet.Core;
+using Winnow.Sdk.DotNet.Core.Models;
 
-builder.Services.AddWinnow(config => {
-    config.ApiKey = "secret-key";
-});`
+var config = new WinnowConfig { Environment = "Production" };
+var winnow = new WinnowSdkClient("secret-key", config);`
+    },
+    unity: {
+        label: 'Unity',
+        code: `using UnityEngine;
+using Winnow.Sdk.DotNet.Unity;
+
+public class GameInit : MonoBehaviour
+{
+    void Start()
+    {
+        var winnow = gameObject.AddComponent<WinnowUnity>();
+        winnow.apiKey = "secret-key";
+    }
+}`
     },
     godot: {
         label: 'Godot',
-        code: `using Winnow.Godot;
+        code: `// Ensure WinnowGodot is in Project -> AutoLoad
+using Godot;
+using Winnow.Sdk.DotNet.GodotNode;
 
 public override void _Ready()
 {
-    Winnow.Godot.Start(GetTree(), "secret-key");
+    var winnow = new WinnowGodot { ApiKey = "secret-key" };
+    AddChild(winnow);
 }`
     }
 }
 
 export default function ProjectSetup() {
     // State
-    const [activeTab, setActiveTab] = useState<'js' | 'csharp' | 'godot'>('js')
+    const [activeTab, setActiveTab] = useState<'js' | 'csharp' | 'unity' | 'godot'>('js')
     const [keyCopied, setKeyCopied] = useState(false)
     const [snippetCopied, setSnippetCopied] = useState(false)
     const [connectionState, setConnectionState] = useState<'waiting' | 'success'>('waiting')

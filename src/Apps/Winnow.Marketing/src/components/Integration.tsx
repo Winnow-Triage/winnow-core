@@ -39,45 +39,68 @@ export default function App() {
 }`
     },
     csharp: {
-        label: 'C# / .NET',
-        code: `using Winnow.Sdk;
+        label: '.NET Core',
+        code: `using Winnow.Sdk.DotNet.Core;
+using Winnow.Sdk.DotNet.Core.Models;
 
-var builder = WebApplication.CreateBuilder(args);
+var config = new WinnowConfig { Environment = "Production" };
+var winnow = new WinnowSdkClient("wm_live_...", config);`,
+        html: `<span class="text-blue-400">using</span> <span class="text-slate-300">Winnow.Sdk.DotNet.Core</span>;
+<span class="text-blue-400">using</span> <span class="text-slate-300">Winnow.Sdk.DotNet.Core.Models</span>;
 
-// Add Winnow to the container
-builder.Services.AddWinnow(config => {
-    config.ApiKey = "wm_live_...";
-});`,
-        html: `<span class="text-blue-400">using</span> <span class="text-slate-300">Winnow.Sdk</span>;
+<span class="text-blue-400">var</span> config = <span class="text-blue-400">new</span> <span class="text-yellow-300">WinnowConfig</span> { <span class="text-sky-300">Environment</span> = <span class="text-green-400">"Production"</span> };
+<span class="text-blue-400">var</span> winnow = <span class="text-blue-400">new</span> <span class="text-yellow-300">WinnowSdkClient</span>(<span class="text-green-400">"wm_live_..."</span>, config);`
+    },
+    unity: {
+        label: 'Unity',
+        code: `using UnityEngine;
+using Winnow.Sdk.DotNet.Unity;
 
-<span class="text-blue-400">var</span> builder = <span class="text-yellow-300">WebApplication</span>.CreateBuilder(args);
+public class GameInit : MonoBehaviour
+{
+    void Start()
+    {
+        var winnow = gameObject.AddComponent<WinnowUnity>();
+        winnow.apiKey = "wm_live_...";
+    }
+}`,
+        html: `<span class="text-blue-400">using</span> <span class="text-slate-300">UnityEngine</span>;
+<span class="text-blue-400">using</span> <span class="text-slate-300">Winnow.Sdk.DotNet.Unity</span>;
 
-<span class="text-slate-500">// Add Winnow to the container</span>
-builder.Services.<span class="text-yellow-300">AddWinnow</span>(config => {
-    config.<span class="text-sky-300">ApiKey</span> = <span class="text-green-400">"wm_live_..."</span>;
-});`
+<span class="text-purple-400">public class</span> <span class="text-yellow-300">GameInit</span> : <span class="text-yellow-300">MonoBehaviour</span>
+{
+    <span class="text-purple-400">void</span> <span class="text-blue-400">Start</span>()
+    {
+        <span class="text-blue-400">var</span> winnow = gameObject.<span class="text-blue-400">AddComponent</span>&lt;<span class="text-yellow-300">WinnowUnity</span>&gt;();
+        winnow.<span class="text-sky-300">apiKey</span> = <span class="text-green-400">"wm_live_..."</span>;
+    }
+}`
     },
     godot: {
         label: 'Godot',
-        code: `using Winnow.Godot;
+        code: `// Ensure WinnowGodot is in Project -> AutoLoad
+using Godot;
+using Winnow.Sdk.DotNet.GodotNode;
 
 public override void _Ready()
 {
-    // Initialize specifically for game engines
-    Winnow.Godot.Start(GetTree(), "wm_live_...");
+    var winnow = new WinnowGodot { ApiKey = "wm_live_..." };
+    AddChild(winnow);
 }`,
-        html: `<span class="text-blue-400">using</span> <span class="text-slate-300">Winnow.Godot</span>;
+        html: `<span class="text-slate-500">// Ensure WinnowGodot is in Project -&gt; AutoLoad</span>
+<span class="text-blue-400">using</span> <span class="text-slate-300">Godot</span>;
+<span class="text-blue-400">using</span> <span class="text-slate-300">Winnow.Sdk.DotNet.GodotNode</span>;
 
 <span class="text-purple-400">public override void</span> <span class="text-blue-400">_Ready</span>()
 {
-    <span class="text-slate-500">// Initialize specifically for game engines</span>
-    <span class="text-yellow-300">Winnow</span>.<span class="text-yellow-300">Godot</span>.<span class="text-blue-400">Start</span>(<span class="text-yellow-300">GetTree</span>(), <span class="text-green-400">"wm_live_..."</span>);
+    <span class="text-blue-400">var</span> winnow = <span class="text-blue-400">new</span> <span class="text-yellow-300">WinnowGodot</span> { <span class="text-sky-300">ApiKey</span> = <span class="text-green-400">"wm_live_..."</span> };
+    <span class="text-blue-400">AddChild</span>(winnow);
 }`
     }
 };
 
 export function Integration() {
-    const [activeTab, setActiveTab] = useState<'js' | 'react' | 'csharp' | 'godot'>('js');
+    const [activeTab, setActiveTab] = useState<'js' | 'react' | 'csharp' | 'unity' | 'godot'>('js');
     const [copied, setCopied] = useState(false);
 
     const handleCopy = () => {
