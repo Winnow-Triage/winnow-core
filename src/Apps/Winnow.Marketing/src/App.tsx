@@ -25,8 +25,7 @@ function App() {
       // Initialize Winnow once the script captures
       if (window.Winnow) {
         window.Winnow.init({
-          apiKey: 'secret-key', // Correct key provided by user
-          tenantId: 'marketing-demo-tenant', // Using a specific tenant for marketing demo if possible, or default
+          apiKey: 'wm_live_058cba8de3cb46d1b813d85c6a9be2a9_nQ7DBN1fH0Tkr9J3FPtF3D1OtxCa8Pq9LHd3EPn-8eo', // Correct key provided by user
           apiUrl: 'http://localhost:5294', // Pointing to local backend
           debug: true
         });

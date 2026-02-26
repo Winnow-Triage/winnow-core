@@ -462,10 +462,83 @@ export function initUI(config: WinnowConfig) {
             }
         };
 
-        // Include screenshot if available and not removed
+        let screenshotKey: string | null = null;
+
+        // 1 & 2: S3 Direct Upload Flow
         if (screenshotIncluded && currentScreenshot) {
-            payload.Screenshot = currentScreenshot;
+            try {
+                if (config.debug) {
+                    console.log('Winnow SDK: Starting screenshot upload flow...');
+                }
+
+                // Convert Base64 Data URL to Blob
+                const res = await fetch(currentScreenshot);
+                const blob = await res.blob();
+
+                // Get Pre-signed URL
+                const presignHeaders: Record<string, string> = {
+                    'Content-Type': 'application/json',
+                    'X-Winnow-Key': config.apiKey
+                };
+                if (config.tenantId) {
+                    presignHeaders['X-Tenant-Id'] = config.tenantId;
+                }
+
+                const fileName = `screenshot-${Date.now()}.png`;
+
+                if (config.debug) {
+                    console.log(`Winnow SDK: Requesting pre-signed URL for ${fileName} (${blob.type})`);
+                }
+
+                const presignRes = await fetch(`${config.apiUrl.replace(/\/$/, '')}/storage/upload-url`, {
+                    method: 'POST',
+                    headers: presignHeaders,
+                    body: JSON.stringify({
+                        fileName: fileName,
+                        contentType: blob.type
+                    })
+                });
+
+                if (!presignRes.ok) {
+                    throw new Error(`Failed to get pre-signed URL: ${presignRes.status}`);
+                }
+
+                const presignData = await presignRes.json();
+                const uploadUrl = presignData.uploadUrl;
+                screenshotKey = presignData.objectKey;
+
+                if (config.debug) {
+                    console.log(`Winnow SDK: Received upload URL. Uploading blob directly to S3...`);
+                }
+
+                // Direct PUT to S3
+                const uploadRes = await fetch(uploadUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': blob.type
+                    },
+                    body: blob
+                });
+
+                if (!uploadRes.ok) {
+                    throw new Error(`S3 upload failed: ${uploadRes.status}`);
+                }
+
+                if (config.debug) {
+                    console.log(`Winnow SDK: S3 Upload successful. File Key: ${screenshotKey}`);
+                }
+
+            } catch (err) {
+                console.warn('Winnow SDK: Screenshot upload failed, submitting report without it.', err);
+                screenshotKey = null; // Drop the screenshot but proceed with the report
+            }
         }
+
+        // 3. Final Payload Construction
+        if (screenshotKey) {
+            payload.ScreenshotKey = screenshotKey; // Use the S3 Key instead of Base64
+        }
+        // *Important*: We completely removed the `payload.Screenshot = currentScreenshot;` line.
 
         let finalPayload: any = payload;
 
@@ -484,7 +557,7 @@ export function initUI(config: WinnowConfig) {
         }
 
         if (config.debug) {
-            console.group('Winnow SDK: Sending Report');
+            console.group('Winnow SDK: Sending Final Report');
             console.log(JSON.stringify(finalPayload, null, 2));
             console.groupEnd();
         }
@@ -505,7 +578,7 @@ export function initUI(config: WinnowConfig) {
                 body: JSON.stringify(finalPayload)
             });
 
-            if (!response.ok) throw new Error('Failed to submit');
+            if (!response.ok) throw new Error('Failed to submit report');
 
             // Show success view
             viewForm.style.display = 'none';

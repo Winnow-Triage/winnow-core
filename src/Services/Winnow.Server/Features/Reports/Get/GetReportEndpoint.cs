@@ -225,7 +225,7 @@ public sealed class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services
 {
     public override void Configure()
     {
-        Get("/reports/{id}");
+        Get("/reports/{id:guid}");
         Description(x => x.WithName("GetReport"));
         Summary(s =>
         {

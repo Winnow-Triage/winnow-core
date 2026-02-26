@@ -31,9 +31,14 @@ public class IngestReportRequest
     public string? StackTrace { get; set; }
 
     /// <summary>
-    /// Base64 encoded screenshot image.
+    /// Base64 encoded screenshot image. (Deprecated in favor of direct S3 upload ScreenshotKey)
     /// </summary>
     public string? Screenshot { get; set; }
+
+    /// <summary>
+    /// S3 object key returned from the presigned URL flow for direct uploads.
+    /// </summary>
+    public string? ScreenshotKey { get; set; }
 
     /// <summary>
     /// Arbitrary metadata key-value pairs.
@@ -121,10 +126,27 @@ public sealed class IngestReportEndpoint(
         // 2. Generate Report ID upfront so we can use it in the S3 path
         var reportId = Guid.NewGuid();
 
-        // 3. Upload screenshot to S3 quarantine and create Asset record (if provided)
+        // 3. Asset record creation map
         Asset? screenshotAsset = null;
-        if (!string.IsNullOrEmpty(req.Screenshot))
+        if (!string.IsNullOrEmpty(req.ScreenshotKey))
         {
+            var fileName = Path.GetFileName(req.ScreenshotKey);
+            screenshotAsset = new Asset
+            {
+                OrganizationId = currentOrgId,
+                ProjectId = projectId,
+                ReportId = reportId,
+                FileName = string.IsNullOrEmpty(fileName) ? "screenshot.png" : fileName,
+                S3Key = req.ScreenshotKey,
+                ContentType = "image/png", // We default to PNG as that's what SDK produces
+                SizeBytes = 0, // For direct uploads, we don't know the exact size upfront here
+                Status = AssetStatus.Pending
+            };
+            logger.LogInformation("Asset created for directly uploaded S3 Key: {Key}", req.ScreenshotKey);
+        }
+        else if (!string.IsNullOrEmpty(req.Screenshot))
+        {
+            // Legacy Base64 Flow
             try
             {
                 // Strip data URL prefix: "data:image/png;base64,..."
