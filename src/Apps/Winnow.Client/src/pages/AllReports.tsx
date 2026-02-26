@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
+import { AlertCircle, ShieldAlert } from 'lucide-react';
 
 interface Report {
     id: string;
@@ -22,6 +23,8 @@ interface Report {
     createdAt: string;
     parentReportId?: string;
     confidenceScore?: number;
+    isOverage?: boolean;
+    isLocked?: boolean;
 }
 
 export default function AllReports() {
@@ -101,9 +104,13 @@ export default function AllReports() {
                             sortedReports.map((report) => (
                                 <TableRow key={report.id}>
                                     <TableCell className="font-medium">
-                                        <Link to={`/reports/${report.id}`} className="hover:underline block">
-                                            {report.title || report.message}
-                                        </Link>
+                                        <div className="flex items-center gap-2">
+                                            {report.isLocked && <ShieldAlert className="h-4 w-4 text-red-500 shrink-0" />}
+                                            {!report.isLocked && report.isOverage && <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />}
+                                            <Link to={`/reports/${report.id}`} className={`hover:underline block ${report.isLocked ? 'text-red-600 dark:text-red-400' : ''}`}>
+                                                {report.isLocked ? 'Locked Report (Limit Exceeded)' : (report.title || report.message)}
+                                            </Link>
+                                        </div>
                                     </TableCell>
                                     <TableCell>
                                         <Badge variant="outline">{report.status}</Badge>

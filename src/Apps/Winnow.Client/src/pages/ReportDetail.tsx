@@ -70,8 +70,9 @@ interface ReportDetailData {
     criticalityScore?: number;
     criticalityReasoning?: string;
     metadata?: string;
-    screenshot?: string;
     externalUrl?: string;
+    isOverage?: boolean;
+    isLocked?: boolean;
     assets: AssetData[];
     evidence: RelatedReport[];
 }
@@ -238,6 +239,37 @@ export default function ReportDetail() {
                             </Link>
                         </Button>
                     </div>
+                </div>
+            )}
+
+            {/* Paywall Banner (Retroactive Data Ransom) */}
+            {report.isLocked && (
+                <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-center gap-3 shadow-sm">
+                    <ShieldAlert className="h-6 w-6 text-red-600 dark:text-red-400 shrink-0" />
+                    <div className="flex-1">
+                        <h4 className="font-bold text-lg">Report Locked (Grace Limit Exceeded)</h4>
+                        <p className="text-sm opacity-90 mt-1">
+                            Your organization has significantly exceeded the monthly ingestion limits. This report data has been captured but is currently held for ransom.
+                        </p>
+                    </div>
+                    <Button asChild className="shrink-0 bg-red-600 hover:bg-red-700 text-white">
+                        <Link to="/settings#billing">
+                            Upgrade to Unlock
+                        </Link>
+                    </Button>
+                </div>
+            )}
+
+            {/* Overage Warning Banner */}
+            {!report.isLocked && report.isOverage && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800 rounded-lg p-3 flex items-center gap-3 text-sm">
+                    <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <div className="flex-1">
+                        <strong>Usage Warning:</strong> This report was ingested during your grace period. You will lose access to new reports if the grace limit is exceeded.
+                    </div>
+                    <Button asChild variant="outline" size="sm" className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100">
+                        <Link to="/settings#billing">Manage Quota</Link>
+                    </Button>
                 </div>
             )}
 
@@ -475,8 +507,8 @@ export default function ReportDetail() {
                             <CardTitle className="text-lg">User Description</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="prose dark:prose-invert max-w-none">
-                                <p className="whitespace-pre-wrap">{report.message}</p>
+                            <div className={`prose dark:prose-invert max-w-none ${report.isLocked ? 'blur-md select-none pointer-events-none opacity-60' : ''}`}>
+                                <p className="whitespace-pre-wrap">{report.isLocked ? 'This content is hidden. Please upgrade your plan to unlock this data.' : report.message}</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -598,7 +630,7 @@ export default function ReportDetail() {
                                 </CardTitle>
                                 <CardDescription>Files captured with this report.</CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-3">
+                            <CardContent className={`space-y-3 ${report.isLocked ? 'blur-md select-none pointer-events-none opacity-60' : ''}`}>
                                 {/* Show clean images in MediaGallery */}
                                 {report.assets.filter(a => a.status === 'Clean' && a.downloadUrl && (a.contentType.startsWith('image/') || a.contentType.startsWith('video/'))).length > 0 && (
                                     <MediaGallery
@@ -655,7 +687,7 @@ export default function ReportDetail() {
 
             {/* Console Logs Section - Full Width */}
             {
-                report.metadata && (() => {
+                !report.isLocked && report.metadata && (() => {
                     try {
                         const metadata = JSON.parse(report.metadata);
                         if (metadata.logs) {

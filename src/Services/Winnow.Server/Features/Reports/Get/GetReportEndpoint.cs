@@ -114,6 +114,16 @@ public class GetReportResponse
     public string? Metadata { get; set; }
 
     /// <summary>
+    /// Whether this report exceeded the free limits.
+    /// </summary>
+    public bool IsOverage { get; set; }
+
+    /// <summary>
+    /// Whether this report was held for ransom due to grace period breach.
+    /// </summary>
+    public bool IsLocked { get; set; }
+
+    /// <summary>
     /// URL or path to a screenshot.
     /// </summary>
     public string? Screenshot { get; set; }
@@ -357,6 +367,8 @@ public sealed class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services
             SuggestedConfidenceScore = report.SuggestedConfidenceScore,
             SuggestedParentMessage = suggestedParentMessage,
             Metadata = report.Metadata,
+            IsOverage = report.IsOverage,
+            IsLocked = report.IsLocked,
             ExternalUrl = report.ExternalUrl,
             Assets = assetDtos,
             Evidence = evidence

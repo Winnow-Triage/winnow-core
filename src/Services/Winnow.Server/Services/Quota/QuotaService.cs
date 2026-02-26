@@ -7,7 +7,7 @@ namespace Winnow.Server.Services.Quota;
 public class QuotaService(WinnowDbContext dbContext) : IQuotaService
 {
     /// <inheritdoc />
-    public async Task<bool> CanIngestReportAsync(Guid organizationId, CancellationToken ct = default)
+    public async Task<(bool isOverage, bool isLocked)> GetIngestionQuotaStatusAsync(Guid organizationId, CancellationToken ct = default)
     {
         var org = await dbContext.Organizations
             .AsNoTracking()
@@ -15,10 +15,11 @@ public class QuotaService(WinnowDbContext dbContext) : IQuotaService
 
         if (org == null)
         {
-            return false;
+            return (true, true); // Lock if organization doesn't exist
         }
 
-        int monthlyLimit = org.SubscriptionTier switch
+        // Tier definitions
+        int baseLimit = org.SubscriptionTier switch
         {
             "Free" => 50,
             "Starter" => 500,
@@ -27,9 +28,19 @@ public class QuotaService(WinnowDbContext dbContext) : IQuotaService
             _ => 50 // Default fallback
         };
 
-        if (monthlyLimit == int.MaxValue)
+        // Determine Grace Limit based on Tier
+        int graceLimit = org.SubscriptionTier switch
         {
-            return true;
+            "Free" => 100,
+            "Starter" => 1000,
+            "Pro" => int.MaxValue,
+            "Enterprise" => int.MaxValue,
+            _ => 100 // Default fallback
+        };
+
+        if (baseLimit == int.MaxValue)
+        {
+            return (false, false);
         }
 
         var startOfMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -38,6 +49,22 @@ public class QuotaService(WinnowDbContext dbContext) : IQuotaService
             .Where(r => r.OrganizationId == organizationId && r.CreatedAt >= startOfMonth)
             .CountAsync(ct);
 
-        return reportCount < monthlyLimit;
+        bool isOverage = reportCount >= baseLimit;
+        bool isLocked = reportCount >= graceLimit;
+
+        return (isOverage, isLocked);
+    }
+
+    /// <inheritdoc />
+    public async Task EnforceRetroactiveRansomAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var startOfMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        await dbContext.Reports
+            .Where(r => r.OrganizationId == organizationId
+                     && r.CreatedAt >= startOfMonth
+                     && r.IsOverage == true
+                     && r.IsLocked == false)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.IsLocked, true), ct);
     }
 }

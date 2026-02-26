@@ -18,6 +18,8 @@ namespace Winnow.Server.Features.Reports.List;
 /// <param name="ConfidenceScore">AI confidence score.</param>
 /// <param name="CriticalityScore">Criticality score.</param>
 /// <param name="Metadata">JSON metadata.</param>
+/// <param name="IsOverage">Whether this report exceeded the free limits.</param>
+/// <param name="IsLocked">Whether this report was held for ransom due to grace period breach.</param>
 public record ReportDto(
     Guid Id,
     string Title,
@@ -28,7 +30,9 @@ public record ReportDto(
     Guid? ParentReportId,
     float? ConfidenceScore,
     int? CriticalityScore,
-    string? Metadata);
+    string? Metadata,
+    bool IsOverage,
+    bool IsLocked);
 
 public sealed class ListReportsEndpoint(WinnowDbContext dbContext) : EndpointWithoutRequest<List<ReportDto>>
 {
@@ -100,7 +104,9 @@ public sealed class ListReportsEndpoint(WinnowDbContext dbContext) : EndpointWit
                 r.ParentReportId,
                 r.ConfidenceScore,
                 r.CriticalityScore,
-                r.Metadata))
+                r.Metadata,
+                r.IsOverage,
+                r.IsLocked))
             .ToListAsync(ct);
 
         await Send.OkAsync(reports, ct);

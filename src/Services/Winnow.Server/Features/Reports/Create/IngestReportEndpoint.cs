@@ -77,6 +77,7 @@ public sealed class IngestReportEndpoint(
     IPublishEndpoint publishEndpoint,
     Winnow.Server.Services.Ai.IEmbeddingService embeddingService,
     Winnow.Server.Services.Storage.IStorageService storageService,
+    Winnow.Server.Services.Quota.IQuotaService quotaService,
     WinnowDbContext dbContext,
     ILogger<IngestReportEndpoint> logger) : Endpoint<IngestReportRequest, IngestReportResponse>
 {
@@ -84,19 +85,16 @@ public sealed class IngestReportEndpoint(
     {
         Post("/reports");
         AuthSchemes("ApiKey");
-        PreProcessor<Infrastructure.Security.QuotaEnforcementPreProcessor<IngestReportRequest>>();
         Description(b => b
             .WithName("IngestReport")
             .Accepts<IngestReportRequest>("application/json")
-            .Produces<IngestReportResponse>(202)
-            .Produces(402));
+            .Produces<IngestReportResponse>(202));
         Summary(s =>
         {
             s.Summary = "Ingest a new report";
             s.Description = "Accepts a new report via API key authentication. Processes embeddings and screenshots.";
             s.Response<IngestReportResponse>(202, "Report accepted for processing");
             s.Response(401, "Invalid API Key");
-            s.Response(402, "Quota exceeded");
         });
     }
 
@@ -109,6 +107,10 @@ public sealed class IngestReportEndpoint(
             await Send.UnauthorizedAsync(ct);
             return;
         }
+
+        var tenantContext = dbContext.GetService<ITenantContext>();
+        var currentTenantId = ((TenantContext)tenantContext).TenantId;
+        var currentOrgId = tenantContext.CurrentOrganizationId ?? Guid.Empty;
 
         // 1. Generate Embedding
         var textToEmbed = $"{req.Title}\n{req.Message}";
@@ -136,7 +138,6 @@ public sealed class IngestReportEndpoint(
                 using var stream = new MemoryStream(imageBytes);
 
                 // Direct SDK upload with report-scoped path
-                var currentTenantId = ((TenantContext)dbContext.GetService<ITenantContext>()).TenantId;
                 var s3Key = await storageService.UploadFileAsync(
                     Guid.Empty, // orgId — will be populated when multi-tenancy is wired
                     projectId,
@@ -167,17 +168,28 @@ public sealed class IngestReportEndpoint(
             }
         }
 
+        // Quota Evaluation - Evaluate Grace Period and Ransom triggers (do NOT block the request)
+        var quotaStatus = await quotaService.GetIngestionQuotaStatusAsync(currentOrgId, ct);
+        if (quotaStatus.isLocked)
+        {
+            // The Grace Limit was breached on this request, perform retroactive lock
+            await quotaService.EnforceRetroactiveRansomAsync(currentOrgId, ct);
+        }
+
         var report = new Report
         {
             Id = reportId,
             ProjectId = projectId,
+            OrganizationId = currentOrgId,
             Title = req.Title,
             Message = req.Message,
             StackTrace = req.StackTrace,
             Metadata = req.Metadata != null ? JsonSerializer.Serialize(req.Metadata) : null,
             CreatedAt = DateTime.UtcNow,
             Embedding = embeddingBytes,
-            ClusterId = null
+            ClusterId = null,
+            IsOverage = quotaStatus.isOverage,
+            IsLocked = quotaStatus.isLocked
         };
 
         dbContext.Reports.Add(report);

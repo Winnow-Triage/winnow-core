@@ -13,6 +13,10 @@ public class Report : ITenantEntity
     public string Status { get; set; } = "New";
     public Guid? ClusterId { get; set; } // The cluster this report belongs to
 
+    // Billing/Quota fields
+    public bool IsOverage { get; set; }
+    public bool IsLocked { get; set; }
+
     // Legacy/Clustering fields (kept for compatibility during refactor)
     public Guid? ParentReportId { get; set; }
     public Guid? SuggestedParentId { get; set; }

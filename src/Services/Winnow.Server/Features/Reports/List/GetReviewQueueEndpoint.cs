@@ -19,6 +19,8 @@ namespace Winnow.Server.Features.Reports.List;
 /// <param name="SuggestedParentMessage">Message of the suggested parent.</param>
 /// <param name="SuggestedParentStackTrace">Stack trace of the suggested parent.</param>
 /// <param name="ConfidenceScore">Confidence in the suggestion.</param>
+/// <param name="IsOverage">Whether this report exceeded the free limits.</param>
+/// <param name="IsLocked">Whether this report was held for ransom due to grace period breach.</param>
 public record ReviewItemDto(
     Guid ReportId,
     string ReportTitle,
@@ -30,7 +32,9 @@ public record ReviewItemDto(
     string SuggestedParentTitle,
     string SuggestedParentMessage,
     string? SuggestedParentStackTrace,
-    float? ConfidenceScore
+    float? ConfidenceScore,
+    bool IsOverage,
+    bool IsLocked
 );
 
 public sealed class GetReviewQueueEndpoint(WinnowDbContext db) : EndpointWithoutRequest<List<ReviewItemDto>>
@@ -95,7 +99,9 @@ public sealed class GetReviewQueueEndpoint(WinnowDbContext db) : EndpointWithout
                 x.Parent.Title,
                 x.Parent.Message,
                 x.Parent.StackTrace,
-                x.Report.SuggestedConfidenceScore
+                x.Report.SuggestedConfidenceScore,
+                x.Report.IsOverage,
+                x.Report.IsLocked
             ))
             .ToListAsync(ct);
 
