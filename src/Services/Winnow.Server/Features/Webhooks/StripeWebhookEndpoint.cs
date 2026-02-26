@@ -9,7 +9,7 @@ using Winnow.Server.Infrastructure.Persistence;
 namespace Winnow.Server.Features.Webhooks;
 
 [AllowAnonymous]
-public sealed class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext db, ILogger<StripeWebhookEndpoint> logger) : EndpointWithoutRequest
+public sealed class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext db, Winnow.Server.Services.Quota.IQuotaService quotaService, ILogger<StripeWebhookEndpoint> logger) : EndpointWithoutRequest
 {
     public override void Configure()
     {
@@ -116,6 +116,7 @@ public sealed class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext
         }
 
         await db.SaveChangesAsync(ct);
+        await quotaService.ResolveQuotaDiscrepanciesAsync(organization.Id, ct);
         logger.LogInformation("Successfully processed checkout completed for Organization {OrganizationId}. Tier set to {Tier}.", organization.Id, organization.SubscriptionTier);
     }
 
@@ -151,6 +152,7 @@ public sealed class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext
         logger.LogInformation("Updated Organization {OrganizationId} tier to {Tier} due to subscription status: {Status}", organization.Id, organization.SubscriptionTier, subscription.Status);
 
         await db.SaveChangesAsync(ct);
+        await quotaService.ResolveQuotaDiscrepanciesAsync(organization.Id, ct);
     }
 
     private async Task HandleSubscriptionDeletedAsync(Event stripeEvent, CancellationToken ct)
@@ -171,6 +173,7 @@ public sealed class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext
         organization.StripeSubscriptionId = null;
 
         await db.SaveChangesAsync(ct);
+        await quotaService.ResolveQuotaDiscrepanciesAsync(organization.Id, ct);
         logger.LogInformation("Downgraded Organization {OrganizationId} tier to Free and cleared SubscriptionId due to subscription deletion.", organization.Id);
     }
 

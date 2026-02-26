@@ -253,7 +253,7 @@ export default function ReportDetail() {
                         </p>
                     </div>
                     <Button asChild className="shrink-0 bg-red-600 hover:bg-red-700 text-white">
-                        <Link to="/settings#billing">
+                        <Link to="/settings?tab=billing">
                             Upgrade to Unlock
                         </Link>
                     </Button>
@@ -268,7 +268,7 @@ export default function ReportDetail() {
                         <strong>Usage Warning:</strong> This report was ingested during your grace period. You will lose access to new reports if the grace limit is exceeded.
                     </div>
                     <Button asChild variant="outline" size="sm" className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100">
-                        <Link to="/settings#billing">Manage Quota</Link>
+                        <Link to="/settings?tab=billing">Manage Quota</Link>
                     </Button>
                 </div>
             )}

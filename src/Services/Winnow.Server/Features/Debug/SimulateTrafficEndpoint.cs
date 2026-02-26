@@ -139,9 +139,9 @@ public sealed class SimulateTrafficEndpoint(
                 CreatedAt = report.CreatedAt,
                 TenantId = tenantContext.TenantId
             });
-        }
 
-        await dbContext.SaveChangesAsync(ct);
+            await dbContext.SaveChangesAsync(ct);
+        }
 
         foreach (var evt in reportsToPublish)
         {

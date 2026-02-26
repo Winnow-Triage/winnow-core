@@ -20,4 +20,12 @@ public interface IQuotaService
     /// <param name="organizationId">The ID of the organization.</param>
     /// <param name="ct">Cancellation token.</param>
     Task EnforceRetroactiveRansomAsync(Guid organizationId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Resolves quota discrepancies when an organization's subscription tier changes.
+    /// This will automatically unlock reports if a user upgrades their plan, or lock them if they downgrade.
+    /// </summary>
+    /// <param name="organizationId">The ID of the organization.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task ResolveQuotaDiscrepanciesAsync(Guid organizationId, CancellationToken ct = default);
 }

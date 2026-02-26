@@ -31,7 +31,7 @@ public class UpdateOrganizationSubscriptionResponse
 /// <summary>
 /// Admin endpoint to manually override an organization's subscription tier.
 /// </summary>
-public sealed class UpdateOrganizationSubscriptionEndpoint(WinnowDbContext dbContext) : Endpoint<UpdateOrganizationSubscriptionRequest, UpdateOrganizationSubscriptionResponse>
+public sealed class UpdateOrganizationSubscriptionEndpoint(WinnowDbContext dbContext, Winnow.Server.Services.Quota.IQuotaService quotaService) : Endpoint<UpdateOrganizationSubscriptionRequest, UpdateOrganizationSubscriptionResponse>
 {
     private static readonly HashSet<string> _allowedTiers = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -82,6 +82,9 @@ public sealed class UpdateOrganizationSubscriptionEndpoint(WinnowDbContext dbCon
         }
 
         await dbContext.SaveChangesAsync(ct);
+
+        // Resolve any locked/overage discrepancies if the tier changed
+        await quotaService.ResolveQuotaDiscrepanciesAsync(organization.Id, ct);
 
         var response = new UpdateOrganizationSubscriptionResponse
         {
