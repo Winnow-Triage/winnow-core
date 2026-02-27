@@ -70,9 +70,10 @@ public sealed class GenerateClusterSummaryEndpoint(WinnowDbContext db, IClusterS
         }
 
         // Fetch related reports (evidence) to provide context for the summary - filter by project
+        // Including the root report itself so the AI has access to it even if no children exist
         var relatedReports = await db.Reports
             .AsNoTracking()
-            .Where(t => t.ProjectId == projectId && t.ParentReportId == report.Id)
+            .Where(t => t.ProjectId == projectId && (t.Id == report.Id || t.ParentReportId == report.Id))
             .ToListAsync(ct);
 
         var result = await summaryService.GenerateSummaryAsync(relatedReports, ct);

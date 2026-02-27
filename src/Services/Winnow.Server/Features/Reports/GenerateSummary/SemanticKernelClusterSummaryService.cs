@@ -36,6 +36,12 @@ public class SemanticKernelClusterSummaryService(Kernel kernel) : IClusterSummar
             Additionally, assess the CRITICALITY on a scale of 1 to 10. 
             IMPORTANT: Judgement should be based on the **NATURE and SEVERITY** of the problem, NOT the raw number of reports in the cluster. These reports are a signal of a potentially wider issue.
 
+            CRUCIAL ANTI-HALLUCINATION INSTRUCTIONS:
+            - If the reports contain generic test data (e.g., "test", "asdf") or lack real error context, DO NOT invent or assume a problem like login failures.
+            - Instead, explicitly state in the Core Issue that these are test or uninformative reports.
+            - Provide "N/A" for symptoms and recommend "Ignore or delete test data" for action.
+            - Assign a Criticality of 1.
+
             CRITICALITY rubric:
             - **10 (Critical)**: Total system outage, major data loss, critical security breach (PII exposure), or widespread/catastrophic financial corruption.
             - **8-9 (High)**: Core functionality failures (e.g., Login, Payments, Checkout, Data Sync), financial impact to individuals (e.g., double-charging), or severe performance degradation. **Assign these even if only one report is present.**
