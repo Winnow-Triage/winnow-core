@@ -26,7 +26,7 @@ public sealed class GetDashboardMetricsEndpoint(IDashboardService dashboardServi
         // Get user ID and organization ID from JWT
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var organizationIdClaim = User.FindFirstValue("organization");
-        
+
         if (string.IsNullOrEmpty(userId))
         {
             ThrowError("Unauthorized", 401);
@@ -53,7 +53,7 @@ public sealed class GetDashboardMetricsEndpoint(IDashboardService dashboardServi
             .Include(p => p.Organization!)
             .ThenInclude(o => o.Members)
             .AsNoTracking()
-            .AnyAsync(p => p.Id == projectId && 
+            .AnyAsync(p => p.Id == projectId &&
                          p.OrganizationId == organizationId &&
                          p.Organization!.Members.Any(m => m.UserId == userId), ct);
 
@@ -62,7 +62,7 @@ public sealed class GetDashboardMetricsEndpoint(IDashboardService dashboardServi
             ThrowError("Project not found or access denied", 404);
         }
 
-        var metrics = await dashboardService.GetDashboardMetricsAsync(projectId, organizationId, ct);
+        var metrics = await dashboardService.GetDashboardMetricsAsync(organizationId, projectId, null, ct);
         await Send.OkAsync(metrics, ct);
     }
 }

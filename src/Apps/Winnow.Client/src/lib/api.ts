@@ -338,3 +338,71 @@ export const getAllAdminReports = async (params?: {
     const response = await api.get('/admin/reports', { params });
     return response.data;
 };
+
+// Organization and Team Dashboards
+export interface DashboardQuotaStatus {
+    totalUsage: number;
+    baseLimit: number | null;
+    graceLimit: number | null;
+    isOverage: boolean;
+    usageHistory: { month: string; reportCount: number; clusterCount: number }[];
+}
+
+export interface TeamBreakdown {
+    teamId: string;
+    teamName: string;
+    projectCount: number;
+    reportVolume: number;
+}
+
+export interface TopProject {
+    projectId: string;
+    projectName: string;
+    reportCount: number;
+    activeClusters: number;
+}
+
+export interface OrganizationDashboardMetrics {
+    quota: DashboardQuotaStatus;
+    teamBreakdown: TeamBreakdown[];
+    topProjects: TopProject[];
+}
+
+export const getOrganizationMetrics = async (): Promise<OrganizationDashboardMetrics> => {
+    const response = await api.get('/dashboard/organization/metrics');
+    return response.data;
+};
+
+export interface ProjectBreakdown {
+    projectId: string;
+    projectName: string;
+    reportVolume: number;
+    activeClusters: number;
+}
+
+export interface TeamDashboardMetrics {
+    projectBreakdown: ProjectBreakdown[];
+    topClusters: {
+        clusterId: string;
+        title: string;
+        status: string;
+        reportCount: number;
+        velocity: number;
+        isHot: boolean;
+    }[];
+    volumeHistory: {
+        timestamp: string;
+        newUniqueCount: number;
+        duplicateCount: number;
+    }[];
+}
+
+export const getTeamMetrics = async (teamId: string): Promise<TeamDashboardMetrics> => {
+    const response = await api.get(`/dashboard/teams/${teamId}/metrics`);
+    return response.data;
+};
+
+export const getMyTeams = async () => {
+    const response = await api.get('/teams');
+    return response.data;
+};

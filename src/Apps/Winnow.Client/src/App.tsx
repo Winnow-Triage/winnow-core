@@ -12,6 +12,8 @@ import Clusters from './pages/Clusters'
 import Settings from './pages/Settings'
 import ProjectSettings from './pages/ProjectSettings'
 import ProjectSetup from './pages/ProjectSetup'
+import OrganizationDashboard from './pages/OrganizationDashboard'
+import TeamDashboard from './pages/TeamDashboard'
 import AuthPage from './pages/AuthPage'
 import SuspendedPage from './pages/SuspendedPage'
 import UserSettings from './pages/UserSettings'
@@ -88,6 +90,8 @@ export default function App() {
                       <Route path="/" element={<Layout />}>
                         <Route index element={<Navigate to="/dashboard" replace />} />
                         <Route path="/dashboard" element={<ClusterDashboard />} />
+                        <Route path="/org-dashboard" element={<OrganizationDashboard />} />
+                        <Route path="/team-dashboard" element={<TeamDashboard />} />
                         <Route path="/triage/review" element={<ReviewSuggestions />} />
                         <Route path="reports" element={<AllReports />} />
                         <Route path="reports/:id" element={<ReportDetail />} />

@@ -1,5 +1,5 @@
-import { FileText, LayoutDashboard, Settings, Inbox, Layers } from "lucide-react"
-import { Link, useNavigate } from "react-router-dom"
+import { FileText, LayoutDashboard, Settings, Inbox, Layers, Building2, Users } from "lucide-react"
+import { Link, useNavigate, useLocation } from "react-router-dom"
 import {
     Sidebar,
     SidebarContent,
@@ -61,9 +61,35 @@ const items = [
 ]
 
 export function AppSidebar() {
+    const location = useLocation()
     return (
         <Sidebar collapsible="icon" variant="sidebar">
             <SidebarContent>
+                {/* Dashboards */}
+                <SidebarGroup>
+                    <SidebarGroupLabel>Dashboards</SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={location.pathname === "/org-dashboard"}>
+                                    <Link to="/org-dashboard">
+                                        <Building2 className="h-4 w-4" />
+                                        <span>Org Overview</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={location.pathname === "/team-dashboard"}>
+                                    <Link to="/team-dashboard">
+                                        <Users className="h-4 w-4" />
+                                        <span>Team Overview</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+
                 {/* Project Switcher */}
                 <SidebarGroup>
                     <SidebarGroupLabel>Project</SidebarGroupLabel>
