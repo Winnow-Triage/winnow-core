@@ -5,6 +5,7 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Winnow.Server.Entities;
+using Winnow.Server.Extensions;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 
@@ -52,6 +53,9 @@ internal class IngestReportValidator : Validator<IngestReportRequest>
     {
         RuleFor(x => x.Title).NotEmpty().MaximumLength(500);
         RuleFor(x => x.Message).NotEmpty().MaximumLength(5000);
+        RuleFor(x => x.ScreenshotKey)
+            .MustBeValidFilePath()
+            .When(x => !string.IsNullOrEmpty(x.ScreenshotKey));
     }
 }
 

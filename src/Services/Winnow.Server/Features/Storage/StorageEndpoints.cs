@@ -1,4 +1,6 @@
 using FastEndpoints;
+using FluentValidation;
+using Winnow.Server.Extensions;
 using Winnow.Server.Services.Storage;
 
 namespace Winnow.Server.Features.Storage;
@@ -10,6 +12,17 @@ public class GetUploadUrlRequest
     public string FileName { get; set; } = default!;
     public string ContentType { get; set; } = "application/octet-stream";
 }
+
+public class GetUploadUrlRequestValidator : Validator<GetUploadUrlRequest>
+{
+    public GetUploadUrlRequestValidator()
+    {
+        RuleFor(x => x.FileName)
+            .NotEmpty()
+            .MustBeValidFilePath();
+    }
+}
+
 public class GetUploadUrlResponse
 {
     public Uri UploadUrl { get; set; } = default!;
@@ -63,6 +76,17 @@ public class GetDownloadUrlRequest
 {
     public string Key { get; set; } = default!;
 }
+
+public class GetDownloadUrlRequestValidator : Validator<GetDownloadUrlRequest>
+{
+    public GetDownloadUrlRequestValidator()
+    {
+        RuleFor(x => x.Key)
+            .NotEmpty()
+            .MustBeValidFilePath();
+    }
+}
+
 public class GetDownloadUrlResponse
 {
     public Uri DownloadUrl { get; set; } = default!;
