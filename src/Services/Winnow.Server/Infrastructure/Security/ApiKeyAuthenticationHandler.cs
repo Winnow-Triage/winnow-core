@@ -54,8 +54,26 @@ public class ApiKeyAuthenticationHandler(
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == targetProjectId);
 
-            // Project not found OR the hash comparison fails
-            if (project == null || !apiKeyService.VerifyKey(incomingKey, project.ApiKeyHash))
+            if (project == null)
+            {
+                return AuthenticateResult.Fail("Invalid API Key");
+            }
+
+            // Verify primary key
+            bool isPrimaryValid = apiKeyService.VerifyKey(incomingKey, project.ApiKeyHash);
+
+            // Verify secondary key if primary failed
+            bool isSecondaryValid = false;
+            if (!isPrimaryValid && !string.IsNullOrEmpty(project.SecondaryApiKeyHash))
+            {
+                // Check if secondary key is still valid (not expired)
+                if (!project.SecondaryApiKeyExpiresAt.HasValue || project.SecondaryApiKeyExpiresAt.Value > DateTimeOffset.UtcNow)
+                {
+                    isSecondaryValid = apiKeyService.VerifyKey(incomingKey, project.SecondaryApiKeyHash);
+                }
+            }
+
+            if (!isPrimaryValid && !isSecondaryValid)
             {
                 // Return a generic error to prevent timing attacks / enumeration
                 return AuthenticateResult.Fail("Invalid API Key");

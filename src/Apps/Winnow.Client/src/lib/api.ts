@@ -406,3 +406,12 @@ export const getMyTeams = async () => {
     const response = await api.get('/teams');
     return response.data;
 };
+
+export const rotateProjectApiKey = async (projectId: string, expiresAt: string | null = null): Promise<string> => {
+    const { data } = await api.post(`/projects/${projectId}/api-key/rotate`, { expiresAt });
+    return data.apiKey;
+};
+
+export const revokeProjectSecondaryApiKey = async (projectId: string): Promise<void> => {
+    await api.post(`/projects/${projectId}/api-key/revoke-secondary`);
+};

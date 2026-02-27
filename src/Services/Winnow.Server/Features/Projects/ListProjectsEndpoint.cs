@@ -14,7 +14,15 @@ namespace Winnow.Server.Features.Projects;
 /// <param name="Name">Name of the project.</param>
 /// <param name="ApiKey">API Key key for the project.</param>
 /// <param name="TeamId">The ID of the team this project belongs to, if any.</param>
-public record ProjectDto(Guid Id, string Name, string ApiKey, Guid? TeamId = null);
+/// <param name="HasSecondaryKey">Indicates if there is an active secondary (old) key.</param>
+/// <param name="SecondaryApiKeyExpiresAt">When the secondary key will expire, if any.</param>
+public record ProjectDto(
+    Guid Id,
+    string Name,
+    string ApiKey,
+    Guid? TeamId = null,
+    bool HasSecondaryKey = false,
+    DateTimeOffset? SecondaryApiKeyExpiresAt = null);
 
 public class ListProjectsRequest
 {
@@ -82,7 +90,13 @@ public sealed class ListProjectsEndpoint(WinnowDbContext dbContext, ITenantConte
         }
 
         var projects = await query
-            .Select(p => new ProjectDto(p.Id, p.Name, "", p.TeamId))
+            .Select(p => new ProjectDto(
+                p.Id,
+                p.Name,
+                "",
+                p.TeamId,
+                !string.IsNullOrEmpty(p.SecondaryApiKeyHash),
+                p.SecondaryApiKeyExpiresAt))
             .ToListAsync(ct);
 
         await Send.OkAsync(projects, ct);

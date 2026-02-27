@@ -7,6 +7,8 @@ export interface Project {
     name: string;
     apiKey: string;
     teamId?: string | null;
+    hasSecondaryKey?: boolean;
+    secondaryApiKeyExpiresAt?: string | null;
 }
 
 interface ProjectContextType {
