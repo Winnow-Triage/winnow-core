@@ -68,11 +68,6 @@ export const getAllOrganizations = async (): Promise<OrganizationSummary[]> => {
     return response.data;
 };
 
-export const getOrganizationDetails = async (id: string) => {
-    const response = await api.get(`/admin/organizations/${id}`);
-    return response.data;
-};
-
 export const updateOrganizationStatus = async (id: string, isSuspended: boolean) => {
     const response = await api.patch(`/admin/organizations/${id}/status`, {
         id,
@@ -223,5 +218,123 @@ export interface SystemHealthResponse {
 
 export const getSystemHealth = async (): Promise<SystemHealthResponse> => {
     const response = await api.get('/health/detailed');
+    return response.data;
+};
+
+// Admin Report Management
+export interface QuotaStatus {
+    baseLimit: number;
+    graceLimit: number;
+    monthlyReportCount: number;
+    isOverage: boolean;
+    isLocked: boolean;
+}
+
+export interface ProjectQuotaSummary {
+    id: string;
+    name: string;
+    monthlyReportCount: number;
+}
+
+export interface TeamSummary {
+    id: string;
+    name: string;
+    createdAt: string;
+    projectCount: number;
+}
+
+export interface MemberSummary {
+    id: string;
+    userId: string;
+    role: string;
+    joinedAt: string;
+    userEmail?: string;
+    userFullName?: string;
+}
+
+export interface OrganizationDetailsResponse {
+    id: string;
+    name: string;
+    stripeCustomerId: string | null;
+    subscriptionTier: string;
+    createdAt: string;
+    isPaidTier: boolean;
+    teamCount: number;
+    memberCount: number;
+    projectCount: number;
+    reportCount: number;
+    assetCount: number;
+    integrationCount: number;
+    lastReportDate: string | null;
+    lastMemberJoinDate: string | null;
+    teams: TeamSummary[];
+    members: MemberSummary[];
+    quota: QuotaStatus;
+    projectQuotas: ProjectQuotaSummary[];
+}
+
+export const getOrganizationDetails = async (id: string): Promise<OrganizationDetailsResponse> => {
+    const response = await api.get(`/admin/organizations/${id}`);
+    return response.data;
+};
+
+// Admin Report Management
+export interface AdminReportResponse {
+    id: string;
+    projectId: string;
+    organizationId: string;
+    title: string;
+    status: string;
+    isLocked: boolean;
+    isOverage: boolean;
+    createdAt: string;
+}
+
+export const getAdminReport = async (id: string): Promise<AdminReportResponse> => {
+    const response = await api.get(`/admin/reports/${id}`);
+    return response.data;
+};
+
+export const toggleAdminReportLock = async (id: string) => {
+    const response = await api.post(`/admin/reports/${id}/toggle-lock`, {});
+    return response.data;
+};
+
+export const resetAdminReportOverage = async (id: string) => {
+    const response = await api.post(`/admin/reports/${id}/reset-overage`, {});
+    return response.data;
+};
+
+export interface AdminReportSummary {
+    id: string;
+    title: string;
+    status: string;
+    isLocked: boolean;
+    isOverage: boolean;
+    createdAt: string;
+    organizationId: string;
+    organizationName: string;
+    projectId: string;
+    projectName: string;
+}
+
+export interface PagedAdminReportResponse {
+    items: AdminReportSummary[];
+    totalCount: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+}
+
+export const getAllAdminReports = async (params?: {
+    searchTerm?: string;
+    status?: string;
+    isLocked?: boolean;
+    organizationId?: string;
+    projectId?: string;
+    page?: number;
+    pageSize?: number;
+}): Promise<PagedAdminReportResponse> => {
+    const response = await api.get('/admin/reports', { params });
     return response.data;
 };

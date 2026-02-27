@@ -32,6 +32,8 @@ import { formatTimeAgo } from "@/lib/utils"
 import { toast } from "sonner"
 import { Plus } from "lucide-react"
 
+import { OrganizationDetailsModal } from "@/components/admin/OrganizationDetailsModal"
+
 import { Input } from "@/components/ui/input"
 import {
     Select,
@@ -58,6 +60,10 @@ export default function OrganizationsDashboard() {
     const [newOrgName, setNewOrgName] = useState("")
     const [newOrgTier, setNewOrgTier] = useState("Free")
     const [isCreating, setIsCreating] = useState(false)
+
+    // Details Modal State
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+    const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null)
 
     const fetchOrganizations = async () => {
         try {
@@ -280,6 +286,10 @@ export default function OrganizationsDashboard() {
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end" className="border-red-900/50 min-w-[200px]">
+                                                <DropdownMenuItem onClick={() => { setSelectedOrgId(org.id); setIsDetailsModalOpen(true); }} className="hover:bg-blue-500/20 focus:bg-blue-500/20 cursor-pointer font-medium mb-1">
+                                                    View Details
+                                                </DropdownMenuItem>
+
                                                 <DropdownMenuItem onClick={() => handleImpersonate(org.name)} className="font-medium text-orange-400 focus:text-orange-400 focus:bg-orange-500/10 mb-2">
                                                     Impersonate Tenant
                                                 </DropdownMenuItem>
@@ -425,6 +435,12 @@ export default function OrganizationsDashboard() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <OrganizationDetailsModal
+                organizationId={selectedOrgId}
+                isOpen={isDetailsModalOpen}
+                onOpenChange={setIsDetailsModalOpen}
+            />
         </div >
     )
 }

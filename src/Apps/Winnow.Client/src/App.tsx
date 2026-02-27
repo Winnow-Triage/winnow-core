@@ -26,6 +26,7 @@ import OrganizationsDashboard from './pages/admin/OrganizationsDashboard'
 import UsersDashboard from './pages/admin/UsersDashboard'
 import SystemHealth from './pages/admin/SystemHealth'
 import AdminSettings from './pages/admin/AdminSettings'
+import TicketsDashboard from './pages/admin/TicketsDashboard'
 
 import { Toaster } from "sonner"
 
@@ -58,6 +59,7 @@ export default function App() {
                   <Route index element={<Navigate to="/admin/organizations" replace />} />
                   <Route path="organizations" element={<OrganizationsDashboard />} />
                   <Route path="users" element={<UsersDashboard />} />
+                  <Route path="tickets" element={<TicketsDashboard />} />
                   <Route path="health" element={<SystemHealth />} />
                   <Route path="settings" element={<AdminSettings />} />
                 </Route>
