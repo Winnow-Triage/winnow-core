@@ -7,7 +7,7 @@ interface SectionProps {
     containerClassName?: string;
     variant?: 'white' | 'slate' | 'muted' | 'transparent';
     border?: 'top' | 'bottom' | 'both' | 'none';
-    padding?: 'normal' | 'large' | 'none';
+    padding?: 'normal' | 'large' | 'xlarge' | 'none';
 }
 
 export function Section({
@@ -36,6 +36,7 @@ export function Section({
     const paddings = {
         normal: "py-20",
         large: "py-24 md:py-32",
+        xlarge: "py-32 md:py-48",
         none: ""
     };
 

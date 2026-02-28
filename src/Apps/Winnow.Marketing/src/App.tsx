@@ -11,6 +11,7 @@ import { Privacy } from './pages/Privacy';
 import { Terms } from './pages/Terms';
 import { Integrations } from './pages/Integrations';
 import { Blog } from './pages/Blog';
+import { BlogPost } from './pages/BlogPost';
 import { Documentation } from './pages/Documentation';
 import { Careers } from './pages/Careers';
 
@@ -72,6 +73,7 @@ function App() {
           <Route path="/terms" element={<Terms />} />
           <Route path="/integrations" element={<Integrations />} />
           <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slug" element={<BlogPost />} />
           <Route path="/careers" element={<Careers />} />
           <Route path="/cookies" element={<ComingSoon title="Cookie Policy" />} />
           <Route path="/docs" element={<Documentation />} />

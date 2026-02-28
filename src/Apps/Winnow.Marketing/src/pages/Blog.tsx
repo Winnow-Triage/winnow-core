@@ -4,32 +4,8 @@ import { Card } from '../components/ui/Card';
 import { GradientText } from '../components/ui/GradientText';
 import { ArrowRight, Clock, Tag } from 'lucide-react';
 
-const posts = [
-    {
-        title: "Introducing Vector Clustering for Crash Triage",
-        excerpt: "How we're using high-dimensional embeddings to Group thousands of reports with zero-latency.",
-        category: "Engineering",
-        date: "Feb 24, 2026",
-        readTime: "8 min read",
-        image: "/blog/vector-clustering.png"
-    },
-    {
-        title: "The Case for Semantic Observability",
-        excerpt: "Why traditional string matching is failing modern DevOps teams and how semantics change the game.",
-        category: "Product",
-        date: "Feb 18, 2026",
-        readTime: "5 min read",
-        image: "/blog/semantic-obs.png"
-    },
-    {
-        title: "Winnow v0.1.0: Real-time SDKs for Unity & Godot",
-        excerpt: "Expanding our reach to game developers with first-class support for C# engines.",
-        category: "Release",
-        date: "Feb 10, 2026",
-        readTime: "3 min read",
-        image: "/blog/game-sdks.png"
-    }
-];
+import { blogPosts } from '../data/blog';
+import { Link } from 'react-router-dom';
 
 export function Blog() {
     return (
@@ -45,9 +21,9 @@ export function Blog() {
                 </p>
             </Section>
 
-            <Section padding="large">
+            <Section padding="xlarge">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {posts.map((post, i) => (
+                    {blogPosts.map((post, i) => (
                         <Card key={i} className="group flex flex-col h-full overflow-hidden">
                             <div className="aspect-video bg-slate-100 dark:bg-slate-800 relative overflow-hidden">
                                 {/* Placeholder for blog image */}
@@ -66,9 +42,9 @@ export function Blog() {
                                 </p>
                                 <div className="flex items-center justify-between mt-auto pt-6 border-t border-slate-100 dark:border-slate-800">
                                     <span className="text-xs text-muted-foreground">{post.date}</span>
-                                    <button className="text-sm font-bold flex items-center text-primary group-hover:translate-x-1 transition-transform">
+                                    <Link to={`/blog/${post.slug}`} className="text-sm font-bold flex items-center text-primary group-hover:translate-x-1 transition-transform">
                                         Read Post <ArrowRight className="h-4 w-4 ml-1" />
-                                    </button>
+                                    </Link>
                                 </div>
                             </div>
                         </Card>
