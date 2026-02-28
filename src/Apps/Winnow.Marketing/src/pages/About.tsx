@@ -27,13 +27,16 @@ export function About() {
     return (
         <div className="flex flex-col min-h-screen">
             {/* Mission Hero */}
-            <section className="relative py-24 md:py-32 overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300">
-                <div className="absolute inset-0 opacity-5 dark:opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
-                <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-blue-600/10 to-transparent pointer-events-none" />
+            <section className="relative py-24 md:py-32 overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300 border-b">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-7xl pointer-events-none">
+                    <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 blur-[120px] rounded-full" />
+                    <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-500/10 blur-[120px] rounded-full" />
+                </div>
+                <div className="absolute inset-0 bg-grid-slate-950/[0.02] dark:bg-grid-white/[0.02] pointer-events-none" />
                 <div className="container mx-auto px-4 md:px-6 relative z-10 text-center">
-                    <h1 className="text-4xl md:text-6xl font-bold mb-8 tracking-tighter">
+                    <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 mt-4">
                         We're on a mission to <br />
-                        <span className="text-brand-gradient bg-clip-text text-transparent italic">
+                        <span className="text-brand-gradient italic">
                             eliminate alert fatigue.
                         </span>
                     </h1>
@@ -63,12 +66,12 @@ export function About() {
                                 Winnow uses AI-driven vector similarity to understand your reports semantically. It's like having a senior engineer constantly triaging your inbox.
                             </p>
                         </div>
-                        <div className="bg-slate-50 dark:bg-slate-900/50 p-8 md:p-12 rounded-3xl border">
-                            <h2 className="text-3xl font-bold mb-8">Our Core Values</h2>
+                        <div className="bg-slate-50 dark:bg-slate-900/50 p-8 md:p-12 rounded-3xl border shadow-sm">
+                            <h2 className="text-3xl font-bold mb-10">Our Core Values</h2>
                             <div className="space-y-12">
                                 {values.map((value, i) => (
-                                    <div key={i} className="flex gap-6">
-                                        <div className="mt-1 h-12 w-12 shrink-0 rounded-2xl bg-white dark:bg-slate-950 border flex items-center justify-center shadow-sm">
+                                    <div key={i} className="flex gap-6 group transition-all duration-300">
+                                        <div className="mt-1 h-12 w-12 shrink-0 rounded-2xl bg-white dark:bg-slate-950 border flex items-center justify-center shadow-sm group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
                                             <value.icon className={`h-6 w-6 ${value.color}`} />
                                         </div>
                                         <div>
@@ -115,20 +118,20 @@ export function About() {
                         </p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        <div className="p-8 rounded-3xl border bg-card hover:shadow-lg transition-shadow">
-                            <Zap className="h-8 w-8 text-amber-500 mb-4" />
+                        <div className="p-8 rounded-3xl border bg-card shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                            <Zap className="h-8 w-8 text-amber-500 mb-6" />
                             <h3 className="font-bold text-xl mb-4">Vector-First</h3>
-                            <p className="text-muted-foreground text-sm">Every report is converted into a high-dimensional vector. This allows us to find "near-matches" that traditional software would miss completely.</p>
+                            <p className="text-muted-foreground text-sm leading-relaxed">Every report is converted into a high-dimensional vector. This allows us to find "near-matches" that traditional software would miss completely.</p>
                         </div>
-                        <div className="p-8 rounded-3xl border bg-card hover:shadow-lg transition-shadow">
-                            <Users className="h-8 w-8 text-blue-500 mb-4" />
+                        <div className="p-8 rounded-3xl border bg-card shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                            <Users className="h-8 w-8 text-blue-500 mb-6" />
                             <h3 className="font-bold text-xl mb-4">Collaborative Context</h3>
-                            <p className="text-muted-foreground text-sm">Data is useless without team context. Every feature we build is designed to make it easier for teams to share knowledge across projects.</p>
+                            <p className="text-muted-foreground text-sm leading-relaxed">Data is useless without team context. Every feature we build is designed to make it easier for teams to share knowledge across projects.</p>
                         </div>
-                        <div className="p-8 rounded-3xl border bg-card hover:shadow-lg transition-shadow">
-                            <Coffee className="h-8 w-8 text-emerald-500 mb-4" />
+                        <div className="p-8 rounded-3xl border bg-card shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                            <Coffee className="h-8 w-8 text-emerald-500 mb-6" />
                             <h3 className="font-bold text-xl mb-4">Developer Delight</h3>
-                            <p className="text-muted-foreground text-sm">Low latency, zero bloat, and APIs that feel like they were written by friends. We prioritize the developer experience above all else.</p>
+                            <p className="text-muted-foreground text-sm leading-relaxed">Low latency, zero bloat, and APIs that feel like they were written by friends. We prioritize the developer experience above all else.</p>
                         </div>
                     </div>
                 </div>

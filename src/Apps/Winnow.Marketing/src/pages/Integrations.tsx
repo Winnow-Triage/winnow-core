@@ -52,16 +52,22 @@ export function Integrations() {
     return (
         <div className="flex flex-col min-h-screen">
             {/* Hero Section */}
-            <section className="relative pt-20 pb-16 md:pt-32 md:pb-24 overflow-hidden border-b">
+            <section className="relative py-24 md:py-32 overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300 border-b">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-7xl pointer-events-none">
+                    <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 blur-[120px] rounded-full" />
+                    <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-500/10 blur-[120px] rounded-full" />
+                </div>
                 <div className="absolute inset-0 bg-grid-slate-950/[0.02] dark:bg-grid-white/[0.02] pointer-events-none" />
                 <div className="container mx-auto px-4 md:px-6 relative z-10 text-center">
-                    <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6">
-                        Connect your <br />
-                        <span className="text-brand-gradient">entire stack.</span>
-                    </h1>
-                    <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-8">
-                        Winnow integrates deeply with the tools you already love. No more context switching—just streamlined triage.
-                    </p>
+                    <div className="max-w-3xl mx-auto">
+                        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6">
+                            Connect your <br />
+                            <span className="text-brand-gradient italic">entire stack.</span>
+                        </h1>
+                        <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-8">
+                            Winnow integrates deeply with the tools you already love. No more context switching—just streamlined triage.
+                        </p>
+                    </div>
                 </div>
             </section>
 
@@ -77,7 +83,7 @@ export function Integrations() {
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                     {category.integrations.map((item, j) => (
-                                        <div key={j} className="group relative bg-white dark:bg-slate-950 p-8 rounded-3xl border shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                                        <div key={j} className="group relative bg-white dark:bg-slate-950 p-8 rounded-3xl border shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
                                             <div className="flex items-start justify-between mb-6">
                                                 <div className="h-12 w-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300">
                                                     <item.icon className="h-6 w-6" />

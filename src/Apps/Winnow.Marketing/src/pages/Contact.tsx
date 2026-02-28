@@ -10,12 +10,17 @@ export function Contact() {
     return (
         <div className="flex flex-col min-h-screen">
             {/* Header */}
-            <section className="py-20 md:py-32 bg-slate-50 dark:bg-slate-900/50 overflow-hidden relative">
-                <div className="container mx-auto px-4 md:px-6 relative z-10">
-                    <div className="max-w-2xl">
-                        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-6">
+            <section className="relative py-24 md:py-32 overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300 border-b">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-7xl pointer-events-none">
+                    <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 blur-[120px] rounded-full" />
+                    <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-500/10 blur-[120px] rounded-full" />
+                </div>
+                <div className="absolute inset-0 bg-grid-slate-950/[0.02] dark:bg-grid-white/[0.02] pointer-events-none" />
+                <div className="container mx-auto px-4 md:px-6 relative z-10 text-center">
+                    <div className="max-w-3xl mx-auto">
+                        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6">
                             Let's talk about <br />
-                            <span className="text-brand-gradient">your application stability.</span>
+                            <span className="text-brand-gradient italic">your application stability.</span>
                         </h1>
                         <p className="text-xl text-muted-foreground leading-relaxed">
                             Have questions about our AI clustering? Need help with an integration? Our team is here to help you get the most out of Winnow.
@@ -29,7 +34,7 @@ export function Contact() {
                 <div className="container mx-auto px-4 md:px-6">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
                         {/* Contact Form Placeholder */}
-                        <div className="lg:col-span-2 bg-card rounded-3xl border p-8 md:p-12 shadow-sm">
+                        <div className="lg:col-span-2 bg-card rounded-3xl border p-8 md:p-12 shadow-sm hover:shadow-xl transition-all duration-300">
                             <h2 className="text-2xl font-bold mb-8">Send us a message</h2>
                             <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

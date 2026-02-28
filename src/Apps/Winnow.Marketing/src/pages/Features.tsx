@@ -165,16 +165,17 @@ export function Features() {
         <div className="flex flex-col min-h-screen">
             {/* Hero Section */}
             <section className="relative pt-20 pb-16 md:pt-32 md:pb-24 overflow-hidden border-b">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-7xl">
-                    <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full" />
-                    <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/10 blur-[120px] rounded-full" />
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-7xl pointer-events-none">
+                    <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 blur-[120px] rounded-full" />
+                    <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-500/10 blur-[120px] rounded-full" />
                 </div>
+                <div className="absolute inset-0 bg-grid-slate-950/[0.02] dark:bg-grid-white/[0.02] pointer-events-none" />
 
-                <div className="container mx-auto px-4 md:px-6 relative z-10">
-                    <div className="max-w-3xl">
+                <div className="container mx-auto px-4 md:px-6 relative z-10 text-center">
+                    <div className="max-w-3xl mx-auto">
                         <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6">
                             Next-generation triage, <br />
-                            <span className="text-brand-gradient">powered by vectors.</span>
+                            <span className="text-brand-gradient italic">powered by vectors.</span>
                         </h1>
                         <p className="text-xl text-muted-foreground leading-relaxed mb-8">
                             Winnow isn't just another bug tracker. It's an intelligent triage engine that understands your application's failures as deeply as you do.
@@ -305,9 +306,9 @@ export function Features() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         {technicalSpecs.map((spec, i) => (
-                            <div key={i} className="p-6 rounded-2xl border bg-card hover:shadow-lg transition-shadow">
-                                <spec.icon className="h-8 w-8 text-primary mb-4" />
-                                <h3 className="font-bold mb-2">{spec.title}</h3>
+                            <div key={i} className="p-8 rounded-3xl border bg-card shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                                <spec.icon className="h-8 w-8 text-primary mb-6" />
+                                <h3 className="font-bold text-xl mb-2">{spec.title}</h3>
                                 <p className="text-sm text-muted-foreground leading-relaxed">{spec.description}</p>
                             </div>
                         ))}
