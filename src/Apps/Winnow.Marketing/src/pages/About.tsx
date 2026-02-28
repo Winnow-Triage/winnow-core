@@ -146,6 +146,9 @@ export function About() {
                         <p className="text-muted-foreground leading-relaxed mb-6">
                             We believe the best developer tools are open and extensible. Winnow's core is open-source, allowing you to audit the code, contribute features, or self-host for complete data sovereignty.
                         </p>
+                        <a href="https://github.com/Winnow-Triage" target="_blank" rel="noreferrer" className="w-full inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent px-8 py-3 text-sm font-medium text-slate-900 dark:text-slate-50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                            <Github className="h-4 w-4" /> View Source on GitHub
+                        </a>
                         <div className="flex flex-wrap gap-3">
                             <span className="px-3 py-1 rounded-full bg-blue-500/5 border border-blue-500/10 text-[10px] font-bold uppercase tracking-wider text-blue-500/80">MIT Licensed</span>
                             <span className="px-3 py-1 rounded-full bg-blue-500/5 border border-blue-500/10 text-[10px] font-bold uppercase tracking-wider text-blue-500/80">Self-Hostable</span>

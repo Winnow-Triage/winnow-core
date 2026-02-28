@@ -344,7 +344,7 @@ internal static class ServiceExtensions
         {
             options.AddDefaultPolicy(policy =>
             {
-                policy.WithOrigins("https://app.winnowtriage.com", "http://localhost:5173")
+                policy.WithOrigins("https://app.winnowtriage.com", "http://localhost:5173", "http://localhost:5174")
                       .AllowAnyHeader()
                       .AllowAnyMethod()
                       .AllowCredentials();

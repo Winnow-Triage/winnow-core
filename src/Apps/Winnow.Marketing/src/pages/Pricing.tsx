@@ -54,7 +54,7 @@ export function Pricing() {
                             <PricingFeature>Unlimited Projects</PricingFeature>
                             <PricingFeature>Bring your own Infra</PricingFeature>
                         </ul>
-                        <a href="https://github.com/winnow-org/winnow" target="_blank" rel="noreferrer" className="w-full inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent px-8 py-3 text-sm font-medium text-slate-900 dark:text-slate-50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                        <a href="https://github.com/Winnow-Triage" target="_blank" rel="noreferrer" className="w-full inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent px-8 py-3 text-sm font-medium text-slate-900 dark:text-slate-50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                             <Users className="mr-2 h-4 w-4" /> View Source
                         </a>
                     </Card>
