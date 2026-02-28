@@ -27,9 +27,9 @@ export function About() {
     return (
         <div className="flex flex-col min-h-screen">
             {/* Mission Hero */}
-            <section className="relative py-24 md:py-32 overflow-hidden bg-slate-950 text-white">
-                <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
-                <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-blue-600/10 to-transparent pointer-none" />
+            <section className="relative py-24 md:py-32 overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300">
+                <div className="absolute inset-0 opacity-5 dark:opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
+                <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-blue-600/10 to-transparent pointer-events-none" />
                 <div className="container mx-auto px-4 md:px-6 relative z-10 text-center">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold mb-8">
                         <Sparkles className="h-3 w-3" /> OUR STORY & VISION
@@ -40,7 +40,7 @@ export function About() {
                             eliminate alert fatigue.
                         </span>
                     </h1>
-                    <p className="text-xl text-slate-400 max-w-3xl mx-auto leading-relaxed mb-10">
+                    <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto leading-relaxed mb-10 transition-colors duration-300">
                         Winnow was born out of the frustration of managing thousands of duplicate crash reports at scale. We believed there was a better way to triage, and we built it—leveraging AI not just as a buzzword, but as the foundation of semantic observability.
                     </p>
                     <div className="flex items-center justify-center gap-2 text-blue-400/80 font-medium italic">

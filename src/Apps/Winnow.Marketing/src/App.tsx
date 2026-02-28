@@ -27,6 +27,8 @@ declare global {
   }
 }
 
+import { ScrollToTop } from './components/ScrollToTop';
+
 function App() {
   useEffect(() => {
     // Dynamically load the Winnow SDK from the local server
@@ -55,6 +57,7 @@ function App() {
   return (
     <div className="min-h-screen bg-background font-sans antialiased">
       <BrowserRouter>
+        <ScrollToTop />
         <Navbar />
         <Routes>
           <Route path="/" element={<Landing />} />
