@@ -1,4 +1,4 @@
-import { Target, Users, Coffee, Compass, Zap, Sparkles, MapPin, Github, ShieldCheck } from 'lucide-react';
+import { Target, Users, Coffee, Compass, Zap, MapPin, Github, ShieldCheck } from 'lucide-react';
 import { CTA } from '../components/CTA';
 import { SystemActivityVisual } from '../components/SystemActivityVisual';
 import { Section } from '../components/ui/Section';

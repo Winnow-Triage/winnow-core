@@ -1,5 +1,4 @@
 import {
-    Zap,
     ArrowRight
 } from 'lucide-react';
 import {
@@ -105,7 +104,7 @@ export function Integrations() {
             </Section>
 
             {/* Footer Build CTA */}
-            <Section border="top" variant="white" padding="large">
+            <Section border="top" padding="large">
                 <div className="text-center">
                     <h2 className="text-3xl font-bold mb-4">Don't see your tool?</h2>
                     <p className="text-muted-foreground mb-8 max-w-md mx-auto">We're constantly adding new integrations. Build your own using our public API.</p>
