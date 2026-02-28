@@ -55,9 +55,6 @@ export function Integrations() {
             <section className="relative pt-20 pb-16 md:pt-32 md:pb-24 overflow-hidden border-b">
                 <div className="absolute inset-0 bg-grid-slate-950/[0.02] dark:bg-grid-white/[0.02] pointer-events-none" />
                 <div className="container mx-auto px-4 md:px-6 relative z-10 text-center">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-6">
-                        <Zap className="h-3 w-3" /> ECOSYSTEM
-                    </div>
                     <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6">
                         Connect your <br />
                         <span className="text-brand-gradient">entire stack.</span>

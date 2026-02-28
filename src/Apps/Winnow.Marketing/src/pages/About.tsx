@@ -31,12 +31,9 @@ export function About() {
                 <div className="absolute inset-0 opacity-5 dark:opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
                 <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-blue-600/10 to-transparent pointer-events-none" />
                 <div className="container mx-auto px-4 md:px-6 relative z-10 text-center">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold mb-8">
-                        <Sparkles className="h-3 w-3" /> OUR STORY & VISION
-                    </div>
                     <h1 className="text-4xl md:text-6xl font-bold mb-8 tracking-tighter">
                         We're on a mission to <br />
-                        <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent italic">
+                        <span className="text-brand-gradient bg-clip-text text-transparent italic">
                             eliminate alert fatigue.
                         </span>
                     </h1>
