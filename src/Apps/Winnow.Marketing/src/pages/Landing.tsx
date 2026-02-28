@@ -5,6 +5,7 @@ import { HowItWorks } from '../components/HowItWorks';
 import { Playground } from '../components/Playground';
 import { DeepDive } from '../components/DeepDive';
 import { Integration } from '../components/Integration';
+import { IndependentBuilder } from '../components/IndependentBuilder';
 import { CTA } from '../components/CTA';
 
 export function Landing() {
@@ -16,6 +17,7 @@ export function Landing() {
             <Integration />
             <HowItWorks />
             <Playground />
+            <IndependentBuilder />
             <CTA />
         </main>
     );

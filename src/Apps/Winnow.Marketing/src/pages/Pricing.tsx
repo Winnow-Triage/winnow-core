@@ -23,11 +23,11 @@ export function Pricing() {
     return (
         <div className="flex flex-col min-h-screen">
             {/* Hero Section */}
-            <Section variant="slate" border="bottom" padding="large" containerClassName="text-center">
+            <Section variant="slate" border="bottom" padding="normal" containerClassName="text-center">
                 <HeroBackground />
                 <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6">
                     Pricing that scales <br className="hidden sm:block" />
-                    with your <GradientText>bugs.</GradientText>
+                    with your <GradientText>bug reports.</GradientText>
                 </h1>
                 <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-8">
                     Start for free, upgrade as you grow. No hidden fees for "extra seats" or "data ingestion."

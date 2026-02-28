@@ -13,7 +13,6 @@ import { Integrations } from './pages/Integrations';
 import { Blog } from './pages/Blog';
 import { BlogPost } from './pages/BlogPost';
 import { Documentation } from './pages/Documentation';
-import { Careers } from './pages/Careers';
 
 const ComingSoon = ({ title }: { title: string }) => (
   <div className="py-32 text-center bg-slate-50 dark:bg-slate-900/50">
@@ -74,7 +73,6 @@ function App() {
           <Route path="/integrations" element={<Integrations />} />
           <Route path="/blog" element={<Blog />} />
           <Route path="/blog/:slug" element={<BlogPost />} />
-          <Route path="/careers" element={<Careers />} />
           <Route path="/cookies" element={<ComingSoon title="Cookie Policy" />} />
           <Route path="/docs" element={<Documentation />} />
         </Routes>

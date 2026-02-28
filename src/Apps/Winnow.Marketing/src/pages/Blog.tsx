@@ -10,9 +10,9 @@ import { Link } from 'react-router-dom';
 export function Blog() {
     return (
         <div className="flex flex-col min-h-screen">
-            <Section variant="slate" border="bottom" padding="large" containerClassName="text-center">
+            <Section variant="slate" border="bottom" padding="normal" containerClassName="text-center">
                 <HeroBackground />
-                <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6">
+                <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 mt-4">
                     Engineering <br />
                     <GradientText>the Future of Triage.</GradientText>
                 </h1>
@@ -21,7 +21,7 @@ export function Blog() {
                 </p>
             </Section>
 
-            <Section padding="xlarge">
+            <Section padding="normal" className="pt-12 md:pt-16">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {blogPosts.map((post, i) => (
                         <Card key={i} className="group flex flex-col h-full overflow-hidden">
