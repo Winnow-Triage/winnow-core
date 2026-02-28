@@ -6,7 +6,9 @@ import { HeroBackground } from '../components/ui/HeroBackground';
 import { Card } from '../components/ui/Card';
 import { GradientText } from '../components/ui/GradientText';
 import { SEOMeta } from '../components/SEOMeta';
-import { FaDiscord } from 'react-icons/fa';
+import { FaDiscord, FaLinkedin } from 'react-icons/fa';
+import { FaXTwitter } from 'react-icons/fa6';
+import { SiBluesky } from 'react-icons/si';
 
 const values = [
     {
@@ -208,12 +210,21 @@ export function About() {
                     <p className="text-lg text-muted-foreground mb-12">
                         Whether you're a user or just interested in how we're building an independent observability tool, stay connected.
                     </p>
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-                        <a href="https://discord.gg/winnow" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-8 py-4 bg-[#5865F2] text-white rounded-full font-bold transition-transform hover:scale-105">
-                            <FaDiscord className="h-5 w-5 fill-white" /> Join Discord
+                    <div className="flex flex-wrap items-center justify-center gap-4">
+                        <a href="https://discord.gg/winnow" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-6 py-3 bg-[#5865F2] text-white rounded-full font-bold transition-transform hover:scale-105">
+                            <FaDiscord className="h-4 w-4 fill-white" /> Discord
                         </a>
-                        <a href="mailto:james@winnowtriage.com" className="inline-flex items-center gap-2 px-8 py-4 bg-white border border-slate-200 text-slate-900 rounded-full font-bold transition-transform hover:scale-105">
-                            <Mail className="h-5 w-5" /> Direct Email
+                        <a href="https://x.com/winnowtriage" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded-full font-bold transition-transform hover:scale-105">
+                            <FaXTwitter className="h-4 w-4" /> Twitter / X
+                        </a>
+                        <a href="https://bsky.app/profile/winnowtriage.bsky.social" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-6 py-3 bg-[#0085ff] text-white rounded-full font-bold transition-transform hover:scale-105">
+                            <SiBluesky className="h-4 w-4" /> Bluesky
+                        </a>
+                        <a href="https://linkedin.com/company/winnow-triage" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-6 py-3 bg-[#0077b5] text-white rounded-full font-bold transition-transform hover:scale-105">
+                            <FaLinkedin className="h-4 w-4" /> LinkedIn
+                        </a>
+                        <a href="mailto:james@winnowtriage.com" className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-900 rounded-full font-bold transition-transform hover:scale-105">
+                            <Mail className="h-4 w-4" /> Email
                         </a>
                     </div>
                 </div>

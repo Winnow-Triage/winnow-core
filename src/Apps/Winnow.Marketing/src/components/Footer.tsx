@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom';
 import { WinnowLogo } from './WinnowLogo';
+import { FaDiscord, FaLinkedin } from 'react-icons/fa';
+import { FaXTwitter } from 'react-icons/fa6';
+import { SiBluesky } from 'react-icons/si';
 
 export function Footer() {
     return (
@@ -11,9 +14,23 @@ export function Footer() {
                         <Link to="/" className="flex items-center space-x-2 font-bold text-white text-xl mb-4">
                             <WinnowLogo size={32} />
                         </Link>
-                        <p className="text-sm leading-relaxed max-w-xs">
+                        <p className="text-sm leading-relaxed max-w-xs mb-6">
                             Triage at the speed of AI. Stop drowning in duplicate bug reports and start fixing what matters.
                         </p>
+                        <div className="flex items-center space-x-4">
+                            <a href="https://discord.gg/winnow" target="_blank" rel="noreferrer" className="hover:text-white transition-colors" title="Discord">
+                                <FaDiscord className="h-5 w-5" />
+                            </a>
+                            <a href="https://x.com/winnowtriage" target="_blank" rel="noreferrer" className="hover:text-white transition-colors" title="Twitter / X">
+                                <FaXTwitter className="h-5 w-5" />
+                            </a>
+                            <a href="https://bsky.app/profile/winnowtriage.bsky.social" target="_blank" rel="noreferrer" className="hover:text-white transition-colors" title="Bluesky">
+                                <SiBluesky className="h-5 w-5" />
+                            </a>
+                            <a href="https://linkedin.com/company/winnow-triage" target="_blank" rel="noreferrer" className="hover:text-white transition-colors" title="LinkedIn">
+                                <FaLinkedin className="h-5 w-5" />
+                            </a>
+                        </div>
                     </div>
 
                     {/* Product Column */}
