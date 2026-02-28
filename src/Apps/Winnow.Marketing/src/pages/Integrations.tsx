@@ -20,6 +20,7 @@ import { Section } from '../components/ui/Section';
 import { HeroBackground } from '../components/ui/HeroBackground';
 import { Card } from '../components/ui/Card';
 import { GradientText } from '../components/ui/GradientText';
+import { SEOMeta } from '../components/SEOMeta';
 
 const categories = [
     {
@@ -54,6 +55,10 @@ const categories = [
 export function Integrations() {
     return (
         <div className="flex flex-col min-h-screen">
+            <SEOMeta
+                title="Integrations"
+                description="Connect Winnow to your existing workflow. Seamless integrations with Discord, Slack, GitHub, Jira, Unity, Godot, and more for automated bug triage."
+            />
             {/* Hero Section */}
             <Section variant="slate" border="bottom" padding="large" containerClassName="text-center">
                 <HeroBackground />

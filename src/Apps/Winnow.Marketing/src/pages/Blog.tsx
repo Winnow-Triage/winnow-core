@@ -2,6 +2,7 @@ import { Section } from '../components/ui/Section';
 import { HeroBackground } from '../components/ui/HeroBackground';
 import { Card } from '../components/ui/Card';
 import { GradientText } from '../components/ui/GradientText';
+import { SEOMeta } from '../components/SEOMeta';
 import { ArrowRight, Clock, Tag } from 'lucide-react';
 
 import { blogPosts } from '../data/blog';
@@ -10,6 +11,10 @@ import { Link } from 'react-router-dom';
 export function Blog() {
     return (
         <div className="flex flex-col min-h-screen">
+            <SEOMeta
+                title="Blog"
+                description="Technical insights, engineering deep dives, and product updates from the Winnow team. Exploring the future of semantic observability and vector-based triage."
+            />
             <Section variant="slate" border="bottom" padding="normal" containerClassName="text-center">
                 <HeroBackground />
                 <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 mt-4">

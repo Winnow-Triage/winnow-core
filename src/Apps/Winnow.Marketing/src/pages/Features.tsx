@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { CTA } from '../components/CTA';
+import { SEOMeta } from '../components/SEOMeta';
+
 import {
     GitMerge,
     Microscope,
@@ -167,6 +169,10 @@ const technicalSpecs = [
 export function Features() {
     return (
         <div className="flex flex-col min-h-screen">
+            <SEOMeta
+                title="Features"
+                description="Explore Winnow's advanced features: Semantic Vector Clustering, Real-Time Crash Analytics, and Autonomous Triage. Stop reading duplicate reports and start fixing bugs."
+            />
             {/* Hero Section */}
             <Section border="bottom" padding="large" containerClassName="text-center">
                 <HeroBackground />

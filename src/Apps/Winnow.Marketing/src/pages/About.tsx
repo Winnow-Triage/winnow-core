@@ -5,6 +5,7 @@ import { Section } from '../components/ui/Section';
 import { HeroBackground } from '../components/ui/HeroBackground';
 import { Card } from '../components/ui/Card';
 import { GradientText } from '../components/ui/GradientText';
+import { SEOMeta } from '../components/SEOMeta';
 import { FaDiscord } from 'react-icons/fa';
 
 const values = [
@@ -31,6 +32,10 @@ const values = [
 export function About() {
     return (
         <div className="flex flex-col min-h-screen">
+            <SEOMeta
+                title="About"
+                description="Built for builders. Learn about Winnow's mission to eliminate alert fatigue through independent, vector-first engineering."
+            />
             {/* The Technical Philosophy Hero */}
             <Section variant="slate" border="bottom" padding="large" containerClassName="text-center">
                 <HeroBackground />

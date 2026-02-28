@@ -5,6 +5,7 @@ import { Section } from '../components/ui/Section';
 import { HeroBackground } from '../components/ui/HeroBackground';
 import { Card } from '../components/ui/Card';
 import { GradientText } from '../components/ui/GradientText';
+import { SEOMeta } from '../components/SEOMeta';
 
 interface PricingFeatureProps {
     children: ReactNode;
@@ -22,6 +23,10 @@ function PricingFeature({ children }: PricingFeatureProps) {
 export function Pricing() {
     return (
         <div className="flex flex-col min-h-screen">
+            <SEOMeta
+                title="Pricing"
+                description="Transparent pricing that scales with your growth. Start for free or upgrade to Pro for advanced clustering and enterprise-grade observability."
+            />
             {/* Hero Section */}
             <Section variant="slate" border="bottom" padding="normal" containerClassName="text-center">
                 <HeroBackground />

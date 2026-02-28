@@ -3,8 +3,7 @@ import {
     MessageCircle,
     Compass,
     MapPin,
-    MessageSquare,
-    LifeBuoy
+    MessageSquare
 } from 'lucide-react';
 import { Section } from '../components/ui/Section';
 import { HeroBackground } from '../components/ui/HeroBackground';
@@ -12,6 +11,7 @@ import { Card } from '../components/ui/Card';
 import { GradientText } from '../components/ui/GradientText';
 import { useState } from 'react';
 import { CTA } from '../components/CTA';
+import { SEOMeta } from '../components/SEOMeta';
 
 export function Contact() {
     const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -48,6 +48,10 @@ export function Contact() {
 
     return (
         <div className="flex flex-col min-h-screen">
+            <SEOMeta
+                title="Contact"
+                description="Get in touch with the Winnow team. Whether you have a support question, a feature request, or just want to talk triage, we're here to help."
+            />
             {/* Hero Section */}
             <Section variant="slate" border="bottom" padding="large" containerClassName="text-center">
                 <HeroBackground />

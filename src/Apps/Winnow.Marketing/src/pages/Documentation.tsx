@@ -2,6 +2,7 @@ import { Section } from '../components/ui/Section';
 import { HeroBackground } from '../components/ui/HeroBackground';
 import { Card } from '../components/ui/Card';
 import { GradientText } from '../components/ui/GradientText';
+import { SEOMeta } from '../components/SEOMeta';
 import { FileText, Code, Settings, Terminal, Zap, Puzzle } from 'lucide-react';
 
 const docs = [
@@ -46,6 +47,10 @@ const docs = [
 export function Documentation() {
     return (
         <div className="flex flex-col min-h-screen">
+            <SEOMeta
+                title="Documentation"
+                description="Technical guides and API references for Winnow. Learn how to integrate our Unity, Godot, and JS SDKs for zero-noise bug triage."
+            />
             <Section variant="slate" border="bottom" padding="large" containerClassName="text-center">
                 <HeroBackground />
                 <div className="max-w-4xl mx-auto">

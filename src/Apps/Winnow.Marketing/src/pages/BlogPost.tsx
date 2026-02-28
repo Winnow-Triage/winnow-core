@@ -3,6 +3,7 @@ import { getPostBySlug } from '../data/blog';
 import { Section } from '../components/ui/Section';
 import { HeroBackground } from '../components/ui/HeroBackground';
 import { GradientText } from '../components/ui/GradientText';
+import { SEOMeta } from '../components/SEOMeta';
 import ReactMarkdown from 'react-markdown';
 import { ArrowLeft, Clock, Tag, Calendar, User } from 'lucide-react';
 
@@ -19,6 +20,12 @@ export function BlogPost() {
 
     return (
         <div className="flex flex-col min-h-screen">
+            <SEOMeta
+                title={post.title}
+                description={post.excerpt}
+                ogImage={post.image}
+                ogType="article"
+            />
             {/* Post Hero */}
             <Section variant="slate" border="bottom" padding="xlarge" containerClassName="text-center">
                 <HeroBackground />

@@ -7,10 +7,12 @@ import { DeepDive } from '../components/DeepDive';
 import { Integration } from '../components/Integration';
 import { IndependentBuilder } from '../components/IndependentBuilder';
 import { CTA } from '../components/CTA';
+import { SEOMeta } from '../components/SEOMeta';
 
 export function Landing() {
     return (
         <main>
+            <SEOMeta />
             <Hero />
             <Features />
             <DeepDive />
