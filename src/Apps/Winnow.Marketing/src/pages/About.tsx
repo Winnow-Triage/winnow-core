@@ -1,4 +1,6 @@
-import { Target, Users, Heart, Coffee, Compass, Zap, Cloud, Sparkles } from 'lucide-react';
+import { Target, Users, Coffee, Compass, Zap, Sparkles, MapPin } from 'lucide-react';
+import { CTA } from '../components/CTA';
+import { SystemActivityVisual } from '../components/SystemActivityVisual';
 
 const values = [
     {
@@ -38,9 +40,13 @@ export function About() {
                             eliminate alert fatigue.
                         </span>
                     </h1>
-                    <p className="text-xl text-slate-400 max-w-3xl mx-auto leading-relaxed">
+                    <p className="text-xl text-slate-400 max-w-3xl mx-auto leading-relaxed mb-10">
                         Winnow was born out of the frustration of managing thousands of duplicate crash reports at scale. We believed there was a better way to triage, and we built it—leveraging AI not just as a buzzword, but as the foundation of semantic observability.
                     </p>
+                    <div className="flex items-center justify-center gap-2 text-blue-400/80 font-medium italic">
+                        <MapPin className="h-4 w-4" />
+                        <span>Proudly built in Fort Worth, Texas by a developer who got tired of closing duplicate tickets.</span>
+                    </div>
                 </div>
             </section>
 
@@ -85,15 +91,7 @@ export function About() {
                 <div className="container mx-auto px-4 md:px-6">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                         <div className="order-2 lg:order-1">
-                            <div className="relative aspect-video rounded-3xl overflow-hidden border shadow-2xl bg-slate-950">
-                                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/30 to-purple-600/30 animate-pulse" />
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <Cloud className="h-24 w-24 text-white/20" />
-                                </div>
-                                <div className="absolute bottom-6 left-6 right-6 p-4 bg-white/10 backdrop-blur-md rounded-xl border border-white/20">
-                                    <p className="text-sm font-mono text-white/80">system_health: 100% | triage_efficiency: 99.4%</p>
-                                </div>
-                            </div>
+                            <SystemActivityVisual />
                         </div>
                         <div className="order-1 lg:order-2 space-y-6">
                             <h2 className="text-3xl font-bold flex items-center gap-3">
@@ -140,20 +138,7 @@ export function About() {
             </section>
 
             {/* CTA Section */}
-            <section className="py-20 border-t">
-                <div className="container mx-auto px-4 md:px-6 text-center">
-                    <div className="mb-8 flex justify-center">
-                        <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                            <Heart className="h-8 w-8 text-primary animate-pulse" />
-                        </div>
-                    </div>
-                    <h2 className="text-3xl font-bold mb-4">Join the journey.</h2>
-                    <p className="text-muted-foreground mb-8 max-w-md mx-auto">We're just getting started. If you're passionate about observability and AI, we'd love to hear from you.</p>
-                    <a href="/contact" className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90">
-                        Get in Touch
-                    </a>
-                </div>
-            </section>
+            <CTA />
         </div>
     );
 }

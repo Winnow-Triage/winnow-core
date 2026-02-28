@@ -16,6 +16,7 @@ import {
     FaMicrosoft
 } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
+import { CTA } from '../components/CTA';
 
 const categories = [
     {
@@ -109,16 +110,18 @@ export function Integrations() {
                 <div className="container mx-auto px-4 md:px-6 text-center">
                     <h2 className="text-3xl font-bold mb-4">Don't see your tool?</h2>
                     <p className="text-muted-foreground mb-8 max-w-md mx-auto">We're constantly adding new integrations. Build your own using our public API.</p>
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                        <Link to="/docs" className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90">
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+                        <Link to="/docs" className="inline-flex h-11 items-center justify-center rounded-full border-2 border-primary/20 bg-background px-8 py-2 text-sm font-bold shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground">
                             Read API Docs
                         </Link>
-                        <Link to="/contact" className="inline-flex h-11 items-center justify-center rounded-md border border-input bg-background px-8 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground">
+                        <Link to="/contact" className="inline-flex h-11 items-center justify-center rounded-full border-2 border-primary/20 bg-background px-8 py-2 text-sm font-bold shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground">
                             Request Integration
                         </Link>
                     </div>
                 </div>
             </section>
+
+            <CTA />
         </div>
     );
 }
