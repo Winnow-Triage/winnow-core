@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { WinnowLogo } from './WinnowLogo';
 
 export function Footer() {
@@ -7,9 +8,9 @@ export function Footer() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
                     {/* Brand Column */}
                     <div className="col-span-2 md:col-span-1">
-                        <a href="/" className="flex items-center space-x-2 font-bold text-white text-xl mb-4">
+                        <Link to="/" className="flex items-center space-x-2 font-bold text-white text-xl mb-4">
                             <WinnowLogo size={32} />
-                        </a>
+                        </Link>
                         <p className="text-sm leading-relaxed max-w-xs">
                             Triage at the speed of AI. Stop drowning in duplicate bug reports and start fixing what matters.
                         </p>
@@ -19,10 +20,10 @@ export function Footer() {
                     <div>
                         <h4 className="font-semibold text-slate-100 mb-4">Product</h4>
                         <ul className="space-y-3 text-sm">
-                            <li><a href="#" className="hover:text-white transition-colors">Features</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Integrations</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">SDK Documentation</a></li>
-                            <li><a href="/pricing" className="hover:text-white transition-colors">Pricing</a></li>
+                            <li><Link to="/features" className="hover:text-white transition-colors">Features</Link></li>
+                            <li><Link to="/integrations" className="hover:text-white transition-colors">Integrations</Link></li>
+                            <li><Link to="/docs" className="hover:text-white transition-colors">SDK Documentation</Link></li>
+                            <li><Link to="/pricing" className="hover:text-white transition-colors">Pricing</Link></li>
                         </ul>
                     </div>
 
@@ -30,10 +31,10 @@ export function Footer() {
                     <div>
                         <h4 className="font-semibold text-slate-100 mb-4">Company</h4>
                         <ul className="space-y-3 text-sm">
-                            <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
+                            <li><Link to="/about" className="hover:text-white transition-colors">About Us</Link></li>
+                            <li><Link to="/blog" className="hover:text-white transition-colors">Blog</Link></li>
+                            <li><Link to="/careers" className="hover:text-white transition-colors">Careers</Link></li>
+                            <li><Link to="/contact" className="hover:text-white transition-colors">Contact</Link></li>
                         </ul>
                     </div>
 
@@ -41,9 +42,9 @@ export function Footer() {
                     <div>
                         <h4 className="font-semibold text-slate-100 mb-4">Legal</h4>
                         <ul className="space-y-3 text-sm">
-                            <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Terms of Service</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Cookie Policy</a></li>
+                            <li><Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+                            <li><Link to="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
+                            <li><Link to="/cookies" className="hover:text-white transition-colors">Cookie Policy</Link></li>
                         </ul>
                     </div>
                 </div>
