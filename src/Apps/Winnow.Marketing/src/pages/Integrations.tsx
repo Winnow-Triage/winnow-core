@@ -23,21 +23,21 @@ import { GradientText } from '../components/ui/GradientText';
 
 const categories = [
     {
-        name: "Communication",
-        description: "Get real-time alerts where your team already works.",
-        integrations: [
-            { name: "Slack", icon: FaSlack, description: "Instant notifications and cluster summaries in any channel.", status: "Coming Soon" },
-            { name: "Discord", icon: SiDiscord, description: "Rich webhooks for gaming and community-driven projects.", status: "Coming Soon" },
-            { name: "MS Teams", icon: FaMicrosoft, description: "Enterprise-grade alerts for structured organizations.", status: "Coming Soon" }
-        ]
-    },
-    {
         name: "Issue Tracking",
         description: "Seamlessly turn clusters into actionable tickets.",
         integrations: [
             { name: "Jira", icon: SiJira, description: "Create and link Jira tickets directly from the Winnow UI.", status: "Available" },
             { name: "GitHub Issues", icon: SiGithub, description: "Sync crash reports with your repository's issues.", status: "Available" },
             { name: "Trello", icon: FaTrello, description: "Create and link Trello cards directly from the Winnow UI.", status: "Available" }
+        ]
+    },
+    {
+        name: "Communication",
+        description: "Get real-time alerts where your team already works.",
+        integrations: [
+            { name: "Slack", icon: FaSlack, description: "Instant notifications and cluster summaries in any channel.", status: "Coming Soon" },
+            { name: "Discord", icon: SiDiscord, description: "Rich webhooks for gaming and community-driven projects.", status: "Coming Soon" },
+            { name: "MS Teams", icon: FaMicrosoft, description: "Enterprise-grade alerts for structured organizations.", status: "Coming Soon" }
         ]
     },
     {
