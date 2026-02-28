@@ -1,16 +1,16 @@
 import { MoveRight } from 'lucide-react';
 import { LightboxImage } from './ui/LightboxImage';
+import { Section } from './ui/Section';
+import { GradientText } from './ui/GradientText';
 
 export function Hero() {
     return (
-        <section className="relative pb-24 pt-20 md:pt-32 overflow-hidden w-full flex flex-col items-center border-b">
-            <div className="w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col items-center gap-6">
+        <Section border="bottom" padding="large" containerClassName="flex flex-col items-center">
+            <div className="w-full max-w-7xl flex flex-col items-center gap-6">
                 <div className="flex w-full max-w-[980px] flex-col items-center gap-2 text-center">
                     <h1 className="text-3xl font-extrabold leading-tight tracking-tighter md:text-5xl lg:text-6xl lg:leading-[1.1]">
                         Stop Drowning in <br className="hidden sm:inline" />
-                        <span className="text-brand-gradient italic">
-                            Duplicate Bug Reports.
-                        </span>
+                        <GradientText>Duplicate Bug Reports.</GradientText>
                     </h1>
                     <p className="max-w-[750px] text-lg text-muted-foreground sm:text-xl">
                         Winnow uses AI to instantly group, analyze, and triage user feedback from your apps.
@@ -57,6 +57,6 @@ export function Hero() {
                     </div>
                 </div>
             </div>
-        </section>
+        </Section>
     );
 }

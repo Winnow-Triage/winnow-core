@@ -1,6 +1,10 @@
 import { Target, Users, Coffee, Compass, Zap, Sparkles, MapPin, Github, ShieldCheck } from 'lucide-react';
 import { CTA } from '../components/CTA';
 import { SystemActivityVisual } from '../components/SystemActivityVisual';
+import { Section } from '../components/ui/Section';
+import { HeroBackground } from '../components/ui/HeroBackground';
+import { Card } from '../components/ui/Card';
+import { GradientText } from '../components/ui/GradientText';
 
 const values = [
     {
@@ -27,172 +31,156 @@ export function About() {
     return (
         <div className="flex flex-col min-h-screen">
             {/* Mission Hero */}
-            <section className="relative py-24 md:py-32 overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300 border-b">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-7xl pointer-events-none">
-                    <div className="absolute top-1/4 left-1/4 w-[2000px] h-[2000px] bg-blue-600/5 blur-[1000px] rounded-full animate-drift pointer-events-none"></div>
-                    <div className="absolute bottom-1/4 right-1/4 w-[2000px] h-[2000px] bg-purple-600/5 blur-[1000px] rounded-full animate-drift [animation-delay:-7s] pointer-events-none"></div>
+            <Section variant="slate" border="bottom" padding="large" containerClassName="text-center">
+                <HeroBackground />
+                <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 mt-4">
+                    We're on a mission to <br />
+                    <GradientText>eliminate alert fatigue.</GradientText>
+                </h1>
+                <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto leading-relaxed mb-10 transition-colors duration-300">
+                    Winnow was born out of the frustration of managing thousands of duplicate crash reports at scale. We believed there was a better way to triage, and we built it—leveraging AI not just as a buzzword, but as the foundation of semantic observability.
+                </p>
+                <div className="flex items-center justify-center gap-2 text-blue-400/80 font-medium italic">
+                    <MapPin className="h-4 w-4" />
+                    <span>Proudly built in Fort Worth, Texas by a developer who got tired of closing duplicate tickets.</span>
                 </div>
-                <div className="absolute inset-0 bg-grid-slate-950/[0.02] dark:bg-grid-white/[0.02] pointer-events-none" />
-                <div className="container mx-auto px-4 md:px-6 relative z-10 text-center">
-                    <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 mt-4">
-                        We're on a mission to <br />
-                        <span className="text-brand-gradient italic">
-                            eliminate alert fatigue.
-                        </span>
-                    </h1>
-                    <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto leading-relaxed mb-10 transition-colors duration-300">
-                        Winnow was born out of the frustration of managing thousands of duplicate crash reports at scale. We believed there was a better way to triage, and we built it—leveraging AI not just as a buzzword, but as the foundation of semantic observability.
-                    </p>
-                    <div className="flex items-center justify-center gap-2 text-blue-400/80 font-medium italic">
-                        <MapPin className="h-4 w-4" />
-                        <span>Proudly built in Fort Worth, Texas by a developer who got tired of closing duplicate tickets.</span>
-                    </div>
-                </div>
-            </section>
+            </Section>
 
             {/* Content Section */}
-            <section className="py-20 md:py-32">
-                <div className="container mx-auto px-4 md:px-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
-                        <div className="space-y-6 text-lg text-muted-foreground leading-relaxed">
-                            <h2 className="text-3xl font-bold text-foreground">The Problem We're Solving</h2>
-                            <p>
-                                Modern applications generate millions of data points every day. When a bug hits production, it's rarely just one report—it's hundreds or thousands of identical signals flooding into your inbox.
-                            </p>
-                            <p>
-                                Traditional tools treat every report as a new event, forcing developers to manually identify patterns and deduplicate tickets. This "noise" obscures the true impact of issues and causes burnout.
-                            </p>
-                            <p className="font-medium text-foreground italic border-l-4 border-primary pl-6 py-2">
-                                Winnow uses AI-driven vector similarity to understand your reports semantically. It's like having a senior engineer constantly triaging your inbox.
-                            </p>
-                        </div>
-                        <div className="bg-slate-50 dark:bg-slate-900/50 p-8 md:p-12 rounded-3xl border shadow-sm">
-                            <h2 className="text-3xl font-bold mb-10">Our Core Values</h2>
-                            <div className="space-y-12">
-                                {values.map((value, i) => (
-                                    <div key={i} className="flex gap-6 group transition-all duration-300">
-                                        <div className="mt-1 h-12 w-12 shrink-0 rounded-2xl bg-white dark:bg-slate-950 border flex items-center justify-center shadow-sm group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
-                                            <value.icon className={`h-6 w-6 ${value.color}`} />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-bold text-xl mb-2">{value.title}</h3>
-                                            <p className="text-muted-foreground leading-relaxed">{value.description}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+            <Section padding="large">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+                    <div className="space-y-6 text-lg text-muted-foreground leading-relaxed">
+                        <h2 className="text-3xl font-bold text-foreground">The Problem We're Solving</h2>
+                        <p>
+                            Modern applications generate millions of data points every day. When a bug hits production, it's rarely just one report—it's hundreds or thousands of identical signals flooding into your inbox.
+                        </p>
+                        <p>
+                            Traditional tools treat every report as a new event, forcing developers to manually identify patterns and deduplicate tickets. This "noise" obscures the true impact of issues and causes burnout.
+                        </p>
+                        <p className="font-medium text-foreground italic border-l-4 border-primary pl-6 py-2">
+                            Winnow uses AI-driven vector similarity to understand your reports semantically. It's like having a senior engineer constantly triaging your inbox.
+                        </p>
                     </div>
+                    <Card variant="default" isHoverable={false} className="bg-slate-50 dark:bg-slate-900/50 p-8 md:p-12">
+                        <h2 className="text-3xl font-bold mb-10">Our Core Values</h2>
+                        <div className="space-y-12">
+                            {values.map((value, i) => (
+                                <div key={i} className="flex gap-6 group transition-all duration-300">
+                                    <div className="mt-1 h-12 w-12 shrink-0 rounded-2xl bg-white dark:bg-slate-950 border flex items-center justify-center shadow-sm group-hover:scale-110 group-hover:shadow-md transition-all duration-300">
+                                        <value.icon className={`h-6 w-6 ${value.color}`} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-xl mb-2">{value.title}</h3>
+                                        <p className="text-muted-foreground leading-relaxed">{value.description}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </Card>
                 </div>
-            </section>
+            </Section>
 
             {/* Vision Section */}
-            <section className="py-20 md:py-32 bg-slate-50 dark:bg-slate-900/50 border-y">
-                <div className="container mx-auto px-4 md:px-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-                        <div className="order-2 lg:order-1">
-                            <SystemActivityVisual />
-                        </div>
-                        <div className="order-1 lg:order-2 space-y-6">
-                            <h2 className="text-3xl font-bold flex items-center gap-3">
-                                <Compass className="h-8 w-8 text-blue-500" /> The Future of Triage
-                            </h2>
-                            <p className="text-lg text-muted-foreground leading-relaxed">
-                                We aren't just building a faster crash reporter. We're building an autonomous observability layer that predicts and prevents downtime before it impacts your users.
-                            </p>
-                            <p className="text-lg text-muted-foreground leading-relaxed">
-                                Imagine a world where your infrastructure heals itself based on real-time failure patterns, and "critical alerts" are a relic of the past. That's the world Winnow is creating.
-                            </p>
-                        </div>
+            <Section variant="muted" border="both" padding="large">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                    <div className="order-2 lg:order-1">
+                        <SystemActivityVisual />
+                    </div>
+                    <div className="order-1 lg:order-2 space-y-6">
+                        <h2 className="text-3xl font-bold flex items-center gap-3">
+                            <Compass className="h-8 w-8 text-blue-500" /> The Future of Triage
+                        </h2>
+                        <p className="text-lg text-muted-foreground leading-relaxed">
+                            We aren't just building a faster crash reporter. We're building an autonomous observability layer that predicts and prevents downtime before it impacts your users.
+                        </p>
+                        <p className="text-lg text-muted-foreground leading-relaxed">
+                            Imagine a world where your infrastructure heals itself based on real-time failure patterns, and "critical alerts" are a relic of the past. That's the world Winnow is creating.
+                        </p>
                     </div>
                 </div>
-            </section>
+            </Section>
 
             {/* Philosophy Section */}
-            <section className="py-20 md:py-32">
-                <div className="container mx-auto px-4 md:px-6">
-                    <div className="max-w-3xl mx-auto text-center mb-16">
-                        <h2 className="text-3xl font-bold mb-6">Our Technical Philosophy</h2>
-                        <p className="text-xl text-muted-foreground leading-relaxed">
-                            We believe in high-leverage tools. That's why we built Winnow on top of vector-based similarity engines, not rigid string-matching databases.
-                        </p>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        <div className="p-8 rounded-3xl border bg-card shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                            <Zap className="h-8 w-8 text-amber-500 mb-6" />
-                            <h3 className="font-bold text-xl mb-4">Vector-First</h3>
-                            <p className="text-muted-foreground text-sm leading-relaxed">Every report is converted into a high-dimensional vector. This allows us to find "near-matches" that traditional software would miss completely.</p>
-                        </div>
-                        <div className="p-8 rounded-3xl border bg-card shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                            <Users className="h-8 w-8 text-blue-500 mb-6" />
-                            <h3 className="font-bold text-xl mb-4">Collaborative Context</h3>
-                            <p className="text-muted-foreground text-sm leading-relaxed">Data is useless without team context. Every feature we build is designed to make it easier for teams to share knowledge across projects.</p>
-                        </div>
-                        <div className="p-8 rounded-3xl border bg-card shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                            <Coffee className="h-8 w-8 text-emerald-500 mb-6" />
-                            <h3 className="font-bold text-xl mb-4">Developer Delight</h3>
-                            <p className="text-muted-foreground text-sm leading-relaxed">Low latency, zero bloat, and APIs that feel like they were written by friends. We prioritize the developer experience above all else.</p>
-                        </div>
-                    </div>
+            <Section padding="large">
+                <div className="max-w-3xl mx-auto text-center mb-16">
+                    <h2 className="text-3xl font-bold mb-6">Our Technical Philosophy</h2>
+                    <p className="text-xl text-muted-foreground leading-relaxed">
+                        We believe in high-leverage tools. That's why we built Winnow on top of vector-based similarity engines, not rigid string-matching databases.
+                    </p>
                 </div>
-            </section>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <Card>
+                        <Zap className="h-8 w-8 text-amber-500 mb-6" />
+                        <h3 className="font-bold text-xl mb-4">Vector-First</h3>
+                        <p className="text-muted-foreground text-sm leading-relaxed">Every report is converted into a high-dimensional vector. This allows us to find "near-matches" that traditional software would miss completely.</p>
+                    </Card>
+                    <Card>
+                        <Users className="h-8 w-8 text-blue-500 mb-6" />
+                        <h3 className="font-bold text-xl mb-4">Collaborative Context</h3>
+                        <p className="text-muted-foreground text-sm leading-relaxed">Data is useless without team context. Every feature we build is designed to make it easier for teams to share knowledge across projects.</p>
+                    </Card>
+                    <Card>
+                        <Coffee className="h-8 w-8 text-emerald-500 mb-6" />
+                        <h3 className="font-bold text-xl mb-4">Developer Delight</h3>
+                        <p className="text-muted-foreground text-sm leading-relaxed">Low latency, zero bloat, and APIs that feel like they were written by friends. We prioritize the developer experience above all else.</p>
+                    </Card>
+                </div>
+            </Section>
 
             {/* Developer Transparency Section */}
-            <section className="py-20 md:py-32 bg-slate-50 dark:bg-slate-900/50 border-t">
-                <div className="container mx-auto px-4 md:px-6">
-                    <div className="max-w-3xl mx-auto text-center mb-16">
-                        <h2 className="text-3xl font-bold mb-6">Developer Transparency</h2>
-                        <p className="text-xl text-muted-foreground leading-relaxed">
-                            Winnow is built by developers, for developers. We're committed to open-source and the highest security standards.
-                        </p>
-                    </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div className="p-8 md:p-12 rounded-3xl border bg-card/50 backdrop-blur-sm shadow-sm">
-                            <div className="flex items-center gap-4 mb-6">
-                                <div className="h-12 w-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                                    <Github className="h-6 w-6 text-blue-500" />
-                                </div>
-                                <h3 className="text-2xl font-bold">Open-Source Core</h3>
-                            </div>
-                            <p className="text-muted-foreground leading-relaxed mb-6">
-                                We believe the best developer tools are open and extensible. Winnow's core is open-source, allowing you to audit the code, contribute features, or self-host for complete data sovereignty.
-                            </p>
-                            <div className="flex flex-wrap gap-3">
-                                <span className="px-3 py-1 rounded-full bg-blue-500/5 border border-blue-500/10 text-[10px] font-bold uppercase tracking-wider text-blue-500/80">MIT Licensed</span>
-                                <span className="px-3 py-1 rounded-full bg-blue-500/5 border border-blue-500/10 text-[10px] font-bold uppercase tracking-wider text-blue-500/80">Self-Hostable</span>
-                                <span className="px-3 py-1 rounded-full bg-blue-500/5 border border-blue-500/10 text-[10px] font-bold uppercase tracking-wider text-blue-500/80">API-First</span>
-                            </div>
-                        </div>
-
-                        <div className="p-8 md:p-12 rounded-3xl border bg-card/50 backdrop-blur-sm shadow-sm">
-                            <div className="flex items-center gap-4 mb-6">
-                                <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                                    <ShieldCheck className="h-6 w-6 text-emerald-500" />
-                                </div>
-                                <h3 className="text-2xl font-bold">Security Standards</h3>
-                            </div>
-                            <ul className="space-y-4 text-muted-foreground">
-                                <li className="flex items-start gap-3">
-                                    <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                    <span><strong className="text-foreground font-semibold">Passwords:</strong> Hashed with BCrypt (work factor 11) for maximum brute-force resistance.</span>
-                                </li>
-                                <li className="flex items-start gap-3">
-                                    <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                    <span><strong className="text-foreground font-semibold">Integrations:</strong> AES-256-GCM authenticated encryption for all sensitive third-party keys and tokens.</span>
-                                </li>
-                                <li className="flex items-start gap-3">
-                                    <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                    <span><strong className="text-foreground font-semibold">API Keys:</strong> Argon2id or SHA-384 hashing for all project keys; we never store secrets in plaintext.</span>
-                                </li>
-                                <li className="flex items-start gap-3">
-                                    <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                    <span><strong className="text-foreground font-semibold">Data Privacy:</strong> Multi-tenant isolation ensuring your data is never accessible by others.</span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
+            <Section variant="muted" border="top" padding="large">
+                <div className="max-w-3xl mx-auto text-center mb-16">
+                    <h2 className="text-3xl font-bold mb-6">Developer Transparency</h2>
+                    <p className="text-xl text-muted-foreground leading-relaxed">
+                        Winnow is built by developers, for developers. We're committed to open-source and the highest security standards.
+                    </p>
                 </div>
-            </section>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <Card isHoverable={false} className="p-8 md:p-12 bg-card/50 backdrop-blur-sm">
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="h-12 w-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                                <Github className="h-6 w-6 text-blue-500" />
+                            </div>
+                            <h3 className="text-2xl font-bold">Open-Source Core</h3>
+                        </div>
+                        <p className="text-muted-foreground leading-relaxed mb-6">
+                            We believe the best developer tools are open and extensible. Winnow's core is open-source, allowing you to audit the code, contribute features, or self-host for complete data sovereignty.
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                            <span className="px-3 py-1 rounded-full bg-blue-500/5 border border-blue-500/10 text-[10px] font-bold uppercase tracking-wider text-blue-500/80">MIT Licensed</span>
+                            <span className="px-3 py-1 rounded-full bg-blue-500/5 border border-blue-500/10 text-[10px] font-bold uppercase tracking-wider text-blue-500/80">Self-Hostable</span>
+                            <span className="px-3 py-1 rounded-full bg-blue-500/5 border border-blue-500/10 text-[10px] font-bold uppercase tracking-wider text-blue-500/80">API-First</span>
+                        </div>
+                    </Card>
+
+                    <Card isHoverable={false} className="p-8 md:p-12 bg-card/50 backdrop-blur-sm">
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                                <ShieldCheck className="h-6 w-6 text-emerald-500" />
+                            </div>
+                            <h3 className="text-2xl font-bold">Security Standards</h3>
+                        </div>
+                        <ul className="space-y-4 text-muted-foreground">
+                            <li className="flex items-start gap-3">
+                                <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                <span><strong className="text-foreground font-semibold">Passwords:</strong> Hashed with BCrypt (work factor 11) for maximum brute-force resistance.</span>
+                            </li>
+                            <li className="flex items-start gap-3">
+                                <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                <span><strong className="text-foreground font-semibold">Integrations:</strong> AES-256-GCM authenticated encryption for all sensitive third-party keys and tokens.</span>
+                            </li>
+                            <li className="flex items-start gap-3">
+                                <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                <span><strong className="text-foreground font-semibold">API Keys:</strong> Argon2id or SHA-384 hashing for all project keys; we never store secrets in plaintext.</span>
+                            </li>
+                            <li className="flex items-start gap-3">
+                                <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                <span><strong className="text-foreground font-semibold">Data Privacy:</strong> Multi-tenant isolation ensuring your data is never accessible by others.</span>
+                            </li>
+                        </ul>
+                    </Card>
+                </div>
+            </Section>
 
             {/* CTA Section */}
             <CTA />
