@@ -1,4 +1,4 @@
-import { Target, Users, Coffee, Compass, Zap, Sparkles, MapPin } from 'lucide-react';
+import { Target, Users, Coffee, Compass, Zap, Sparkles, MapPin, Github, ShieldCheck } from 'lucide-react';
 import { CTA } from '../components/CTA';
 import { SystemActivityVisual } from '../components/SystemActivityVisual';
 
@@ -132,6 +132,63 @@ export function About() {
                             <Coffee className="h-8 w-8 text-emerald-500 mb-4" />
                             <h3 className="font-bold text-xl mb-4">Developer Delight</h3>
                             <p className="text-muted-foreground text-sm">Low latency, zero bloat, and APIs that feel like they were written by friends. We prioritize the developer experience above all else.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Developer Transparency Section */}
+            <section className="py-20 md:py-32 bg-slate-50 dark:bg-slate-900/50 border-t">
+                <div className="container mx-auto px-4 md:px-6">
+                    <div className="max-w-3xl mx-auto text-center mb-16">
+                        <h2 className="text-3xl font-bold mb-6">Developer Transparency</h2>
+                        <p className="text-xl text-muted-foreground leading-relaxed">
+                            Winnow is built by developers, for developers. We're committed to open-source and the highest security standards.
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div className="p-8 md:p-12 rounded-3xl border bg-card/50 backdrop-blur-sm shadow-sm">
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="h-12 w-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                                    <Github className="h-6 w-6 text-blue-500" />
+                                </div>
+                                <h3 className="text-2xl font-bold">Open-Source Core</h3>
+                            </div>
+                            <p className="text-muted-foreground leading-relaxed mb-6">
+                                We believe the best developer tools are open and extensible. Winnow's core is open-source, allowing you to audit the code, contribute features, or self-host for complete data sovereignty.
+                            </p>
+                            <div className="flex flex-wrap gap-3">
+                                <span className="px-3 py-1 rounded-full bg-blue-500/5 border border-blue-500/10 text-[10px] font-bold uppercase tracking-wider text-blue-500/80">MIT Licensed</span>
+                                <span className="px-3 py-1 rounded-full bg-blue-500/5 border border-blue-500/10 text-[10px] font-bold uppercase tracking-wider text-blue-500/80">Self-Hostable</span>
+                                <span className="px-3 py-1 rounded-full bg-blue-500/5 border border-blue-500/10 text-[10px] font-bold uppercase tracking-wider text-blue-500/80">API-First</span>
+                            </div>
+                        </div>
+
+                        <div className="p-8 md:p-12 rounded-3xl border bg-card/50 backdrop-blur-sm shadow-sm">
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                                    <ShieldCheck className="h-6 w-6 text-emerald-500" />
+                                </div>
+                                <h3 className="text-2xl font-bold">Security Standards</h3>
+                            </div>
+                            <ul className="space-y-4 text-muted-foreground">
+                                <li className="flex items-start gap-3">
+                                    <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                    <span><strong className="text-foreground font-semibold">Passwords:</strong> Hashed with BCrypt (work factor 11) for maximum brute-force resistance.</span>
+                                </li>
+                                <li className="flex items-start gap-3">
+                                    <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                    <span><strong className="text-foreground font-semibold">Integrations:</strong> AES-256-GCM authenticated encryption for all sensitive third-party keys and tokens.</span>
+                                </li>
+                                <li className="flex items-start gap-3">
+                                    <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                    <span><strong className="text-foreground font-semibold">API Keys:</strong> Argon2id or SHA-384 hashing for all project keys; we never store secrets in plaintext.</span>
+                                </li>
+                                <li className="flex items-start gap-3">
+                                    <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                    <span><strong className="text-foreground font-semibold">Data Privacy:</strong> Multi-tenant isolation ensuring your data is never accessible by others.</span>
+                                </li>
+                            </ul>
                         </div>
                     </div>
                 </div>

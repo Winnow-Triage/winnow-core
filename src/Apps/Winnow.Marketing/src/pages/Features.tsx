@@ -234,12 +234,12 @@ export function Features() {
             </section>
 
             {/* Integrations Preview */}
-            <section className="py-20 bg-slate-950 text-white overflow-hidden">
+            <section className="py-20 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300 overflow-hidden border-y dark:border-white/5">
                 <div className="container mx-auto px-4 md:px-6 relative">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-12">
                         <div className="z-10 text-center md:text-left">
-                            <h2 className="text-3xl font-bold mb-4 text-white">Plays well with others.</h2>
-                            <p className="text-slate-400 mb-8 max-w-md">Integrate Winnow into your existing workflow in minutes. Support for all major dev tools.</p>
+                            <h2 className="text-3xl font-bold mb-4">Plays well with others.</h2>
+                            <p className="text-slate-600 dark:text-slate-400 mb-8 max-w-md transition-colors duration-300">Integrate Winnow into your existing workflow in minutes. Support for all major dev tools.</p>
                             <div className="flex flex-wrap gap-6 justify-center md:justify-start grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-500">
                                 <Slack className="h-8 w-8" />
                                 <Github className="h-8 w-8" />
@@ -249,7 +249,7 @@ export function Features() {
                         </div>
                         <div className="relative group">
                             <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full opacity-20 group-hover:opacity-40 blur transition duration-1000 group-hover:duration-200"></div>
-                            <Link to="/integrations" className="relative px-8 py-4 bg-white text-slate-950 rounded-full font-bold flex items-center gap-2 hover:bg-slate-50 transition-colors">
+                            <Link to="/integrations" className="relative px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-950 rounded-full font-bold flex items-center gap-2 hover:bg-slate-800 dark:hover:bg-slate-50 transition-all transition-colors duration-300">
                                 View Integrations <ArrowRight className="h-4 w-4" />
                             </Link>
                         </div>
