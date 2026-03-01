@@ -4,6 +4,7 @@ using FluentValidation;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Winnow.Server.Domain.Services;
 using Winnow.Server.Entities;
 using Winnow.Server.Extensions;
 using Winnow.Server.Infrastructure.MultiTenancy;
@@ -133,8 +134,6 @@ public sealed class IngestReportEndpoint(
         // 1. Generate Embedding
         var textToEmbed = $"{req.Title}\n{req.Message}\n{req.StackTrace}";
         var embeddingFloats = await embeddingService.GetEmbeddingAsync(textToEmbed);
-        var embeddingBytes = new byte[embeddingFloats.Length * sizeof(float)];
-        Buffer.BlockCopy(embeddingFloats, 0, embeddingBytes, 0, embeddingBytes.Length);
 
         // 2. Generate Report ID upfront so we can use it in the S3 path
         var reportId = Guid.NewGuid();
@@ -221,7 +220,7 @@ public sealed class IngestReportEndpoint(
             StackTrace = req.StackTrace,
             Metadata = req.Metadata != null ? JsonSerializer.Serialize(req.Metadata) : null,
             CreatedAt = DateTime.UtcNow,
-            Embedding = embeddingBytes,
+            Embedding = embeddingFloats,
             ClusterId = null,
             IsOverage = quotaStatus.isOverage,
             IsLocked = quotaStatus.isLocked

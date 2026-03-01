@@ -26,7 +26,7 @@ public class Report : ITenantEntity
     public float? ConfidenceScore { get; set; }
     public int? CriticalityScore { get; set; }
     public string? CriticalityReasoning { get; set; }
-    public byte[]? Embedding { get; set; }
+    public float[]? Embedding { get; set; }
     public string? StackTraceHash { get; set; }
     public Uri? ExternalUrl { get; set; }
     public string? Metadata { get; set; } // Renamed from MetadataJson

@@ -1,7 +1,8 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
+using Pgvector;
+using Winnow.Server.Domain.Services;
 using Winnow.Server.Entities;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Security;
@@ -25,14 +26,24 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
     {
         base.OnModelCreating(modelBuilder);
 
-        // SQLite does not support DateTimeOffset or TimeZone storage natively.
-        // It stores everything as strings. EF Core, by default, reads these back as "Unspecified".
-        // When the server (running in local time) sees "Unspecified", it often treats it as Local.
-        // This causes Shift: Stored 22:00 -> Read as 22:00 Local -> Converted to UTC as 04:00 (+6h).
-        //
-        // Postgres handles timestamps with timezone natively, so these converters are not needed.
-        if (Database.IsSqlite())
+        // Configure database-specific features
+        if (Database.IsNpgsql())
         {
+            modelBuilder.HasPostgresExtension("vector");
+            modelBuilder.Entity<Report>()
+                .Property(b => b.Embedding)
+                .HasColumnType("vector(384)")
+                .HasConversion(
+                    v => v == null ? null : new Pgvector.Vector(v),
+                    v => v == null ? null : v.ToArray()
+                );
+        }
+        else if (Database.IsSqlite())
+        {
+            // SQLite does not support DateTimeOffset or TimeZone storage natively.
+            // It stores everything as strings. EF Core, by default, reads these back as "Unspecified".
+            // When the server (running in local time) sees "Unspecified", it often treats it as Local.
+            // This causes Shift: Stored 22:00 -> Read as 22:00 Local -> Converted to UTC as 04:00 (+6h).
             var dateTimeConverter = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
                 v => v.ToUniversalTime(),
                 v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
@@ -55,6 +66,13 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                     }
                 }
             }
+
+            // Vector conversion for SQLite
+            modelBuilder.Entity<Report>()
+                .Property(b => b.Embedding)
+                .HasConversion(
+                    v => v == null ? null : VectorCalculator.FloatsToBytes(v),
+                    v => v == null ? null : VectorCalculator.BytesToFloats(v));
         }
 
         // Organization -> Team -> Project hierarchy

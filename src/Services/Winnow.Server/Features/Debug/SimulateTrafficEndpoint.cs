@@ -110,8 +110,6 @@ public sealed class SimulateTrafficEndpoint(
             // Generate embedding for the simulated report
             var textToEmbed = $"{title}\n{template.Description}";
             var embeddingFloats = await embeddingService.GetEmbeddingAsync(textToEmbed);
-            var embeddingBytes = new byte[embeddingFloats.Length * sizeof(float)];
-            Buffer.BlockCopy(embeddingFloats, 0, embeddingBytes, 0, embeddingBytes.Length);
 
             var report = new Entities.Report
             {
@@ -122,7 +120,7 @@ public sealed class SimulateTrafficEndpoint(
                 Status = "New",
                 ProjectId = projectId, // Use the validated project ID
                 OrganizationId = currentOrgId,
-                Embedding = embeddingBytes, // Include the embedding
+                Embedding = embeddingFloats, // Include the embedding
                 IsOverage = quotaStatus.isOverage,
                 IsLocked = quotaStatus.isLocked
             };

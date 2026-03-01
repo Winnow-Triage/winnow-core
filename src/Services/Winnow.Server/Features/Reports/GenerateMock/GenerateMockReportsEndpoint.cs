@@ -126,8 +126,6 @@ public sealed class GenerateMockReportsEndpoint(
                 // Generate embedding for the mock report
                 var textToEmbed = $"{dt.Title}\n{dt.Message}";
                 var embeddingFloats = await embeddingService.GetEmbeddingAsync(textToEmbed);
-                var embeddingBytes = new byte[embeddingFloats.Length * sizeof(float)];
-                Buffer.BlockCopy(embeddingFloats, 0, embeddingBytes, 0, embeddingBytes.Length);
 
                 var report = new Report
                 {
@@ -137,7 +135,7 @@ public sealed class GenerateMockReportsEndpoint(
                     CreatedAt = DateTime.UtcNow,
                     ProjectId = projectId, // Set the project ID
                     OrganizationId = currentOrgId,
-                    Embedding = embeddingBytes, // Include the embedding
+                    Embedding = embeddingFloats, // Include the embedding
                     IsOverage = quotaStatus.isOverage,
                     IsLocked = quotaStatus.isLocked
                 };

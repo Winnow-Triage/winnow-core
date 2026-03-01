@@ -40,28 +40,43 @@ internal class ReportCreatedConsumer(
 
         var projectId = report.ProjectId;
 
-        // 2. Ensure Vector Table
-        await dbContext.Database.ExecuteSqlRawAsync(
-            "CREATE VIRTUAL TABLE IF NOT EXISTS vec_reports USING vec0(embedding float[384] distance_metric=cosine);",
-            context.CancellationToken);
-
+        if (dbContext.Database.IsSqlite())
+        {
+            // 2. Ensure Vector Table
+            await dbContext.Database.ExecuteSqlRawAsync(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS vec_reports USING vec0(embedding float[384] distance_metric=cosine);",
+                context.CancellationToken);
+        }
         // 3. Vector Search - ONLY within the same project
         if (report.Embedding != null && report.Status != "Duplicate" && report.Status != "Duplicate (StackHash)")
         {
-            var embeddingFloats = new float[report.Embedding.Length / sizeof(float)];
-            Buffer.BlockCopy(report.Embedding, 0, embeddingFloats, 0, report.Embedding.Length);
+            var embeddingFloats = report.Embedding;
 
-            var parameters = new List<object> { report.Embedding, projectId };
-
-            var sql = @"
+            var parameters = new List<object> { embeddingFloats, projectId };
+            string sql;
+            if (dbContext.Database.IsSqlite())
+            {
+                // The SQLite-specific Virtual Table approach
+                sql = @"
                 SELECT t.Id, t.ParentReportId as ParentId, v.distance as Distance
                 FROM vec_reports v
                 JOIN Reports t ON v.rowid = t.rowid
                 WHERE v.embedding MATCH {0}
-                  AND t.ProjectId = {1}
-                  AND k = 50
-                ORDER BY v.distance ASC
-            ";
+                AND t.ProjectId = {1}
+                AND k = 50
+                ORDER BY v.distance ASC";
+            }
+            else
+            {
+                // The pgvector approach (assuming Cosine Distance)
+                // Note: We use double quotes for column names to ensure EF/Postgres case-sensitivity matches
+                sql = @"
+                SELECT ""Id"", ""ParentReportId"" as ""ParentId"", ""Embedding"" <=> {0}::vector as ""Distance""
+                FROM ""Reports""
+                WHERE ""ProjectId"" = {1}
+                ORDER BY ""Embedding"" <=> {0}::vector ASC
+                LIMIT 50";
+            }
 
             // Using Internal Match helper
             var searchResults = await dbContext.Database
@@ -104,7 +119,7 @@ internal class ReportCreatedConsumer(
 
                         var memberFloats = members
                             .Where(e => e != null)
-                            .Select(e => VectorCalculator.BytesToFloats(e!))
+                            .Select(e => e!)
                             .ToList();
                         var centroid = vectorCalculator.CalculateCentroid(memberFloats);
                         var centroidDist = vectorCalculator.CalculateCosineDistance(embeddingFloats, centroid);
@@ -161,8 +176,8 @@ internal class ReportCreatedConsumer(
 
         await dbContext.SaveChangesAsync(context.CancellationToken);
 
-        // Sync to Vector Index - only if embedding exists
-        if (report.Embedding != null)
+        // Sync to Vector Index - ONLY FOR SQLITE
+        if (dbContext.Database.IsSqlite() && report.Embedding != null)
         {
             await dbContext.Database.ExecuteSqlInterpolatedAsync($@"
                 DELETE FROM vec_reports WHERE rowid = (SELECT rowid FROM Reports WHERE Id = {report.Id})
@@ -175,7 +190,12 @@ internal class ReportCreatedConsumer(
                 WHERE Id = {report.Id}
             ");
 
-            logger.LogDebug("ReportMatching: Synchronized report {Id} to vector index.", report.Id);
+            logger.LogDebug("ReportMatching: Synchronized report {Id} to SQLite vector index.", report.Id);
+        }
+        else if (report.Embedding != null)
+        {
+            // Postgres handles this natively during SaveChangesAsync! No shadow tables needed.
+            logger.LogDebug("ReportMatching: Vector saved natively to Postgres for report {Id}.", report.Id);
         }
         else
         {

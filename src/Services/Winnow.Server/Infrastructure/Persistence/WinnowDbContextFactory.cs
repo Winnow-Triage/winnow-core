@@ -37,6 +37,8 @@ public class WinnowDbContextFactory : IDesignTimeDbContextFactory<WinnowDbContex
                 ?? "Host=localhost;Port=5432;Database=winnow_dev;Username=winnow;Password=winnow_dev";
             optionsBuilder.UseNpgsql(connString,
                 npgsql => npgsql.MigrationsAssembly("Winnow.Server"));
+            optionsBuilder.UseNpgsql(connString,
+                npgsql => npgsql.UseVector());
         }
         else
         {

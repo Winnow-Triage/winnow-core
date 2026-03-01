@@ -1,9 +1,9 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using Pgvector;
 
 #nullable disable
-#pragma warning disable CA1861 // auto-generated migration code
 
 namespace Winnow.Server.Migrations.Postgres
 {
@@ -13,6 +13,9 @@ namespace Winnow.Server.Migrations.Postgres
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AlterDatabase()
+                .Annotation("Npgsql:PostgresExtension:vector", ",,");
+
             migrationBuilder.CreateTable(
                 name: "AspNetRoles",
                 columns: table => new
@@ -178,6 +181,31 @@ namespace Winnow.Server.Migrations.Postgres
                 });
 
             migrationBuilder.CreateTable(
+                name: "OrganizationInvitations",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    OrganizationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Email = table.Column<string>(type: "text", nullable: false),
+                    Role = table.Column<string>(type: "text", nullable: false),
+                    Token = table.Column<string>(type: "text", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    InitialTeamIds = table.Column<string>(type: "text", nullable: false),
+                    InitialProjectIds = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_OrganizationInvitations", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_OrganizationInvitations_Organizations_OrganizationId",
+                        column: x => x.OrganizationId,
+                        principalTable: "Organizations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "OrganizationMembers",
                 columns: table => new
                 {
@@ -185,7 +213,8 @@ namespace Winnow.Server.Migrations.Postgres
                     UserId = table.Column<string>(type: "text", nullable: false),
                     OrganizationId = table.Column<Guid>(type: "uuid", nullable: false),
                     Role = table.Column<string>(type: "text", nullable: false),
-                    JoinedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    JoinedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    IsLocked = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -231,6 +260,8 @@ namespace Winnow.Server.Migrations.Postgres
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
                     ApiKeyHash = table.Column<string>(type: "text", nullable: false),
+                    SecondaryApiKeyHash = table.Column<string>(type: "text", nullable: true),
+                    SecondaryApiKeyExpiresAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     TeamId = table.Column<Guid>(type: "uuid", nullable: true),
                     OrganizationId = table.Column<Guid>(type: "uuid", nullable: false),
                     OwnerId = table.Column<string>(type: "text", nullable: false),
@@ -260,6 +291,32 @@ namespace Winnow.Server.Migrations.Postgres
                 });
 
             migrationBuilder.CreateTable(
+                name: "TeamMembers",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    TeamId = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<string>(type: "text", nullable: false),
+                    JoinedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TeamMembers", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TeamMembers_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_TeamMembers_Teams_TeamId",
+                        column: x => x.TeamId,
+                        principalTable: "Teams",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Integrations",
                 columns: table => new
                 {
@@ -283,6 +340,32 @@ namespace Winnow.Server.Migrations.Postgres
                 });
 
             migrationBuilder.CreateTable(
+                name: "ProjectMembers",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ProjectId = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<string>(type: "text", nullable: false),
+                    JoinedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ProjectMembers", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ProjectMembers_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ProjectMembers_Projects_ProjectId",
+                        column: x => x.ProjectId,
+                        principalTable: "Projects",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Reports",
                 columns: table => new
                 {
@@ -295,6 +378,8 @@ namespace Winnow.Server.Migrations.Postgres
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Status = table.Column<string>(type: "text", nullable: false),
                     ClusterId = table.Column<Guid>(type: "uuid", nullable: true),
+                    IsOverage = table.Column<bool>(type: "boolean", nullable: false),
+                    IsLocked = table.Column<bool>(type: "boolean", nullable: false),
                     ParentReportId = table.Column<Guid>(type: "uuid", nullable: true),
                     SuggestedParentId = table.Column<Guid>(type: "uuid", nullable: true),
                     SuggestedConfidenceScore = table.Column<float>(type: "real", nullable: true),
@@ -303,7 +388,7 @@ namespace Winnow.Server.Migrations.Postgres
                     ConfidenceScore = table.Column<float>(type: "real", nullable: true),
                     CriticalityScore = table.Column<int>(type: "integer", nullable: true),
                     CriticalityReasoning = table.Column<string>(type: "text", nullable: true),
-                    Embedding = table.Column<byte[]>(type: "bytea", nullable: true),
+                    Embedding = table.Column<Vector>(type: "vector(384)", nullable: true),
                     StackTraceHash = table.Column<string>(type: "text", nullable: true),
                     ExternalUrl = table.Column<string>(type: "text", nullable: true),
                     Metadata = table.Column<string>(type: "text", nullable: true),
@@ -396,6 +481,17 @@ namespace Winnow.Server.Migrations.Postgres
                 column: "ProjectId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_OrganizationInvitations_OrganizationId",
+                table: "OrganizationInvitations",
+                column: "OrganizationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrganizationInvitations_Token",
+                table: "OrganizationInvitations",
+                column: "Token",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_OrganizationMembers_OrganizationId",
                 table: "OrganizationMembers",
                 column: "OrganizationId");
@@ -403,8 +499,19 @@ namespace Winnow.Server.Migrations.Postgres
             migrationBuilder.CreateIndex(
                 name: "IX_OrganizationMembers_UserId_OrganizationId",
                 table: "OrganizationMembers",
-                columns: ["UserId", "OrganizationId"],
+                columns: new[] { "UserId", "OrganizationId" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ProjectMembers_ProjectId_UserId",
+                table: "ProjectMembers",
+                columns: new[] { "ProjectId", "UserId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ProjectMembers_UserId",
+                table: "ProjectMembers",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Projects_OrganizationId",
@@ -425,6 +532,17 @@ namespace Winnow.Server.Migrations.Postgres
                 name: "IX_Reports_ProjectId",
                 table: "Reports",
                 column: "ProjectId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TeamMembers_TeamId_UserId",
+                table: "TeamMembers",
+                columns: new[] { "TeamId", "UserId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TeamMembers_UserId",
+                table: "TeamMembers",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Teams_OrganizationId",
@@ -457,7 +575,16 @@ namespace Winnow.Server.Migrations.Postgres
                 name: "Integrations");
 
             migrationBuilder.DropTable(
+                name: "OrganizationInvitations");
+
+            migrationBuilder.DropTable(
                 name: "OrganizationMembers");
+
+            migrationBuilder.DropTable(
+                name: "ProjectMembers");
+
+            migrationBuilder.DropTable(
+                name: "TeamMembers");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");

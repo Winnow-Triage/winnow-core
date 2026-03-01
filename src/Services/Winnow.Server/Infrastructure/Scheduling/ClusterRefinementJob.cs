@@ -67,10 +67,13 @@ internal sealed class ClusterRefinementJob(
 
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
-        // Ensure vector table exists for this tenant
-        await db.Database.ExecuteSqlRawAsync(
-            "CREATE VIRTUAL TABLE IF NOT EXISTS vec_reports USING vec0(embedding float[384] distance_metric=cosine);",
-            ct);
+        if (db.Database.IsSqlite())
+        {
+            // Ensure vector table exists for this tenant
+            await db.Database.ExecuteSqlRawAsync(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS vec_reports USING vec0(embedding float[384] distance_metric=cosine);",
+                ct);
+        }
 
         // Get all projects for this tenant
         var projects = await db.Projects
@@ -120,22 +123,23 @@ internal sealed class ClusterRefinementJob(
                     tenantId, projectId, leader.Id);
                 var text = $"{leader.Title}\n{leader.Message}\n{leader.StackTrace}";
                 var embeddingFloats = await embeddingService.GetEmbeddingAsync(text);
-                var embeddingBytes = new byte[embeddingFloats.Length * sizeof(float)];
-                Buffer.BlockCopy(embeddingFloats, 0, embeddingBytes, 0, embeddingBytes.Length);
 
                 await db.Database.ExecuteSqlRawAsync(
                     "UPDATE Reports SET Embedding = {0} WHERE Id = {1} AND ProjectId = {2}",
-                    [embeddingBytes, leader.Id, projectId], ct);
+                    [embeddingFloats, leader.Id, projectId], ct);
 
-                await db.Database.ExecuteSqlRawAsync(
-                    "DELETE FROM vec_reports WHERE rowid = (SELECT rowid FROM Reports WHERE Id = {0})",
-                    [leader.Id], ct);
+                if (db.Database.IsSqlite())
+                {
+                    await db.Database.ExecuteSqlRawAsync(
+                        "DELETE FROM vec_reports WHERE rowid = (SELECT rowid FROM Reports WHERE Id = {0})",
+                        [leader.Id], ct);
 
-                await db.Database.ExecuteSqlRawAsync(
-                    "INSERT INTO vec_reports(rowid, embedding) VALUES ((SELECT rowid FROM Reports WHERE Id = {0} AND ProjectId = {1}), {2})",
-                    [leader.Id, projectId, embeddingBytes], ct);
+                    await db.Database.ExecuteSqlRawAsync(
+                        "INSERT INTO vec_reports(rowid, embedding) VALUES ((SELECT rowid FROM Reports WHERE Id = {0} AND ProjectId = {1}), {2})",
+                        [leader.Id, projectId, embeddingFloats], ct);
+                }
 
-                leader.Embedding = embeddingBytes;
+                leader.Embedding = embeddingFloats;
             }
             catch (Exception ex)
             {
@@ -192,7 +196,7 @@ internal sealed class ClusterRefinementJob(
             }
 
             ClusterMatch? bestMatch = null;
-            float[] leaderAFloats = VectorCalculator.BytesToFloats(leaderA.Embedding);
+            float[] leaderAFloats = leaderA.Embedding;
 
             foreach (var (clusterId, items) in clusterGroups)
             {
@@ -207,7 +211,7 @@ internal sealed class ClusterRefinementJob(
 
                 var memberFloats = members
                     .Where(e => e != null)
-                    .Select(e => VectorCalculator.BytesToFloats(e!))
+                    .Select(e => e!)
                     .ToList();
                 var centroid = vectorCalculator.CalculateCentroid(memberFloats);
                 var centroidDist = vectorCalculator.CalculateCosineDistance(leaderAFloats, centroid);
@@ -322,9 +326,12 @@ internal sealed class ClusterRefinementJob(
                     logger.LogWarning("Janitor [{TenantId}][Project: {ProjectId}]: Circular reference detected! Breaking cycle at {Id}",
                         tenantId, projectId, currentId.Value);
 
-                    await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE Reports SET ParentReportId = NULL, Status = 'Open' WHERE Id = {0} AND ProjectId = {1}",
-                        [currentId.Value, projectId], ct);
+                    await db.Reports
+                        .Where(r => r.Id == currentId.Value && r.ProjectId == projectId)
+                        .ExecuteUpdateAsync(setters => setters
+                            .SetProperty(r => r.ParentReportId, (Guid?)null)
+                            .SetProperty(r => r.Status, "Open"),
+                            ct);
 
                     fixes++;
                     break;
@@ -344,9 +351,9 @@ internal sealed class ClusterRefinementJob(
                     logger.LogInformation("Janitor [{TenantId}][Project: {ProjectId}]: Flattening deep hierarchy {A} -> {B} -> {Root}",
                         tenantId, projectId, path[0], path[1], nextParentId);
 
-                    await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE Reports SET ParentReportId = {0} WHERE Id = {1} AND ProjectId = {2}",
-                        [nextParentId, path[0], projectId], ct);
+                    await db.Reports
+                        .Where(r => r.Id == path[0] && r.ProjectId == projectId)
+                        .ExecuteUpdateAsync(setters => setters.SetProperty(r => r.ParentReportId, nextParentId), ct);
 
                     fixes++;
                     break;
@@ -365,17 +372,37 @@ internal sealed class ClusterRefinementJob(
 
     private static async Task<List<ReportMatch>> FindMatchesInDb(WinnowDbContext db, Report target, double threshold, CancellationToken ct)
     {
-        var sql = @"
-            SELECT t.Id, t.Title, t.Message, t.CreatedAt, v.distance as Distance
-            FROM vec_reports v
-            JOIN Reports t ON v.rowid = t.rowid
-            WHERE v.embedding MATCH {0}
-              AND k = 20
-              AND v.distance < {1}
-              AND t.Id != {2}
-              AND t.Status != 'Duplicate'
-              AND t.ProjectId = {3}
-        ";
+        string sql;
+
+        if (db.Database.IsSqlite())
+        {
+            // The existing SQLite Virtual Table query
+            sql = @"
+                SELECT t.Id, t.Title, t.Message, t.CreatedAt, v.distance as Distance
+                FROM vec_reports v
+                JOIN Reports t ON v.rowid = t.rowid
+                WHERE v.embedding MATCH {0}
+                AND k = 20
+                AND v.distance < {1}
+                AND t.Id != {2}
+                AND t.Status != 'Duplicate'
+                AND t.ProjectId = {3}
+            ";
+        }
+        else
+        {
+            // The streamlined Postgres query (No JOINs required!)
+            sql = @"
+                SELECT ""Id"", ""Title"", ""Message"", ""CreatedAt"", ""Embedding"" <=> {0}::vector AS ""Distance""
+                FROM ""Reports""
+                WHERE ""Embedding"" <=> {0}::vector < {1}
+                AND ""Id"" != {2}
+                AND ""Status"" != 'Duplicate'
+                AND ""ProjectId"" = {3}
+                ORDER BY ""Embedding"" <=> {0}::vector ASC
+                LIMIT 20
+            ";
+        }
 
         return await db.Database.SqlQueryRaw<ReportMatch>(sql, target.Embedding!, threshold, target.Id, target.ProjectId)
             .ToListAsync(ct);

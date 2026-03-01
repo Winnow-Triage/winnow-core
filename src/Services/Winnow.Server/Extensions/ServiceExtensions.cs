@@ -182,7 +182,11 @@ internal static class ServiceExtensions
             if (dbProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
             {
                 options.UseNpgsql(tenantCtx.ConnectionString,
-                    npgsql => npgsql.MigrationsAssembly("Winnow.Server"))
+                    npgsql =>
+                    {
+                        npgsql.UseVector();
+                        npgsql.MigrationsAssembly("Winnow.Server");
+                    })
                     .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
             }
             else
