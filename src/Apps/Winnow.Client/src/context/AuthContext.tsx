@@ -16,6 +16,7 @@ interface AuthContextType {
     user: User | null;
     isAuthenticated: boolean;
     isLoading: boolean;
+    isInitialLoading: boolean;
     error: any;
     login: (userData: any) => void;
     logout: () => Promise<void>;
@@ -29,10 +30,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const saved = localStorage.getItem("user");
         return saved ? JSON.parse(saved) : null;
     });
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [error, setError] = useState<any>(null);
 
     const refreshUser = useCallback(async () => {
+        setIsLoading(true);
         try {
             const data = await getMe();
             const userData: User = {
@@ -48,16 +51,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.setItem("user", JSON.stringify(userData));
             setError(null);
         } catch (err) {
-            console.error("Failed to fetch user:", err);
-            if (isAxiosError(err) && err.response?.status === 429) {
+            if (isAxiosError(err) && err.response?.status === 401) {
+                // Initial check failed with 401, this is expected if not logged in
+                setUser(null);
+                localStorage.removeItem("user");
+            } else if (isAxiosError(err) && err.response?.status === 429) {
                 // Ignore 429s, keep current user if exists
             } else {
+                console.error("Failed to fetch user:", err);
                 setUser(null);
                 localStorage.removeItem("user");
                 setError(err);
             }
         } finally {
             setIsLoading(false);
+            setIsInitialLoading(false);
         }
     }, []);
 
@@ -95,6 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 user,
                 isAuthenticated: !!user,
                 isLoading,
+                isInitialLoading,
                 error,
                 login,
                 logout,

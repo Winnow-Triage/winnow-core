@@ -8,10 +8,12 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { api } from "@/lib/api"
 import { PasswordRules, validatePassword } from "@/components/PasswordRules"
 import { WinnowLogo } from "@/components/WinnowLogo"
+import { useAuth } from "@/context/AuthContext"
 
 export default function AuthPage() {
     const location = useLocation()
     const navigate = useNavigate()
+    const { login } = useAuth()
     const [isSignUp, setIsSignUp] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -82,23 +84,15 @@ export default function AuthPage() {
                 return;
             }
 
-            // Store User Data
-            localStorage.removeItem("lastProjectId");
-            // Also keep 'user' for legacy/compatibility if needed, but store rich object
-            localStorage.setItem("user", JSON.stringify({
-                id: data.userId,
-                email: data.email,
-                name: data.fullName,
-                isEmailVerified: data.isEmailVerified,
-                defaultProjectId: data.defaultProjectId,
-                organizationId: data.activeOrganizationId
-            }));
+            // Use the login function from AuthContext to update global state
+            login(data);
 
             // Navigation
             if (isSignUp) {
                 navigate('/setup', { state: { apiKey: data.apiKey } });
             } else {
-                navigate('/dashboard');
+                // Hard redirect to dashboard to ensure cookies/headers are fully settled and AuthContext re-initializes
+                window.location.href = '/dashboard';
             }
 
         } catch (err: any) {

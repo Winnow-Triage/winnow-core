@@ -17,17 +17,27 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
-// Add response interceptor to handle token expiration
+// Add response interceptor to handle token expiration and empty responses
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        // Handle 204 No Content or empty responses to prevent "XML Parsing Error"
+        if (response.status === 204 || !response.data) {
+            return { ...response, data: {} };
+        }
+        return response;
+    },
     (error) => {
         if (error.response?.status === 401) {
             // Session expired or invalid
             localStorage.removeItem('user');
             localStorage.removeItem('lastProjectId');
 
-            // Use window.location for navigation since we're outside React component
-            if (window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
+            // Only redirect if we are NOT on the initial load and NOT already on auth pages
+            // AuthContext.tsx handles the initial /auth/me 401 gracefully.
+            const isAuthPage = window.location.pathname === '/login' || window.location.pathname === '/signup';
+            const isInitialCheck = error.config.url === '/auth/me';
+
+            if (!isAuthPage && !isInitialCheck) {
                 window.location.href = '/login';
             }
         }

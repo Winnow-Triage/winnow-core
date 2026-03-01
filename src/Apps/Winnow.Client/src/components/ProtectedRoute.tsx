@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import React, { useEffect } from "react";
 import { ProjectProvider } from "../context/ProjectContext";
 import { useAuth } from "../context/AuthContext";
 
@@ -7,12 +8,16 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-    const { isAuthenticated, isLoading } = useAuth();
+    const { isAuthenticated, isLoading, isInitialLoading } = useAuth();
     const navigate = useNavigate();
 
-    // No useEffect needed here as AuthProvider handles the initial check
+    useEffect(() => {
+        if (!isInitialLoading && !isLoading && !isAuthenticated) {
+            navigate("/login");
+        }
+    }, [isInitialLoading, isLoading, isAuthenticated, navigate]);
 
-    if (isLoading) {
+    if (isInitialLoading || isLoading) {
         return (
             <div className="flex h-screen w-full items-center justify-center">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -21,7 +26,6 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     }
 
     if (!isAuthenticated) {
-        navigate("/login");
         return null;
     }
 
