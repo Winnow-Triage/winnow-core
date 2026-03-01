@@ -9,8 +9,9 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { formatTimeAgo } from "@/lib/utils"
 import { AlertCircle, Building2, Ticket, CheckCircle2 } from "lucide-react"
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
+import { PieChart, Pie, Cell, Tooltip as RechartsTooltip } from 'recharts'
 import { Progress } from "@/components/ui/progress"
+import { useChartDimensions } from "@/hooks/use-chart-dimensions"
 
 const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#0ea5e9', '#6366f1', '#a855f7', '#ec4899'];
 
@@ -23,6 +24,7 @@ interface OrganizationDetailsModalProps {
 export function OrganizationDetailsModal({ organizationId, isOpen, onOpenChange }: OrganizationDetailsModalProps) {
     const [isLoading, setIsLoading] = useState(false)
     const [details, setDetails] = useState<any>(null)
+    const { ref, dimensions } = useChartDimensions()
 
     useEffect(() => {
         if (isOpen && organizationId) {
@@ -146,9 +148,13 @@ export function OrganizationDetailsModal({ organizationId, isOpen, onOpenChange 
                                     <h3 className="font-semibold text-red-400">Monthly Usage by Project</h3>
                                 </div>
                                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6 items-center bg-background">
-                                    <div className="h-[250px] w-full">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
+                                    <div ref={ref} className="h-[250px] w-full relative">
+                                        {dimensions.width > 0 && dimensions.height > 0 ? (
+                                            <PieChart
+                                                id="org-details-pie-chart"
+                                                width={dimensions.width}
+                                                height={dimensions.height}
+                                            >
                                                 <Pie
                                                     data={details.projectQuotas}
                                                     cx="50%"
@@ -168,7 +174,9 @@ export function OrganizationDetailsModal({ organizationId, isOpen, onOpenChange 
                                                     itemStyle={{ color: '#fff' }}
                                                 />
                                             </PieChart>
-                                        </ResponsiveContainer>
+                                        ) : (
+                                            <div className="h-full w-full bg-gray-50/50 dark:bg-white/5 animate-pulse rounded-md" />
+                                        )}
                                     </div>
                                     <div className="divide-y divide-red-900/20 max-h-[250px] overflow-y-auto pr-2">
                                         {details.projectQuotas.map((p: ProjectQuotaSummary, index: number) => (

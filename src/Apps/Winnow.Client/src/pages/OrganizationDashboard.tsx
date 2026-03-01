@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query"
 import { getOrganizationMetrics, type OrganizationDashboardMetrics } from "@/lib/api"
 import { AlertCircle, Loader2, Building2, LayoutDashboard, Layers } from "lucide-react"
-import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Legend } from "recharts"
+import { BarChart, Bar, XAxis, Tooltip, Legend } from "recharts"
+import { useChartDimensions } from "@/hooks/use-chart-dimensions"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -21,6 +22,8 @@ export default function OrganizationDashboard() {
         queryFn: getOrganizationMetrics,
         refetchInterval: 30000,
     })
+
+    const { ref, dimensions } = useChartDimensions()
 
     if (isLoading) {
         return (
@@ -94,15 +97,22 @@ export default function OrganizationDashboard() {
                             </div>
                         ) : (
                             <div className="space-y-4 mt-4">
-                                <div className="h-[120px] w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={data.quota.usageHistory} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                                <div ref={ref} className="h-[120px] w-full relative">
+                                    {dimensions.width > 0 && dimensions.height > 0 ? (
+                                        <BarChart
+                                            id="org-usage-bar-chart"
+                                            width={dimensions.width}
+                                            height={dimensions.height}
+                                            data={data.quota.usageHistory}
+                                            margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+                                        >
                                             <XAxis
                                                 dataKey="month"
                                                 axisLine={false}
                                                 tickLine={false}
                                                 tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                                                 dy={5}
+                                                hide={dimensions.width < 250}
                                             />
                                             <Tooltip
                                                 cursor={{ fill: "hsl(var(--muted)/0.5)" }}
@@ -133,7 +143,9 @@ export default function OrganizationDashboard() {
                                                 radius={[4, 4, 0, 0]}
                                             />
                                         </BarChart>
-                                    </ResponsiveContainer>
+                                    ) : (
+                                        <div className="h-full w-full bg-gray-50/50 dark:bg-white/5 animate-pulse rounded-md" />
+                                    )}
                                 </div>
                                 <div className="flex justify-between text-xs text-muted-foreground border-t pt-2 border-dashed">
                                     <span>6-Month History</span>

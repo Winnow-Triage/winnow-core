@@ -26,7 +26,7 @@ interface Team {
 
 export default function TeamDashboard() {
     const { theme } = useTheme()
-    const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
+    const [selectedTeamId, setSelectedTeamId] = useState<string>("")
 
     // Resolve effective theme
     const isDark = theme === 'dark' ||
@@ -48,8 +48,8 @@ export default function TeamDashboard() {
     // Fetch metrics for the selected team
     const { data: metrics, isLoading: isLoadingMetrics, error } = useQuery<TeamDashboardMetrics>({
         queryKey: ["teamDashboardMetrics", selectedTeamId],
-        queryFn: () => getTeamMetrics(selectedTeamId!),
-        enabled: !!selectedTeamId, // Only run query if a team is selected
+        queryFn: () => getTeamMetrics(selectedTeamId),
+        enabled: selectedTeamId !== "", // Only run query if a team is selected
         refetchInterval: 30000,
     })
 
@@ -83,7 +83,7 @@ export default function TeamDashboard() {
 
                 <div className="w-full sm:w-[250px]">
                     <Select
-                        value={selectedTeamId || undefined}
+                        value={selectedTeamId || ""}
                         onValueChange={(value) => setSelectedTeamId(value)}
                     >
                         <SelectTrigger>

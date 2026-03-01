@@ -1,6 +1,5 @@
-"use client"
-
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
+import { useChartDimensions } from "@/hooks/use-chart-dimensions"
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Activity } from "lucide-react"
 
@@ -16,6 +15,8 @@ export function TriageFunnelChart({ data, noiseColor, signalColor }: TriageFunne
         ...item,
         time: new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }))
+
+    const { ref, dimensions } = useChartDimensions()
 
     return (
         <Card className="col-span-2 bg-white border-gray-200 text-gray-900 shadow-sm dark:bg-[#0F172A] dark:border-white/10 dark:text-white dark:shadow-none transition-colors duration-200">
@@ -36,9 +37,15 @@ export function TriageFunnelChart({ data, noiseColor, signalColor }: TriageFunne
                 </div>
             </CardHeader>
             <CardContent className="pt-6">
-                <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <div ref={ref} className="h-[300px] w-full relative">
+                    {dimensions.width > 0 && dimensions.height > 0 ? (
+                        <AreaChart
+                            id="triage-funnel-area-chart"
+                            width={dimensions.width}
+                            height={dimensions.height}
+                            data={chartData}
+                            margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                        >
                             <defs>
                                 <linearGradient id="colorDup" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor={noiseColor} stopOpacity={0.4} />
@@ -49,7 +56,14 @@ export function TriageFunnelChart({ data, noiseColor, signalColor }: TriageFunne
                                     <stop offset="95%" stopColor={signalColor} stopOpacity={0.1} />
                                 </linearGradient>
                             </defs>
-                            <XAxis dataKey="time" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                            <XAxis
+                                dataKey="time"
+                                stroke="#888888"
+                                fontSize={12}
+                                tickLine={false}
+                                axisLine={false}
+                                hide={dimensions.width < 300}
+                            />
                             <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
                             <Tooltip
                                 contentStyle={{
@@ -78,7 +92,9 @@ export function TriageFunnelChart({ data, noiseColor, signalColor }: TriageFunne
                                 name="Noise (Duplicates)"
                             />
                         </AreaChart>
-                    </ResponsiveContainer>
+                    ) : (
+                        <div className="h-full w-full bg-gray-50/50 dark:bg-white/5 animate-pulse rounded-md" />
+                    )}
                 </div>
             </CardContent>
         </Card>
