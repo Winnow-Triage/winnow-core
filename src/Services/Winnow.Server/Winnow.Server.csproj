@@ -33,6 +33,8 @@
     <PackageReference Include="Microsoft.SemanticKernel" Version="1.70.0" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.Ollama" Version="1.70.0-alpha" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.70.0" />
+    <PackageReference Include="Pgvector" Version="0.3.2" />
+    <PackageReference Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
     <PackageReference Include="Polly" Version="8.4.0" />
     <PackageReference Include="sqlite-vec" Version="0.1.7-alpha.2.1" GeneratePathProperty="true" />
     <PackageReference Include="Scrutor" Version="5.0.2" />
@@ -73,7 +75,7 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <NoWarn>$(NoWarn);CA2007;CA1848;CA1515;CA1852;CA1812;CS1591</NoWarn>
+    <NoWarn>$(NoWarn);CA2007;CA1848;CA1515;CA1852;CA1812;CS1591;CA1873;CA1861</NoWarn>
   </PropertyGroup>
 
 </Project>
