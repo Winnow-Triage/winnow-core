@@ -11,7 +11,8 @@
     "module": "ESNext",
     "types": [
       "vite/client",
-      "@testing-library/jest-dom"
+      "@testing-library/jest-dom",
+      "vitest/globals"
     ],
     "skipLibCheck": true,
     /* Bundler mode */
