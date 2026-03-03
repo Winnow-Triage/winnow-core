@@ -53,6 +53,7 @@ interface ReportDetailData {
     suggestedClusterId?: string;
     suggestedConfidenceScore?: number;
     suggestedClusterSummary?: string;
+    suggestedClusterTitle?: string;
     assignedTo?: string;
     summary?: string;
     confidenceScore?: number;
@@ -208,7 +209,9 @@ export default function ReportDetail() {
                             </Badge>
                         </div>
                         <p className="text-sm opacity-90">
-                            This report looks very similar to cluster: <span className="font-medium">{report.suggestedClusterSummary || report.suggestedClusterId}</span>.
+                            This report looks very similar to cluster: <span className="font-medium">
+                                {report.suggestedClusterTitle || report.suggestedClusterSummary || `Cluster #${report.suggestedClusterId?.substring(0, 8)}`}
+                            </span>.
                         </p>
                     </div>
                     <div className="flex gap-2">

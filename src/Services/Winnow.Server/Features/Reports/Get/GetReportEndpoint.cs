@@ -109,6 +109,11 @@ public class GetReportResponse
     public string? SuggestedClusterSummary { get; set; }
 
     /// <summary>
+    /// Title from the suggested cluster.
+    /// </summary>
+    public string? SuggestedClusterTitle { get; set; }
+
+    /// <summary>
     /// JSON metadata string.
     /// </summary>
     public string? Metadata { get; set; }
@@ -319,13 +324,20 @@ public sealed class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services
 
         // Load suggested cluster info
         string? suggestedClusterSummary = null;
+        string? suggestedClusterTitle = null;
         if (report.SuggestedClusterId != null)
         {
-            suggestedClusterSummary = await db.Clusters
+            var suggestedCluster = await db.Clusters
                 .AsNoTracking()
                 .Where(c => c.Id == report.SuggestedClusterId)
-                .Select(c => c.Summary ?? c.Title)
+                .Select(c => new { c.Summary, c.Title })
                 .FirstOrDefaultAsync(ct);
+
+            if (suggestedCluster != null)
+            {
+                suggestedClusterSummary = suggestedCluster.Summary;
+                suggestedClusterTitle = suggestedCluster.Title;
+            }
         }
 
         // Build asset DTOs with download URLs for clean files
@@ -377,6 +389,7 @@ public sealed class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services
             SuggestedClusterId = report.SuggestedClusterId,
             SuggestedConfidenceScore = report.SuggestedConfidenceScore,
             SuggestedClusterSummary = suggestedClusterSummary,
+            SuggestedClusterTitle = suggestedClusterTitle,
             Metadata = report.Metadata,
             IsOverage = report.IsOverage,
             IsLocked = report.IsLocked,
