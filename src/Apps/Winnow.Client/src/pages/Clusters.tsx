@@ -181,7 +181,7 @@ export default function Clusters() {
                                             <div className="flex items-center gap-2">
                                                 {report.isLocked && <ShieldAlert className="h-4 w-4 text-red-500 shrink-0" />}
                                                 {!report.isLocked && report.isOverage && <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />}
-                                                <Link to={`/reports/${report.id}`} className={`hover:underline block font-semibold ${report.isLocked ? 'text-red-600 dark:text-red-400' : ''}`}>
+                                                <Link to={`/clusters/${cluster.clusterId}`} className={`hover:underline block font-semibold ${report.isLocked ? 'text-red-600 dark:text-red-400' : ''}`}>
                                                     {report.isLocked ? 'Locked Cluster (Limit Exceeded)' : (report.title || report.message)}
                                                 </Link>
                                             </div>

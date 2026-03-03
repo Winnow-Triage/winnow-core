@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import ReactMarkdown from 'react-markdown';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { formatTimeAgo } from '@/lib/utils';
@@ -26,10 +25,8 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, RotateCw, Trash2 } from 'lucide-react';
 import { ConsoleLogsCard } from '@/components/dashboard/ConsoleLogsCard';
 
 interface RelatedReport {
@@ -82,8 +79,6 @@ export default function ReportDetail() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [assignee, setAssignee] = useState('');
-    const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-    const [isClearingSummary, setIsClearingSummary] = useState(false);
     const [confirmAction, setConfirmAction] = useState<{
         isOpen: boolean;
         title: string;
@@ -210,7 +205,9 @@ export default function ReportDetail() {
                             </Badge>
                         </div>
                         <p className="text-sm opacity-90">
-                            Cluster: <span className="font-medium">{report.clusterTitle || report.clusterId}</span>
+                            Cluster: <Link to={`/clusters/${report.clusterId}`} className="font-semibold underline">
+                                {report.clusterTitle || report.clusterId}
+                            </Link>
                         </p>
                     </div>
                     <div className="flex gap-2">
@@ -350,151 +347,19 @@ export default function ReportDetail() {
                         </div>
                     </div>
                     {/* AI Summary Section - Show if summary exists or if it's a cluster parent */}
-                    {(report.summary || report.criticalityScore || report.evidence.length > 0) && (
-                        <Card className="border-purple-200 dark:border-purple-500/30 bg-purple-50/50 dark:bg-[#160d33] shadow-xl shadow-purple-500/5 dark:shadow-purple-500/10 relative overflow-hidden group transition-all duration-300">
-                            {/* Inner Glow Border Overlay */}
-                            <div className="absolute inset-0 z-0 pointer-events-none border border-transparent bg-gradient-to-br from-purple-500/5 via-transparent to-indigo-500/5 dark:from-purple-500/10 dark:to-indigo-500/10 rounded-xl transition-opacity opacity-100" />
-
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
-                                <div className="flex flex-col gap-1">
-                                    <CardTitle className="text-xl font-bold flex items-center gap-2 tracking-tight text-purple-900 dark:text-white">
-                                        <Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400 fill-purple-500/20 animate-spin-slow" />
-                                        AI Perspective
-                                    </CardTitle>
-                                    {report.criticalityScore && (
-                                        <div className="flex items-center gap-2">
-                                            <Badge variant="outline" className={`
-                                                ${report.criticalityScore >= 8 ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800' :
-                                                    report.criticalityScore >= 5 ? 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800' :
-                                                        'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'}
-                                            `}>
-                                                Criticality: {report.criticalityScore}/10
-                                            </Badge>
-                                            {report.criticalityReasoning && (
-                                                <span className="text-xs text-muted-foreground" title={report.criticalityReasoning}>
-                                                    {report.criticalityReasoning.length > 60
-                                                        ? report.criticalityReasoning.substring(0, 60) + '...'
-                                                        : report.criticalityReasoning}
-                                                </span>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                                {!report.summary ? (
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-8 border-purple-200 dark:border-purple-700 hover:bg-purple-100 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300"
-                                        disabled={isGeneratingSummary}
-                                        onClick={async () => {
-                                            setIsGeneratingSummary(true);
-                                            try {
-                                                await api.post(`/reports/${report.id}/generate-summary`, {});
-                                                queryClient.invalidateQueries({ queryKey: ['report', id] });
-                                                queryClient.invalidateQueries({ queryKey: ['reports'] });
-                                            } catch (e) {
-                                                console.error("Failed to generate summary", e);
-                                            } finally {
-                                                setIsGeneratingSummary(false);
-                                            }
-                                        }}
-                                    >
-                                        {isGeneratingSummary ? (
-                                            <>
-                                                <Sparkles className="mr-2 h-3 w-3 animate-spin" />
-                                                Generating...
-                                            </>
-                                        ) : (
-                                            'Analyze with AI'
-                                        )}
-                                    </Button>
-                                ) : (
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-purple-700 dark:text-purple-300">
-                                                <MoreHorizontal className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem
-                                                disabled={isGeneratingSummary || isClearingSummary}
-                                                onClick={async () => {
-                                                    setIsGeneratingSummary(true);
-                                                    try {
-                                                        await api.post(`/reports/${report.id}/generate-summary`, {});
-                                                        await queryClient.invalidateQueries({ queryKey: ['report', id] });
-                                                        await queryClient.invalidateQueries({ queryKey: ['reports'] });
-                                                    } catch (e) {
-                                                        console.error("Failed to regenerate summary", e);
-                                                    } finally {
-                                                        setIsGeneratingSummary(false);
-                                                    }
-                                                }}
-                                            >
-                                                <RotateCw className={`mr-2 h-4 w-4 ${isGeneratingSummary ? 'animate-spin' : ''}`} />
-                                                Regenerate Summary
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem
-                                                className="text-red-600 focus:text-red-600"
-                                                disabled={isGeneratingSummary || isClearingSummary}
-                                                onClick={async () => {
-                                                    setIsClearingSummary(true);
-                                                    try {
-                                                        await api.post(`/reports/${report.id}/clear-summary`, {});
-                                                        await queryClient.invalidateQueries({ queryKey: ['report', id] });
-                                                    } catch (e) {
-                                                        console.error("Failed to clear summary", e);
-                                                    } finally {
-                                                        setIsClearingSummary(false);
-                                                    }
-                                                }}
-                                            >
-                                                {isClearingSummary ? (
-                                                    <RotateCw className="mr-2 h-4 w-4 animate-spin" />
-                                                ) : (
-                                                    <Trash2 className="mr-2 h-4 w-4" />
-                                                )}
-                                                Clear Summary
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                )}
-                            </CardHeader>
-                            <CardContent className="relative min-h-[120px] z-10 pt-4">
-                                {isGeneratingSummary && report.summary && (
-                                    <div className="absolute inset-0 bg-white/50 dark:bg-[#0f0a1f] flex items-center justify-center z-20 rounded-b-xl transition-all duration-300 backdrop-blur-sm">
-                                        <div className="flex flex-col items-center gap-3 text-purple-900 dark:text-white animate-in fade-in zoom-in duration-500">
-                                            <div className="relative">
-                                                <Sparkles className="h-8 w-8 text-purple-600 dark:text-purple-400 animate-spin-slow" />
-                                                <RotateCw className="h-8 w-8 absolute inset-0 text-purple-600 dark:text-purple-400 animate-spin opacity-40" />
-                                            </div>
-                                            <span className="font-bold text-sm tracking-widest uppercase text-purple-700 dark:text-purple-200">Analyzing Data...</span>
-                                        </div>
-                                    </div>
-                                )}
-                                {report.summary ? (
-                                    <div className="prose prose-sm max-w-none 
-                                        text-purple-900 dark:text-purple-50 
-                                        prose-headings:text-purple-900 dark:prose-headings:text-purple-100 
-                                        prose-strong:text-purple-950 dark:prose-strong:text-white 
-                                        prose-a:text-purple-700 dark:prose-a:text-purple-300
-                                        relative z-10">
-                                        <ReactMarkdown>{report.summary}</ReactMarkdown>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center py-8 gap-4 text-center">
-                                        <div className="p-4 bg-purple-100 dark:bg-purple-900/30 rounded-full animate-pulse">
-                                            <Sparkles className="h-8 w-8 text-purple-600 dark:text-purple-400" />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <p className="text-sm font-semibold text-purple-900 dark:text-purple-200">No AI Insight Available</p>
-                                            <p className="text-xs text-muted-foreground max-w-[240px]">This report has not been analyzed yet. Run the AI perspective to generate a cluster-wide summary.</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                    {/* AI Perspective moved to Cluster Detail */}
+                    {report.clusterId && (
+                        <div className="flex items-center gap-2 p-4 bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800 rounded-lg">
+                            <Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                            <div className="flex-1 text-sm">
+                                <span className="font-semibold text-purple-900 dark:text-purple-300">AI Analysis Available:</span> This report is part of a cluster with an AI-generated summary and criticality analysis.
+                            </div>
+                            <Button variant="outline" size="sm" asChild className="border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300">
+                                <Link to={`/clusters/${report.clusterId}`}>
+                                    View Cluster Analysis
+                                </Link>
+                            </Button>
+                        </div>
                     )}
 
 
@@ -579,40 +444,7 @@ export default function ReportDetail() {
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-sm font-medium">Evidence Locker ({report.evidence.length})</CardTitle>
-                            <CardDescription>Related reports in this cluster.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {report.evidence.length === 0 ? (
-                                <div className="text-sm text-muted-foreground">No related reports found.</div>
-                            ) : (
-                                <ul className="flex flex-col gap-2">
-                                    {report.evidence.map((child: RelatedReport) => (
-                                        <li key={child.id} className="p-2 border rounded-md hover:bg-muted/50 transition-colors">
-                                            <Link to={`/reports/${child.id}`} className="block">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <div className="font-medium text-sm truncate">{child.message}</div>
-                                                    {child.confidenceScore !== undefined && child.confidenceScore !== null && (
-                                                        <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">
-                                                            {(child.confidenceScore * 100).toFixed(0)}% Sim
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="text-xs text-muted-foreground flex justify-between mt-1">
-                                                    <span>{new Date(child.createdAt).toLocaleDateString()}</span>
-                                                    <div className="flex gap-1">
-                                                        <Badge variant="outline" className="text-[10px] h-4 px-1">{child.status}</Badge>
-                                                    </div>
-                                                </div>
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </CardContent>
-                    </Card>
+                    {/* Evidence Locker moved to Cluster Detail */}
 
                     {/* Attachments / Assets */}
                     {report.assets && report.assets.length > 0 && (

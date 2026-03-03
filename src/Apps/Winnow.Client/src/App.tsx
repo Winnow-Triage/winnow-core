@@ -12,6 +12,7 @@ import Clusters from './pages/Clusters'
 import Settings from './pages/Settings'
 import ProjectSettings from './pages/ProjectSettings'
 import ProjectSetup from './pages/ProjectSetup'
+import ClusterDetail from './pages/ClusterDetail'
 import OrganizationDashboard from './pages/OrganizationDashboard'
 import TeamDashboard from './pages/TeamDashboard'
 import AuthPage from './pages/AuthPage'
@@ -96,6 +97,7 @@ export default function App() {
                         <Route path="reports" element={<AllReports />} />
                         <Route path="reports/:id" element={<ReportDetail />} />
                         <Route path="clusters" element={<Clusters />} />
+                        <Route path="clusters/:id" element={<ClusterDetail />} />
                         <Route path="debug" element={<DebugConsole />} />
                         <Route path="settings" element={<Settings />} />
                         <Route path="settings/user" element={<UserSettings />} />
