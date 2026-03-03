@@ -11,7 +11,7 @@ public class ContactRequest
     public string Message { get; set; } = string.Empty;
 }
 
-public class ContactEndpoint(IEmailService emailService, IConfiguration config) : Endpoint<ContactRequest>
+public sealed class ContactEndpoint(IEmailService emailService, IConfiguration config) : Endpoint<ContactRequest>
 {
     public override void Configure()
     {

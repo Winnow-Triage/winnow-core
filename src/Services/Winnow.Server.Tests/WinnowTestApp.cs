@@ -62,13 +62,13 @@ public class WinnowTestApp(Action<IServiceCollection>? configureTestServices = n
                 services.Remove(tenantContextDescriptor);
             }
 
-            // Remove the ClusterRefinementJob hosted service to prevent background processing during tests
-            var hostedServiceDescriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(Microsoft.Extensions.Hosting.IHostedService) &&
-                     d.ImplementationType?.Name == "ClusterRefinementJob");
-            if (hostedServiceDescriptor != null)
+            // Remove all hosted services to prevent background processing and seeding races during tests.
+            // These services (like InvitationCleanupJob and AdminSeeder) try to query the DB on startup
+            // before we've had a chance to call EnsureCreatedAsync in the test itself.
+            var hostedServices = services.Where(d => d.ServiceType == typeof(Microsoft.Extensions.Hosting.IHostedService)).ToList();
+            foreach (var service in hostedServices)
             {
-                services.Remove(hostedServiceDescriptor);
+                services.Remove(service);
             }
 
             // Create and open a SHARED in-memory SQLite connection

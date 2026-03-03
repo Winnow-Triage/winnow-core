@@ -8,20 +8,29 @@ var builder = WebApplication.CreateBuilder(args);
 
 // --- THE .NET 10.0.3 LINUX BYPASS ---
 // Intercept the broken DllImport and force it to load the correct Linux library
-NativeLibrary.SetDllImportResolver(typeof(SessionOptions).Assembly, (libraryName, assembly, searchPath) =>
+// Wrapped in try-catch because SetDllImportResolver can only be called once per assembly.
+// Integration tests create multiple WebApplicationFactory hosts which re-enter Program.Main.
+try
 {
-    if (libraryName.Contains("onnxruntime"))
+    NativeLibrary.SetDllImportResolver(typeof(SessionOptions).Assembly, (libraryName, assembly, searchPath) =>
     {
-        // Bypass the ".dll.so" nonsense and point directly to the native Linux asset
-        string soPath = Path.Combine(AppContext.BaseDirectory, "bin/Debug/net10.0/libonnxruntime.so");
-
-        if (File.Exists(soPath) && NativeLibrary.TryLoad(soPath, out IntPtr handle))
+        if (libraryName.Contains("onnxruntime"))
         {
-            return handle;
+            // Bypass the ".dll.so" nonsense and point directly to the native Linux asset
+            string soPath = Path.Combine(AppContext.BaseDirectory, "bin/Debug/net10.0/libonnxruntime.so");
+
+            if (File.Exists(soPath) && NativeLibrary.TryLoad(soPath, out IntPtr handle))
+            {
+                return handle;
+            }
         }
-    }
-    return IntPtr.Zero; // Fallback
-});
+        return IntPtr.Zero; // Fallback
+    });
+}
+catch (InvalidOperationException)
+{
+    // Resolver already set for this assembly — safe to ignore
+}
 
 // Register all Winnow services
 builder.Services.AddWinnowServices(builder.Configuration);

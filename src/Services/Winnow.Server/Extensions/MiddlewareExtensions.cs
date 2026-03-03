@@ -16,8 +16,11 @@ internal static class MiddlewareExtensions
     public static async Task<WebApplication> UseWinnowMiddleware(this WebApplication app)
     {
         // Database migration and seeding (startup logic)
-        using (var scope = app.Services.CreateScope())
+        // Skipped in Testing environment — tests use EnsureCreated
+        // to build schema from the current EF model.
+        if (!app.Environment.EnvironmentName.Equals("Testing", StringComparison.OrdinalIgnoreCase))
         {
+            using var scope = app.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
             // Suppress PendingModelChangesWarning
