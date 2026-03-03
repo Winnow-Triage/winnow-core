@@ -161,10 +161,16 @@ export default function ClusterDetail() {
                                 <LayoutDashboard className="h-4 w-4 text-purple-400" />
                                 <span className="text-sm font-medium text-foreground">{cluster.reportCount}</span>
                                 <span className="text-sm">Reports Impacted</span>
+                                {cluster.velocity24h > 0 && (
+                                    <span className="text-xs opacity-50 border-l border-white/10 pl-2">
+                                        {cluster.velocity24h} in 24h
+                                    </span>
+                                )}
                             </div>
+                            {/* 1h velocity — only shown when urgently active */}
                             {cluster.velocity1h > 0 && (
                                 <div className="flex items-center gap-2 text-orange-500 bg-orange-500/10 px-3 py-1.5 rounded-full border border-orange-500/20 shadow-inner animate-pulse">
-                                    <span className="text-sm font-bold">🔥 {cluster.velocity1h} reports in the last hour</span>
+                                    <span className="text-sm font-bold">⚠️ {cluster.velocity1h} in last hour</span>
                                 </div>
                             )}
                         </div>
@@ -188,6 +194,12 @@ export default function ClusterDetail() {
                                 />
                             </div>
                         </div>
+
+                        <ClusterExportMenu
+                            clusterId={cluster.id}
+                            projectId={cluster.projectId}
+                            onExport={() => queryClient.invalidateQueries({ queryKey: ['cluster', id] })}
+                        />
 
                         <Button
                             variant="outline"
@@ -282,11 +294,6 @@ export default function ClusterDetail() {
                             </div>
 
                             <div className="flex items-center gap-2">
-                                <ClusterExportMenu
-                                    clusterId={cluster.id}
-                                    projectId={cluster.projectId}
-                                    onExport={() => queryClient.invalidateQueries({ queryKey: ['cluster', id] })}
-                                />
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="ghost" size="icon" className="hover:bg-white/10 rounded-full h-10 w-10">
@@ -365,9 +372,9 @@ export default function ClusterDetail() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-4">
-                            <div className="flex flex-col gap-3">
+                            <div className="flex flex-col gap-3 overflow-y-auto max-h-[520px] pr-1">
                                 {cluster.reports.map((report) => (
-                                    <Link key={report.id} to={`/reports/${report.id}`} className="group p-4 bg-white/5 border border-white/5 hover:border-blue-500/30 hover:bg-white/10 rounded-2xl transition-all duration-300 shadow-sm relative overflow-hidden">
+                                    <Link key={report.id} to={`/reports/${report.id}`} className="group shrink-0 p-4 bg-white/5 border border-white/5 hover:border-blue-500/30 hover:bg-white/10 rounded-2xl transition-all duration-300 shadow-sm relative overflow-hidden">
                                         {/* Confidence Progress Bar */}
                                         {report.confidenceScore && (
                                             <div className="absolute bottom-0 left-0 h-[2px] bg-blue-500 transition-all group-hover:h-1" style={{ width: `${report.confidenceScore * 100}%`, opacity: 0.5 }} />
@@ -411,9 +418,9 @@ export default function ClusterDetail() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="mt-6">
-                        <AlertDialogCancel className="rounded-xl border-white/10 hover:bg-white/5 font-bold transition-all">Cancel Project</AlertDialogCancel>
+                        <AlertDialogCancel className="rounded-xl border-white/10 hover:bg-white/5 font-bold transition-all">Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={confirmAction.action} className="rounded-xl bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 font-bold transition-all">
-                            Proceed Anyway
+                            Proceed
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -450,14 +457,24 @@ function ClusterExportMenu({ clusterId, projectId, onExport }: { clusterId: stri
         }
     });
 
-    if (!integrations || integrations.length === 0) return null;
+    if (!integrations || integrations.length === 0) {
+        return (
+            <Button
+                variant="outline"
+                className="rounded-xl px-6 h-12 shadow-lg transition-all border-white/10 bg-white/5 backdrop-blur-md self-end opacity-50 cursor-not-allowed"
+                disabled
+                title="No integration configured — add one in Project Settings"
+            >
+                Export
+            </Button>
+        );
+    }
 
     if (integrations.length === 1) {
         return (
             <Button
                 variant="outline"
-                size="sm"
-                className="rounded-xl border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 text-purple-700 dark:text-purple-300"
+                className="rounded-xl px-6 h-12 shadow-lg hover:shadow-xl transition-all border-white/10 bg-white/5 backdrop-blur-md self-end"
                 onClick={() => exportMutation.mutate(integrations[0].id)}
                 disabled={exportMutation.isPending}
             >
@@ -471,8 +488,7 @@ function ClusterExportMenu({ clusterId, projectId, onExport }: { clusterId: stri
             <DropdownMenuTrigger asChild>
                 <Button
                     variant="outline"
-                    size="sm"
-                    className="rounded-xl border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 text-purple-700 dark:text-purple-300"
+                    className="rounded-xl px-6 h-12 shadow-lg hover:shadow-xl transition-all border-white/10 bg-white/5 backdrop-blur-md self-end"
                     disabled={exportMutation.isPending}
                 >
                     {exportMutation.isPending ? 'Exporting...' : 'Export To...'}

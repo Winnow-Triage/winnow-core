@@ -56,12 +56,13 @@ export default function Clusters() {
         setIsMerging(true);
         try {
             const [targetId, ...sourceIds] = selectedIds;
-            await api.post(`/reports/${targetId}/merge`, { id: targetId, sourceIds });
+            await api.post(`/clusters/${targetId}/merge`, { sourceIds });
             await queryClient.invalidateQueries({ queryKey: ['clusters'] });
             await refetch();
             setSelectedIds([]);
         } catch (e) {
             console.error("Failed to merge clusters", e);
+            alert("Merge failed. Check the console for details.");
         } finally {
             setIsMerging(false);
         }
