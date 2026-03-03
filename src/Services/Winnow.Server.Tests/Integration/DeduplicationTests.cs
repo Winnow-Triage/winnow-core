@@ -236,11 +236,9 @@ public class DeduplicationTests : IAsyncLifetime
         var reportA = await db.Reports.FindAsync(reportAId);
         var reportB = await db.Reports.FindAsync(reportBId);
 
-        // Assert: Both should be root reports (no parent)
+        // Assert: Both should be standalone reports (not duplicates, in their own clusters or unclustered)
         Assert.NotNull(reportA);
         Assert.NotNull(reportB);
-        Assert.Null(reportA.ParentReportId);
-        Assert.Null(reportB.ParentReportId);
         Assert.NotEqual("Duplicate", reportA.Status);
         Assert.NotEqual("Duplicate", reportB.Status);
     }

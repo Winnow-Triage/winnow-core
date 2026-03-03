@@ -2,33 +2,33 @@ using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Features.Shared;
-using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
 
 namespace Winnow.Server.Features.Reports.SuggestActions;
 
 /// <summary>
-/// Request to dismiss a clustering suggestion.
+/// Request to dismiss a suggested cluster assignment.
 /// </summary>
 public class DismissSuggestionRequest
 {
     /// <summary>
-    /// If true, records a negative match to prevent future suggestions.
+    /// ID of the report to dismiss the suggestion for.
     /// </summary>
-    public bool RejectMatch { get; set; }
+    public Guid Id { get; set; }
 }
 
-public sealed class DismissSuggestionEndpoint(WinnowDbContext db, INegativeMatchCache negativeCache, ITenantContext tenantContext) : Endpoint<DismissSuggestionRequest, ActionResponse>
+public sealed class DismissSuggestionEndpoint(WinnowDbContext db, INegativeMatchCache negativeMatchCache) : Endpoint<DismissSuggestionRequest, ActionResponse>
 {
     public override void Configure()
     {
-        Post("/reports/{Id}/dismiss-suggestion");
+        Post("/reports/{id}/dismiss-suggestion");
         Summary(s =>
         {
-            s.Summary = "Dismiss clustering suggestion";
-            s.Description = "Dismisses the AI-suggested parent for a report. Optionally learns from the rejection.";
+            s.Summary = "Dismiss a suggested cluster assignment";
+            s.Description = "Dismisses the AI-suggested cluster for the specified report and records a negative match.";
             s.Response<ActionResponse>(200, "Suggestion dismissed");
+            s.Response(400, "No pending suggestion");
             s.Response(404, "Report not found");
         });
         Options(x => x.RequireAuthorization());
@@ -61,9 +61,8 @@ public sealed class DismissSuggestionEndpoint(WinnowDbContext db, INegativeMatch
             ThrowError("Project not found or access denied", 404);
         }
 
-        var reportId = Route<Guid>("Id");
         var report = await db.Reports
-            .FirstOrDefaultAsync(r => r.Id == reportId && r.ProjectId == projectId, ct);
+            .FirstOrDefaultAsync(r => r.Id == req.Id && r.ProjectId == projectId, ct);
 
         if (report == null)
         {
@@ -71,17 +70,20 @@ public sealed class DismissSuggestionEndpoint(WinnowDbContext db, INegativeMatch
             return;
         }
 
-        if (req.RejectMatch && report.SuggestedParentId.HasValue)
+        if (report.SuggestedClusterId == null)
         {
-            var tenantId = tenantContext.TenantId ?? "default";
-            negativeCache.MarkAsMismatch(tenantId, report.Id, report.SuggestedParentId.Value);
+            ThrowError("No pending suggestion for this report.");
         }
 
-        report.SuggestedParentId = null;
+        // Record negative match between report and cluster
+        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? "default";
+        negativeMatchCache.MarkAsMismatch(tenantId, report.Id, report.SuggestedClusterId.Value);
+
+        // Clear suggestion
+        report.SuggestedClusterId = null;
         report.SuggestedConfidenceScore = null;
 
         await db.SaveChangesAsync(ct);
-
         await Send.OkAsync(new ActionResponse { Message = "Suggestion dismissed." }, ct);
     }
 }

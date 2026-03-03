@@ -57,11 +57,11 @@ public class GetReportResponse
     /// </summary>
     public DateTime CreatedAt { get; set; }
 
-    // Clustering/Legacy fields
+    // Cluster fields
     /// <summary>
-    /// ID of the parent report if this is part of a cluster.
+    /// ID of the cluster this report belongs to.
     /// </summary>
-    public Guid? ParentReportId { get; set; }
+    public Guid? ClusterId { get; set; }
 
     /// <summary>
     /// Username or ID of the user assigned to this report.
@@ -69,7 +69,7 @@ public class GetReportResponse
     public string? AssignedTo { get; set; }
 
     /// <summary>
-    /// AI-generated summary of the report.
+    /// AI-generated cluster summary.
     /// </summary>
     public string? Summary { get; set; }
 
@@ -89,24 +89,24 @@ public class GetReportResponse
     public string? CriticalityReasoning { get; set; }
 
     /// <summary>
-    /// Message from the parent report, if applicable.
+    /// AI-generated cluster title.
     /// </summary>
-    public string? ParentReportMessage { get; set; }
+    public string? ClusterTitle { get; set; }
 
     /// <summary>
-    /// Standardized suggested parent ID from analysis.
+    /// Suggested cluster ID from analysis.
     /// </summary>
-    public Guid? SuggestedParentId { get; set; }
+    public Guid? SuggestedClusterId { get; set; }
 
     /// <summary>
-    /// Confidence score for the suggested parent.
+    /// Confidence score for the suggested cluster.
     /// </summary>
     public float? SuggestedConfidenceScore { get; set; }
 
     /// <summary>
-    /// Message from the suggested parent report.
+    /// Summary from the suggested cluster.
     /// </summary>
-    public string? SuggestedParentMessage { get; set; }
+    public string? SuggestedClusterSummary { get; set; }
 
     /// <summary>
     /// JSON metadata string.
@@ -277,12 +277,12 @@ public sealed class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services
 
         var evidence = new List<RelatedReportDto>();
 
-        if (report.ParentReportId == null)
+        if (report.ClusterId != null)
         {
-            // cluster parent - filter by project ID
-            var children = await db.Reports
+            // Get other reports in the same cluster
+            var clusterReports = await db.Reports
                 .AsNoTracking()
-                .Where(t => t.ProjectId == projectId && t.ParentReportId == report.Id)
+                .Where(t => t.ProjectId == projectId && t.ClusterId == report.ClusterId && t.Id != report.Id)
                 .Select(t => new RelatedReportDto
                 {
                     Id = t.Id,
@@ -293,26 +293,38 @@ public sealed class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services
                 })
                 .ToListAsync(ct);
 
-            evidence.AddRange(children);
+            evidence.AddRange(clusterReports);
         }
 
-        string? parentReportMessage = null;
-        if (report.ParentReportId != null)
+        // Load cluster metadata for summary/criticality
+        string? clusterTitle = null;
+        string? clusterSummary = null;
+        int? criticalityScore = null;
+        string? criticalityReasoning = null;
+
+        if (report.ClusterId != null)
         {
-            parentReportMessage = await db.Reports
+            var cluster = await db.Clusters
                 .AsNoTracking()
-                .Where(t => t.ProjectId == projectId && t.Id == report.ParentReportId)
-                .Select(t => t.Message)
-                .FirstOrDefaultAsync(ct);
+                .FirstOrDefaultAsync(c => c.Id == report.ClusterId, ct);
+
+            if (cluster != null)
+            {
+                clusterTitle = cluster.Title;
+                clusterSummary = cluster.Summary;
+                criticalityScore = cluster.CriticalityScore;
+                criticalityReasoning = cluster.CriticalityReasoning;
+            }
         }
 
-        string? suggestedParentMessage = null;
-        if (report.SuggestedParentId != null)
+        // Load suggested cluster info
+        string? suggestedClusterSummary = null;
+        if (report.SuggestedClusterId != null)
         {
-            suggestedParentMessage = await db.Reports
+            suggestedClusterSummary = await db.Clusters
                 .AsNoTracking()
-                .Where(t => t.ProjectId == projectId && t.Id == report.SuggestedParentId)
-                .Select(t => t.Message)
+                .Where(c => c.Id == report.SuggestedClusterId)
+                .Select(c => c.Summary ?? c.Title)
                 .FirstOrDefaultAsync(ct);
         }
 
@@ -325,7 +337,6 @@ public sealed class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services
             {
                 try
                 {
-                    // Use the S3Key (which Bouncer may have updated to the clean bucket key)
                     downloadUrl = await storageService.GenerateDownloadUrlAsync(asset.S3Key, ct);
                 }
                 catch (Exception ex)
@@ -356,16 +367,16 @@ public sealed class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services
             StackTrace = report.StackTrace,
             Status = report.Status,
             CreatedAt = report.CreatedAt,
-            ParentReportId = report.ParentReportId,
+            ClusterId = report.ClusterId,
             AssignedTo = report.AssignedTo,
-            Summary = report.Summary,
+            Summary = clusterSummary,
             ConfidenceScore = report.ConfidenceScore,
-            CriticalityScore = report.CriticalityScore,
-            CriticalityReasoning = report.CriticalityReasoning,
-            ParentReportMessage = parentReportMessage,
-            SuggestedParentId = report.SuggestedParentId,
+            CriticalityScore = criticalityScore,
+            CriticalityReasoning = criticalityReasoning,
+            ClusterTitle = clusterTitle,
+            SuggestedClusterId = report.SuggestedClusterId,
             SuggestedConfidenceScore = report.SuggestedConfidenceScore,
-            SuggestedParentMessage = suggestedParentMessage,
+            SuggestedClusterSummary = suggestedClusterSummary,
             Metadata = report.Metadata,
             IsOverage = report.IsOverage,
             IsLocked = report.IsLocked,

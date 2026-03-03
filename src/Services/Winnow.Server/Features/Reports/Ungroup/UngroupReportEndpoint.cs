@@ -69,13 +69,30 @@ public sealed class UngroupReportEndpoint(WinnowDbContext db) : Endpoint<Ungroup
             return;
         }
 
-        if (report.ParentReportId == null)
+        if (report.ClusterId == null)
         {
             ThrowError("Report is not grouped.");
         }
 
-        report.ParentReportId = null;
+        var oldClusterId = report.ClusterId;
+        report.ClusterId = null;
         report.Status = "New";
+
+        // If the cluster is now empty, delete it
+        if (oldClusterId != null)
+        {
+            var remainingCount = await db.Reports
+                .CountAsync(r => r.ClusterId == oldClusterId && r.Id != report.Id, ct);
+
+            if (remainingCount == 0)
+            {
+                var cluster = await db.Clusters.FindAsync([oldClusterId], ct);
+                if (cluster != null)
+                {
+                    db.Clusters.Remove(cluster);
+                }
+            }
+        }
 
         await db.SaveChangesAsync(ct);
         await Send.OkAsync(new ActionResponse { Message = "Report ungrouped successfully." }, ct);

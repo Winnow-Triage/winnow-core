@@ -17,10 +17,9 @@ interface ReviewItem {
     reportStackTrace: string
     reportAssignedTo: string
     reportCreatedAt: string
-    suggestedParentId: string
-    suggestedParentTitle: string
-    suggestedParentMessage: string
-    suggestedParentStackTrace: string
+    suggestedClusterId: string
+    suggestedClusterTitle: string | null
+    suggestedClusterSummary: string | null
     confidenceScore: number
 }
 
@@ -155,11 +154,11 @@ export default function ReviewSuggestions() {
                     <CardHeader className="bg-purple-50/50 dark:bg-purple-950/10 pb-4 shrink-0">
                         <div className="flex items-center justify-between">
                             <Badge variant="outline" className="border-purple-200 text-purple-700 dark:border-purple-800 dark:text-purple-400">
-                                Suggested Parent
+                                Suggested Cluster
                             </Badge>
                         </div>
                         <CardTitle className="mt-2 text-xl leading-tight">
-                            {currentItem.suggestedParentTitle}
+                            {currentItem.suggestedClusterTitle || 'Untitled Cluster'}
                         </CardTitle>
                         <div className="text-sm text-muted-foreground mt-1">
                             Existing Cluster Leader
@@ -167,10 +166,11 @@ export default function ReviewSuggestions() {
                     </CardHeader>
                     <CardContent className="flex-1 overflow-y-auto pt-6">
                         <div className="prose prose-sm dark:prose-invert max-w-none">
-                            <p className="mb-4 text-sm text-muted-foreground">{currentItem.suggestedParentMessage}</p>
-                            <p className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
-                                {currentItem.suggestedParentStackTrace}
-                            </p>
+                            {currentItem.suggestedClusterSummary ? (
+                                <p className="mb-4 text-sm text-muted-foreground">{currentItem.suggestedClusterSummary}</p>
+                            ) : (
+                                <p className="text-sm text-muted-foreground italic">No AI summary available for this cluster yet.</p>
+                            )}
                         </div>
                     </CardContent>
                 </Card>

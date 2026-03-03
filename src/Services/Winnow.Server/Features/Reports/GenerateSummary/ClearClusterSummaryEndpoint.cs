@@ -66,7 +66,19 @@ public sealed class ClearClusterSummaryEndpoint(WinnowDbContext db) : Endpoint<C
             return;
         }
 
-        report.Summary = null;
+        if (report.ClusterId == null)
+        {
+            ThrowError("Report is not part of a cluster.");
+        }
+
+        var cluster = await db.Clusters.FindAsync([report.ClusterId], ct);
+        if (cluster != null)
+        {
+            cluster.Summary = null;
+            cluster.CriticalityScore = null;
+            cluster.CriticalityReasoning = null;
+        }
+
         await db.SaveChangesAsync(ct);
         await Send.OkAsync(new { }, ct);
     }

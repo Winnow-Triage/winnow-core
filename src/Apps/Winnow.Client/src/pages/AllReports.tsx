@@ -21,7 +21,7 @@ interface Report {
     message: string;
     status: string;
     createdAt: string;
-    parentReportId?: string;
+    clusterId?: string;
     confidenceScore?: number;
     isOverage?: boolean;
     isLocked?: boolean;
@@ -117,10 +117,10 @@ export default function AllReports() {
                                     </TableCell>
                                     <TableCell>{new Date(report.createdAt).toLocaleDateString()}</TableCell>
                                     <TableCell>
-                                        {report.parentReportId ? (
-                                            <Link to={`/reports/${report.parentReportId}`} className="text-xs text-muted-foreground hover:underline">
-                                                View Parent
-                                            </Link>
+                                        {report.clusterId ? (
+                                            <Badge variant="outline" className="text-xs">
+                                                {report.clusterId.substring(0, 8)}
+                                            </Badge>
                                         ) : (
                                             <span className="text-xs text-muted-foreground">-</span>
                                         )}

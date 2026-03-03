@@ -70,17 +70,32 @@ public sealed class CloseClusterEndpoint(WinnowDbContext db) : Endpoint<CloseClu
             return;
         }
 
-        // Determine the Cluster ID (Parent ID)
-        var clusterId = report.ParentReportId ?? report.Id;
+        var clusterId = report.ClusterId;
 
-        // Find all reports in this cluster (Parent + Children) - filter by project
+        if (clusterId == null)
+        {
+            // Single report, just close it
+            report.Status = "Closed";
+            await db.SaveChangesAsync(ct);
+            await Send.OkAsync(new ActionResponse { Message = "Closed 1 report." }, ct);
+            return;
+        }
+
+        // Close all reports in the cluster
         var clusterReports = await db.Reports
-            .Where(t => t.ProjectId == projectId && (t.Id == clusterId || t.ParentReportId == clusterId))
+            .Where(t => t.ProjectId == projectId && t.ClusterId == clusterId)
             .ToListAsync(ct);
 
         foreach (var t in clusterReports)
         {
             t.Status = "Closed";
+        }
+
+        // Close the cluster itself
+        var cluster = await db.Clusters.FindAsync([clusterId], ct);
+        if (cluster != null)
+        {
+            cluster.Status = "Closed";
         }
 
         await db.SaveChangesAsync(ct);

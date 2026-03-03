@@ -22,8 +22,7 @@ interface Report {
     message: string;
     status: string;
     createdAt: string;
-    parentReportId?: string;
-    criticalityScore?: number;
+    clusterId?: string;
     isOverage?: boolean;
     isLocked?: boolean;
 }
@@ -46,29 +45,36 @@ export default function Clusters() {
         enabled: !!currentProject,
     });
 
-    // We need to count children to be useful.
-    const clusterMap = new Map<string, number>();
+    // Group reports by clusterId to count members
+    const clusterMap = new Map<string, { count: number; reports: Report[] }>();
     reports?.forEach(t => {
-        if (t.parentReportId) {
-            clusterMap.set(t.parentReportId, (clusterMap.get(t.parentReportId) || 0) + 1);
+        if (t.clusterId) {
+            const entry = clusterMap.get(t.clusterId) || { count: 0, reports: [] };
+            entry.count += 1;
+            entry.reports.push(t);
+            clusterMap.set(t.clusterId, entry);
         }
     });
 
-    const clusters = reports?.filter(t => !t.parentReportId && (
-        (t.title || t.message || '').toLowerCase().includes(search.toLowerCase())
-    )) || [];
+    // Build a unique cluster list from the first report in each cluster
+    const clusterEntries = Array.from(clusterMap.entries())
+        .map(([clusterId, entry]) => ({
+            clusterId,
+            representative: entry.reports[0],
+            count: entry.count,
+        }))
+        .filter(c => (c.representative.title || c.representative.message || '').toLowerCase().includes(search.toLowerCase()));
 
     // Sort based on selected metric
-    const sortedClusters = [...clusters].sort((a, b) => {
+    const sortedClusters = [...clusterEntries].sort((a, b) => {
         if (sortBy === 'size') {
-            const countA = clusterMap.get(a.id) || 0;
-            const countB = clusterMap.get(b.id) || 0;
-            return countB - countA;
+            return b.count - a.count;
         }
         if (sortBy === 'criticality') {
-            return (b.criticalityScore || 0) - (a.criticalityScore || 0);
+            // Criticality now lives on the cluster entity (not shown in list DTO)
+            return b.count - a.count;
         }
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return new Date(b.representative.createdAt).getTime() - new Date(a.representative.createdAt).getTime();
     });
 
     const handleMerge = async () => {
@@ -158,17 +164,17 @@ export default function Clusters() {
                                 <TableCell colSpan={6} className="h-24 text-center">No clusters found.</TableCell>
                             </TableRow>
                         ) : (
-                            sortedClusters.map((report) => {
-                                const childCount = clusterMap.get(report.id) || 0;
-                                const isSelected = selectedIds.includes(report.id);
+                            sortedClusters.map((cluster) => {
+                                const report = cluster.representative;
+                                const isSelected = selectedIds.includes(cluster.clusterId);
                                 return (
-                                    <TableRow key={report.id} className={isSelected ? 'bg-muted/50' : ''}>
+                                    <TableRow key={cluster.clusterId} className={isSelected ? 'bg-muted/50' : ''}>
                                         <TableCell>
                                             <input
                                                 type="checkbox"
                                                 className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                                                 checked={isSelected}
-                                                onChange={() => toggleSelection(report.id)}
+                                                onChange={() => toggleSelection(cluster.clusterId)}
                                             />
                                         </TableCell>
                                         <TableCell className="font-medium">
@@ -184,22 +190,12 @@ export default function Clusters() {
                                             <Badge variant="outline">{report.status}</Badge>
                                         </TableCell>
                                         <TableCell>
-                                            {report.criticalityScore ? (
-                                                <Badge variant="outline" className={`
-                                                    ${report.criticalityScore >= 8 ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30' :
-                                                        report.criticalityScore >= 5 ? 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30' :
-                                                            'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30'}
-                                                `}>
-                                                    {report.criticalityScore}/10
-                                                </Badge>
-                                            ) : (
-                                                <span className="text-xs text-muted-foreground italic">Pending...</span>
-                                            )}
+                                            <span className="text-xs text-muted-foreground italic">—</span>
                                         </TableCell>
                                         <TableCell>{new Date(report.createdAt).toLocaleDateString()}</TableCell>
                                         <TableCell className="text-right">
-                                            <Badge variant={childCount > 0 ? "default" : "secondary"}>
-                                                {childCount + 1}
+                                            <Badge variant={cluster.count > 1 ? "default" : "secondary"}>
+                                                {cluster.count}
                                             </Badge>
                                         </TableCell>
                                     </TableRow>

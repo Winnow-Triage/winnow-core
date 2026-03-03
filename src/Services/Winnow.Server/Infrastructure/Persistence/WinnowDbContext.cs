@@ -37,6 +37,13 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                     v => v == null ? null : new Pgvector.Vector(v),
                     v => v == null ? null : v.ToArray()
                 );
+            modelBuilder.Entity<Cluster>()
+                .Property(b => b.Centroid)
+                .HasColumnType("vector(384)")
+                .HasConversion(
+                    v => v == null ? null : new Pgvector.Vector(v),
+                    v => v == null ? null : v.ToArray()
+                );
         }
         else if (Database.IsSqlite())
         {
@@ -70,6 +77,11 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
             // Vector conversion for SQLite
             modelBuilder.Entity<Report>()
                 .Property(b => b.Embedding)
+                .HasConversion(
+                    v => v == null ? null : VectorCalculator.FloatsToBytes(v),
+                    v => v == null ? null : VectorCalculator.BytesToFloats(v));
+            modelBuilder.Entity<Cluster>()
+                .Property(b => b.Centroid)
                 .HasConversion(
                     v => v == null ? null : VectorCalculator.FloatsToBytes(v),
                     v => v == null ? null : VectorCalculator.BytesToFloats(v));
@@ -193,6 +205,24 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                 .WithMany()
                 .HasForeignKey(r => r.ProjectId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(r => r.Cluster)
+                .WithMany(c => c.Reports)
+                .HasForeignKey(r => r.ClusterId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Cluster relationships
+        modelBuilder.Entity<Cluster>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+
+            entity.HasOne(c => c.Project)
+                .WithMany()
+                .HasForeignKey(c => c.ProjectId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(c => c.ProjectId);
         });
 
         // Asset -> Report relationship
@@ -271,6 +301,7 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
     public DbSet<TeamMember> TeamMembers { get; set; } = null!;
     public DbSet<OrganizationMember> OrganizationMembers { get; set; } = null!;
     public DbSet<Report> Reports { get; set; } = null!;
+    public DbSet<Cluster> Clusters { get; set; } = null!;
     public DbSet<Asset> Assets { get; set; } = null!;
     public DbSet<Integration> Integrations { get; set; } = null!;
     public DbSet<Project> Projects { get; set; } = null!;

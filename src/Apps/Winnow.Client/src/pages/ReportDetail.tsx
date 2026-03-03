@@ -59,11 +59,11 @@ interface ReportDetailData {
     status: string;
     createdAt: string;
     projectId: string;
-    parentReportId?: string;
-    parentReportMessage?: string;
-    suggestedParentId?: string;
+    clusterId?: string;
+    clusterTitle?: string;
+    suggestedClusterId?: string;
     suggestedConfidenceScore?: number;
-    suggestedParentMessage?: string;
+    suggestedClusterSummary?: string;
     assignedTo?: string;
     summary?: string;
     confidenceScore?: number;
@@ -197,12 +197,12 @@ export default function ReportDetail() {
             </div>
 
             {/* Duplicate Alert */}
-            {report.parentReportId && (
+            {report.clusterId && report.status === 'Duplicate' && (
                 <div className="bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-center gap-3">
                     <AlertCircle className="h-5 w-5" />
                     <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold">This report is a duplicate</h4>
+                            <h4 className="font-semibold">This report belongs to a cluster</h4>
                             <Badge variant="outline" className={`bg-white/50 dark:bg-black/20 border-amber-300 dark:border-amber-700 ${report.confidenceScore && report.confidenceScore > 0.8 ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'}`}>
                                 {report.confidenceScore !== undefined && report.confidenceScore !== null
                                     ? `${(report.confidenceScore * 100).toFixed(0)}% Match Confidence`
@@ -210,7 +210,7 @@ export default function ReportDetail() {
                             </Badge>
                         </div>
                         <p className="text-sm opacity-90">
-                            It has been merged into <Link to={`/reports/${report.parentReportId}`} className="underline font-medium break-all">{report.parentReportMessage || report.parentReportId}</Link>.
+                            Cluster: <span className="font-medium">{report.clusterTitle || report.clusterId}</span>
                         </p>
                     </div>
                     <div className="flex gap-2">
@@ -232,11 +232,6 @@ export default function ReportDetail() {
                             }}
                         >
                             Ungroup
-                        </Button>
-                        <Button variant="ghost" size="sm" asChild className="shrink-0 hover:bg-amber-200 dark:hover:bg-amber-800/50">
-                            <Link to={`/reports/${report.parentReportId}`}>
-                                View Original Correct Report
-                            </Link>
                         </Button>
                     </div>
                 </div>
@@ -276,12 +271,12 @@ export default function ReportDetail() {
             )}
 
             {/* Suggested Match Alert */}
-            {!report.parentReportId && report.suggestedParentId && (
+            {report.suggestedClusterId && (
                 <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-center gap-3">
                     <Sparkles className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                     <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold">Suggested Match Found</h4>
+                            <h4 className="font-semibold">Suggested Cluster Match</h4>
                             <Badge variant="outline" className="bg-white/50 dark:bg-black/20 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400">
                                 {report.suggestedConfidenceScore !== undefined && report.suggestedConfidenceScore !== null
                                     ? `${(report.suggestedConfidenceScore * 100).toFixed(0)}% Similarity`
@@ -289,7 +284,7 @@ export default function ReportDetail() {
                             </Badge>
                         </div>
                         <p className="text-sm opacity-90">
-                            This report looks very similar to <Link to={`/reports/${report.suggestedParentId}`} className="underline font-medium break-all">{report.suggestedParentMessage || report.suggestedParentId}</Link>.
+                            This report looks very similar to cluster: <span className="font-medium">{report.suggestedClusterSummary || report.suggestedClusterId}</span>.
                         </p>
                     </div>
                     <div className="flex gap-2">
@@ -301,7 +296,7 @@ export default function ReportDetail() {
                                 setConfirmAction({
                                     isOpen: true,
                                     title: 'Accept Suggested Match?',
-                                    description: `Are you sure you want to merge this report into "${report.suggestedParentMessage || 'the suggested parent'}"?`,
+                                    description: `Are you sure you want to add this report to the suggested cluster?`,
                                     action: async () => {
                                         await api.post(`/reports/${report.id}/accept-suggestion`, {});
                                         queryClient.invalidateQueries({ queryKey: ['report', id] });

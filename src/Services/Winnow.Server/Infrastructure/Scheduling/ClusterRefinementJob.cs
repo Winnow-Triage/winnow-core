@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Domain.Services;
 using Winnow.Server.Entities;
-using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 
@@ -69,13 +68,11 @@ internal sealed class ClusterRefinementJob(
 
         if (db.Database.IsSqlite())
         {
-            // Ensure vector table exists for this tenant
             await db.Database.ExecuteSqlRawAsync(
                 "CREATE VIRTUAL TABLE IF NOT EXISTS vec_reports USING vec0(embedding float[384] distance_metric=cosine);",
                 ct);
         }
 
-        // Get all projects for this tenant
         var projects = await db.Projects
             .AsNoTracking()
             .Select(p => p.Id)
@@ -102,312 +99,172 @@ internal sealed class ClusterRefinementJob(
         IVectorCalculator vectorCalculator,
         CancellationToken ct)
     {
-        var recentLeaders = await db.Reports
-            .AsNoTracking()
+        // 1. Heal missing embeddings on orphan reports
+        var orphanReports = await db.Reports
             .Where(t => t.ProjectId == projectId
-                     && t.ParentReportId == null
-                     && t.Status != "Duplicate")
+                     && t.ClusterId == null
+                     && t.Status != "Duplicate"
+                     && t.Status != "Closed")
             .OrderBy(t => t.CreatedAt)
             .ToListAsync(ct);
 
-        if (recentLeaders.Count < 1) return;
-
-        logger.LogInformation("Janitor [{TenantId}][Project: {ProjectId}]: Scanning {Count} active leaders.",
-            tenantId, projectId, recentLeaders.Count);
-
-        foreach (var leader in recentLeaders.Where(l => l.Embedding == null))
+        foreach (var report in orphanReports.Where(r => r.Embedding == null))
         {
             try
             {
                 logger.LogInformation("Janitor [{TenantId}][Project: {ProjectId}]: Generating missing embedding for report {Id}",
-                    tenantId, projectId, leader.Id);
-                var text = $"{leader.Title}\n{leader.Message}\n{leader.StackTrace}";
+                    tenantId, projectId, report.Id);
+                var text = $"{report.Title}\n{report.Message}\n{report.StackTrace}";
                 var embeddingFloats = await embeddingService.GetEmbeddingAsync(text);
 
                 await db.Database.ExecuteSqlRawAsync(
                     "UPDATE Reports SET Embedding = {0} WHERE Id = {1} AND ProjectId = {2}",
-                    [embeddingFloats, leader.Id, projectId], ct);
+                    [embeddingFloats, report.Id, projectId], ct);
 
                 if (db.Database.IsSqlite())
                 {
                     await db.Database.ExecuteSqlRawAsync(
                         "DELETE FROM vec_reports WHERE rowid = (SELECT rowid FROM Reports WHERE Id = {0})",
-                        [leader.Id], ct);
+                        [report.Id], ct);
 
                     await db.Database.ExecuteSqlRawAsync(
                         "INSERT INTO vec_reports(rowid, embedding) VALUES ((SELECT rowid FROM Reports WHERE Id = {0} AND ProjectId = {1}), {2})",
-                        [leader.Id, projectId, embeddingFloats], ct);
+                        [report.Id, projectId, embeddingFloats], ct);
                 }
 
-                leader.Embedding = embeddingFloats;
+                report.Embedding = embeddingFloats;
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Janitor [{TenantId}][Project: {ProjectId}]: Failed to heal embedding for {Id}",
-                    tenantId, projectId, leader.Id);
+                    tenantId, projectId, report.Id);
             }
         }
 
+        // 2. Load all clusters for this project
+        var clusters = await db.Clusters
+            .Where(c => c.ProjectId == projectId && c.Status != "Closed" && c.Centroid != null)
+            .ToListAsync(ct);
+
+        // 3. Try to match orphan reports against existing clusters
         int mergeCount = 0;
         int suggestCount = 0;
-        var processedIds = new HashSet<Guid>();
-        var mergeMap = new Dictionary<Guid, Guid>();
 
-        foreach (var leaderA in recentLeaders)
+        const double HardMergeThreshold = 0.35;
+        const double SuggestThreshold = 0.55;
+
+        foreach (var report in orphanReports)
         {
-            if (processedIds.Contains(leaderA.Id)) continue;
-            if (leaderA.Embedding == null) continue;
+            if (report.Embedding == null) continue;
 
-            const double HardMergeThreshold = 0.35;
-            const double SuggestThreshold = 0.55;
+            ClusterCandidate? bestMatch = null;
 
-            var matches = await FindMatchesInDb(db, leaderA, SuggestThreshold, ct);
-            if (matches.Count == 0) continue;
-
-            var matchIds = matches.Select(m => m.Id).ToList();
-            var parentInfo = await db.Reports
-                .AsNoTracking()
-                .Where(t => matchIds.Contains(t.Id) && t.ProjectId == projectId)
-                .Select(t => new { t.Id, t.ParentReportId, t.CreatedAt })
-                .ToDictionaryAsync(t => t.Id, t => new { t.ParentReportId, t.CreatedAt }, ct);
-
-            var clusterGroupsRaw = matches
-                .Select(m =>
-                {
-                    var info = parentInfo[m.Id];
-                    var currentParentId = info.ParentReportId ?? m.Id;
-
-                    while (mergeMap.TryGetValue(currentParentId, out var nextParent))
-                    {
-                        currentParentId = nextParent;
-                    }
-
-                    return new { Match = m, UltimateParentId = currentParentId };
-                })
-                .Where(m => m.UltimateParentId != leaderA.Id)
-                .GroupBy(m => m.UltimateParentId)
-                .ToList();
-
-            var clusterGroups = new List<(Guid Key, List<ReportMatch> Items)>();
-            foreach (var group in clusterGroupsRaw)
+            foreach (var cluster in clusters)
             {
-                var trueRootId = await db.ResolveUltimateMasterAsync(group.Key, ct);
-                clusterGroups.Add((trueRootId, group.Select(g => g.Match).ToList()));
-            }
+                if (cluster.Centroid == null) continue;
 
-            ClusterMatch? bestMatch = null;
-            float[] leaderAFloats = leaderA.Embedding;
+                if (negativeCache.IsKnownMismatch(tenantId, report.Id, cluster.Id))
+                    continue;
 
-            foreach (var (clusterId, items) in clusterGroups)
-            {
-                var members = await db.Reports
-                    .AsNoTracking()
-                    .Where(t => (t.Id == clusterId || t.ParentReportId == clusterId) && t.ProjectId == projectId)
-                    .Select(t => t.Embedding)
-                    .Where(e => e != null)
-                    .ToListAsync(ct);
+                var distance = vectorCalculator.CalculateCosineDistance(report.Embedding, cluster.Centroid);
 
-                if (members.Count == 0) continue;
-
-                var memberFloats = members
-                    .Where(e => e != null)
-                    .Select(e => e!)
-                    .ToList();
-                var centroid = vectorCalculator.CalculateCentroid(memberFloats);
-                var centroidDist = vectorCalculator.CalculateCosineDistance(leaderAFloats, centroid);
-
-                if (bestMatch == null || centroidDist < bestMatch.Distance)
+                if (bestMatch == null || distance < bestMatch.Distance)
                 {
-                    bestMatch = new ClusterMatch(clusterId, items.First().Title, centroidDist);
+                    bestMatch = new ClusterCandidate(cluster.Id, distance);
                 }
             }
 
-            if (bestMatch != null)
+            if (bestMatch == null) continue;
+
+            if (bestMatch.Distance <= HardMergeThreshold)
             {
-                var targetReport = await db.Reports.AsNoTracking()
-                    .Where(t => t.Id == bestMatch.Id && t.ProjectId == projectId)
-                    .Select(t => new { t.Id, t.Title, t.Message, t.StackTrace, t.CreatedAt })
-                    .FirstOrDefaultAsync(ct);
-
-                if (targetReport == null) continue;
-
-                if (bestMatch.Distance <= HardMergeThreshold)
+                if (bestMatch.Distance > 0.15)
                 {
-                    if (targetReport.CreatedAt > leaderA.CreatedAt)
-                    {
-                        continue;
-                    }
+                    // AI-confirm for 0.15–0.35 range
+                    var representative = await db.Reports
+                        .AsNoTracking()
+                        .Where(r => r.ClusterId == bestMatch.Id && r.ProjectId == projectId)
+                        .OrderBy(r => r.CreatedAt)
+                        .FirstOrDefaultAsync(ct);
 
-                    if (bestMatch.Distance > 0.15)
+                    if (representative != null)
                     {
-                        if (negativeCache.IsKnownMismatch(tenantId, leaderA.Id, targetReport.Id))
-                        {
+                        if (negativeCache.IsKnownMismatch(tenantId, report.Id, representative.Id))
                             continue;
-                        }
 
                         var areDuplicates = await duplicateChecker.AreDuplicatesAsync(
-                            leaderA.Title, leaderA.Message,
-                            targetReport.Title, targetReport.Message,
+                            report.Title, report.Message,
+                            representative.Title, representative.Message,
                             ct);
 
                         if (!areDuplicates)
                         {
-                            negativeCache.MarkAsMismatch(tenantId, leaderA.Id, targetReport.Id);
+                            negativeCache.MarkAsMismatch(tenantId, report.Id, bestMatch.Id);
                             goto SuggestionPath;
                         }
                     }
-
-                    await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE Reports SET ParentReportId = {0} WHERE ParentReportId = {1} AND ProjectId = {2}",
-                        [bestMatch.Id, leaderA.Id, projectId], ct);
-
-                    var reportA = await db.Reports.FindAsync([leaderA.Id], ct);
-                    if (reportA != null)
-                    {
-                        reportA.ParentReportId = bestMatch.Id;
-                        reportA.Status = "Duplicate";
-                        reportA.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
-                        reportA.SuggestedParentId = null;
-                        reportA.SuggestedConfidenceScore = null;
-                        mergeCount++;
-                        processedIds.Add(leaderA.Id);
-                        mergeMap[leaderA.Id] = bestMatch.Id;
-                    }
-                    continue;
                 }
 
-            SuggestionPath:
-                if (bestMatch.Distance <= SuggestThreshold)
-                {
-                    if (negativeCache.IsKnownMismatch(tenantId, leaderA.Id, bestMatch.Id))
-                    {
-                        continue;
-                    }
+                report.ClusterId = bestMatch.Id;
+                report.Status = "Duplicate";
+                report.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                report.SuggestedClusterId = null;
+                report.SuggestedConfidenceScore = null;
+                mergeCount++;
+                continue;
+            }
 
-                    var reportA = await db.Reports.FindAsync([leaderA.Id], ct);
-                    if (reportA != null && reportA.SuggestedParentId == null)
-                    {
-                        reportA.SuggestedParentId = bestMatch.Id;
-                        reportA.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
-                        suggestCount++;
-                    }
+        SuggestionPath:
+            if (bestMatch.Distance <= SuggestThreshold)
+            {
+                if (report.SuggestedClusterId == null)
+                {
+                    report.SuggestedClusterId = bestMatch.Id;
+                    report.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                    suggestCount++;
                 }
             }
         }
 
-        await BreakCyclesAsync(db, projectId, tenantId, ct);
+        // 4. Create clusters for remaining orphans that have embeddings but no cluster
+        foreach (var report in orphanReports.Where(r => r.Embedding != null && r.ClusterId == null && r.SuggestedClusterId == null))
+        {
+            var newCluster = new Cluster
+            {
+                ProjectId = projectId,
+                OrganizationId = report.OrganizationId,
+                Centroid = report.Embedding,
+                Title = report.Title,
+                Status = "Open",
+            };
+            db.Clusters.Add(newCluster);
+            report.ClusterId = newCluster.Id;
+            clusters.Add(newCluster); // Track for centroid recalc
+        }
+
+        // 5. Recalculate centroids for all clusters that had reports added
+        foreach (var cluster in clusters)
+        {
+            var memberEmbeddings = await db.Reports
+                .AsNoTracking()
+                .Where(r => r.ClusterId == cluster.Id && r.Embedding != null)
+                .Select(r => r.Embedding!)
+                .ToListAsync(ct);
+
+            if (memberEmbeddings.Count > 0)
+            {
+                cluster.Centroid = vectorCalculator.CalculateCentroid(memberEmbeddings);
+            }
+        }
 
         if (mergeCount > 0 || suggestCount > 0)
         {
-            await db.SaveChangesAsync(ct);
             logger.LogInformation("Janitor [{TenantId}][Project: {ProjectId}]: Cleanup complete. Merged: {Merge}, Suggested: {Suggest}.",
                 tenantId, projectId, mergeCount, suggestCount);
         }
+
+        await db.SaveChangesAsync(ct);
     }
 
-    private async Task BreakCyclesAsync(WinnowDbContext db, Guid projectId, string tenantId, CancellationToken ct)
-    {
-        // Get all reports with parent references for this specific project
-        var candidates = await db.Reports
-            .Where(t => t.ProjectId == projectId && t.ParentReportId != null)
-            .Select(t => new { t.Id, t.ParentReportId })
-            .ToListAsync(ct);
-
-        int fixes = 0;
-        foreach (var c in candidates)
-        {
-            var path = new List<Guid> { c.Id };
-            var currentId = c.ParentReportId;
-
-            while (currentId != null)
-            {
-                if (path.Contains(currentId.Value))
-                {
-                    logger.LogWarning("Janitor [{TenantId}][Project: {ProjectId}]: Circular reference detected! Breaking cycle at {Id}",
-                        tenantId, projectId, currentId.Value);
-
-                    await db.Reports
-                        .Where(r => r.Id == currentId.Value && r.ProjectId == projectId)
-                        .ExecuteUpdateAsync(setters => setters
-                            .SetProperty(r => r.ParentReportId, (Guid?)null)
-                            .SetProperty(r => r.Status, "Open"),
-                            ct);
-
-                    fixes++;
-                    break;
-                }
-
-                path.Add(currentId.Value);
-
-                var nextParentId = await db.Reports
-                    .Where(t => t.Id == currentId.Value && t.ProjectId == projectId)
-                    .Select(t => t.ParentReportId)
-                    .FirstOrDefaultAsync(ct);
-
-                if (nextParentId == null) break;
-
-                if (path.Count >= 2)
-                {
-                    logger.LogInformation("Janitor [{TenantId}][Project: {ProjectId}]: Flattening deep hierarchy {A} -> {B} -> {Root}",
-                        tenantId, projectId, path[0], path[1], nextParentId);
-
-                    await db.Reports
-                        .Where(r => r.Id == path[0] && r.ProjectId == projectId)
-                        .ExecuteUpdateAsync(setters => setters.SetProperty(r => r.ParentReportId, nextParentId), ct);
-
-                    fixes++;
-                    break;
-                }
-
-                currentId = nextParentId;
-            }
-        }
-
-        if (fixes > 0)
-        {
-            logger.LogInformation("Janitor [{TenantId}][Project: {ProjectId}]: Cycle Breaker fixed {Count} hierarchies.",
-                tenantId, projectId, fixes);
-        }
-    }
-
-    private static async Task<List<ReportMatch>> FindMatchesInDb(WinnowDbContext db, Report target, double threshold, CancellationToken ct)
-    {
-        string sql;
-
-        if (db.Database.IsSqlite())
-        {
-            // The existing SQLite Virtual Table query
-            sql = @"
-                SELECT t.Id, t.Title, t.Message, t.CreatedAt, v.distance as Distance
-                FROM vec_reports v
-                JOIN Reports t ON v.rowid = t.rowid
-                WHERE v.embedding MATCH {0}
-                AND k = 20
-                AND v.distance < {1}
-                AND t.Id != {2}
-                AND t.Status != 'Duplicate'
-                AND t.ProjectId = {3}
-            ";
-        }
-        else
-        {
-            // The streamlined Postgres query (No JOINs required!)
-            sql = @"
-                SELECT ""Id"", ""Title"", ""Message"", ""CreatedAt"", ""Embedding"" <=> {0}::vector AS ""Distance""
-                FROM ""Reports""
-                WHERE ""Embedding"" <=> {0}::vector < {1}
-                AND ""Id"" != {2}
-                AND ""Status"" != 'Duplicate'
-                AND ""ProjectId"" = {3}
-                ORDER BY ""Embedding"" <=> {0}::vector ASC
-                LIMIT 20
-            ";
-        }
-
-        return await db.Database.SqlQueryRaw<ReportMatch>(sql, target.Embedding!, threshold, target.Id, target.ProjectId)
-            .ToListAsync(ct);
-    }
-
-    private sealed record ReportMatch(Guid Id, string Title, string Message, DateTime CreatedAt, double Distance);
-    private sealed record ClusterMatch(Guid Id, string Title, double Distance);
+    private sealed record ClusterCandidate(Guid Id, double Distance);
 }

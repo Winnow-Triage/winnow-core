@@ -46,14 +46,20 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
             baseQuery = baseQuery.Where(r => projectIds.Contains(r.ProjectId));
         }
 
-        // 2. Triage Metrics
+        // 2. Triage Metrics — use Clusters table for active cluster count
         var totalReports = await baseQuery.CountAsync(ct);
 
-        var activeClusters = await baseQuery
-            .CountAsync(t => t.ParentReportId == null && t.Status != "Closed" && t.Status != "Duplicate", ct);
+        var clusterQuery = db.Clusters.Where(c => c.OrganizationId == organizationId);
+        if (projectId.HasValue)
+        {
+            clusterQuery = clusterQuery.Where(c => c.ProjectId == projectId.Value);
+        }
+
+        var activeClusters = await clusterQuery
+            .CountAsync(c => c.Status != "Closed", ct);
 
         var pendingReviews = await baseQuery
-            .CountAsync(t => t.SuggestedParentId != null && t.Status != "Duplicate" && t.Status != "Closed", ct);
+            .CountAsync(t => t.SuggestedClusterId != null && t.Status != "Duplicate" && t.Status != "Closed", ct);
 
         double noiseRatio = totalReports > 0
             ? 1.0 - ((double)activeClusters / totalReports)
@@ -68,15 +74,15 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
             pendingReviews,
             hoursSaved);
 
-        // 3. Trending Clusters (Last 24 hours)
+        // 3. Trending Clusters (Last 24 hours) — query Clusters directly
         var yesterday = DateTime.UtcNow.AddHours(-24);
 
         var trending = await baseQuery
-            .Where(r => r.CreatedAt >= yesterday && r.ParentReportId != null)
-            .GroupBy(t => t.ParentReportId)
+            .Where(r => r.CreatedAt >= yesterday && r.ClusterId != null)
+            .GroupBy(t => t.ClusterId)
             .Select(g => new
             {
-                ClusterId = g.Key,
+                ClusterId = g.Key!.Value,
                 Velocity = g.Count()
             })
             .OrderByDescending(x => x.Velocity)
@@ -87,27 +93,26 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         if (trending.Count > 0)
         {
             var clusterIds = trending.Select(t => t.ClusterId).ToList();
-            var clusterInfos = await baseQuery
-                .Where(r => clusterIds.Contains(r.Id))
-                .Select(t => new { t.Id, t.Title, t.Status })
-                .ToDictionaryAsync(t => t.Id, ct);
+            var clusterInfos = await db.Clusters
+                .Where(c => clusterIds.Contains(c.Id))
+                .Select(c => new { c.Id, c.Title, c.Status })
+                .ToDictionaryAsync(c => c.Id, ct);
 
             var counts = await baseQuery
-                .Where(r => clusterIds.Contains(r.ParentReportId) && r.ParentReportId != null)
-                .GroupBy(t => t.ParentReportId)
-                .Select(g => new { ClusterId = g.Key!.Value, Total = g.Count() })
+                .Where(r => r.ClusterId != null && clusterIds.Contains(r.ClusterId.Value))
+                .GroupBy(t => t.ClusterId!.Value)
+                .Select(g => new { ClusterId = g.Key, Total = g.Count() })
                 .ToDictionaryAsync(g => g.ClusterId, ct);
 
             foreach (var t in trending)
             {
-                if (t.ClusterId.HasValue && clusterInfos.TryGetValue(t.ClusterId.Value, out var info))
+                if (clusterInfos.TryGetValue(t.ClusterId, out var info))
                 {
-                    int total = counts.TryGetValue(t.ClusterId.Value, out var c) ? c.Total : 0;
-                    total += 1;
+                    int total = counts.TryGetValue(t.ClusterId, out var c) ? c.Total : 0;
 
                     trendingDtos.Add(new TrendingClusterDto(
-                        t.ClusterId.Value,
-                        info.Title,
+                        t.ClusterId,
+                        info.Title ?? "Untitled Cluster",
                         info.Status,
                         total,
                         t.Velocity,
@@ -121,7 +126,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         var historyRaw = await baseQuery
             .AsNoTracking()
             .Where(r => r.CreatedAt >= yesterday)
-            .Select(r => new { r.CreatedAt, IsDuplicate = r.ParentReportId != null })
+            .Select(r => new { r.CreatedAt, IsDuplicate = r.Status == "Duplicate" })
             .ToListAsync(ct);
 
         var grouped = historyRaw
@@ -172,7 +177,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
                 g.Key.Year,
                 g.Key.Month,
                 ReportCount = g.Count(),
-                ClusterCount = g.Count(x => x.ParentReportId == null)
+                UniqueCount = g.Count(x => x.Status != "Duplicate")
             })
             .ToListAsync(ct);
 
@@ -186,7 +191,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
             usageHistory.Add(new MonthlyUsageDto(
                 targetMonth.ToString("MMM"),
                 monthData?.ReportCount ?? 0,
-                monthData?.ClusterCount ?? 0
+                monthData?.UniqueCount ?? 0
             ));
         }
 
@@ -212,7 +217,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
             limit.HasValue && totalUsage >= limit.Value,
             usageHistory);
 
-        // 2. Team Breakdown
+        // 2. Team Breakdown — count unique reports (non-duplicate)
         var teams = await db.Teams
             .Where(t => t.OrganizationId == organizationId)
             .Select(t => new
@@ -220,7 +225,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
                 t.Id,
                 t.Name,
                 ProjectCount = t.Projects.Count,
-                ReportVolume = db.Reports.Count(r => r.OrganizationId == organizationId && db.Projects.Any(p => p.Id == r.ProjectId && p.TeamId == t.Id) && r.ParentReportId == null && r.CreatedAt >= startOfMonth)
+                ReportVolume = db.Reports.Count(r => r.OrganizationId == organizationId && db.Projects.Any(p => p.Id == r.ProjectId && p.TeamId == t.Id) && r.Status != "Duplicate" && r.CreatedAt >= startOfMonth)
             })
             .ToListAsync(ct);
 
@@ -236,15 +241,15 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
             {
                 ProjectId = g.Key,
                 TotalReports = g.Count(),
-                ActiveClusters = g.Count(r => r.ParentReportId == null && r.Status != "Closed" && r.Status != "Duplicate")
+                ActiveClusters = db.Clusters.Count(c => c.ProjectId == g.Key && c.Status != "Closed")
             })
             .OrderByDescending(x => x.TotalReports)
             .Take(5)
             .ToListAsync(ct);
 
-        var projectIds = topProjects.Select(p => p.ProjectId).ToList();
+        var topProjectIds = topProjects.Select(p => p.ProjectId).ToList();
         var projectNames = await db.Projects
-            .Where(p => projectIds.Contains(p.Id))
+            .Where(p => topProjectIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => p.Name, ct);
 
         var topProjectDtos = topProjects.Select(p => new TopProjectDto(
@@ -272,29 +277,29 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
             .Select(p => p.Id)
             .ToListAsync(ct);
 
-        // 1. Project Breakdown
+        // 1. Project Breakdown — count unique reports and active clusters
         var projects = await db.Projects
             .Where(p => p.TeamId == teamId && p.OrganizationId == organizationId)
             .Select(p => new
             {
                 p.Id,
                 p.Name,
-                ReportVolume = db.Reports.Count(r => r.ProjectId == p.Id && r.ParentReportId == null && r.CreatedAt >= startOfMonth),
-                ActiveClusters = db.Reports.Count(r => r.ProjectId == p.Id && r.ParentReportId == null && r.Status != "Closed" && r.Status != "Duplicate")
+                ReportVolume = db.Reports.Count(r => r.ProjectId == p.Id && r.Status != "Duplicate" && r.CreatedAt >= startOfMonth),
+                ActiveClusters = db.Clusters.Count(c => c.ProjectId == p.Id && c.Status != "Closed")
             })
             .ToListAsync(ct);
 
         var projectBreakdownDtos = projects.Select(p => new ProjectBreakdownDto(p.Id, p.Name, p.ReportVolume, p.ActiveClusters)).ToList();
 
-        // 2. Top Clusters (across all projects in the team)
+        // 2. Top Clusters (across all projects in the team) — query Clusters directly
         var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
 
         var topClusters = await db.Reports
-            .Where(r => projectIds.Contains(r.ProjectId) && r.CreatedAt >= thirtyDaysAgo && r.ParentReportId != null)
-            .GroupBy(t => t.ParentReportId)
+            .Where(r => projectIds.Contains(r.ProjectId) && r.CreatedAt >= thirtyDaysAgo && r.ClusterId != null)
+            .GroupBy(t => t.ClusterId!.Value)
             .Select(g => new
             {
-                ClusterId = g.Key!.Value,
+                ClusterId = g.Key,
                 Total = g.Count(),
                 Velocity = g.Count(c => c.CreatedAt >= DateTime.UtcNow.AddHours(-24))
             })
@@ -306,10 +311,10 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         if (topClusters.Count > 0)
         {
             var clusterIds = topClusters.Select(t => t.ClusterId).ToList();
-            var clusterInfos = await db.Reports
-                .Where(r => clusterIds.Contains(r.Id))
-                .Select(t => new { t.Id, t.Title, t.Status })
-                .ToDictionaryAsync(t => t.Id, ct);
+            var clusterInfos = await db.Clusters
+                .Where(c => clusterIds.Contains(c.Id))
+                .Select(c => new { c.Id, c.Title, c.Status })
+                .ToDictionaryAsync(c => c.Id, ct);
 
             foreach (var t in topClusters)
             {
@@ -317,9 +322,9 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
                 {
                     trendingDtos.Add(new TrendingClusterDto(
                         t.ClusterId,
-                        info.Title,
+                        info.Title ?? "Untitled Cluster",
                         info.Status,
-                        t.Total + 1, // +1 for the parent report itself
+                        t.Total,
                         t.Velocity,
                         t.Velocity > 10
                     ));
@@ -332,7 +337,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         var historyRaw = await db.Reports
             .AsNoTracking()
             .Where(r => projectIds.Contains(r.ProjectId) && r.CreatedAt >= yesterday)
-            .Select(r => new { r.CreatedAt, IsDuplicate = r.ParentReportId != null })
+            .Select(r => new { r.CreatedAt, IsDuplicate = r.Status == "Duplicate" })
             .ToListAsync(ct);
 
         var grouped = historyRaw

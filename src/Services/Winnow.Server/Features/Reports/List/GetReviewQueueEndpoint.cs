@@ -14,10 +14,9 @@ namespace Winnow.Server.Features.Reports.List;
 /// <param name="ReportStackTrace">Stack trace of the report.</param>
 /// <param name="ReportAssignedTo">User assigned to the report.</param>
 /// <param name="ReportCreatedAt">Creation timestamp.</param>
-/// <param name="SuggestedParentId">ID of the suggested parent report.</param>
-/// <param name="SuggestedParentTitle">Title of the suggested parent.</param>
-/// <param name="SuggestedParentMessage">Message of the suggested parent.</param>
-/// <param name="SuggestedParentStackTrace">Stack trace of the suggested parent.</param>
+/// <param name="SuggestedClusterId">ID of the suggested cluster.</param>
+/// <param name="SuggestedClusterTitle">Title of the suggested cluster.</param>
+/// <param name="SuggestedClusterSummary">Summary of the suggested cluster.</param>
 /// <param name="ConfidenceScore">Confidence in the suggestion.</param>
 /// <param name="IsOverage">Whether this report exceeded the free limits.</param>
 /// <param name="IsLocked">Whether this report was held for ransom due to grace period breach.</param>
@@ -28,10 +27,9 @@ public record ReviewItemDto(
     string? ReportStackTrace,
     string ReportAssignedTo,
     DateTime ReportCreatedAt,
-    Guid SuggestedParentId,
-    string SuggestedParentTitle,
-    string SuggestedParentMessage,
-    string? SuggestedParentStackTrace,
+    Guid SuggestedClusterId,
+    string? SuggestedClusterTitle,
+    string? SuggestedClusterSummary,
     float? ConfidenceScore,
     bool IsOverage,
     bool IsLocked
@@ -82,11 +80,11 @@ public sealed class GetReviewQueueEndpoint(WinnowDbContext db) : EndpointWithout
         }
 
         var items = await db.Reports.AsNoTracking()
-            .Where(t => t.ProjectId == projectId && t.SuggestedParentId != null && t.Status != "Duplicate")
-            .Join(db.Reports.Where(p => p.ProjectId == projectId),
-                t => t.SuggestedParentId,
-                p => p.Id,
-                (t, p) => new { Report = t, Parent = p })
+            .Where(t => t.ProjectId == projectId && t.SuggestedClusterId != null && t.Status != "Duplicate")
+            .Join(db.Clusters.Where(c => c.ProjectId == projectId),
+                t => t.SuggestedClusterId,
+                c => c.Id,
+                (t, c) => new { Report = t, Cluster = c })
             .OrderByDescending(x => x.Report.SuggestedConfidenceScore)
             .Select(x => new ReviewItemDto(
                 x.Report.Id,
@@ -95,10 +93,9 @@ public sealed class GetReviewQueueEndpoint(WinnowDbContext db) : EndpointWithout
                 x.Report.StackTrace,
                 x.Report.AssignedTo ?? "Unassigned",
                 x.Report.CreatedAt,
-                x.Parent.Id,
-                x.Parent.Title,
-                x.Parent.Message,
-                x.Parent.StackTrace,
+                x.Cluster.Id,
+                x.Cluster.Title,
+                x.Cluster.Summary,
                 x.Report.SuggestedConfidenceScore,
                 x.Report.IsOverage,
                 x.Report.IsLocked

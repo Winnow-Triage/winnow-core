@@ -86,9 +86,20 @@ public sealed class ExportReportEndpoint(WinnowDbContext db, IExporterFactory ex
 
         try
         {
-            var contentToExport = string.IsNullOrWhiteSpace(report.Summary)
+            // Get cluster summary if available
+            string? clusterSummary = null;
+            if (report.ClusterId != null)
+            {
+                clusterSummary = await db.Clusters
+                    .AsNoTracking()
+                    .Where(c => c.Id == report.ClusterId)
+                    .Select(c => c.Summary)
+                    .FirstOrDefaultAsync(ct);
+            }
+
+            var contentToExport = string.IsNullOrWhiteSpace(clusterSummary)
                 ? report.StackTrace
-                : $"## AI Perspective\n{report.Summary}\n\n## Original Details\n{report.StackTrace}";
+                : $"## AI Perspective\n{clusterSummary}\n\n## Original Details\n{report.StackTrace}";
 
             var backlink = $"http://localhost:5173/reports/{report.Id}";
             contentToExport += $"\n\n---\n[View in Winnow]({backlink})";

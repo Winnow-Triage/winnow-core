@@ -69,26 +69,36 @@ public sealed class GenerateClusterSummaryEndpoint(WinnowDbContext db, IClusterS
             return;
         }
 
-        // Fetch related reports (evidence) to provide context for the summary - filter by project
-        // Including the root report itself so the AI has access to it even if no children exist
-        var relatedReports = await db.Reports
+        if (report.ClusterId == null)
+        {
+            ThrowError("Report is not part of a cluster.");
+        }
+
+        var cluster = await db.Clusters.FindAsync([report.ClusterId], ct);
+        if (cluster == null)
+        {
+            ThrowError("Cluster not found.");
+        }
+
+        // Fetch all reports in this cluster to provide context for the summary
+        var clusterReports = await db.Reports
             .AsNoTracking()
-            .Where(t => t.ProjectId == projectId && (t.Id == report.Id || t.ParentReportId == report.Id))
+            .Where(t => t.ProjectId == projectId && t.ClusterId == report.ClusterId)
             .ToListAsync(ct);
 
-        var result = await summaryService.GenerateSummaryAsync(relatedReports, ct);
+        var result = await summaryService.GenerateSummaryAsync(clusterReports, ct);
 
         if (result.IsError)
         {
-            Logger.LogWarning("AI summary generation failed for report {ReportId}: {Error}", req.Id, result.Summary);
+            Logger.LogWarning("AI summary generation failed for cluster {ClusterId}: {Error}", report.ClusterId, result.Summary);
             HttpContext.Response.StatusCode = 500;
             await Send.OkAsync(new ActionResponse { Message = "AI summary generation failed. Please try again." }, ct);
             return;
         }
 
-        report.Summary = result.Summary;
-        report.CriticalityScore = result.CriticalityScore;
-        report.CriticalityReasoning = result.CriticalityReasoning;
+        cluster!.Summary = result.Summary;
+        cluster.CriticalityScore = result.CriticalityScore;
+        cluster.CriticalityReasoning = result.CriticalityReasoning;
 
         await db.SaveChangesAsync(ct);
 

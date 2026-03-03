@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
+using Winnow.Server.Domain.Services;
 using Winnow.Server.Entities;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
@@ -23,7 +24,7 @@ public class MergeClustersRequest
     public List<Guid> SourceIds { get; set; } = new();
 }
 
-public sealed class MergeClustersEndpoint(WinnowDbContext db) : Endpoint<MergeClustersRequest, ActionResponse>
+public sealed class MergeClustersEndpoint(WinnowDbContext db, IVectorCalculator vectorCalculator) : Endpoint<MergeClustersRequest, ActionResponse>
 {
     public override void Configure()
     {
@@ -73,6 +74,24 @@ public sealed class MergeClustersEndpoint(WinnowDbContext db) : Endpoint<MergeCl
             return;
         }
 
+        // Ensure target has a cluster
+        if (targetReport.ClusterId == null)
+        {
+            var newCluster = new Cluster
+            {
+                ProjectId = projectId,
+                OrganizationId = targetReport.OrganizationId,
+                Centroid = targetReport.Embedding,
+                Title = targetReport.Title,
+                Status = "Open",
+            };
+            db.Clusters.Add(newCluster);
+            targetReport.ClusterId = newCluster.Id;
+        }
+
+        var targetClusterId = targetReport.ClusterId!.Value;
+        var clustersToDelete = new HashSet<Guid>();
+
         foreach (var sourceId in req.SourceIds)
         {
             if (sourceId == req.Id) continue;
@@ -81,16 +100,55 @@ public sealed class MergeClustersEndpoint(WinnowDbContext db) : Endpoint<MergeCl
                 .FirstOrDefaultAsync(r => r.Id == sourceId && r.ProjectId == projectId, ct);
             if (sourceReport == null) continue;
 
-            sourceReport.ParentReportId = targetReport.Id;
-            sourceReport.Status = "Duplicate";
+            // If source has its own cluster, move all its members to target cluster
+            if (sourceReport.ClusterId != null && sourceReport.ClusterId != targetClusterId)
+            {
+                var sourceClusterId = sourceReport.ClusterId.Value;
+                var children = await db.Reports
+                    .Where(t => t.ProjectId == projectId && t.ClusterId == sourceClusterId)
+                    .ToListAsync(ct);
 
-            var children = await db.Reports
-                .Where(t => t.ProjectId == projectId && t.ParentReportId == sourceId)
+                foreach (var child in children)
+                {
+                    child.ClusterId = targetClusterId;
+                    if (child.Id != targetReport.Id)
+                    {
+                        child.Status = "Duplicate";
+                    }
+                }
+
+                clustersToDelete.Add(sourceClusterId);
+            }
+            else
+            {
+                sourceReport.ClusterId = targetClusterId;
+                sourceReport.Status = "Duplicate";
+            }
+        }
+
+        // Delete empty source clusters
+        foreach (var cid in clustersToDelete)
+        {
+            var cluster = await db.Clusters.FindAsync([cid], ct);
+            if (cluster != null)
+            {
+                db.Clusters.Remove(cluster);
+            }
+        }
+
+        // Recalculate target cluster centroid
+        var targetCluster = await db.Clusters.FindAsync([targetClusterId], ct);
+        if (targetCluster != null)
+        {
+            var memberEmbeddings = await db.Reports
+                .AsNoTracking()
+                .Where(r => r.ClusterId == targetClusterId && r.Embedding != null)
+                .Select(r => r.Embedding!)
                 .ToListAsync(ct);
 
-            foreach (var child in children)
+            if (memberEmbeddings.Count > 0)
             {
-                child.ParentReportId = targetReport.Id;
+                targetCluster.Centroid = vectorCalculator.CalculateCentroid(memberEmbeddings);
             }
         }
 
