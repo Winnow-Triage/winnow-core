@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Domain.Services;
 using Winnow.Server.Entities;
+using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Services.Ai;
 
 namespace Winnow.Server.Infrastructure.Scheduling;
 
@@ -82,10 +84,11 @@ internal sealed class ClusterRefinementJob(
         var duplicateChecker = scope.ServiceProvider.GetRequiredService<Services.Ai.IDuplicateChecker>();
         var negativeCache = scope.ServiceProvider.GetRequiredService<Services.Ai.INegativeMatchCache>();
         var vectorCalculator = scope.ServiceProvider.GetRequiredService<IVectorCalculator>();
+        var clusterService = scope.ServiceProvider.GetRequiredService<IClusterService>();
 
         foreach (var projectId in projects)
         {
-            await ProcessProjectAsync(db, projectId, tenantId, embeddingService, duplicateChecker, negativeCache, vectorCalculator, ct);
+            await ProcessProjectAsync(db, projectId, tenantId, embeddingService, duplicateChecker, negativeCache, vectorCalculator, clusterService, ct);
         }
     }
 
@@ -97,6 +100,7 @@ internal sealed class ClusterRefinementJob(
         Services.Ai.IDuplicateChecker duplicateChecker,
         Services.Ai.INegativeMatchCache negativeCache,
         IVectorCalculator vectorCalculator,
+        IClusterService clusterService,
         CancellationToken ct)
     {
         // 1. Heal missing embeddings on orphan reports
@@ -245,16 +249,7 @@ internal sealed class ClusterRefinementJob(
         // 5. Recalculate centroids for all clusters that had reports added
         foreach (var cluster in clusters)
         {
-            var memberEmbeddings = await db.Reports
-                .AsNoTracking()
-                .Where(r => r.ClusterId == cluster.Id && r.Embedding != null)
-                .Select(r => r.Embedding!)
-                .ToListAsync(ct);
-
-            if (memberEmbeddings.Count > 0)
-            {
-                cluster.Centroid = vectorCalculator.CalculateCentroid(memberEmbeddings);
-            }
+            await clusterService.RecalculateCentroidAsync(cluster.Id, ct);
         }
 
         if (mergeCount > 0 || suggestCount > 0)

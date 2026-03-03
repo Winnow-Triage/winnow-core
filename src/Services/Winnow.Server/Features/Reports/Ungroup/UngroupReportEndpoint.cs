@@ -3,6 +3,7 @@ using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Services.Ai;
 
 namespace Winnow.Server.Features.Reports.Ungroup;
 
@@ -17,7 +18,7 @@ public class UngroupReportRequest
     public Guid Id { get; set; }
 }
 
-public sealed class UngroupReportEndpoint(WinnowDbContext db) : Endpoint<UngroupReportRequest, ActionResponse>
+public sealed class UngroupReportEndpoint(WinnowDbContext db, IClusterService clusterService) : Endpoint<UngroupReportRequest, ActionResponse>
 {
     public override void Configure()
     {
@@ -78,11 +79,13 @@ public sealed class UngroupReportEndpoint(WinnowDbContext db) : Endpoint<Ungroup
         report.ClusterId = null;
         report.Status = "New";
 
-        // If the cluster is now empty, delete it
+        await db.SaveChangesAsync(ct);
+
+        // If the cluster is still active (has reports), recalculate centroid
         if (oldClusterId != null)
         {
             var remainingCount = await db.Reports
-                .CountAsync(r => r.ClusterId == oldClusterId && r.Id != report.Id, ct);
+                .CountAsync(r => r.ClusterId == oldClusterId, ct);
 
             if (remainingCount == 0)
             {
@@ -90,11 +93,16 @@ public sealed class UngroupReportEndpoint(WinnowDbContext db) : Endpoint<Ungroup
                 if (cluster != null)
                 {
                     db.Clusters.Remove(cluster);
+                    await db.SaveChangesAsync(ct);
                 }
+            }
+            else
+            {
+                await clusterService.RecalculateCentroidAsync(oldClusterId.Value, ct);
+                await db.SaveChangesAsync(ct);
             }
         }
 
-        await db.SaveChangesAsync(ct);
         await Send.OkAsync(new ActionResponse { Message = "Report ungrouped successfully." }, ct);
     }
 }

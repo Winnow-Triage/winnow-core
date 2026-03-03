@@ -6,6 +6,7 @@ using Winnow.Server.Entities;
 using Winnow.Server.Features.Reports.Create;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Services.Ai;
 
 namespace Winnow.Server.Features.Reports.Create;
 
@@ -14,7 +15,8 @@ internal class ReportCreatedConsumer(
     ILogger<ReportCreatedConsumer> logger,
     ITenantContext tenantContext,
     Services.Ai.IDuplicateChecker duplicateChecker,
-    IVectorCalculator vectorCalculator) : IConsumer<ReportCreatedEvent>
+    IVectorCalculator vectorCalculator,
+    IClusterService clusterService) : IConsumer<ReportCreatedEvent>
 {
     public async Task Consume(ConsumeContext<ReportCreatedEvent> context)
     {
@@ -134,30 +136,6 @@ internal class ReportCreatedConsumer(
                 report.ClusterId = newCluster.Id;
             }
 
-            // 5. Recalculate cluster centroid if report was assigned to existing cluster
-            if (report.ClusterId != null)
-            {
-                var cluster = await dbContext.Clusters.FindAsync([report.ClusterId], context.CancellationToken);
-                if (cluster != null)
-                {
-                    var memberEmbeddings = await dbContext.Reports
-                        .AsNoTracking()
-                        .Where(r => r.ClusterId == cluster.Id && r.Embedding != null)
-                        .Select(r => r.Embedding!)
-                        .ToListAsync(context.CancellationToken);
-
-                    // Include current report embedding (may not be saved yet)
-                    if (report.Embedding != null && memberEmbeddings.Count == 0)
-                    {
-                        memberEmbeddings.Add(report.Embedding);
-                    }
-
-                    if (memberEmbeddings.Count > 0)
-                    {
-                        cluster.Centroid = vectorCalculator.CalculateCentroid(memberEmbeddings);
-                    }
-                }
-            }
         }
         else if (report.Embedding != null && report.ClusterId == null)
         {
@@ -175,6 +153,13 @@ internal class ReportCreatedConsumer(
         }
 
         await dbContext.SaveChangesAsync(context.CancellationToken);
+
+        // 5. Recalculate cluster centroid AFTER SaveChanges so the new report is included in the query
+        if (report.ClusterId != null)
+        {
+            await clusterService.RecalculateCentroidAsync(report.ClusterId.Value, context.CancellationToken);
+            await dbContext.SaveChangesAsync(context.CancellationToken); // Save the updated centroid
+        }
 
         // Sync to Vector Index - ONLY FOR SQLITE
         if (dbContext.Database.IsSqlite() && report.Embedding != null)

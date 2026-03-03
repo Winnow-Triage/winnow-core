@@ -155,6 +155,7 @@ internal static class ServiceExtensions
 
         // Dashboard service
         services.AddScoped<IDashboardService, DashboardService>();
+        services.AddScoped<IClusterService, ClusterService>();
 
         // Email Service
         var emailSettings = new EmailSettings();

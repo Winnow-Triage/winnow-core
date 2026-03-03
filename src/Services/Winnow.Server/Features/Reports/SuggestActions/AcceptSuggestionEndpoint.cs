@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Domain.Services;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Services.Ai;
 
 namespace Winnow.Server.Features.Reports.SuggestActions;
 
@@ -18,7 +19,7 @@ public class AcceptSuggestionRequest
     public Guid Id { get; set; }
 }
 
-public sealed class AcceptSuggestionEndpoint(WinnowDbContext db, IVectorCalculator vectorCalculator) : Endpoint<AcceptSuggestionRequest, ActionResponse>
+public sealed class AcceptSuggestionEndpoint(WinnowDbContext db, IClusterService clusterService) : Endpoint<AcceptSuggestionRequest, ActionResponse>
 {
     public override void Configure()
     {
@@ -89,21 +90,9 @@ public sealed class AcceptSuggestionEndpoint(WinnowDbContext db, IVectorCalculat
         report.SuggestedClusterId = null;
         report.SuggestedConfidenceScore = null;
 
-        // Recalculate centroid
-        var memberEmbeddings = await db.Reports
-            .AsNoTracking()
-            .Where(r => r.ClusterId == cluster!.Id && r.Embedding != null)
-            .Select(r => r.Embedding!)
-            .ToListAsync(ct);
-
-        if (report.Embedding != null)
+        if (cluster != null)
         {
-            memberEmbeddings.Add(report.Embedding);
-        }
-
-        if (memberEmbeddings.Count > 0)
-        {
-            cluster!.Centroid = vectorCalculator.CalculateCentroid(memberEmbeddings);
+            await clusterService.RecalculateCentroidAsync(cluster.Id, ct);
         }
 
         await db.SaveChangesAsync(ct);

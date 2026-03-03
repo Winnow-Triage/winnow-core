@@ -1,10 +1,11 @@
 using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Domain.Services;
+using Winnow.Server.Domain.Services; // Keeping this as IClusterService is from here
 using Winnow.Server.Entities;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Services.Ai;
 
 namespace Winnow.Server.Features.Reports.Merge;
 
@@ -24,7 +25,7 @@ public class MergeClustersRequest
     public List<Guid> SourceIds { get; set; } = new();
 }
 
-public sealed class MergeClustersEndpoint(WinnowDbContext db, IVectorCalculator vectorCalculator) : Endpoint<MergeClustersRequest, ActionResponse>
+public sealed class MergeClustersEndpoint(WinnowDbContext db, IClusterService clusterService) : Endpoint<MergeClustersRequest, ActionResponse>
 {
     public override void Configure()
     {
@@ -136,20 +137,9 @@ public sealed class MergeClustersEndpoint(WinnowDbContext db, IVectorCalculator 
             }
         }
 
-        // Recalculate target cluster centroid
-        var targetCluster = await db.Clusters.FindAsync([targetClusterId], ct);
-        if (targetCluster != null)
+        if (targetClusterId != Guid.Empty)
         {
-            var memberEmbeddings = await db.Reports
-                .AsNoTracking()
-                .Where(r => r.ClusterId == targetClusterId && r.Embedding != null)
-                .Select(r => r.Embedding!)
-                .ToListAsync(ct);
-
-            if (memberEmbeddings.Count > 0)
-            {
-                targetCluster.Centroid = vectorCalculator.CalculateCentroid(memberEmbeddings);
-            }
+            await clusterService.RecalculateCentroidAsync(targetClusterId, ct);
         }
 
         await db.SaveChangesAsync(ct);
