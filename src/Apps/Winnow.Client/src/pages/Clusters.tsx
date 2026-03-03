@@ -30,7 +30,7 @@ interface Cluster {
 
 export default function Clusters() {
     const [search, setSearch] = useState('');
-    const [sortBy, setSortBy] = useState<'size' | 'criticality' | 'newest'>('size');
+    const [sortBy, setSortBy] = useState<'size' | 'criticality' | 'newest'>('criticality');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isMerging, setIsMerging] = useState(false);
     const queryClient = useQueryClient();

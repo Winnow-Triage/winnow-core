@@ -66,7 +66,7 @@ public sealed class ListClustersEndpoint(WinnowDbContext dbContext) : EndpointWi
         }
 
         string sort = HttpContext.Request.Query["sort"].ToString();
-        if (string.IsNullOrEmpty(sort)) sort = "size";
+        if (string.IsNullOrEmpty(sort)) sort = "criticality";
 
         var query = dbContext.Clusters
             .AsNoTracking()
