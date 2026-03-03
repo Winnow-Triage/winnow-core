@@ -39,11 +39,13 @@ public class WinnowDbContextFactory : IDesignTimeDbContextFactory<WinnowDbContex
                 npgsql => npgsql.MigrationsAssembly("Winnow.Server"));
             optionsBuilder.UseNpgsql(connString,
                 npgsql => npgsql.UseVector());
+            optionsBuilder.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         }
         else
         {
             optionsBuilder.UseSqlite(tenantContext.ConnectionString,
                 sqlite => sqlite.MigrationsAssembly("Winnow.Server"));
+            optionsBuilder.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         }
 
         optionsBuilder.ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsAssembly, ProviderMigrationsAssembly>();

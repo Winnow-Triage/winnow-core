@@ -21,6 +21,12 @@ public class GetClusterResponse
     public string? CriticalityReasoning { get; set; }
     public string Status { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+    public int ReportCount { get; set; }
+    public DateTime? FirstSeen { get; set; }
+    public DateTime? LastSeen { get; set; }
+    public string? AssignedTo { get; set; }
+    public int Velocity1h { get; set; }
+    public int Velocity24h { get; set; }
     public List<ClusterMemberDto> Reports { get; set; } = [];
 }
 
@@ -74,7 +80,13 @@ public sealed class GetClusterEndpoint(WinnowDbContext db) : Endpoint<GetCluster
             CriticalityScore = cluster.CriticalityScore,
             CriticalityReasoning = cluster.CriticalityReasoning,
             Status = cluster.Status,
+            AssignedTo = cluster.AssignedTo,
             CreatedAt = cluster.CreatedAt,
+            ReportCount = cluster.Reports.Count,
+            FirstSeen = cluster.Reports.Count > 0 ? cluster.Reports.Min(r => r.CreatedAt) : null,
+            LastSeen = cluster.Reports.Count > 0 ? cluster.Reports.Max(r => r.CreatedAt) : null,
+            Velocity1h = cluster.Reports.Count(r => r.CreatedAt >= DateTime.UtcNow.AddHours(-1)),
+            Velocity24h = cluster.Reports.Count(r => r.CreatedAt >= DateTime.UtcNow.AddDays(-1)),
             Reports = cluster.Reports
                 .OrderByDescending(r => r.CreatedAt)
                 .Select(r => new ClusterMemberDto

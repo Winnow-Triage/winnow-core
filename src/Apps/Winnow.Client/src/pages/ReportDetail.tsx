@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { formatTimeAgo } from '@/lib/utils';
@@ -9,8 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, ExternalLink, MessageSquare, Clock, AlertCircle, AlertTriangle, Sparkles, Paperclip, ShieldCheck, ShieldAlert, Loader2 } from 'lucide-react';
 import { MediaGallery } from '@/components/MediaGallery';
-import { Input } from '@/components/ui/input';
-import { toast } from "sonner";
+import { ConsoleLogsCard } from '@/components/dashboard/ConsoleLogsCard';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -21,13 +20,6 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ConsoleLogsCard } from '@/components/dashboard/ConsoleLogsCard';
 
 interface RelatedReport {
     id: string;
@@ -78,7 +70,6 @@ export default function ReportDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const [assignee, setAssignee] = useState('');
     const [confirmAction, setConfirmAction] = useState<{
         isOpen: boolean;
         title: string;
@@ -115,60 +106,6 @@ export default function ReportDetail() {
                     </div>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
-                    <div className="flex w-full max-w-sm items-center space-x-2">
-                        <Input
-                            placeholder={report.assignedTo ? "Reassign..." : "Assign to..."}
-                            value={assignee}
-                            onChange={(e) => setAssignee(e.target.value)}
-                            className="w-32 h-8"
-                        />
-                        <Button
-                            className="h-8"
-                            disabled={!assignee}
-                            onClick={async () => {
-                                await api.post(`/reports/${report.id}/assign`, { assignedTo: assignee });
-                                queryClient.invalidateQueries({ queryKey: ['report', id] });
-                                queryClient.invalidateQueries({ queryKey: ['reports'] });
-                            }}
-                        >
-                            Assign
-                        </Button>
-                        {report.assignedTo && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 text-red-500 hover:text-red-700"
-                                onClick={() => {
-                                    setConfirmAction({
-                                        isOpen: true,
-                                        title: 'Unassign Report?',
-                                        description: 'Are you sure you want to unassign this report?',
-                                        action: async () => {
-                                            await api.post(`/reports/${report.id}/assign`, { assignedTo: null });
-                                            queryClient.invalidateQueries({ queryKey: ['report', id] });
-                                            queryClient.invalidateQueries({ queryKey: ['reports'] });
-                                        }
-                                    });
-                                }}
-                            >
-                                Unassign
-                            </Button>
-                        )}
-                    </div>
-                    <Button variant="outline" onClick={() => {
-                        setConfirmAction({
-                            isOpen: true,
-                            title: 'Close Cluster?',
-                            description: 'Are you sure you want to CLOSE ALL reports in this cluster? This action cannot be easily undone.',
-                            action: async () => {
-                                await api.post(`/reports/${report.id}/close-cluster`, {});
-                                queryClient.invalidateQueries({ queryKey: ['report', id] });
-                                queryClient.invalidateQueries({ queryKey: ['reports'] });
-                            }
-                        });
-                    }}>
-                        Close Cluster
-                    </Button>
                     {/* External Link Button - Only visible if URL exists */}
                     {report.externalUrl && (
                         <Button variant="outline" asChild>
@@ -178,16 +115,6 @@ export default function ReportDetail() {
                             </a>
                         </Button>
                     )}
-
-                    <ExportMenu
-                        reportId={report.id}
-                        projectId={report.projectId}
-                        isExported={report.status === 'Exported'}
-                        onExport={() => {
-                            queryClient.invalidateQueries({ queryKey: ['report', id] });
-                            queryClient.invalidateQueries({ queryKey: ['reports'] });
-                        }}
-                    />
                 </div>
             </div>
 
@@ -547,82 +474,3 @@ export default function ReportDetail() {
     );
 }
 
-function ExportMenu({ reportId, projectId, onExport, isExported }: { reportId: string, projectId: string, onExport: () => void, isExported: boolean }) {
-    const { data: integrations } = useQuery<{ id: string, provider: string, name: string }[]>({
-        queryKey: ['integrations', projectId],
-        queryFn: async () => {
-            const { data } = await api.get(`/projects/${projectId}/integrations`);
-            return data;
-        },
-        retry: false
-    });
-
-    const queryClient = useQueryClient();
-
-    const exportMutation = useMutation({
-        mutationFn: async (configId: string) => {
-            await api.post(`/reports/${reportId}/export`, { configId });
-        },
-        onSuccess: () => {
-            toast.success("Report exported successfully");
-            onExport();
-            // Trigger a refetch to show updated status
-            queryClient.invalidateQueries({ queryKey: ['report', reportId] });
-        },
-        onError: (error: any) => { // Using any for simplicity with axios error
-            const fullMsg = error.response?.data?.error || error.message || "Unknown error";
-            // Clean up the message if it's the standard "Export failed: ..." prefix from backend
-            const displayMsg = fullMsg.replace(/^Export failed: /, '');
-
-            toast.error("Export Failed", {
-                description: displayMsg,
-                duration: 5000,
-            });
-        }
-    });
-
-    if (isExported) {
-        return (
-            <Button variant="ghost" disabled title="Already exported">
-                Exported
-            </Button>
-        );
-    }
-
-    if (!integrations || integrations.length === 0) return (
-        <Button variant="ghost" disabled title="No integration configured">
-            Export Unavailable
-        </Button>
-    );
-
-    if (integrations.length === 1) {
-        return (
-            <Button
-                onClick={() => exportMutation.mutate(integrations[0].id)}
-                disabled={exportMutation.isPending}
-            >
-                {exportMutation.isPending ? 'Exporting...' : `Export to ${integrations[0].provider}`}
-            </Button>
-        );
-    }
-
-    return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button disabled={exportMutation.isPending}>
-                    {exportMutation.isPending ? 'Exporting...' : 'Export To...'}
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-                {integrations.map(config => (
-                    <DropdownMenuItem
-                        key={config.id}
-                        onClick={() => exportMutation.mutate(config.id)}
-                    >
-                        Export to {config.name}
-                    </DropdownMenuItem>
-                ))}
-            </DropdownMenuContent>
-        </DropdownMenu>
-    );
-}
