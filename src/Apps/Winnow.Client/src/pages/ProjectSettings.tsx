@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { api, rotateProjectApiKey, revokeProjectSecondaryApiKey } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow, addHours, addDays } from "date-fns";
+import { PageTitle } from "@/components/ui/page-title";
 
 interface IntegrationConfig {
     id: string;
@@ -145,7 +146,7 @@ function ApiKeyManagementSection() {
                 )}
             </div>
 
-            <div className="flex items-center justify-between p-4 px-6 border-t bg-muted/50 rounded-b-lg mt-auto">
+            <CardFooter className="flex items-center justify-between border-t bg-muted/20 mt-8 py-6 px-6">
                 <div className="text-xs text-muted-foreground mr-4 flex items-center gap-2">
                     <Clock className="h-4 w-4" />
                     Zero-downtime rotation allows your old key to remain valid while you update your apps.
@@ -212,7 +213,7 @@ function ApiKeyManagementSection() {
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
-            </div>
+            </CardFooter>
         </div>
     );
 }
@@ -271,71 +272,61 @@ export default function ProjectSettings() {
 
     return (
         <div className="max-w-4xl w-full mx-auto py-8">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold tracking-tight">Project Configuration</h1>
-                <p className="text-muted-foreground">Manage settings and access for {currentProject.name}</p>
+            <div className="mb-8 px-2">
+                <PageTitle>Project Configuration</PageTitle>
+                <p className="text-muted-foreground mt-1">Manage settings and access for {currentProject.name}</p>
             </div>
 
             <div className="space-y-8">
                 {/* General Section */}
-                <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-                    <div className="flex flex-col space-y-1.5 p-6">
-                        <h3 className="font-semibold leading-none tracking-tight">General</h3>
-                        <p className="text-sm text-muted-foreground">Change basic project details here.</p>
-                    </div>
-                    <div className="p-6 pt-0 space-y-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>General</CardTitle>
+                        <CardDescription>Change basic project details here.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
                         <div className="space-y-2 max-w-sm">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                Project Name
-                            </label>
+                            <Label>Project Name</Label>
                             <Input
                                 value={projectName}
                                 onChange={(e) => setProjectName(e.target.value)}
                                 placeholder="My Awesome Project"
                             />
                         </div>
-                    </div>
-                    <div className="flex items-center justify-end p-4 px-6 border-t bg-muted/50 rounded-b-lg">
+                    </CardContent>
+                    <CardFooter className="justify-end border-t bg-muted/20 mt-8 py-6 px-6">
                         <Button
                             onClick={handleSaveGeneral}
                             disabled={isSaving || !projectName.trim() || projectName.trim() === currentProject.name}
                         >
                             {isSaving ? "Saving..." : "Save Changes"}
                         </Button>
-                    </div>
-                </div>
+                    </CardFooter>
+                </Card>
 
                 {/* API Key Section */}
-                <div className="rounded-lg border bg-card text-card-foreground shadow-sm flex flex-col">
-                    <div className="flex flex-col space-y-1.5 p-6">
-                        <h3 className="font-semibold leading-none tracking-tight">API Key</h3>
-                        <p className="text-sm text-muted-foreground">
+                <Card className="flex flex-col">
+                    <CardHeader>
+                        <CardTitle>API Key</CardTitle>
+                        <CardDescription>
                             Your project's API Key is used to authenticate the SDK to send error reports. For security reasons, it is hashed on our servers and cannot be viewed once it's created. If you lose it, you must regenerate it.
-                        </p>
-                    </div>
+                        </CardDescription>
+                    </CardHeader>
                     <ApiKeyManagementSection />
-                </div>
+                </Card>
 
                 {/* Integrations Section */}
-                <div className="rounded-lg border bg-card text-card-foreground shadow-sm flex flex-col">
-                    <div className="flex flex-col space-y-1.5 p-6 border-b">
-                        <h3 className="font-semibold leading-none tracking-tight">Integrations</h3>
-                        <p className="text-sm text-muted-foreground">Manage external issue tracker connections for this project.</p>
-                    </div>
-                    <div className="p-6">
-                        <IntegrationsSettings />
-                    </div>
-                </div>
+                <IntegrationsSection />
 
                 {/* Danger Zone */}
-                <div className="rounded-lg border border-red-500/20 bg-red-500/5 text-card-foreground shadow-sm flex flex-col">
-                    <div className="flex flex-col space-y-1.5 p-6">
-                        <h3 className="font-semibold leading-none tracking-tight text-red-600 dark:text-red-400">Danger Zone</h3>
-                        <p className="text-sm text-muted-foreground">
+                <Card className="border-red-500/20 bg-red-500/5 flex flex-col">
+                    <CardHeader>
+                        <CardTitle className="text-red-600 dark:text-red-400">Danger Zone</CardTitle>
+                        <CardDescription>
                             Irreversible actions regarding this project. Proceed with extreme caution.
-                        </p>
-                    </div>
-                    <div className="p-6 pt-0 space-y-4">
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
                         <div className="flex flex-col space-y-2">
                             <h4 className="text-sm font-medium leading-none">Delete Project</h4>
                             <p className="text-sm text-muted-foreground">
@@ -369,17 +360,42 @@ export default function ProjectSettings() {
                                 </Dialog>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </CardContent>
+                </Card>
             </div>
         </div>
     );
 }
 
-function IntegrationsSettings() {
-    const queryClient = useQueryClient();
+function IntegrationsSection() {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+
+    return (
+        <Card className="flex flex-col">
+            <CardHeader className="border-b mb-6 flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Integrations</CardTitle>
+                    <CardDescription>Manage external issue tracker connections for this project.</CardDescription>
+                </div>
+                <Button onClick={() => { setEditingId(null); setIsAddDialogOpen(true); }}>
+                    <Plus className="mr-2 h-4 w-4" /> Add Integration
+                </Button>
+            </CardHeader>
+            <CardContent>
+                <IntegrationsSettings onEdit={(id) => { setEditingId(id); setIsAddDialogOpen(true); }} />
+            </CardContent>
+            <AddIntegrationDialog
+                open={isAddDialogOpen}
+                onOpenChange={setIsAddDialogOpen}
+                editId={editingId}
+            />
+        </Card>
+    );
+}
+
+function IntegrationsSettings({ onEdit }: { onEdit: (id: string) => void }) {
+    const queryClient = useQueryClient();
     const { currentProject } = useProject();
 
     const { data: integrations, isLoading } = useQuery<IntegrationConfig[]>({
@@ -404,12 +420,6 @@ function IntegrationsSettings() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-row items-center justify-between">
-                <div></div>
-                <Button onClick={() => { setEditingId(null); setIsAddDialogOpen(true); }}>
-                    <Plus className="mr-2 h-4 w-4" /> Add Integration
-                </Button>
-            </div>
             {isLoading ? (
                 <div>Loading...</div>
             ) : integrations?.length === 0 ? (
@@ -436,10 +446,7 @@ function IntegrationsSettings() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                        onClick={() => {
-                                            setEditingId(config.id);
-                                            setIsAddDialogOpen(true);
-                                        }}
+                                        onClick={() => onEdit(config.id)}
                                     >
                                         <Edit className="h-4 w-4" />
                                     </Button>
@@ -466,12 +473,6 @@ function IntegrationsSettings() {
                     ))}
                 </div>
             )}
-
-            <AddIntegrationDialog
-                open={isAddDialogOpen}
-                onOpenChange={setIsAddDialogOpen}
-                editId={editingId}
-            />
         </div>
     );
 }
