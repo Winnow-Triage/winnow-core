@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, ExternalLink, MessageSquare, Clock, AlertCircle, AlertTriangle, Sparkles, Paperclip, ShieldCheck, ShieldAlert, Loader2 } from 'lucide-react';
 import { MediaGallery } from '@/components/MediaGallery';
 import { ConsoleLogsCard } from '@/components/dashboard/ConsoleLogsCard';
+import { PageTitle } from '@/components/ui/page-title';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -97,16 +98,23 @@ export default function ReportDetail() {
                 <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
-                <div>
+                <div className="flex flex-col gap-1 flex-1">
                     <div className="flex items-center gap-2">
-                        <h1 className="text-4xl md:text-5xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/60">
+                        <span className="text-xs font-mono text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-md">
                             R-{report.id.substring(0, 8)}
-                        </h1>
-                        <Badge variant="neutral" className="h-6 px-3">
+                        </span>
+                        <Badge variant="neutral" className="h-5 px-2 text-[10px] uppercase tracking-wider">
                             {report.status}
                         </Badge>
-                        {report.assignedTo && <Badge className="bg-blue-600/10 text-blue-600 border-blue-200 dark:border-blue-900 h-6 px-3">Assigned to: {report.assignedTo}</Badge>}
+                        {report.assignedTo && (
+                            <Badge variant="outline" className="h-5 px-2 text-[10px] bg-blue-500/5 text-blue-600 border-blue-200 dark:border-blue-900">
+                                {report.assignedTo}
+                            </Badge>
+                        )}
                     </div>
+                    <PageTitle className="text-3xl md:text-4xl">
+                        {report.title}
+                    </PageTitle>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
                     {/* External Link Button - Only visible if URL exists */}
@@ -269,10 +277,7 @@ export default function ReportDetail() {
                 <div className="md:col-span-2 flex flex-col gap-6">
                     {/* Header Section */}
                     <div className="flex flex-col gap-2">
-                        <h1 className="text-4xl font-black text-gray-900 dark:text-white leading-tight tracking-tight">
-                            {report.title}
-                        </h1>
-                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 px-2">
                             <span>
                                 Authored by {(() => {
                                     try {
