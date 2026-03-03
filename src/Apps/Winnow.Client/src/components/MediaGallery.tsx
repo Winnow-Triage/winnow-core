@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Play, X, ZoomIn, Download, FileText, Film, Image } from "lucide-react";
+import { Play, X, ZoomIn, Download, FileText, Film } from "lucide-react";
 
 interface Attachment {
   url: string;

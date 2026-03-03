@@ -29,11 +29,7 @@ export default function ReviewSuggestions() {
   const { currentProject } = useProject();
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const {
-    data: queue,
-    isLoading,
-    error,
-  } = useQuery<ReviewItem[]>({
+  const { data: queue, isLoading } = useQuery<ReviewItem[]>({
     queryKey: ["reviewQueue", currentProject?.id],
     queryFn: async () => {
       const res = await api.get("/reports/review-queue");
