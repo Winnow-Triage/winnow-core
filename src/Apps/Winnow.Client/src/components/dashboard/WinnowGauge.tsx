@@ -12,8 +12,8 @@ export function WinnowGauge({ percent, hoursSaved }: WinnowGaugeProps) {
     // const rotation = percent * 180 // Unused for now
 
     return (
-        <Card className="h-full flex flex-col bg-white border-gray-200 text-gray-900 shadow-sm dark:bg-[#0F172A] dark:border-white/10 dark:text-white dark:shadow-none transition-colors duration-200">
-            <CardHeader className="pb-2 border-b border-gray-100 dark:border-white/10">
+        <Card className="h-full flex flex-col">
+            <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                     <Filter className="h-4 w-4 text-blue-500" />
                     Winnow Ratio

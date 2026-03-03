@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PlayCircle, AlertTriangle, Sparkles, RefreshCw, Folder } from 'lucide-react';
+import { PageTitle } from '@/components/ui/page-title';
 
 export default function DebugConsole() {
     const { currentProject } = useProject();
@@ -58,13 +59,13 @@ export default function DebugConsole() {
     };
 
     return (
-        <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full p-4">
-            <h1 className="text-2xl font-bold tracking-tight text-red-500 flex items-center gap-2">
-                <AlertTriangle className="h-6 w-6" /> Debug Console
-            </h1>
-            <p className="text-muted-foreground">
-                Tools for developers to test system behavior. Not for production use.
-            </p>
+        <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
+            <div className="flex flex-col gap-1 text-red-500">
+                <PageTitle>Debug Console</PageTitle>
+                <p className="text-muted-foreground flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" /> Tools for developers to test system behavior. Not for production use.
+                </p>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>

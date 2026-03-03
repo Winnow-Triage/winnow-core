@@ -6,6 +6,7 @@ import { useProject } from "@/context/ProjectContext"
 import { WinnowGauge } from "@/components/dashboard/WinnowGauge"
 import { TriageFunnelChart } from "@/components/dashboard/TriageFunnelChart"
 import { HottestClustersList } from "@/components/dashboard/HottestClustersList"
+import { PageTitle } from "@/components/ui/page-title"
 import { PendingDecisionsCard } from "@/components/dashboard/PendingDecisionsCard"
 
 // DTO types matching backend
@@ -34,7 +35,7 @@ interface DashboardMetrics {
 
 export default function Dashboard() {
     const { currentProject } = useProject()
-    
+
     const { data, isLoading, error } = useQuery<DashboardMetrics>({
         queryKey: ["dashboardMetrics", currentProject?.id],
         queryFn: async () => {
@@ -70,12 +71,10 @@ export default function Dashboard() {
     if (!data) return null;
 
     return (
-        <div className="flex flex-col gap-6 p-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-                    <p className="text-muted-foreground">Real-time triage overview and actionable insights.</p>
-                </div>
+        <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-1">
+                <PageTitle>Dashboard</PageTitle>
+                <p className="text-muted-foreground">Real-time triage overview and actionable insights.</p>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

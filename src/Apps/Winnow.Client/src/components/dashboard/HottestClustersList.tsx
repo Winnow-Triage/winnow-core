@@ -16,8 +16,8 @@ interface HottestClustersListProps {
 
 export function HottestClustersList({ clusters }: HottestClustersListProps) {
     return (
-        <Card className="h-full bg-white border-gray-200 text-gray-900 shadow-sm dark:bg-[#0F172A] dark:border-white/10 dark:text-white dark:shadow-none transition-colors duration-200">
-            <CardHeader className="border-b border-gray-100 dark:border-white/10">
+        <Card className="h-full">
+            <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Flame className="w-5 h-5 text-orange-500" />
                     Hottest Clusters

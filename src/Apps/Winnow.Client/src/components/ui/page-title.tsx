@@ -11,7 +11,7 @@ const PageTitle = React.forwardRef<HTMLHeadingElement, PageTitleProps>(
             <h1
                 ref={ref}
                 className={cn(
-                    "text-4xl md:text-5xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/60 leading-tight",
+                    "text-4xl md:text-5xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/60 leading-tight pb-2 px-2",
                     className
                 )}
                 {...props}

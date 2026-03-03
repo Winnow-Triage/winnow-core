@@ -46,7 +46,7 @@ export function WinnowLogo({ className = "", size = 32, showText = true }: Winno
                 />
             </svg>
             {showText && (
-                <span className="font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <span className="font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent px-1 leading-normal">
                     Winnow
                 </span>
             )}

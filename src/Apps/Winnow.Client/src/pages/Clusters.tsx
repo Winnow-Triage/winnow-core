@@ -14,7 +14,9 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
-import { LayoutDashboard, Merge, RefreshCw, AlertCircle, ShieldAlert } from 'lucide-react';
+import { Merge, RefreshCw, AlertCircle, ShieldAlert } from 'lucide-react';
+import { PageTitle } from '@/components/ui/page-title';
+
 
 interface Cluster {
     id: string;
@@ -74,27 +76,20 @@ export default function Clusters() {
         );
     };
 
-    // Helper to get criticality color
-    const getCriticalityColor = (score: number | null) => {
-        if (score === null) return 'text-muted-foreground';
-        if (score >= 8) return 'text-red-500 font-bold';
-        if (score >= 5) return 'text-amber-500 font-bold';
-        return 'text-blue-500';
-    };
 
     return (
         <div className="flex flex-col gap-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <LayoutDashboard className="h-6 w-6 text-muted-foreground" />
-                    <h1 className="text-3xl font-bold tracking-tight">Active Clusters</h1>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div className="flex flex-col gap-1">
+                    <PageTitle>Active Clusters</PageTitle>
+                    <p className="text-muted-foreground">Aggregated alerts for rapid triaging and response.</p>
                 </div>
-                <div className="flex items-center gap-4 w-2/3 justify-end">
+                <div className="flex items-center gap-4 justify-end">
                     {selectedIds.length >= 2 && (
                         <Button
                             variant="default"
                             size="sm"
-                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 h-10 px-4"
                             onClick={handleMerge}
                             disabled={isMerging}
                         >
@@ -105,7 +100,7 @@ export default function Clusters() {
                     <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground whitespace-nowrap">Sort by:</span>
                         <select
-                            className="bg-background border rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+                            className="bg-background border rounded px-2 py-1 h-10 text-sm outline-none focus:ring-1 focus:ring-ring"
                             value={sortBy}
                             onChange={(e) => setSortBy(e.target.value as any)}
                         >
@@ -114,11 +109,12 @@ export default function Clusters() {
                             <option value="newest">Newest</option>
                         </select>
                     </div>
-                    <div className="w-1/3">
+                    <div className="min-w-[200px]">
                         <Input
                             placeholder="Search clusters..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
+                            className="h-10"
                         />
                     </div>
                 </div>
@@ -149,7 +145,12 @@ export default function Clusters() {
                             filteredClusters.map((cluster) => {
                                 const isSelected = selectedIds.includes(cluster.id);
                                 return (
-                                    <TableRow key={cluster.id} className={isSelected ? 'bg-muted/50' : ''}>
+                                    <TableRow
+                                        key={cluster.id}
+                                        className="cursor-pointer"
+                                        data-state={isSelected ? "selected" : undefined}
+                                        onClick={() => toggleSelection(cluster.id)}
+                                    >
                                         <TableCell>
                                             <input
                                                 type="checkbox"
@@ -168,12 +169,18 @@ export default function Clusters() {
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant="outline">{cluster.status}</Badge>
+                                            <Badge variant={cluster.status === 'Closed' ? 'success' : 'neutral'} className="rounded-full">
+                                                {cluster.status}
+                                            </Badge>
                                         </TableCell>
                                         <TableCell>
-                                            <span className={`text-sm ${getCriticalityColor(cluster.criticalityScore)}`}>
-                                                {cluster.criticalityScore ?? '—'}
-                                            </span>
+                                            {cluster.criticalityScore !== null ? (
+                                                <Badge variant={cluster.criticalityScore >= 8 ? 'critical' : cluster.criticalityScore >= 5 ? 'warning' : 'success'}>
+                                                    {cluster.criticalityScore}
+                                                </Badge>
+                                            ) : (
+                                                <span className="text-muted-foreground opacity-50 px-4">—</span>
+                                            )}
                                         </TableCell>
                                         <TableCell>{new Date(cluster.createdAt).toLocaleDateString()}</TableCell>
                                         <TableCell className="text-right">

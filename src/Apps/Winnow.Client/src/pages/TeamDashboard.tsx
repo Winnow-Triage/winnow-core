@@ -7,6 +7,7 @@ import { useTheme } from "@/components/theme-provider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { PageTitle } from "@/components/ui/page-title"
 import {
     Table,
     TableBody,
@@ -74,10 +75,10 @@ export default function TeamDashboard() {
     }
 
     return (
-        <div className="space-y-6 pt-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Team Overview</h1>
+        <div className="flex flex-col gap-6">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+                <div className="flex flex-col gap-1">
+                    <PageTitle>Team Overview</PageTitle>
                     <p className="text-muted-foreground">Cross-project health and stability metrics for your team.</p>
                 </div>
 
@@ -140,7 +141,7 @@ export default function TeamDashboard() {
                                                     <TableCell className="font-medium">{project.projectName}</TableCell>
                                                     <TableCell className="text-right">{project.reportVolume.toLocaleString()}</TableCell>
                                                     <TableCell className="text-right">
-                                                        <Badge variant={project.activeClusters > 10 ? "destructive" : "secondary"}>
+                                                        <Badge variant={project.activeClusters > 10 ? "critical" : "neutral"}>
                                                             {project.activeClusters}
                                                         </Badge>
                                                     </TableCell>

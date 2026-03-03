@@ -15,6 +15,8 @@ import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { AlertCircle, ShieldAlert, Merge, RefreshCw } from 'lucide-react';
+import { PageTitle } from '@/components/ui/page-title';
+
 
 interface Report {
     id: string;
@@ -96,14 +98,17 @@ export default function AllReports() {
 
     return (
         <div className="flex flex-col gap-6">
-            <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold tracking-tight">All Reports</h1>
-                <div className="flex items-center gap-4 w-2/3 justify-end">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div className="flex flex-col gap-1">
+                    <PageTitle>All Reports</PageTitle>
+                    <p className="text-muted-foreground">Comprehensive view of all ingested issues and telemetry.</p>
+                </div>
+                <div className="flex items-center gap-4 justify-end">
                     {selectedIds.length >= 2 && (
                         <Button
                             variant="default"
                             size="sm"
-                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 h-10 px-4"
                             onClick={handleMerge}
                             disabled={isMerging}
                         >
@@ -111,11 +116,12 @@ export default function AllReports() {
                             Group {selectedIds.length} Reports
                         </Button>
                     )}
-                    <div className="w-1/2">
+                    <div className="min-w-[250px]">
                         <Input
                             placeholder="Search reports..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
+                            className="h-10"
                         />
                     </div>
                 </div>
@@ -146,7 +152,12 @@ export default function AllReports() {
                             sortedReports.map((report) => {
                                 const isSelected = selectedIds.includes(report.id);
                                 return (
-                                    <TableRow key={report.id} className={isSelected ? 'bg-muted/50' : ''}>
+                                    <TableRow
+                                        key={report.id}
+                                        className="cursor-pointer"
+                                        data-state={isSelected ? "selected" : undefined}
+                                        onClick={() => toggleSelection(report.id)}
+                                    >
                                         <TableCell>
                                             <input
                                                 type="checkbox"
@@ -165,7 +176,9 @@ export default function AllReports() {
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant="outline">{report.status}</Badge>
+                                            <Badge variant={report.status === 'Closed' ? 'success' : report.status === 'Duplicate' ? 'muted' : 'neutral'}>
+                                                {report.status}
+                                            </Badge>
                                         </TableCell>
                                         <TableCell>{new Date(report.createdAt).toLocaleDateString()}</TableCell>
                                         <TableCell>

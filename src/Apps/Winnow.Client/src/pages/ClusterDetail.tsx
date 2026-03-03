@@ -139,12 +139,12 @@ export default function ClusterDetail() {
                                 <Badge variant="outline" className="px-3 py-1 bg-white/5 border-white/10 text-xs font-mono uppercase tracking-widest opacity-70">
                                     Cluster Detail
                                 </Badge>
-                                <Badge variant={cluster.status === 'Closed' ? 'secondary' : 'default'} className="rounded-full px-4 shadow-sm">
+                                <Badge variant={cluster.status === 'Closed' ? 'success' : cluster.status === 'Open' ? 'neutral' : 'default'} className="rounded-full px-4 shadow-sm">
                                     {cluster.status}
                                 </Badge>
                             </div>
                         </div>
-                        <h1 className="text-4xl md:text-5xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/60 leading-tight">
+                        <h1 className="text-4xl md:text-5xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/60 leading-tight pb-2 px-2">
                             {cluster.title || "Untitled Cluster"}
                         </h1>
                         <div className="flex flex-wrap items-center gap-6 mt-2">

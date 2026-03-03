@@ -19,25 +19,25 @@ export function TriageFunnelChart({ data, noiseColor, signalColor }: TriageFunne
     const { ref, dimensions } = useChartDimensions()
 
     return (
-        <Card className="col-span-2 bg-white border-gray-200 text-gray-900 shadow-sm dark:bg-[#0F172A] dark:border-white/10 dark:text-white dark:shadow-none transition-colors duration-200">
-            <CardHeader className="border-b border-gray-100 dark:border-white/10 flex flex-row items-center justify-between space-y-0">
+        <Card className="col-span-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="flex items-center gap-2">
                     <Activity className="h-4 w-4 text-blue-500" />
                     Triage Funnel
                 </CardTitle>
-                <div className="flex items-center gap-4 text-xs">
+                <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest opacity-70">
                     <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-sm bg-blue-500"></div>
-                        <span className="text-muted-foreground">Unique Issues</span>
+                        <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                        <span>Unique Issues</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-sm bg-gray-500"></div>
-                        <span className="text-muted-foreground">Duplicates</span>
+                        <div className="w-3 h-3 rounded-full bg-gray-500"></div>
+                        <span>Duplicates</span>
                     </div>
                 </div>
             </CardHeader>
             <CardContent className="pt-6">
-                <div ref={ref} className="h-[300px] w-full relative">
+                <div ref={ref} className="h-[200px] w-full relative">
                     {dimensions.width > 0 && dimensions.height > 0 ? (
                         <AreaChart
                             id="triage-funnel-area-chart"

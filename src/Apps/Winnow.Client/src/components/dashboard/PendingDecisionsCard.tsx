@@ -9,10 +9,10 @@ interface PendingDecisionsCardProps {
 
 export function PendingDecisionsCard({ count }: PendingDecisionsCardProps) {
     return (
-        <Card className="h-full flex flex-col justify-between bg-blue-50 border-gray-200 text-gray-900 shadow-sm dark:bg-blue-900/20 dark:border-white/10 dark:text-white dark:shadow-none transition-colors duration-200">
+        <Card className="h-full flex flex-col justify-between bg-blue-500/5">
             <div>
-                <CardHeader className="pb-2 border-b border-gray-200/50 dark:border-white/10">
-                    <CardTitle className="text-sm font-medium flex items-center gap-2 text-blue-700 dark:text-primary">
+                <CardHeader className="pb-2 text-blue-600 dark:text-blue-400">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
                         <GitPullRequest className="w-4 h-4" />
                         Pending Decisions
                     </CardTitle>

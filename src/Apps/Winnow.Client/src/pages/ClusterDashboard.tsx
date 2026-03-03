@@ -9,6 +9,7 @@ import { TriageFunnelChart } from "@/components/dashboard/TriageFunnelChart"
 import { HottestClustersList } from "@/components/dashboard/HottestClustersList"
 import { PendingDecisionsCard } from "@/components/dashboard/PendingDecisionsCard"
 import { TimeSavedCard } from "@/components/dashboard/TimeSavedCard"
+import { PageTitle } from "@/components/ui/page-title"
 
 // DTO types matching backend
 interface DashboardMetrics {
@@ -79,9 +80,9 @@ export default function ClusterDashboard() {
     if (!data) return null;
 
     return (
-        <div className="space-y-6 pt-4">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Actionable Triage</h1>
+        <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-1">
+                <PageTitle>Actionable Triage</PageTitle>
                 <p className="text-muted-foreground">Real-time noise (duplicate) reduction and operational insights.</p>
             </div>
 

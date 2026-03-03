@@ -13,6 +13,7 @@ import { useProject } from '@/context/ProjectContext';
 import type { Project } from '@/context/ProjectContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, UserPlus, MoreHorizontal, Settings2 } from 'lucide-react';
+import { PageTitle } from '@/components/ui/page-title';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -165,9 +166,9 @@ export default function Settings() {
     };
 
     return (
-        <div className="max-w-4xl w-full mx-auto py-8">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold tracking-tight">Organization Settings</h1>
+        <div className="max-w-4xl w-full mx-auto">
+            <div className="flex flex-col gap-1 mb-8">
+                <PageTitle>Organization Settings</PageTitle>
                 <p className="text-muted-foreground">Manage settings and access for {organization?.name || "your organization"}</p>
             </div>
 
@@ -197,7 +198,7 @@ export default function Settings() {
                                 />
                             </div>
                         </CardContent>
-                        <CardFooter className="flex items-center justify-end p-4 px-6 border-t bg-muted/50 rounded-b-lg mt-4">
+                        <CardFooter className="flex items-center justify-end p-4 px-6 border-t bg-muted/50 rounded-b-3xl mt-4">
                             <Button
                                 onClick={handleSaveOrganization}
                                 disabled={isSavingOrg || isOrgLoading || !orgName.trim() || orgName.trim() === organization?.name}
@@ -297,10 +298,10 @@ export default function Settings() {
                                             className="h-4"
                                             indicatorColor={
                                                 (billingStatus.reportsUsedThisMonth / billingStatus.reportLimit) >= 2
-                                                    ? "bg-gradient-to-r from-red-600 to-red-400 shadow-[0_0_12px_rgba(239,68,68,0.8)]"
+                                                    ? "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)]"
                                                     : (billingStatus.reportsUsedThisMonth / billingStatus.reportLimit) >= 1
-                                                        ? "bg-gradient-to-r from-amber-600 to-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.8)] animate-pulse"
-                                                        : "bg-gradient-to-r from-blue-600 to-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.5)]"
+                                                        ? "bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.8)] animate-pulse"
+                                                        : "bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.5)]"
                                             }
                                         />
                                         <div className="flex justify-between text-xs text-muted-foreground w-full">
@@ -317,7 +318,7 @@ export default function Settings() {
                                 )}
                             </CardContent>
                             {billingStatus.reportLimit !== null && billingStatus.reportsUsedThisMonth >= billingStatus.reportLimit && (
-                                <CardFooter className="bg-destructive/10 text-destructive text-sm p-4 rounded-b-lg border-t border-destructive/20">
+                                <CardFooter className="bg-destructive/10 text-destructive text-sm p-4 rounded-b-3xl border-t border-destructive/20">
                                     You have reached your monthly ingestion limit. New reports will be rejected until you upgrade your plan or until the next billing cycle.
                                 </CardFooter>
                             )}

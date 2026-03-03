@@ -15,6 +15,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { PageTitle } from "@/components/ui/page-title"
 
 export default function OrganizationDashboard() {
     const { data, isLoading, error } = useQuery<OrganizationDashboardMetrics>({
@@ -55,8 +56,8 @@ export default function OrganizationDashboard() {
 
     return (
         <div className="space-y-6 pt-4">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Organization Overview</h1>
+            <div className="flex flex-col gap-1">
+                <PageTitle>Organization Overview</PageTitle>
                 <p className="text-muted-foreground">High-level capacity, cross-team performance, and resource usage.</p>
             </div>
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
-import { formatTimeAgo } from '@/lib/utils';
+import { formatTimeAgo, cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -99,11 +99,13 @@ export default function ReportDetail() {
                 </Button>
                 <div>
                     <div className="flex items-center gap-2">
-                        <h1 className="text-2xl font-bold tracking-tight">R-{report.id.substring(0, 8)}</h1>
-                        <Badge variant={report.status === 'Exported' ? 'default' : 'secondary'}>
+                        <h1 className="text-4xl md:text-5xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/60">
+                            R-{report.id.substring(0, 8)}
+                        </h1>
+                        <Badge variant="neutral" className="h-6 px-3">
                             {report.status}
                         </Badge>
-                        {report.assignedTo && <Badge className="bg-blue-600">Assigned to: {report.assignedTo}</Badge>}
+                        {report.assignedTo && <Badge className="bg-blue-600/10 text-blue-600 border-blue-200 dark:border-blue-900 h-6 px-3">Assigned to: {report.assignedTo}</Badge>}
                     </div>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
@@ -121,19 +123,24 @@ export default function ReportDetail() {
 
             {/* Duplicate Alert */}
             {report.clusterId && report.status === 'Duplicate' && (
-                <div className="bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-center gap-3">
-                    <AlertCircle className="h-5 w-5" />
+                <div className="bg-amber-500/10 backdrop-blur-md text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800/50 rounded-3xl p-6 flex items-center gap-4 shadow-xl shadow-amber-500/5">
+                    <div className="bg-amber-500/20 p-3 rounded-2xl">
+                        <AlertCircle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                    </div>
                     <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold">This report belongs to a cluster</h4>
-                            <Badge variant="outline" className={`bg-white/50 dark:bg-black/20 border-amber-300 dark:border-amber-700 ${report.confidenceScore && report.confidenceScore > 0.8 ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                        <div className="flex items-center gap-3 mb-1">
+                            <h4 className="font-bold text-lg">This report belongs to a cluster</h4>
+                            <Badge variant="outline" className={cn(
+                                "rounded-full border-amber-200 bg-amber-500/5 px-3 py-0.5 text-xs font-semibold",
+                                report.confidenceScore && report.confidenceScore > 0.8 ? 'text-emerald-600 border-emerald-200 bg-emerald-500/5' : 'text-amber-600'
+                            )}>
                                 {report.confidenceScore !== undefined && report.confidenceScore !== null
                                     ? `${(report.confidenceScore * 100).toFixed(0)}% Match Confidence`
                                     : 'Confidence: N/A'}
                             </Badge>
                         </div>
-                        <p className="text-sm opacity-90">
-                            Cluster: <Link to={`/clusters/${report.clusterId}`} className="font-semibold underline">
+                        <p className="text-sm opacity-80">
+                            Cluster: <Link to={`/clusters/${report.clusterId}`} className="font-semibold underline decoration-amber-500/30 underline-offset-4 hover:decoration-amber-500 transition-all">
                                 {report.clusterTitle || report.clusterId}
                             </Link>
                         </p>
@@ -164,15 +171,17 @@ export default function ReportDetail() {
 
             {/* Paywall Banner (Retroactive Data Ransom) */}
             {report.isLocked && (
-                <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-center gap-3 shadow-sm">
-                    <ShieldAlert className="h-6 w-6 text-red-600 dark:text-red-400 shrink-0" />
+                <div className="bg-red-500/10 backdrop-blur-md text-red-900 dark:text-red-200 border border-red-200/50 dark:border-red-800/50 rounded-3xl p-6 flex items-center gap-4 shadow-xl shadow-red-500/5">
+                    <div className="bg-red-500/20 p-3 rounded-2xl">
+                        <ShieldAlert className="h-8 w-8 text-red-600 dark:text-red-400 shrink-0" />
+                    </div>
                     <div className="flex-1">
-                        <h4 className="font-bold text-lg">Report Locked</h4>
-                        <p className="text-sm opacity-90 mt-1">
+                        <h4 className="font-bold text-xl tracking-tight">Report Locked</h4>
+                        <p className="text-sm opacity-80 mt-1 leading-relaxed max-w-2xl">
                             Your organization has exceeded its monthly ingestion limit. Upgrade to a higher tier to view this stack trace and unlock your remaining reports.
                         </p>
                     </div>
-                    <Button asChild className="shrink-0 bg-red-600 hover:bg-red-700 text-white">
+                    <Button asChild className="shrink-0 bg-red-600 hover:bg-red-700 text-white rounded-2xl h-12 px-6 font-bold shadow-lg shadow-red-500/20 transition-all hover:scale-105 active:scale-95">
                         <Link to="/settings?tab=billing">
                             Upgrade to Unlock
                         </Link>
@@ -197,19 +206,21 @@ export default function ReportDetail() {
 
             {/* Suggested Match Alert */}
             {report.suggestedClusterId && (
-                <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-center gap-3">
-                    <Sparkles className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <div className="bg-blue-500/10 backdrop-blur-md text-blue-900 dark:text-blue-200 border border-blue-200/50 dark:border-blue-800/50 rounded-3xl p-6 flex items-center gap-4 shadow-xl shadow-blue-500/5">
+                    <div className="bg-blue-500/20 p-3 rounded-2xl">
+                        <Sparkles className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                    </div>
                     <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold">Suggested Cluster Match</h4>
-                            <Badge variant="outline" className="bg-white/50 dark:bg-black/20 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400">
+                        <div className="flex items-center gap-3 mb-1">
+                            <h4 className="font-bold text-lg">Suggested Cluster Match</h4>
+                            <Badge variant="outline" className="rounded-full border-blue-200 bg-blue-500/5 px-3 py-0.5 text-xs font-semibold text-blue-600">
                                 {report.suggestedConfidenceScore !== undefined && report.suggestedConfidenceScore !== null
                                     ? `${(report.suggestedConfidenceScore * 100).toFixed(0)}% Similarity`
                                     : 'Similarity: N/A'}
                             </Badge>
                         </div>
-                        <p className="text-sm opacity-90">
-                            This report looks very similar to cluster: <span className="font-medium">
+                        <p className="text-sm opacity-80">
+                            This report looks very similar to cluster: <span className="font-bold">
                                 {report.suggestedClusterTitle || report.suggestedClusterSummary || `Cluster #${report.suggestedClusterId?.substring(0, 8)}`}
                             </span>.
                         </p>
@@ -218,7 +229,7 @@ export default function ReportDetail() {
                         <Button
                             variant="default"
                             size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl h-10 px-4 font-bold transition-all hover:scale-105"
                             onClick={async () => {
                                 setConfirmAction({
                                     isOpen: true,
@@ -237,7 +248,7 @@ export default function ReportDetail() {
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="text-blue-800 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-800/50"
+                            className="text-blue-800 dark:text-blue-200 hover:bg-blue-500/10 rounded-2xl h-10 px-4 font-medium transition-all"
                             onClick={async () => {
                                 try {
                                     await api.post(`/reports/${report.id}/dismiss-suggestion`, {});
@@ -258,7 +269,7 @@ export default function ReportDetail() {
                 <div className="md:col-span-2 flex flex-col gap-6">
                     {/* Header Section */}
                     <div className="flex flex-col gap-2">
-                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight">
+                        <h1 className="text-4xl font-black text-gray-900 dark:text-white leading-tight tracking-tight">
                             {report.title}
                         </h1>
                         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
@@ -279,12 +290,14 @@ export default function ReportDetail() {
                     {/* AI Summary Section - Show if summary exists or if it's a cluster parent */}
                     {/* AI Perspective moved to Cluster Detail */}
                     {report.clusterId && (
-                        <div className="flex items-center gap-2 p-4 bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800 rounded-lg">
-                            <Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                            <div className="flex-1 text-sm">
-                                <span className="font-semibold text-purple-900 dark:text-purple-300">AI Analysis Available:</span> This report is part of a cluster with an AI-generated summary and criticality analysis.
+                        <div className="flex items-center gap-4 p-5 bg-purple-500/5 backdrop-blur-sm border border-purple-200/50 dark:border-purple-800/30 rounded-3xl shadow-lg shadow-purple-500/5">
+                            <div className="bg-purple-500/20 p-2 rounded-xl">
+                                <Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                             </div>
-                            <Button variant="outline" size="sm" asChild className="border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300">
+                            <div className="flex-1 text-sm leading-relaxed">
+                                <span className="font-bold text-purple-900 dark:text-purple-300">AI Analysis Available:</span> This report is part of a cluster with an AI-generated summary and criticality analysis.
+                            </div>
+                            <Button variant="outline" size="sm" asChild className="rounded-2xl border-purple-200 hover:bg-purple-100 dark:border-purple-800 dark:text-purple-300 transition-all font-semibold">
                                 <Link to={`/clusters/${report.clusterId}`}>
                                     View Cluster Analysis
                                 </Link>
@@ -294,23 +307,31 @@ export default function ReportDetail() {
 
 
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg">User Description</CardTitle>
+                    <Card className="rounded-3xl overflow-hidden border-white/10 shadow-2xl backdrop-blur-sm">
+                        <CardHeader className="bg-muted/30 pb-4">
+                            <CardTitle className="text-lg font-bold flex items-center gap-2">
+                                <MessageSquare className="h-5 w-5 text-blue-500" />
+                                User Description
+                            </CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="pt-6">
                             <div className={`prose dark:prose-invert max-w-none ${report.isLocked ? 'blur-md select-none pointer-events-none opacity-60' : ''}`}>
-                                <p className="whitespace-pre-wrap">{report.isLocked ? 'This content is hidden. Please upgrade your plan to unlock this data.' : report.message}</p>
+                                <p className="whitespace-pre-wrap leading-relaxed text-gray-700 dark:text-gray-300">
+                                    {report.isLocked ? 'This content is hidden. Please upgrade your plan to unlock this data.' : report.message}
+                                </p>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg">Activity Log</CardTitle>
+                    <Card className="rounded-3xl overflow-hidden border-white/10 shadow-2xl backdrop-blur-sm">
+                        <CardHeader className="bg-muted/30 pb-4">
+                            <CardTitle className="text-lg font-bold flex items-center gap-2">
+                                <Clock className="h-5 w-5 text-emerald-500" />
+                                Activity Log
+                            </CardTitle>
                         </CardHeader>
-                        <CardContent>
-                            <div className="text-sm text-muted-foreground">
+                        <CardContent className="pt-6">
+                            <div className="text-sm text-muted-foreground italic">
                                 No activity recorded yet.
                             </div>
                         </CardContent>
@@ -378,18 +399,21 @@ export default function ReportDetail() {
 
                     {/* Attachments / Assets */}
                     {report.assets && report.assets.length > 0 && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                                    <Paperclip className="h-3 w-3" />
+                        <Card className="rounded-3xl border-white/10 shadow-2xl overflow-hidden">
+                            <CardHeader className="bg-muted/30">
+                                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                                    <Paperclip className="h-4 w-4 text-blue-500" />
                                     Attachments
-                                    <Badge variant="outline" className="ml-auto text-xs">
+                                    <Badge variant="neutral" className="ml-auto text-xs h-5">
                                         {report.assets.length} file{report.assets.length > 1 ? 's' : ''}
                                     </Badge>
                                 </CardTitle>
-                                <CardDescription>Files captured with this report.</CardDescription>
+                                <CardDescription className="text-xs">Files captured with this report.</CardDescription>
                             </CardHeader>
-                            <CardContent className={`space-y-3 ${report.isLocked ? 'blur-md select-none pointer-events-none opacity-60' : ''}`}>
+                            <CardContent className={cn(
+                                "space-y-4 pt-6",
+                                report.isLocked ? 'blur-md select-none pointer-events-none opacity-60' : ''
+                            )}>
                                 {/* Show clean images in MediaGallery */}
                                 {report.assets.filter(a => a.status === 'Clean' && a.downloadUrl && (a.contentType.startsWith('image/') || a.contentType.startsWith('video/'))).length > 0 && (
                                     <MediaGallery
@@ -406,33 +430,33 @@ export default function ReportDetail() {
                                 {/* Status list for all assets */}
                                 <div className="space-y-2">
                                     {report.assets.map(asset => (
-                                        <div key={asset.id} className="flex items-center gap-2 text-sm rounded-md border p-2">
+                                        <div key={asset.id} className="flex items-center gap-3 text-xs rounded-2xl border border-white/5 bg-muted/20 p-3 transition-colors hover:bg-muted/40">
                                             {asset.status === 'Pending' && (
-                                                <Badge variant="outline" className="gap-1 text-yellow-600 border-yellow-300">
+                                                <Badge variant="outline" className="gap-1.5 text-amber-600 border-amber-500/20 bg-amber-500/5 text-[10px] px-2">
                                                     <Loader2 className="h-3 w-3 animate-spin" />
                                                     Scanning
                                                 </Badge>
                                             )}
                                             {asset.status === 'Clean' && (
-                                                <Badge variant="outline" className="gap-1 text-green-600 border-green-300">
+                                                <Badge variant="outline" className="gap-1.5 text-emerald-600 border-emerald-500/20 bg-emerald-500/5 text-[10px] px-2">
                                                     <ShieldCheck className="h-3 w-3" />
                                                     Clean
                                                 </Badge>
                                             )}
                                             {asset.status === 'Infected' && (
-                                                <Badge variant="destructive" className="gap-1">
+                                                <Badge variant="destructive" className="gap-1.5 text-[10px] px-2">
                                                     <ShieldAlert className="h-3 w-3" />
                                                     Infected
                                                 </Badge>
                                             )}
                                             {asset.status === 'Failed' && (
-                                                <Badge variant="outline" className="gap-1 text-red-600 border-red-300">
+                                                <Badge variant="outline" className="gap-1.5 text-red-600 border-red-500/20 bg-red-500/5 text-[10px] px-2">
                                                     <AlertCircle className="h-3 w-3" />
                                                     Failed
                                                 </Badge>
                                             )}
-                                            <span className="truncate flex-1">{asset.fileName}</span>
-                                            <span className="text-muted-foreground text-xs">
+                                            <span className="truncate flex-1 font-medium">{asset.fileName}</span>
+                                            <span className="text-muted-foreground text-[10px] tabular-nums">
                                                 {(asset.sizeBytes / 1024).toFixed(1)} KB
                                             </span>
                                         </div>
