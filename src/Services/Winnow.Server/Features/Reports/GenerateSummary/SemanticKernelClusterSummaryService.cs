@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
@@ -6,7 +7,7 @@ using Winnow.Server.Entities;
 
 namespace Winnow.Server.Features.Reports.GenerateSummary;
 
-public class SemanticKernelClusterSummaryService(Kernel kernel) : IClusterSummaryService
+public class SemanticKernelClusterSummaryService(Kernel kernel, ILogger<SemanticKernelClusterSummaryService> logger) : IClusterSummaryService
 {
     public async Task<ClusterSummaryResult> GenerateSummaryAsync(IEnumerable<Report> reports, CancellationToken ct)
     {
@@ -18,9 +19,18 @@ public class SemanticKernelClusterSummaryService(Kernel kernel) : IClusterSummar
         sb.AppendLine("Here are the reports in this cluster:");
         foreach (var report in reportList)
         {
+            var stackTrace = report.StackTrace;
+            if (stackTrace?.Length > 1500)
+            {
+                stackTrace = stackTrace[..1500] + "... [TRUNCATED]";
+            }
+
             sb.AppendLine($"- R-{report.Id.ToString()[..8]}: {report.Title}");
             sb.AppendLine($"  Description: {report.Message}");
-            sb.AppendLine($"  StackTrace: {report.StackTrace}");
+            if (!string.IsNullOrEmpty(stackTrace))
+            {
+                sb.AppendLine($"  StackTrace: {stackTrace}");
+            }
             sb.AppendLine();
         }
 
@@ -82,11 +92,24 @@ public class SemanticKernelClusterSummaryService(Kernel kernel) : IClusterSummar
             {
                 var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 var parsed = System.Text.Json.JsonSerializer.Deserialize<JsonResult>(content, options);
-                return new ClusterSummaryResult(parsed?.Title ?? "Untitled Cluster", parsed?.Summary ?? "Failed to parse summary.", parsed?.CriticalityScore, parsed?.CriticalityReasoning);
+
+                // If content parsed but fields are missing, provide a meaningful fallback
+                if (parsed == null || (string.IsNullOrEmpty(parsed.Title) && string.IsNullOrEmpty(parsed.Summary)))
+                {
+                    logger.LogWarning("LLM returned empty or invalid JSON structure: {Content}", content);
+                    return new ClusterSummaryResult("Unknown Issue", content, null, null);
+                }
+
+                return new ClusterSummaryResult(
+                    parsed.Title ?? "Untitled Cluster",
+                    parsed.Summary ?? "Failed to parse summary field from AI response.",
+                    parsed.CriticalityScore,
+                    parsed.CriticalityReasoning);
             }
-            catch
+            catch (System.Text.Json.JsonException jex)
             {
-                return new ClusterSummaryResult("Unknown Issue", content, null, null);
+                logger.LogError(jex, "Failed to parse AI summary JSON. Raw content: {Content}", content);
+                return new ClusterSummaryResult("Analysis Parsing Failed", content, null, null);
             }
         }
         catch (Exception ex)

@@ -80,10 +80,13 @@ public sealed class GenerateClusterSummaryEndpoint(WinnowDbContext db, IClusterS
             ThrowError("Cluster not found.");
         }
 
-        // Fetch all reports in this cluster to provide context for the summary
+        // Fetch a representative sample of reports to avoid overwhelming the LLM
+        // We take the 20 most recent reports to provide the most relevant context
         var clusterReports = await db.Reports
             .AsNoTracking()
             .Where(t => t.ProjectId == projectId && t.ClusterId == report.ClusterId)
+            .OrderByDescending(t => t.CreatedAt)
+            .Take(20)
             .ToListAsync(ct);
 
         var result = await summaryService.GenerateSummaryAsync(clusterReports, ct);
