@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Domain.Services; // Keeping this as IClusterService is from here
 using Winnow.Server.Entities;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
@@ -10,12 +9,12 @@ using Winnow.Server.Services.Ai;
 namespace Winnow.Server.Features.Reports.Merge;
 
 /// <summary>
-/// Request to merge multiple clusters/reports into a target cluster.
+/// Request to merge multiple reports into a target report's cluster.
 /// </summary>
-public class MergeClustersRequest
+public class MergeReportsRequest
 {
     /// <summary>
-    /// The target report/cluster ID that others will be merged INTO.
+    /// The target report ID that others will be merged INTO.
     /// </summary>
     public Guid Id { get; set; }
 
@@ -25,36 +24,32 @@ public class MergeClustersRequest
     public List<Guid> SourceIds { get; set; } = new();
 }
 
-public sealed class MergeClustersEndpoint(WinnowDbContext db, IClusterService clusterService) : Endpoint<MergeClustersRequest, ActionResponse>
+public sealed class MergeReportsEndpoint(WinnowDbContext db, IClusterService clusterService) : Endpoint<MergeReportsRequest, ActionResponse>
 {
     public override void Configure()
     {
         Post("/reports/{Id}/merge");
         Summary(s =>
         {
-            s.Summary = "Merge clusters";
-            s.Description = "Merges multiple source reports/clusters into a single target cluster. Source reports are marked as Duplicate.";
-            s.Response<ActionResponse>(200, "Clusters merged successfully");
+            s.Summary = "Merge reports into a cluster";
+            s.Description = "Merges multiple source reports into the cluster of a single target report. Source reports are marked as Duplicate.";
+            s.Response<ActionResponse>(200, "Reports merged successfully");
             s.Response(404, "Target report not found");
         });
         Options(x => x.RequireAuthorization());
     }
 
-    public override async Task HandleAsync(MergeClustersRequest req, CancellationToken ct)
+    public override async Task HandleAsync(MergeReportsRequest req, CancellationToken ct)
     {
         // Get user ID from JWT
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId is null) ThrowError("Unauthorized", 401);
 
         // Get project ID from header
-        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader))
+        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader) || !Guid.TryParse(projectIdHeader, out Guid projectId))
         {
-            ThrowError("Project ID is required in X-Project-ID header", 400);
-        }
-
-        if (!Guid.TryParse(projectIdHeader, out var projectId))
-        {
-            ThrowError("Invalid Project ID format", 400);
+            ThrowError("Valid Project ID is required in X-Project-ID header", 400);
+            return;
         }
 
         // Validate user owns this project
@@ -65,6 +60,7 @@ public sealed class MergeClustersEndpoint(WinnowDbContext db, IClusterService cl
         if (!userOwnsProject)
         {
             ThrowError("Project not found or access denied", 404);
+            return;
         }
 
         var targetReport = await db.Reports
@@ -137,13 +133,15 @@ public sealed class MergeClustersEndpoint(WinnowDbContext db, IClusterService cl
             }
         }
 
+        await db.SaveChangesAsync(ct);
+
+        // Recalculate centroid for the target cluster
         if (targetClusterId != Guid.Empty)
         {
             await clusterService.RecalculateCentroidAsync(targetClusterId, ct);
+            await db.SaveChangesAsync(ct);
         }
 
-        await db.SaveChangesAsync(ct);
-
-        await Send.OkAsync(new ActionResponse { Message = "Clusters merged successfully." }, ct);
+        await Send.OkAsync(new ActionResponse { Message = "Reports merged successfully." }, ct);
     }
 }
