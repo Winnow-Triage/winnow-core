@@ -96,7 +96,8 @@ public sealed class GenerateClusterSummaryEndpoint(WinnowDbContext db, IClusterS
             return;
         }
 
-        cluster!.Summary = result.Summary;
+        cluster!.Title = result.Title;
+        cluster.Summary = result.Summary;
         cluster.CriticalityScore = result.CriticalityScore;
         cluster.CriticalityReasoning = result.CriticalityReasoning;
 

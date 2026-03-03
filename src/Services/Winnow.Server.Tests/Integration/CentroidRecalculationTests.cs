@@ -129,6 +129,14 @@ public class CentroidRecalculationTests : IAsyncLifetime
         Assert.Equal(0.5f, updatedCluster.Centroid![0], 3);
         Assert.Equal(0.5f, updatedCluster.Centroid![1], 3);
 
+        // Verify confidence scores are updated
+        var r1 = await db.Reports.FindAsync(report1.Id);
+        var r2 = await db.Reports.FindAsync(report2.Id);
+        Assert.NotNull(r1?.ConfidenceScore);
+        Assert.NotNull(r2?.ConfidenceScore);
+        Assert.Equal(0.707f, r1.ConfidenceScore.Value, 3);
+        Assert.Equal(0.707f, r2.ConfidenceScore.Value, 3);
+
         // 3. Login to get token
         var loginRequest = new Winnow.Server.Features.Auth.LoginRequest
         {
@@ -152,6 +160,7 @@ public class CentroidRecalculationTests : IAsyncLifetime
         var ungroupedReport = await db.Reports.FindAsync(report1.Id);
         Assert.NotNull(ungroupedReport);
         Assert.Null(ungroupedReport.ClusterId);
+        Assert.Null(ungroupedReport.ConfidenceScore);
         Assert.Equal("New", ungroupedReport.Status);
 
         // 6. Verify cluster centroid is updated to report 2's embedding: [0.0, 1.0]
@@ -160,6 +169,10 @@ public class CentroidRecalculationTests : IAsyncLifetime
         Assert.NotNull(finalCluster.Centroid);
         Assert.Equal(0.0f, finalCluster.Centroid![0], 3);
         Assert.Equal(1.0f, finalCluster.Centroid![1], 3);
+
+        // Verify remaining report confidence is now 1.0 (it IS the centroid)
+        var remainingReport = await db.Reports.FindAsync(report2.Id);
+        Assert.Equal(1.0f, remainingReport!.ConfidenceScore!.Value, 3);
     }
 
     [Fact]

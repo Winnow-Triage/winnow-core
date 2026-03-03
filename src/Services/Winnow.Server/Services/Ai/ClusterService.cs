@@ -32,6 +32,20 @@ public class ClusterService(
         {
             cluster.Centroid = vectorCalculator.CalculateCentroid(memberEmbeddings);
             logger.LogInformation("ClusterService: Recalculated centroid for cluster {Id} ({Count} reports).", clusterId, memberEmbeddings.Count);
+
+            // Fetch reports again to update confidence scores (we need tracked entities)
+            var membersToUpdate = await dbContext.Reports
+                .Where(r => r.ClusterId == cluster.Id && r.Embedding != null)
+                .ToListAsync(ct);
+
+            foreach (var member in membersToUpdate)
+            {
+                var distance = vectorCalculator.CalculateCosineDistance(member.Embedding!, cluster.Centroid);
+                // Similarity = 1 - Distance. Convert to percentage.
+                member.ConfidenceScore = (float)(1.0 - distance);
+            }
+
+            logger.LogInformation("ClusterService: Updated confidence scores for {Count} reports in cluster {Id}.", membersToUpdate.Count, clusterId);
         }
         else
         {

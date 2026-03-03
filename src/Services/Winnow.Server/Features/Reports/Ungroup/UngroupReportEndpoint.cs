@@ -77,6 +77,9 @@ public sealed class UngroupReportEndpoint(WinnowDbContext db, IClusterService cl
 
         var oldClusterId = report.ClusterId;
         report.ClusterId = null;
+        report.ConfidenceScore = null;
+        report.SuggestedClusterId = null;
+        report.SuggestedConfidenceScore = null;
         report.Status = "New";
 
         await db.SaveChangesAsync(ct);
