@@ -47,10 +47,13 @@ export default function ReviewSuggestions() {
       const endpoint = type === "Report"
         ? `/reports/${id}/dismiss-suggestion`
         : `/clusters/${id}/dismiss-merge-suggestion`;
-      await api.post(endpoint);
+      await api.post(endpoint, {});
     },
     onSuccess: () => {
       handleNext();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to dismiss suggestion");
     },
   });
 
@@ -59,11 +62,14 @@ export default function ReviewSuggestions() {
       const endpoint = type === "Report"
         ? `/reports/${id}/accept-suggestion`
         : `/clusters/${id}/accept-merge-suggestion`;
-      await api.post(endpoint);
+      await api.post(endpoint, {});
     },
     onSuccess: (_, variables) => {
       toast.success(variables.type === "Report" ? "Merged into cluster" : "Clusters merged successfully");
       handleNext();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to accept suggestion");
     },
   });
 
@@ -104,7 +110,7 @@ export default function ReviewSuggestions() {
   if (!currentItem) return null;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)]">
+    <div className="flex flex-col flex-1 min-h-0">
       <div className="shrink-0 mb-6">
         <div className="flex items-center gap-4">
           <PageTitle>Review Suggestions</PageTitle>
