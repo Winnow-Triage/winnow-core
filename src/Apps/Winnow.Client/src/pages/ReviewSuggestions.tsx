@@ -9,6 +9,7 @@ import { Loader2, CheckCircle, XCircle, ArrowRight, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { PageTitle } from "@/components/ui/page-title";
 
 interface ReviewItem {
   reportId: string;
@@ -104,20 +105,18 @@ export default function ReviewSuggestions() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      {" "}
-      {/* Full height of parent container */}
-      <div className="mb-4 px-6 pt-4 shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          Review Suggestions
-          <Badge variant="outline" className="ml-2 font-normal text-sm">
+    <div className="flex flex-col min-h-[calc(100vh-12rem)] relative">
+      <div className="mb-6 shrink-0">
+        <div className="flex items-center gap-4">
+          <PageTitle>Review Suggestions</PageTitle>
+          <Badge variant="secondary" className="font-medium text-sm px-3 py-1 bg-primary/10 text-primary border-primary/20">
             {queue.length} Pending
           </Badge>
-        </h1>
+        </div>
       </div>
-      <div className="flex-1 min-h-0 grid grid-cols-2 gap-6 px-6 overflow-hidden">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Left Panel: Incoming Issue */}
-        <Card className="h-full flex flex-col border-l-4 border-l-blue-500 overflow-hidden">
+        <Card className="flex flex-col border-t-4 border-t-blue-500 shadow-md">
           <CardHeader className="bg-muted/30 pb-4 shrink-0">
             <div className="flex items-center justify-between">
               <Badge className="bg-blue-500 text-white hover:bg-blue-600">
@@ -147,7 +146,7 @@ export default function ReviewSuggestions() {
         </Card>
 
         {/* Right Panel: Suggested Match */}
-        <Card className="h-full flex flex-col border-l-4 border-l-purple-500 overflow-hidden relative">
+        <Card className="flex flex-col border-t-4 border-t-purple-500 shadow-md relative">
           <div className="absolute top-0 right-0 p-4 z-10">
             <Badge
               variant="secondary"
@@ -194,7 +193,7 @@ export default function ReviewSuggestions() {
         </Card>
       </div>
       {/* Action Bar (Sticky Bottom) */}
-      <div className="shrink-0 p-4 mt-4 bg-background border-t shadow-lg flex items-center justify-center gap-4 z-10">
+      <div className="shrink-0 p-6 mt-auto bg-background/80 backdrop-blur-xl border border-border/50 shadow-2xl rounded-2xl flex items-center justify-center gap-4 z-10 sticky bottom-4">
         <div className="flex items-center gap-4 w-full max-w-3xl justify-between">
           <Button
             variant="destructive"
