@@ -28,7 +28,7 @@ public sealed class HealthEndpoint : EndpointWithoutRequest
     {
         // Simple aggregate health endpoint - uses readiness checks
         var report = await _healthCheckService.CheckHealthAsync(
-            check => check.Tags.Contains("ready"), 
+            check => check.Tags.Contains("ready"),
             ct);
 
         if (report.Status == HealthStatus.Healthy)

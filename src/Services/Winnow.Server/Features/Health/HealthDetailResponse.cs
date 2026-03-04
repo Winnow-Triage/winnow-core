@@ -14,7 +14,7 @@ public sealed record HealthDetailResponse
 
     public sealed record HealthCheckDetail
     {
-        internal HealthCheckDetail() {} // Internal constructor prevents direct instantiation
+        internal HealthCheckDetail() { } // Internal constructor prevents direct instantiation
         public required string Name { get; init; }
         public required string Status { get; init; }
         public required string Duration { get; init; }
@@ -26,7 +26,7 @@ public sealed record HealthDetailResponse
 
     public sealed record CircuitBreakersInfo
     {
-        internal CircuitBreakersInfo() {} // Internal constructor prevents direct instantiation
+        internal CircuitBreakersInfo() { } // Internal constructor prevents direct instantiation
         public required string ExternalIntegrations { get; init; }
         public required string HttpClients { get; init; }
     }

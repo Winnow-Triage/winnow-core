@@ -11,7 +11,7 @@ public static class HealthCheckJsonWriter
     public static Task WriteHealthCheckResponse(HttpContext context, HealthReport report)
     {
         context.Response.ContentType = "application/json; charset=utf-8";
-        
+
         var response = new
         {
             status = report.Status.ToString(),
@@ -34,13 +34,13 @@ public static class HealthCheckJsonWriter
                 httpClients = "With resilience pipeline"
             }
         };
-        
+
         var options = new JsonSerializerOptions
         {
             WriteIndented = true,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
-        
+
         return context.Response.WriteAsync(JsonSerializer.Serialize(response, options));
     }
 }

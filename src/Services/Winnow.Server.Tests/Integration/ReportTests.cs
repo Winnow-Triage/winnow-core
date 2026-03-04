@@ -64,11 +64,11 @@ public class ReportTests : IAsyncLifetime
         // Create a test project in the database
         using var scope = _app.Services.CreateScope();
         var apiKeyService = scope.ServiceProvider.GetRequiredService<Winnow.Server.Infrastructure.Security.IApiKeyService>();
-        
+
         // Generate a proper API key with the correct format: wm_live_{ProjectId}_{RandomSecret}
         _projectId = Guid.NewGuid();
         _apiKey = apiKeyService.GeneratePlaintextKey(_projectId);
-        
+
         // Create the project with the hashed API key
         using var db = scope.ServiceProvider.GetRequiredService<Winnow.Server.Infrastructure.Persistence.WinnowDbContext>();
         await db.Database.EnsureCreatedAsync();
@@ -120,7 +120,7 @@ public class ReportTests : IAsyncLifetime
         };
         db.Projects.Add(project);
         await db.SaveChangesAsync();
-        
+
         _projectIdHeader = _projectId.ToString();
     }
 

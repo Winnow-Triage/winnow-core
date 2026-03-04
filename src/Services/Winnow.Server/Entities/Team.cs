@@ -10,7 +10,7 @@ public class Team
     // Navigation properties
     public Organization? Organization { get; set; }
     public ICollection<Project> Projects { get; set; } = new List<Project>();
-    
+
     // Helper methods
     public bool BelongsToOrganization(Guid organizationId)
     {

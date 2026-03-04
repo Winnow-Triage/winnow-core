@@ -60,6 +60,6 @@ public sealed class ToggleMemberLockEndpoint(WinnowDbContext db)
         member.IsLocked = !member.IsLocked;
         await db.SaveChangesAsync(ct);
 
-        await Send.OkAsync(new {member.IsLocked }, ct);
+        await Send.OkAsync(new { member.IsLocked }, ct);
     }
 }

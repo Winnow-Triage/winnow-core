@@ -9,7 +9,7 @@ namespace Winnow.Server.Infrastructure.Integrations.Strategies;
 internal class GitHubIntegrationConfigDeserializationStrategy : IIntegrationConfigDeserializationStrategy
 {
     /// <inheritdoc />
-    public bool CanHandle(string provider) => 
+    public bool CanHandle(string provider) =>
         provider.Equals("github", StringComparison.OrdinalIgnoreCase);
 
     /// <inheritdoc />

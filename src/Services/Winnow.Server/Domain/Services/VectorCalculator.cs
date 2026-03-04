@@ -43,7 +43,7 @@ public class VectorCalculator : IVectorCalculator
 
         // Filter out null vectors
         var validVectors = vectors.Where(v => v != null && v.Length > 0).ToList();
-        
+
         if (validVectors.Count == 0)
             return [];
 
@@ -53,7 +53,7 @@ public class VectorCalculator : IVectorCalculator
             throw new ArgumentException("All vectors must have the same length", nameof(vectors));
 
         float[] centroid = new float[length];
-        
+
         // Sum all vectors
         foreach (var vector in validVectors)
         {
@@ -79,7 +79,7 @@ public class VectorCalculator : IVectorCalculator
             return errorResult;
 
         var (dot, ma, mb) = CalculateDotAndMagnitudes(v1, v2);
-        
+
         if (ma == 0 || mb == 0)
             return 1.0;
 
@@ -89,7 +89,7 @@ public class VectorCalculator : IVectorCalculator
     private static bool AreVectorsValid(float[]? v1, float[]? v2, out double errorResult)
     {
         errorResult = 1.0;
-        
+
         if (v1 == null || v2 == null)
             return false;
 
@@ -105,12 +105,12 @@ public class VectorCalculator : IVectorCalculator
     private static (float Dot, float Ma, float Mb) CalculateDotAndMagnitudes(float[] v1, float[] v2)
     {
         float dot = 0, ma = 0, mb = 0;
-        
+
         for (int i = 0; i < v1.Length; i++)
         {
             float v1i = v1[i];
             float v2i = v2[i];
-            
+
             dot += v1i * v2i;
             ma += v1i * v1i;
             mb += v2i * v2i;

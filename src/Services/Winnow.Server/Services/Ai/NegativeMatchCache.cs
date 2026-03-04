@@ -13,7 +13,7 @@ public class NegativeMatchCache(IMemoryCache cache) : INegativeMatchCache
     public void MarkAsMismatch(string tenantId, Guid reportA, Guid reportB)
     {
         var key = GetKey(tenantId, reportA, reportB);
-        
+
         // Cache for 24 hours. If we haven't merged them by then, 
         // maybe the reports changed enough to be worth checking again.
         cache.Set(key, true, TimeSpan.FromHours(24));

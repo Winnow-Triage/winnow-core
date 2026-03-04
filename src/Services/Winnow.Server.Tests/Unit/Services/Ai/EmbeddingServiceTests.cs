@@ -17,7 +17,7 @@ public class EmbeddingServiceTests
     {
         _loggerMock = new Mock<ILogger<EmbeddingService>>();
         _settings = new LlmSettings { Provider = "Ollama" };
-        
+
         // Create mock providers
         _providerMocks = new List<Mock<IEmbeddingProvider>>
         {
@@ -34,7 +34,7 @@ public class EmbeddingServiceTests
     public void Constructor_WhenCalled_LogsProviderCount()
     {
         // Arrange & Act is done in constructor
-        
+
         // Assert
         _loggerMock.Verify(
             x => x.Log(
@@ -79,11 +79,11 @@ public class EmbeddingServiceTests
 
         // First provider cannot handle settings
         _providerMocks[0].Setup(p => p.CanHandle(_settings)).Returns(false);
-        
+
         // Second provider can handle settings
         _providerMocks[1].Setup(p => p.CanHandle(_settings)).Returns(true);
         _providerMocks[1].Setup(p => p.GetEmbeddingAsync(text)).ReturnsAsync(expectedEmbedding);
-        
+
         // Third provider can also handle but should not be selected
         _providerMocks[2].Setup(p => p.CanHandle(_settings)).Returns(true);
 
@@ -112,7 +112,7 @@ public class EmbeddingServiceTests
         {
             mock.Setup(p => p.CanHandle(_settings)).Returns(false);
         }
-        
+
         // First provider will be used as fallback
         _providerMocks[0].Setup(p => p.GetEmbeddingAsync(text)).ReturnsAsync(expectedEmbedding);
 

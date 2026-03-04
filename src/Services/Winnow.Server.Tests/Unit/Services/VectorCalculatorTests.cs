@@ -261,7 +261,7 @@ public class VectorCalculatorTests
             [5.0f, 6.0f, 7.0f],
             null
         ];
-        
+
         var vectors = vectorsWithNulls.Where(v => v != null).Select(v => v!).ToList();
 
         // Act

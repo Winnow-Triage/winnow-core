@@ -9,7 +9,7 @@ namespace Winnow.Server.Infrastructure.Integrations.Strategies;
 internal class JiraIntegrationConfigDeserializationStrategy : IIntegrationConfigDeserializationStrategy
 {
     /// <inheritdoc />
-    public bool CanHandle(string provider) => 
+    public bool CanHandle(string provider) =>
         provider.Equals("jira", StringComparison.OrdinalIgnoreCase);
 
     /// <inheritdoc />
