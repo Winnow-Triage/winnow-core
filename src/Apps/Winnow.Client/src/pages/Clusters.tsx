@@ -174,6 +174,7 @@ export default function Clusters() {
                         className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                         checked={isSelected}
                         onChange={() => toggleSelection(cluster.id)}
+                        onClick={(e) => e.stopPropagation()}
                       />
                     </TableCell>
                     <TableCell className="font-medium">
@@ -186,6 +187,7 @@ export default function Clusters() {
                         )}
                         <Link
                           to={`/clusters/${cluster.id}`}
+                          onClick={(e) => e.stopPropagation()}
                           className={`hover:underline block font-semibold ${cluster.isLocked ? "text-red-600 dark:text-red-400" : ""}`}
                         >
                           {cluster.isLocked

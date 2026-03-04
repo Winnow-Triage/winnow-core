@@ -116,7 +116,7 @@ describe("Clusters Component", () => {
     fireEvent.change(sortBySelect, { target: { value: "size" } });
 
     // Check if clusters are sorted by size (assuming Cluster 1 has more children)
-    expect(screen.getAllByText(/Cluster 1/i)[0]).toBeInTheDocument();
+    expect(await screen.findAllByText(/Cluster 1/i)).toHaveLength(1);
   });
 
   it("sorts clusters by criticality", async () => {
@@ -147,7 +147,7 @@ describe("Clusters Component", () => {
     fireEvent.change(sortBySelect, { target: { value: "criticality" } });
 
     // Check if clusters are sorted by criticality (assuming Cluster 1 has higher criticality)
-    expect(screen.getAllByText(/Cluster 1/i)[0]).toBeInTheDocument();
+    expect(await screen.findAllByText(/Cluster 1/i)).toHaveLength(1);
   });
 
   it("sorts clusters by newest", async () => {
@@ -178,7 +178,7 @@ describe("Clusters Component", () => {
     fireEvent.change(sortBySelect, { target: { value: "newest" } });
 
     // Check if clusters are sorted by newest (assuming Cluster 2 is newer)
-    expect(screen.getAllByText(/Cluster 2/i)[0]).toBeInTheDocument();
+    expect(await screen.findAllByText(/Cluster 2/i)).toHaveLength(1);
   });
 
   it("searches for clusters", async () => {
@@ -209,7 +209,7 @@ describe("Clusters Component", () => {
     fireEvent.change(searchInput, { target: { value: "Cluster 1" } });
 
     // Check if only Cluster 1 is displayed
-    expect(screen.getByText(/Cluster 1/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Cluster 1/i)).toBeInTheDocument();
     expect(screen.queryByText(/Cluster 2/i)).not.toBeInTheDocument();
   });
 
@@ -246,8 +246,7 @@ describe("Clusters Component", () => {
     fireEvent.click(mergeButton);
 
     // Check if merge is called with correct parameters
-    expect(vi.mocked(api.post)).toHaveBeenCalledWith("/reports/1/merge", {
-      id: "1",
+    expect(vi.mocked(api.post)).toHaveBeenCalledWith("/clusters/1/merge", {
       sourceIds: ["2"],
     });
   });

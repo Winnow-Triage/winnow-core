@@ -202,6 +202,7 @@ export default function AllReports() {
                         className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                         checked={isSelected}
                         onChange={() => toggleSelection(report.id)}
+                        onClick={(e) => e.stopPropagation()}
                       />
                     </TableCell>
                     <TableCell className="font-medium">
@@ -214,6 +215,7 @@ export default function AllReports() {
                         )}
                         <Link
                           to={`/reports/${report.id}`}
+                          onClick={(e) => e.stopPropagation()}
                           className={`hover:underline block ${report.isLocked ? "text-red-600 dark:text-red-400" : ""}`}
                         >
                           {report.isLocked
@@ -249,7 +251,7 @@ export default function AllReports() {
                     </TableCell>
                     <TableCell>
                       {report.confidenceScore !== undefined &&
-                      report.confidenceScore !== null ? (
+                        report.confidenceScore !== null ? (
                         <div className="flex items-center gap-2">
                           <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
                             <div
