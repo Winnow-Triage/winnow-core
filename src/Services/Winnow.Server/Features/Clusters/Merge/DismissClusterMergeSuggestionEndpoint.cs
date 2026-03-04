@@ -59,7 +59,8 @@ public sealed class DismissClusterMergeSuggestionEndpoint(WinnowDbContext db, IN
         }
 
         // Record negative match between the two clusters
-        negativeMatchCache.MarkAsMismatch("default", cluster.Id, cluster.SuggestedMergeClusterId.Value);
+        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? "default";
+        negativeMatchCache.MarkAsMismatch(tenantId, cluster.Id, cluster.SuggestedMergeClusterId.Value);
 
         // Clear suggestion
         cluster.SuggestedMergeClusterId = null;

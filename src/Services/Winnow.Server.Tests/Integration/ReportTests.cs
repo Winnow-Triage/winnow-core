@@ -1,23 +1,27 @@
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Winnow.Server.Features.Reports.Create;
+using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
 using Winnow.Server.Services.Storage;
+using Xunit;
 
 namespace Winnow.Server.Tests.Integration;
 
+[Collection("PostgresCollection")]
 public class ReportTests : IAsyncLifetime
 {
     private readonly WinnowTestApp _app;
-    private readonly HttpClient _client;
+    private HttpClient _client = default!;
     private readonly Mock<IEmbeddingService> _embeddingServiceMock;
     private readonly Mock<IStorageService> _storageServiceMock;
     private Guid _projectId;
     private string _apiKey = default!;
     private string? _projectIdHeader;
 
-    public ReportTests()
+    public ReportTests(PostgresFixture fixture)
     {
         _embeddingServiceMock = new Mock<IEmbeddingService>();
         _storageServiceMock = new Mock<IStorageService>();
@@ -34,33 +38,27 @@ public class ReportTests : IAsyncLifetime
                 It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("test-s3-key");
 
-        // Create the test application with mocked services using constructor
-        _app = new WinnowTestApp(services =>
+        // Pass mock services through the configureTestServices parameter
+        _app = new WinnowTestApp(fixture, services =>
         {
             // Replace IEmbeddingService with mock
             var embeddingDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(IEmbeddingService));
-            if (embeddingDescriptor != null)
-            {
-                services.Remove(embeddingDescriptor);
-            }
+            if (embeddingDescriptor != null) services.Remove(embeddingDescriptor);
             services.AddSingleton(_embeddingServiceMock.Object);
 
             // Replace IStorageService with mock
             var storageDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(IStorageService));
-            if (storageDescriptor != null)
-            {
-                services.Remove(storageDescriptor);
-            }
+            if (storageDescriptor != null) services.Remove(storageDescriptor);
             services.AddSingleton(_storageServiceMock.Object);
         });
-
-        _client = _app.CreateClient();
     }
 
     public async Task InitializeAsync()
     {
+        await _app.ResetDatabaseAsync();
+        _client = _app.CreateClient();
         // Create a test project in the database
         using var scope = _app.Services.CreateScope();
         var apiKeyService = scope.ServiceProvider.GetRequiredService<Winnow.Server.Infrastructure.Security.IApiKeyService>();

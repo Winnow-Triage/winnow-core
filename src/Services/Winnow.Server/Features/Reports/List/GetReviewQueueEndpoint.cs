@@ -69,7 +69,7 @@ public sealed class GetReviewQueueEndpoint(WinnowDbContext db) : EndpointWithout
                     r.Id,
                     r.Title,
                     r.Message,
-                    r.StackTrace,
+                    r.StackTrace == r.Message ? null : r.StackTrace,
                     r.AssignedTo ?? "Unassigned",
                     r.CreatedAt,
                     c.Id,

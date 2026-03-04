@@ -1,17 +1,22 @@
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using Winnow.Server.Entities;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
 using Winnow.Server.Services.Storage;
+using Xunit;
 
 namespace Winnow.Server.Tests.Integration;
 
+[Collection("PostgresCollection")]
 public class GetReportsTests : IAsyncLifetime
 {
     private readonly WinnowTestApp _app;
-    private readonly HttpClient _client;
+    private HttpClient _client = default!;
     private readonly Mock<IEmbeddingService> _embeddingServiceMock;
     private readonly Mock<IStorageService> _storageServiceMock;
     private Guid _projectId;
@@ -19,7 +24,7 @@ public class GetReportsTests : IAsyncLifetime
     private string? _userId;
     private string? _jwtToken;
 
-    public GetReportsTests()
+    public GetReportsTests(PostgresFixture fixture)
     {
         _embeddingServiceMock = new Mock<IEmbeddingService>();
         _storageServiceMock = new Mock<IStorageService>();
@@ -27,7 +32,7 @@ public class GetReportsTests : IAsyncLifetime
         // Configure mocks
         _embeddingServiceMock
             .Setup(x => x.GetEmbeddingAsync(It.IsAny<string>()))
-            .ReturnsAsync(() => [.. Enumerable.Range(0, 384).Select(i => (float)i / 384)]);
+            .ReturnsAsync(() => Enumerable.Range(0, 384).Select(i => (float)i / 384).ToArray());
 
         _storageServiceMock
             .Setup(x => x.UploadFileAsync(
@@ -36,33 +41,23 @@ public class GetReportsTests : IAsyncLifetime
                 It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("test-s3-key");
 
-        // Create the test application with mocked services using constructor
-        _app = new WinnowTestApp(services =>
+        // Use the factory with mocked services
+        _app = new WinnowTestApp(fixture, services =>
         {
-            // Replace IEmbeddingService with mock
-            var embeddingDescriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(IEmbeddingService));
-            if (embeddingDescriptor != null)
-            {
-                services.Remove(embeddingDescriptor);
-            }
+            var embeddingDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IEmbeddingService));
+            if (embeddingDescriptor != null) services.Remove(embeddingDescriptor);
             services.AddSingleton(_embeddingServiceMock.Object);
 
-            // Replace IStorageService with mock
-            var storageDescriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(IStorageService));
-            if (storageDescriptor != null)
-            {
-                services.Remove(storageDescriptor);
-            }
+            var storageDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IStorageService));
+            if (storageDescriptor != null) services.Remove(storageDescriptor);
             services.AddSingleton(_storageServiceMock.Object);
         });
-
-        _client = _app.CreateClient();
     }
 
     public async Task InitializeAsync()
     {
+        await _app.ResetDatabaseAsync();
+        _client = _app.CreateClient();
         // Create a test project in the database and get the generated API key
         // Use a unique email to avoid conflicts between tests
         var (projectId, apiKey) = await _app.CreateTestProjectAsync($"getreports-test-{Guid.NewGuid():N}@example.com");
@@ -96,13 +91,19 @@ public class GetReportsTests : IAsyncLifetime
     {
         try
         {
-            await _app.ResetDatabaseAsync();
+            // No reset needed here if we reset in InitializeAsync, 
+            // but we could if we want to be super clean.
+            // await _app.ResetDatabaseAsync();
+            await Task.CompletedTask;
         }
         catch
         {
-            // Ignore cleanup errors - test infrastructure issue
+            // Ignore cleanup errors
         }
         _client.Dispose();
+        // Do NOT dispose _app because it's sharing a container if we are not careful.
+        // Wait, WinnowTestApp itself should be disposed if it's a member.
+        // But our new implementation of DisposeAsync does nothing to the container.
         _app.Dispose();
     }
 

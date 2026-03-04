@@ -6,25 +6,28 @@ using Microsoft.Extensions.DependencyInjection;
 using Winnow.Server.Entities;
 using Winnow.Server.Features.Auth;
 using Winnow.Server.Features.Dashboard;
+using Xunit;
 
 namespace Winnow.Server.Tests.Integration;
 
+[Collection("PostgresCollection")]
 public class TenantAuthTests : IAsyncLifetime
 {
     private readonly WinnowTestApp _app;
-    private readonly HttpClient _client;
+    private HttpClient _client = default!;
     private const string TestEmail = "auth-test@example.com";
     private const string TestPassword = "Password123!";
     private const string TestTenantId = "test-tenant";
 
-    public TenantAuthTests()
+    public TenantAuthTests(PostgresFixture fixture)
     {
-        _app = new WinnowTestApp();
-        _client = _app.CreateClient();
+        _app = new WinnowTestApp(fixture);
     }
 
     public async Task InitializeAsync()
     {
+        await _app.ResetDatabaseAsync();
+        _client = _app.CreateClient();
         using var scope = _app.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var db = scope.ServiceProvider.GetRequiredService<Winnow.Server.Infrastructure.Persistence.WinnowDbContext>();

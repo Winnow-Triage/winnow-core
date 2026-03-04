@@ -1,18 +1,23 @@
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using Winnow.Server.Entities;
 using Winnow.Server.Features.Reports.Create;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
 using Winnow.Server.Services.Storage;
+using Xunit;
 
 namespace Winnow.Server.Tests.Integration;
 
+[Collection("PostgresCollection")]
 public class DeduplicationTests : IAsyncLifetime
 {
     private readonly WinnowTestApp _app;
-    private readonly HttpClient _client;
+    private HttpClient _client = default!;
     private readonly Mock<IEmbeddingService> _embeddingServiceMock;
     private readonly Mock<IStorageService> _storageServiceMock;
     private Guid _projectId;
@@ -20,12 +25,11 @@ public class DeduplicationTests : IAsyncLifetime
     private string? _userId;
     private string? _jwtToken;
 
-    public DeduplicationTests()
+    public DeduplicationTests(PostgresFixture fixture)
     {
         _embeddingServiceMock = new Mock<IEmbeddingService>();
         _storageServiceMock = new Mock<IStorageService>();
 
-        // Configure mocks - return same vector (all 0.5s) for any request
         var sameVector = Enumerable.Range(0, 384).Select(_ => 0.5f).ToArray();
         _embeddingServiceMock
             .Setup(x => x.GetEmbeddingAsync(It.IsAny<string>()))
@@ -38,46 +42,23 @@ public class DeduplicationTests : IAsyncLifetime
                 It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("test-s3-key");
 
-        // Create the test application with mocked services using constructor
-        _app = new WinnowTestApp(services =>
+        // Create the test application with mocked services
+        _app = new WinnowTestApp(fixture, services =>
         {
-            // Replace IEmbeddingService with mock
-            var embeddingDescriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(IEmbeddingService));
-            if (embeddingDescriptor != null)
-            {
-                services.Remove(embeddingDescriptor);
-            }
+            var embeddingDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IEmbeddingService));
+            if (embeddingDescriptor != null) services.Remove(embeddingDescriptor);
             services.AddSingleton(_embeddingServiceMock.Object);
 
-            // Replace IStorageService with mock
-            var storageDescriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(IStorageService));
-            if (storageDescriptor != null)
-            {
-                services.Remove(storageDescriptor);
-            }
+            var storageDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IStorageService));
+            if (storageDescriptor != null) services.Remove(storageDescriptor);
             services.AddSingleton(_storageServiceMock.Object);
-
-            // Replace IDuplicateChecker with mock that always returns true for similar reports
-            var duplicateCheckerDescriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(Services.Ai.IDuplicateChecker));
-            if (duplicateCheckerDescriptor != null)
-            {
-                services.Remove(duplicateCheckerDescriptor);
-            }
-            var duplicateCheckerMock = new Mock<Services.Ai.IDuplicateChecker>();
-            duplicateCheckerMock
-                .Setup(x => x.AreDuplicatesAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(true); // Always return true for tests
-            services.AddSingleton(duplicateCheckerMock.Object);
         });
-
-        _client = _app.CreateClient();
     }
 
     public async Task InitializeAsync()
     {
+        await _app.ResetDatabaseAsync();
+        _client = _app.CreateClient();
         // Create a test project in the database and get the generated API key
         var (projectId, apiKey) = await _app.CreateTestProjectAsync("dedup-test@example.com", "Password123!");
         _projectId = projectId;
@@ -204,12 +185,14 @@ public class DeduplicationTests : IAsyncLifetime
     {
         // Arrange: Setup mock to return different vectors for different inputs
         // We'll make the mock return different vectors based on input
+        // Configure mocks
         var vectorCounter = 0;
         _embeddingServiceMock
             .Setup(x => x.GetEmbeddingAsync(It.IsAny<string>()))
             .ReturnsAsync(() =>
             {
                 var vector = new float[384];
+                // Create a unique vector for each call
                 if (vectorCounter < 384) vector[vectorCounter] = 1.0f;
                 vectorCounter++;
                 return vector;

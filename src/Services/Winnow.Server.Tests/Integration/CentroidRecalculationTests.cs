@@ -4,17 +4,28 @@ using Microsoft.Extensions.DependencyInjection;
 using Winnow.Server.Entities;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
+using Xunit;
 
 namespace Winnow.Server.Tests.Integration;
 
-public class CentroidRecalculationTests : IAsyncLifetime
+[Collection("PostgresCollection")]
+public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetime
 {
-    private readonly WinnowTestApp _app = new();
+    private readonly WinnowTestApp _app = new(fixture);
     private Guid _projectId;
     private Guid _organizationId;
 
+    /// <summary>Creates a 384-dimensional vector with the first elements set, rest zero.</summary>
+    private static float[] MakeVector(params float[] seed)
+    {
+        var v = new float[384];
+        for (var i = 0; i < seed.Length && i < v.Length; i++) v[i] = seed[i];
+        return v;
+    }
+
     public async Task InitializeAsync()
     {
+        await _app.ResetDatabaseAsync();
         var client = _app.CreateClient(); // Just to trigger app creation
         using var scope = _app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
@@ -66,11 +77,7 @@ public class CentroidRecalculationTests : IAsyncLifetime
         await db.SaveChangesAsync();
     }
 
-    public async Task DisposeAsync()
-    {
-        await _app.ResetDatabaseAsync();
-        _app.Dispose();
-    }
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task UngroupReport_UpdatesCentroid()
@@ -87,7 +94,7 @@ public class CentroidRecalculationTests : IAsyncLifetime
             OrganizationId = _organizationId,
             Title = "Test Cluster",
             Status = "Open",
-            Centroid = [1.0f, 0.0f] // Initial dummy centroid
+            Centroid = MakeVector(1.0f, 0.0f) // Initial dummy centroid
         };
         db.Clusters.Add(cluster);
 
@@ -99,7 +106,7 @@ public class CentroidRecalculationTests : IAsyncLifetime
             Title = "Report 1",
             Message = "Message 1",
             ClusterId = cluster.Id,
-            Embedding = [1.0f, 0.0f],
+            Embedding = MakeVector(1.0f, 0.0f),
             CreatedAt = DateTime.UtcNow,
             Status = "Grouped"
         };
@@ -111,7 +118,7 @@ public class CentroidRecalculationTests : IAsyncLifetime
             Title = "Report 2",
             Message = "Message 2",
             ClusterId = cluster.Id,
-            Embedding = [0.0f, 1.0f],
+            Embedding = MakeVector(0.0f, 1.0f),
             CreatedAt = DateTime.UtcNow,
             Status = "Grouped"
         };
@@ -189,7 +196,7 @@ public class CentroidRecalculationTests : IAsyncLifetime
             OrganizationId = _organizationId,
             Title = "Test Cluster",
             Status = "Open",
-            Centroid = [1.0f, 0.0f]
+            Centroid = MakeVector(1.0f, 0.0f)
         };
         db.Clusters.Add(cluster);
 
@@ -201,7 +208,7 @@ public class CentroidRecalculationTests : IAsyncLifetime
             Title = "First Report",
             Message = "Message 1",
             ClusterId = cluster.Id,
-            Embedding = [1.0f, 0.0f],
+            Embedding = MakeVector(1.0f, 0.0f),
             CreatedAt = DateTime.UtcNow,
             Status = "Grouped"
         };
@@ -219,7 +226,7 @@ public class CentroidRecalculationTests : IAsyncLifetime
             Title = "Second Report",
             Message = "Message 2",
             ClusterId = cluster.Id,
-            Embedding = [0.0f, 1.0f],
+            Embedding = MakeVector(0.0f, 1.0f),
             CreatedAt = DateTime.UtcNow,
             Status = "Grouped"
         };
