@@ -1,8 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Domain.Services;
 using Winnow.Server.Entities;
-using Winnow.Server.Features.Shared;
-using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
 
@@ -18,18 +16,31 @@ internal sealed class ClusterRefinementJob(
         {
             try
             {
-                var tenants = GetAllActiveTenants();
+                using var scope = scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
-                foreach (var tenantId in tenants)
+                logger.LogInformation("Janitor: Starting global cluster refinement cycle.");
+
+                var projects = await db.Projects
+                    .AsNoTracking()
+                    .Select(p => p.Id)
+                    .ToListAsync(stoppingToken);
+
+                var embeddingService = scope.ServiceProvider.GetRequiredService<IEmbeddingService>();
+                var duplicateChecker = scope.ServiceProvider.GetRequiredService<IDuplicateChecker>();
+                var negativeCache = scope.ServiceProvider.GetRequiredService<INegativeMatchCache>();
+                var vectorCalculator = scope.ServiceProvider.GetRequiredService<IVectorCalculator>();
+                var clusterService = scope.ServiceProvider.GetRequiredService<IClusterService>();
+
+                foreach (var projectId in projects)
                 {
-                    logger.LogInformation("Janitor: Starting cleanup for Tenant {TenantId}", tenantId);
                     try
                     {
-                        await RunRefinementForTenantAsync(tenantId, stoppingToken);
+                        await ProcessProjectAsync(db, projectId, embeddingService, duplicateChecker, negativeCache, vectorCalculator, clusterService, stoppingToken);
                     }
                     catch (Exception ex)
                     {
-                        logger.LogError(ex, "Janitor: Refinement failed for Tenant {TenantId}", tenantId);
+                        logger.LogError(ex, "Janitor: Refinement failed for Project {ProjectId}", projectId);
                     }
                 }
             }
@@ -42,63 +53,12 @@ internal sealed class ClusterRefinementJob(
         }
     }
 
-    private static List<string> GetAllActiveTenants()
-    {
-        var dataDir = Path.Combine(Directory.GetCurrentDirectory(), "Data");
-        if (!Directory.Exists(dataDir)) return ["default"];
-
-        var files = Directory.GetFiles(dataDir, "*.db");
-        var tenants = files
-            .Select(f => Path.GetFileNameWithoutExtension(f))
-            .ToList();
-
-        if (!tenants.Contains("default")) tenants.Add("default");
-        return tenants;
-    }
-
-    private async Task RunRefinementForTenantAsync(string tenantId, CancellationToken ct)
-    {
-        using var scope = scopeFactory.CreateScope();
-
-        var tenantContext = scope.ServiceProvider.GetRequiredService<ITenantContext>();
-        if (tenantContext is TenantContext concreteContext)
-        {
-            concreteContext.TenantId = tenantId == "default" ? null : tenantId;
-        }
-
-        var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
-
-        if (db.Database.IsSqlite())
-        {
-            await db.Database.ExecuteSqlRawAsync(
-                "CREATE VIRTUAL TABLE IF NOT EXISTS vec_reports USING vec0(embedding float[384] distance_metric=cosine);",
-                ct);
-        }
-
-        var projects = await db.Projects
-            .AsNoTracking()
-            .Select(p => p.Id)
-            .ToListAsync(ct);
-
-        var embeddingService = scope.ServiceProvider.GetRequiredService<Services.Ai.IEmbeddingService>();
-        var duplicateChecker = scope.ServiceProvider.GetRequiredService<Services.Ai.IDuplicateChecker>();
-        var negativeCache = scope.ServiceProvider.GetRequiredService<Services.Ai.INegativeMatchCache>();
-        var vectorCalculator = scope.ServiceProvider.GetRequiredService<IVectorCalculator>();
-        var clusterService = scope.ServiceProvider.GetRequiredService<IClusterService>();
-
-        foreach (var projectId in projects)
-        {
-            await ProcessProjectAsync(db, projectId, tenantId, embeddingService, duplicateChecker, negativeCache, vectorCalculator, clusterService, ct);
-        }
-    }
-
     private async Task ProcessProjectAsync(
         WinnowDbContext db,
         Guid projectId,
-        string tenantId,
-        Services.Ai.IEmbeddingService embeddingService,
-        Services.Ai.IDuplicateChecker duplicateChecker,
-        Services.Ai.INegativeMatchCache negativeCache,
+        IEmbeddingService embeddingService,
+        IDuplicateChecker duplicateChecker,
+        INegativeMatchCache negativeCache,
         IVectorCalculator vectorCalculator,
         IClusterService clusterService,
         CancellationToken ct)
@@ -116,46 +76,36 @@ internal sealed class ClusterRefinementJob(
         {
             try
             {
-                logger.LogInformation("Janitor [{TenantId}][Project: {ProjectId}]: Generating missing embedding for report {Id}",
-                    tenantId, projectId, report.Id);
+                logger.LogInformation("Janitor [Project: {ProjectId}]: Generating missing embedding for report {Id}",
+                    projectId, report.Id);
                 var text = $"{report.Title}\n{report.Message}\n{report.StackTrace}";
                 var embeddingFloats = await embeddingService.GetEmbeddingAsync(text);
 
+                // Use direct SQL for the update to ensure it's saved even if other changes fail
                 await db.Database.ExecuteSqlRawAsync(
-                    "UPDATE Reports SET Embedding = {0} WHERE Id = {1} AND ProjectId = {2}",
+                    "UPDATE \"Reports\" SET \"Embedding\" = {0} WHERE \"Id\" = {1} AND \"ProjectId\" = {2}",
                     [embeddingFloats, report.Id, projectId], ct);
-
-                if (db.Database.IsSqlite())
-                {
-                    await db.Database.ExecuteSqlRawAsync(
-                        "DELETE FROM vec_reports WHERE rowid = (SELECT rowid FROM Reports WHERE Id = {0})",
-                        [report.Id], ct);
-
-                    await db.Database.ExecuteSqlRawAsync(
-                        "INSERT INTO vec_reports(rowid, embedding) VALUES ((SELECT rowid FROM Reports WHERE Id = {0} AND ProjectId = {1}), {2})",
-                        [report.Id, projectId, embeddingFloats], ct);
-                }
 
                 report.Embedding = embeddingFloats;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Janitor [{TenantId}][Project: {ProjectId}]: Failed to heal embedding for {Id}",
-                    tenantId, projectId, report.Id);
+                logger.LogError(ex, "Janitor [Project: {ProjectId}]: Failed to heal embedding for {Id}",
+                    projectId, report.Id);
             }
         }
 
-        // 2. Load all clusters for this project
+        // 2. Load all open clusters for this project
         var clusters = await db.Clusters
             .Where(c => c.ProjectId == projectId && c.Status != "Closed" && c.Centroid != null)
             .ToListAsync(ct);
 
-        // 3. Try to match orphan reports against existing clusters
-        int mergeCount = 0;
-        int suggestCount = 0;
+        // 3. Match orphan reports against existing clusters
+        int reportMergeCount = 0;
+        int reportSuggestCount = 0;
 
-        const double HardMergeThreshold = 0.35;
-        const double SuggestThreshold = 0.55;
+        const double ReportHardMergeThreshold = 0.35;
+        const double ReportSuggestThreshold = 0.55;
 
         foreach (var report in orphanReports)
         {
@@ -167,7 +117,7 @@ internal sealed class ClusterRefinementJob(
             {
                 if (cluster.Centroid == null) continue;
 
-                if (negativeCache.IsKnownMismatch(tenantId, report.Id, cluster.Id))
+                if (negativeCache.IsKnownMismatch("default", report.Id, cluster.Id))
                     continue;
 
                 var distance = vectorCalculator.CalculateCosineDistance(report.Embedding, cluster.Centroid);
@@ -180,7 +130,7 @@ internal sealed class ClusterRefinementJob(
 
             if (bestMatch == null) continue;
 
-            if (bestMatch.Distance <= HardMergeThreshold)
+            if (bestMatch.Distance <= ReportHardMergeThreshold)
             {
                 if (bestMatch.Distance > 0.15)
                 {
@@ -193,7 +143,7 @@ internal sealed class ClusterRefinementJob(
 
                     if (representative != null)
                     {
-                        if (negativeCache.IsKnownMismatch(tenantId, report.Id, representative.Id))
+                        if (negativeCache.IsKnownMismatch("default", report.Id, representative.Id))
                             continue;
 
                         var areDuplicates = await duplicateChecker.AreDuplicatesAsync(
@@ -203,8 +153,8 @@ internal sealed class ClusterRefinementJob(
 
                         if (!areDuplicates)
                         {
-                            negativeCache.MarkAsMismatch(tenantId, report.Id, bestMatch.Id);
-                            goto SuggestionPath;
+                            negativeCache.MarkAsMismatch("default", report.Id, bestMatch.Id);
+                            goto ReportSuggestionPath;
                         }
                     }
                 }
@@ -214,23 +164,23 @@ internal sealed class ClusterRefinementJob(
                 report.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
                 report.SuggestedClusterId = null;
                 report.SuggestedConfidenceScore = null;
-                mergeCount++;
+                reportMergeCount++;
                 continue;
             }
 
-        SuggestionPath:
-            if (bestMatch.Distance <= SuggestThreshold)
+        ReportSuggestionPath:
+            if (bestMatch.Distance <= ReportSuggestThreshold)
             {
                 if (report.SuggestedClusterId == null)
                 {
                     report.SuggestedClusterId = bestMatch.Id;
                     report.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
-                    suggestCount++;
+                    reportSuggestCount++;
                 }
             }
         }
 
-        // 4. Create clusters for remaining orphans that have embeddings but no cluster
+        // 4. Create clusters for remaining orphans
         foreach (var report in orphanReports.Where(r => r.Embedding != null && r.ClusterId == null && r.SuggestedClusterId == null))
         {
             var newCluster = new Cluster
@@ -243,22 +193,111 @@ internal sealed class ClusterRefinementJob(
             };
             db.Clusters.Add(newCluster);
             report.ClusterId = newCluster.Id;
-            clusters.Add(newCluster); // Track for centroid recalc
+            clusters.Add(newCluster);
         }
 
-        // 5. Recalculate centroids for all clusters that had reports added
+        // 5. Cluster-to-Cluster Merging
+        int clusterMergeCount = 0;
+        int clusterSuggestCount = 0;
+
+        const double ClusterHardMergeThreshold = 0.25; // More strict than reports
+        const double ClusterSuggestThreshold = 0.45;
+
+        for (int i = 0; i < clusters.Count; i++)
+        {
+            var c1 = clusters[i];
+            if (c1.Centroid == null) continue;
+
+            ClusterCandidate? bestClusterMatch = null;
+
+            for (int j = 0; j < clusters.Count; j++)
+            {
+                if (i == j) continue;
+                var c2 = clusters[j];
+                if (c2.Centroid == null) continue;
+
+                // Skip if c2 is already suggested to merge into something else or a duplicate
+                // (though clusters don't have a Dupe status yet, they might be suggested)
+
+                var distance = vectorCalculator.CalculateCosineDistance(c1.Centroid, c2.Centroid);
+
+                if (bestClusterMatch == null || distance < bestClusterMatch.Distance)
+                {
+                    bestClusterMatch = new ClusterCandidate(c2.Id, distance);
+                }
+            }
+
+            if (bestClusterMatch != null)
+            {
+                if (bestClusterMatch.Distance <= ClusterHardMergeThreshold)
+                {
+                    // High confidence: Auto-merge
+                    // In a real scenario, we'd move all reports from c1 to c2 and delete c1.
+                    // For now, let's follow the user's "same behavior as reports" - although for clusters, 
+                    // "merging" usually means combining them.
+
+                    // TODO: Implement actual data migration for auto-merge.
+                    // For now, we'll suggest it with 100% confidence to let the user confirm, 
+                    // unless we want to be truly proactive.
+
+                    // User said: "auto merge ones we're EXTREMELY confident in and suggest ones that LOOK similar"
+
+                    await PerformClusterMergeAsync(db, c1.Id, bestClusterMatch.Id, ct);
+                    clusterMergeCount++;
+
+                    // Remove c1 from our local list so we don't process it further
+                    clusters.RemoveAt(i);
+                    i--;
+                    continue;
+                }
+                else if (bestClusterMatch.Distance <= ClusterSuggestThreshold)
+                {
+                    // Suggest merge
+                    c1.SuggestedMergeClusterId = bestClusterMatch.Id;
+                    c1.SuggestedMergeConfidenceScore = (float)Math.Max(0, 1.0 - bestClusterMatch.Distance);
+                    clusterSuggestCount++;
+                }
+                else
+                {
+                    // Clear previous suggestions if they no longer match
+                    c1.SuggestedMergeClusterId = null;
+                    c1.SuggestedMergeConfidenceScore = null;
+                }
+            }
+        }
+
+        // 6. Recalculate centroids
         foreach (var cluster in clusters)
         {
             await clusterService.RecalculateCentroidAsync(cluster.Id, ct);
         }
 
-        if (mergeCount > 0 || suggestCount > 0)
+        if (reportMergeCount > 0 || reportSuggestCount > 0 || clusterMergeCount > 0 || clusterSuggestCount > 0)
         {
-            logger.LogInformation("Janitor [{TenantId}][Project: {ProjectId}]: Cleanup complete. Merged: {Merge}, Suggested: {Suggest}.",
-                tenantId, projectId, mergeCount, suggestCount);
+            logger.LogInformation("Janitor [Project: {ProjectId}]: Cycle complete.\n" +
+                "  Reports: Merged {RMerge}, Suggested {RSuggest}\n" +
+                "  Clusters: Merged {CMerge}, Suggested {CSuggest}",
+                projectId, reportMergeCount, reportSuggestCount, clusterMergeCount, clusterSuggestCount);
         }
 
         await db.SaveChangesAsync(ct);
+    }
+
+    private async Task PerformClusterMergeAsync(WinnowDbContext db, Guid sourceClusterId, Guid targetClusterId, CancellationToken ct)
+    {
+        logger.LogInformation("Janitor: Auto-merging cluster {Source} into {Target}", sourceClusterId, targetClusterId);
+
+        // Move all reports and mark as Duplicate
+        await db.Reports
+            .Where(r => r.ClusterId == sourceClusterId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.ClusterId, targetClusterId)
+                .SetProperty(r => r.Status, "Duplicate"), ct);
+
+        // Delete source cluster
+        await db.Clusters
+            .Where(c => c.Id == sourceClusterId)
+            .ExecuteDeleteAsync(ct);
     }
 
     private sealed record ClusterCandidate(Guid Id, double Distance);

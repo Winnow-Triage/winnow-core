@@ -39,49 +39,6 @@ internal static class MiddlewareExtensions
                 Console.WriteLine($"Warning: Could not ensure S3 buckets exist — MinIO may not be running. {ex.Message}");
             }
 
-            // SQLite multi-tenancy: Apply schema changes to ALL tenant databases.
-            // This is only relevant for SQLite mode where each tenant has a separate .db file.
-            var dbProvider = app.Configuration["DatabaseProvider"] ?? "Sqlite";
-            if (dbProvider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
-            {
-                var dataDir = Path.Combine(app.Environment.ContentRootPath, "Data");
-                if (Directory.Exists(dataDir))
-                {
-                    var dbFiles = Directory.GetFiles(dataDir, "*.db");
-                    foreach (var dbFile in dbFiles)
-                    {
-                        var connectionString = $"Data Source={dbFile}";
-
-                        var optionsBuilder = new DbContextOptionsBuilder<WinnowDbContext>();
-                        optionsBuilder.UseSqlite(connectionString);
-
-                        using var tenantDb = new WinnowDbContext(optionsBuilder.Options, null!, app.Configuration);
-
-                        try
-                        {
-                            tenantDb.Database.Migrate();
-
-                            // Seed a placeholder user first to avoid FK constraint failure
-                            tenantDb.Database.ExecuteSqlRaw(@"
-                                INSERT OR IGNORE INTO AspNetUsers (Id, UserName, NormalizedUserName, Email, EmailConfirmed, PasswordHash, SecurityStamp, ConcurrencyStamp, PhoneNumberConfirmed, TwoFactorEnabled, LockoutEnabled, AccessFailedCount, FullName, CreatedAt)
-                                VALUES ('00000000-0000-0000-0000-000000000001', 'system@winnow.com', 'SYSTEM@WINNOW.COM', 'system@winnow.com', 1, 'AQAAAAIAAYagAAAAEJ...', 'stamp', 'stamp', 0, 0, 0, 0, 'System User', '2024-01-01');
-                            ");
-
-                            tenantDb.Database.ExecuteSqlRaw(@"
-                                INSERT OR IGNORE INTO Projects (Id, Name, ApiKeyHash, CreatedAt, OwnerId)
-                                VALUES ('00000000-0000-0000-0000-000000000001', 'Default Project', 'wm_live_' || substr(hex(randomblob(16)), 1, 20), '2024-01-01', '00000000-0000-0000-0000-000000000001');
-                            ");
-
-                            // Ensure vec_reports exists (virtual tables are not in migrations)
-                            tenantDb.Database.ExecuteSqlRaw("CREATE VIRTUAL TABLE IF NOT EXISTS vec_reports USING vec0(embedding float[384] distance_metric=cosine);");
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Failed to migrate/seed tenant database {dbFile}: {ex.Message}");
-                        }
-                    }
-                }
-            }
         }
 
         // Middleware pipeline

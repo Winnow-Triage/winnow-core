@@ -173,31 +173,15 @@ internal static class ServiceExtensions
             services.AddScoped<IEmailService, SmtpEmailService>();
         }
 
-        // Database — provider-aware registration
-        var dbProvider = config["DatabaseProvider"] ?? "Sqlite";
-        services.AddSingleton(new DatabaseProviderInfo(dbProvider));
-
         services.AddDbContext<WinnowDbContext>((sp, options) =>
         {
             var tenantCtx = sp.GetRequiredService<ITenantContext>();
-            if (dbProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
-            {
-                options.UseNpgsql(tenantCtx.ConnectionString,
-                    npgsql =>
-                    {
-                        npgsql.UseVector();
-                        npgsql.MigrationsAssembly("Winnow.Server");
-                    })
-                    .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
-            }
-            else
-            {
-                options.UseSqlite(tenantCtx.ConnectionString,
-                    sqlite => sqlite.MigrationsAssembly("Winnow.Server"))
-                    .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
-                options.AddInterceptors(new SqliteVectorConnectionInterceptor());
-            }
-            options.ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsAssembly, Winnow.Server.Infrastructure.Persistence.ProviderMigrationsAssembly>();
+            options.UseNpgsql(tenantCtx.ConnectionString,
+                npgsql =>
+                {
+                    npgsql.UseVector();
+                    npgsql.MigrationsAssembly("Winnow.Server");
+                });
         });
 
         // Identity

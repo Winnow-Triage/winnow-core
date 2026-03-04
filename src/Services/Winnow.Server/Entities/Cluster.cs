@@ -12,6 +12,8 @@ public class Cluster : ITenantEntity
     public string? CriticalityReasoning { get; set; }
     public string Status { get; set; } = "Open";
     public string? AssignedTo { get; set; }
+    public Guid? SuggestedMergeClusterId { get; set; }
+    public float? SuggestedMergeConfidenceScore { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation

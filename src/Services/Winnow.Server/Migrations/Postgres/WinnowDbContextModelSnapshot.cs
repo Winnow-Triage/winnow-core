@@ -9,7 +9,7 @@ using Winnow.Server.Infrastructure.Persistence;
 
 #nullable disable
 
-namespace Winnow.Server.Migrations.Postgres
+namespace Winnow.Server.Migrations.Sqlite
 {
     [DbContext(typeof(WinnowDbContext))]
     partial class WinnowDbContextModelSnapshot : ModelSnapshot
@@ -308,6 +308,12 @@ namespace Winnow.Server.Migrations.Postgres
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("SuggestedMergeClusterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<float?>("SuggestedMergeConfidenceScore")
+                        .HasColumnType("real");
+
                     b.Property<string>("Summary")
                         .HasColumnType("text");
 
@@ -329,7 +335,7 @@ namespace Winnow.Server.Migrations.Postgres
 
                     b.Property<string>("Config")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("jsonb");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -722,9 +728,9 @@ namespace Winnow.Server.Migrations.Postgres
             modelBuilder.Entity("Winnow.Server.Entities.Cluster", b =>
                 {
                     b.HasOne("Winnow.Server.Entities.Project", "Project")
-                        .WithMany()
+                        .WithMany("Clusters")
                         .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Project");
@@ -776,7 +782,7 @@ namespace Winnow.Server.Migrations.Postgres
                     b.HasOne("Winnow.Server.Entities.Organization", "Organization")
                         .WithMany("Projects")
                         .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("Winnow.Server.Entities.ApplicationUser", "Owner")
@@ -788,7 +794,7 @@ namespace Winnow.Server.Migrations.Postgres
                     b.HasOne("Winnow.Server.Entities.Team", "Team")
                         .WithMany("Projects")
                         .HasForeignKey("TeamId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Organization");
 
@@ -824,9 +830,9 @@ namespace Winnow.Server.Migrations.Postgres
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Winnow.Server.Entities.Project", "Project")
-                        .WithMany()
+                        .WithMany("Reports")
                         .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Cluster");
@@ -887,7 +893,11 @@ namespace Winnow.Server.Migrations.Postgres
 
             modelBuilder.Entity("Winnow.Server.Entities.Project", b =>
                 {
+                    b.Navigation("Clusters");
+
                     b.Navigation("Integrations");
+
+                    b.Navigation("Reports");
                 });
 
             modelBuilder.Entity("Winnow.Server.Entities.Report", b =>

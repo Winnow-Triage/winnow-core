@@ -21,4 +21,6 @@ public class Project : ITenantEntity
     public Organization? Organization { get; set; }
     public ApplicationUser? Owner { get; set; }
     public ICollection<Integration> Integrations { get; set; } = new List<Integration>();
+    public ICollection<Report> Reports { get; set; } = new List<Report>();
+    public ICollection<Cluster> Clusters { get; set; } = new List<Cluster>();
 }

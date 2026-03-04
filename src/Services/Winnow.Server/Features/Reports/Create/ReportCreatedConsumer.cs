@@ -41,14 +41,6 @@ internal class ReportCreatedConsumer(
 
         var projectId = report.ProjectId;
 
-        if (dbContext.Database.IsSqlite())
-        {
-            // 2. Ensure Vector Table
-            await dbContext.Database.ExecuteSqlRawAsync(
-                "CREATE VIRTUAL TABLE IF NOT EXISTS vec_reports USING vec0(embedding float[384] distance_metric=cosine);",
-                context.CancellationToken);
-        }
-
         // 3. Cluster Matching — find best cluster by centroid similarity
         if (report.Embedding != null && report.Status != "Duplicate" && report.Status != "Duplicate (StackHash)")
         {
@@ -161,23 +153,7 @@ internal class ReportCreatedConsumer(
             await dbContext.SaveChangesAsync(context.CancellationToken); // Save the updated centroid
         }
 
-        // Sync to Vector Index - ONLY FOR SQLITE
-        if (dbContext.Database.IsSqlite() && report.Embedding != null)
-        {
-            await dbContext.Database.ExecuteSqlInterpolatedAsync($@"
-                DELETE FROM vec_reports WHERE rowid = (SELECT rowid FROM Reports WHERE Id = {report.Id})
-            ");
-
-            await dbContext.Database.ExecuteSqlInterpolatedAsync($@"
-                INSERT INTO vec_reports(rowid, embedding)
-                SELECT rowid, {report.Embedding}
-                FROM Reports
-                WHERE Id = {report.Id}
-            ");
-
-            logger.LogDebug("ReportMatching: Synchronized report {Id} to SQLite vector index.", report.Id);
-        }
-        else if (report.Embedding != null)
+        if (report.Embedding != null)
         {
             // Postgres handles this natively during SaveChangesAsync! No shadow tables needed.
             logger.LogDebug("ReportMatching: Vector saved natively to Postgres for report {Id}.", report.Id);
