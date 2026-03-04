@@ -30,20 +30,50 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         if (Database.IsNpgsql())
         {
             modelBuilder.HasPostgresExtension("vector");
-            modelBuilder.Entity<Report>()
-                .Property(b => b.Embedding)
-                .HasColumnType("vector(384)")
-                .HasConversion(
-                    v => v == null ? null : new Pgvector.Vector(v),
-                    v => v == null ? null : v.ToArray()
-                );
-            modelBuilder.Entity<Cluster>()
-                .Property(b => b.Centroid)
-                .HasColumnType("vector(384)")
-                .HasConversion(
-                    v => v == null ? null : new Pgvector.Vector(v),
-                    v => v == null ? null : v.ToArray()
-                );
+
+            modelBuilder.Entity<Report>(entity =>
+            {
+                entity.Property(b => b.Embedding)
+                    .HasColumnType("vector(384)")
+                    .HasConversion(
+                        v => v == null ? null : new Pgvector.Vector(v),
+                        v => v == null ? null : v.ToArray()
+                    );
+
+                // HNSW Index for vector similarity search
+                entity.HasIndex(r => r.Embedding)
+                    .HasMethod("hnsw")
+                    .HasOperators("vector_cosine_ops");
+
+                // Multi-tenancy index
+                entity.HasIndex(r => r.OrganizationId);
+
+                // Dashboard performance (Project + Status + Date DESC)
+                entity.HasIndex(r => new { r.ProjectId, r.Status, r.CreatedAt })
+                    .IsDescending(false, false, true);
+            });
+
+            modelBuilder.Entity<Cluster>(entity =>
+            {
+                entity.Property(b => b.Centroid)
+                    .HasColumnType("vector(384)")
+                    .HasConversion(
+                        v => v == null ? null : new Pgvector.Vector(v),
+                        v => v == null ? null : v.ToArray()
+                    );
+
+                // HNSW Index for centroid similarity (merging/dedup)
+                entity.HasIndex(c => c.Centroid)
+                    .HasMethod("hnsw")
+                    .HasOperators("vector_cosine_ops");
+
+                // Multi-tenancy index
+                entity.HasIndex(c => c.OrganizationId);
+
+                // Dashboard performance (Project + Status + Date DESC)
+                entity.HasIndex(c => new { c.ProjectId, c.Status, c.CreatedAt })
+                    .IsDescending(false, false, true);
+            });
         }
 
         // Organization -> Team -> Project hierarchy
@@ -180,8 +210,6 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                 .WithMany(p => p.Clusters)
                 .HasForeignKey(c => c.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasIndex(c => c.ProjectId);
         });
 
         // Asset -> Report relationship
@@ -197,6 +225,9 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
             // Store enum as string — works for both SQLite and Postgres
             entity.Property(a => a.Status)
                 .HasConversion<string>();
+
+            // Multi-tenancy index
+            entity.HasIndex(a => a.OrganizationId);
         });
 
         // Integration -> IntegrationConfig (polymorphic) configuration
@@ -215,6 +246,9 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                     v => JsonSerializer.Serialize(v, _jsonOptions),
                     v => JsonSerializer.Deserialize<Winnow.Integrations.Domain.IntegrationConfig>(v, _jsonOptions)!
                 );
+
+            // Multi-tenancy index
+            entity.HasIndex(i => i.OrganizationId);
         });
 
         // Organization -> Invitation relationship
