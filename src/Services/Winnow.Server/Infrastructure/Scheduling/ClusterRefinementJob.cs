@@ -57,7 +57,7 @@ internal sealed class ClusterRefinementJob(
         }
     }
 
-    private async Task ProcessProjectAsync(
+    internal async Task ProcessProjectAsync(
         WinnowDbContext db,
         Guid projectId,
         IEmbeddingService embeddingService,
@@ -67,15 +67,55 @@ internal sealed class ClusterRefinementJob(
         IClusterService clusterService,
         CancellationToken ct)
     {
-        // 1. Heal missing embeddings on orphan reports
-        var orphanReports = await db.Reports
+        var orphanReports = await GetOrphanReportsAsync(db, projectId, ct);
+
+        await HealMissingEmbeddingsAsync(db, projectId, orphanReports, embeddingService, ct);
+
+        // Load all open clusters for this project
+        var clusters = await GetOpenClustersAsync(db, projectId, ct);
+
+        var (reportMergeCount, reportSuggestCount) = await MatchOrphanReportsAsync(
+            db, projectId, orphanReports, clusters, duplicateChecker, negativeCache, vectorCalculator, ct);
+
+        CreateClustersForRemainingOrphans(db, projectId, orphanReports, clusters);
+
+        // Save changes before cluster-to-cluster merging so we don't have tracked entities
+        // depending on clusters that might be deleted via ExecuteDeleteAsync.
+        await db.SaveChangesAsync(ct);
+
+        var (clusterMergeCount, clusterSuggestCount) = await MergeClustersAsync(db, clusters, vectorCalculator, ct);
+
+        await RecalculateCentroidsAsync(clusters, clusterService, ct);
+
+        if (reportMergeCount > 0 || reportSuggestCount > 0 || clusterMergeCount > 0 || clusterSuggestCount > 0)
+        {
+            logger.LogInformation("Janitor [Project: {ProjectId}]: Cycle complete.\n" +
+                "  Reports: Merged {RMerge}, Suggested {RSuggest}\n" +
+                "  Clusters: Merged {CMerge}, Suggested {CSuggest}",
+                projectId, reportMergeCount, reportSuggestCount, clusterMergeCount, clusterSuggestCount);
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task<List<Report>> GetOrphanReportsAsync(WinnowDbContext db, Guid projectId, CancellationToken ct)
+    {
+        return await db.Reports
             .Where(t => t.ProjectId == projectId
                      && t.ClusterId == null
                      && t.Status != "Duplicate"
                      && t.Status != "Closed")
             .OrderBy(t => t.CreatedAt)
             .ToListAsync(ct);
+    }
 
+    private async Task HealMissingEmbeddingsAsync(
+        WinnowDbContext db,
+        Guid projectId,
+        List<Report> orphanReports,
+        IEmbeddingService embeddingService,
+        CancellationToken ct)
+    {
         foreach (var report in orphanReports.Where(r => r.Embedding == null))
         {
             try
@@ -98,13 +138,25 @@ internal sealed class ClusterRefinementJob(
                     projectId, report.Id);
             }
         }
+    }
 
-        // 2. Load all open clusters for this project
-        var clusters = await db.Clusters
+    private static async Task<List<Cluster>> GetOpenClustersAsync(WinnowDbContext db, Guid projectId, CancellationToken ct)
+    {
+        return await db.Clusters
             .Where(c => c.ProjectId == projectId && c.Status != "Closed" && c.Centroid != null)
             .ToListAsync(ct);
+    }
 
-        // 3. Match orphan reports against existing clusters
+    private async Task<(int ReportMergeCount, int ReportSuggestCount)> MatchOrphanReportsAsync(
+        WinnowDbContext db,
+        Guid projectId,
+        List<Report> orphanReports,
+        List<Cluster> clusters,
+        IDuplicateChecker duplicateChecker,
+        INegativeMatchCache negativeCache,
+        IVectorCalculator vectorCalculator,
+        CancellationToken ct)
+    {
         int reportMergeCount = 0;
         int reportSuggestCount = 0;
 
@@ -115,22 +167,7 @@ internal sealed class ClusterRefinementJob(
         {
             if (report.Embedding == null) continue;
 
-            ClusterCandidate? bestMatch = null;
-
-            foreach (var cluster in clusters)
-            {
-                if (cluster.Centroid == null) continue;
-
-                if (negativeCache.IsKnownMismatch("default", report.Id, cluster.Id))
-                    continue;
-
-                var distance = vectorCalculator.CalculateCosineDistance(report.Embedding, cluster.Centroid);
-
-                if (bestMatch == null || distance < bestMatch.Distance)
-                {
-                    bestMatch = new ClusterCandidate(cluster.Id, distance);
-                }
-            }
+            ClusterCandidate? bestMatch = FindBestClusterMatch(report, clusters, negativeCache, vectorCalculator);
 
             if (bestMatch == null) continue;
 
@@ -138,53 +175,102 @@ internal sealed class ClusterRefinementJob(
             {
                 if (bestMatch.Distance > 0.15)
                 {
-                    // AI-confirm for 0.15–0.35 range
-                    var representative = await db.Reports
-                        .AsNoTracking()
-                        .Where(r => r.ClusterId == bestMatch.Id && r.ProjectId == projectId)
-                        .OrderBy(r => r.CreatedAt)
-                        .FirstOrDefaultAsync(ct);
-
-                    if (representative != null)
+                    bool isDuplicate = await VerifyDuplicateAsync(db, projectId, report, bestMatch, duplicateChecker, negativeCache, ct);
+                    if (!isDuplicate)
                     {
-                        if (negativeCache.IsKnownMismatch("default", report.Id, representative.Id))
-                            continue;
-
-                        var areDuplicates = await duplicateChecker.AreDuplicatesAsync(
-                            report.Title, report.Message,
-                            representative.Title, representative.Message,
-                            ct);
-
-                        if (!areDuplicates)
+                        if (bestMatch.Distance <= ReportSuggestThreshold && report.SuggestedClusterId == null)
                         {
-                            negativeCache.MarkAsMismatch("default", report.Id, bestMatch.Id);
-                            goto ReportSuggestionPath;
+                            report.SuggestedClusterId = bestMatch.Id;
+                            report.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                            reportSuggestCount++;
                         }
+                        continue;
                     }
                 }
 
-                report.ClusterId = bestMatch.Id;
-                report.Status = "Duplicate";
-                report.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
-                report.SuggestedClusterId = null;
-                report.SuggestedConfidenceScore = null;
+                MergeReportIntoCluster(report, bestMatch);
                 reportMergeCount++;
                 continue;
             }
 
-        ReportSuggestionPath:
-            if (bestMatch.Distance <= ReportSuggestThreshold)
+            if (bestMatch.Distance <= ReportSuggestThreshold && report.SuggestedClusterId == null)
             {
-                if (report.SuggestedClusterId == null)
-                {
-                    report.SuggestedClusterId = bestMatch.Id;
-                    report.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
-                    reportSuggestCount++;
-                }
+                report.SuggestedClusterId = bestMatch.Id;
+                report.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                reportSuggestCount++;
             }
         }
 
-        // 4. Create clusters for remaining orphans
+        return (reportMergeCount, reportSuggestCount);
+    }
+
+    private static void MergeReportIntoCluster(Report report, ClusterCandidate bestMatch)
+    {
+        report.ClusterId = bestMatch.Id;
+        report.Status = "Duplicate";
+        report.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+        report.SuggestedClusterId = null;
+        report.SuggestedConfidenceScore = null;
+    }
+
+    private static ClusterCandidate? FindBestClusterMatch(Report report, List<Cluster> clusters, INegativeMatchCache negativeCache, IVectorCalculator vectorCalculator)
+    {
+        ClusterCandidate? bestMatch = null;
+
+        foreach (var cluster in clusters)
+        {
+            if (cluster.Centroid == null) continue;
+
+            if (negativeCache.IsKnownMismatch("default", report.Id, cluster.Id))
+                continue;
+
+            var distance = vectorCalculator.CalculateCosineDistance(report.Embedding!, cluster.Centroid);
+
+            if (bestMatch == null || distance < bestMatch.Distance)
+            {
+                bestMatch = new ClusterCandidate(cluster.Id, distance);
+            }
+        }
+
+        return bestMatch;
+    }
+
+    private async Task<bool> VerifyDuplicateAsync(
+        WinnowDbContext db,
+        Guid projectId,
+        Report report,
+        ClusterCandidate bestMatch,
+        IDuplicateChecker duplicateChecker,
+        INegativeMatchCache negativeCache,
+        CancellationToken ct)
+    {
+        var representative = await db.Reports
+            .AsNoTracking()
+            .Where(r => r.ClusterId == bestMatch.Id && r.ProjectId == projectId)
+            .OrderBy(r => r.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (representative != null)
+        {
+            if (negativeCache.IsKnownMismatch("default", report.Id, representative.Id))
+                return false;
+
+            var areDuplicates = await duplicateChecker.AreDuplicatesAsync(
+                report.Title, report.Message,
+                representative.Title, representative.Message,
+                ct);
+
+            if (!areDuplicates)
+            {
+                negativeCache.MarkAsMismatch("default", report.Id, bestMatch.Id);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static void CreateClustersForRemainingOrphans(WinnowDbContext db, Guid projectId, List<Report> orphanReports, List<Cluster> clusters)
+    {
         foreach (var report in orphanReports.Where(r => r.Embedding != null && r.ClusterId == null && r.SuggestedClusterId == null))
         {
             var newCluster = new Cluster
@@ -199,12 +285,10 @@ internal sealed class ClusterRefinementJob(
             report.ClusterId = newCluster.Id;
             clusters.Add(newCluster);
         }
+    }
 
-        // Save changes before cluster-to-cluster merging so we don't have tracked entities
-        // depending on clusters that might be deleted via ExecuteDeleteAsync.
-        await db.SaveChangesAsync(ct);
-
-        // 5. Cluster-to-Cluster Merging
+    private async Task<(int ClusterMergeCount, int ClusterSuggestCount)> MergeClustersAsync(WinnowDbContext db, List<Cluster> clusters, IVectorCalculator vectorCalculator, CancellationToken ct)
+    {
         int clusterMergeCount = 0;
         int clusterSuggestCount = 0;
 
@@ -224,9 +308,6 @@ internal sealed class ClusterRefinementJob(
                 var c2 = clusters[j];
                 if (c2.Centroid == null) continue;
 
-                // Skip if c2 is already suggested to merge into something else or a duplicate
-                // (though clusters don't have a Dupe status yet, they might be suggested)
-
                 var distance = vectorCalculator.CalculateCosineDistance(c1.Centroid, c2.Centroid);
 
                 if (bestClusterMatch == null || distance < bestClusterMatch.Distance)
@@ -239,56 +320,36 @@ internal sealed class ClusterRefinementJob(
             {
                 if (bestClusterMatch.Distance <= ClusterHardMergeThreshold)
                 {
-                    // High confidence: Auto-merge
-                    // In a real scenario, we'd move all reports from c1 to c2 and delete c1.
-                    // For now, let's follow the user's "same behavior as reports" - although for clusters, 
-                    // "merging" usually means combining them.
-
-                    // TODO: Implement actual data migration for auto-merge.
-                    // For now, we'll suggest it with 100% confidence to let the user confirm, 
-                    // unless we want to be truly proactive.
-
-                    // User said: "auto merge ones we're EXTREMELY confident in and suggest ones that LOOK similar"
-
                     await PerformClusterMergeAsync(db, c1.Id, bestClusterMatch.Id, ct);
                     clusterMergeCount++;
 
-                    // Remove c1 from our local list so we don't process it further
                     clusters.RemoveAt(i);
                     i--;
                     continue;
                 }
                 else if (bestClusterMatch.Distance <= ClusterSuggestThreshold)
                 {
-                    // Suggest merge
                     c1.SuggestedMergeClusterId = bestClusterMatch.Id;
                     c1.SuggestedMergeConfidenceScore = (float)Math.Max(0, 1.0 - bestClusterMatch.Distance);
                     clusterSuggestCount++;
                 }
                 else
                 {
-                    // Clear previous suggestions if they no longer match
                     c1.SuggestedMergeClusterId = null;
                     c1.SuggestedMergeConfidenceScore = null;
                 }
             }
         }
 
-        // 6. Recalculate centroids
+        return (clusterMergeCount, clusterSuggestCount);
+    }
+
+    private static async Task RecalculateCentroidsAsync(List<Cluster> clusters, IClusterService clusterService, CancellationToken ct)
+    {
         foreach (var cluster in clusters)
         {
             await clusterService.RecalculateCentroidAsync(cluster.Id, ct);
         }
-
-        if (reportMergeCount > 0 || reportSuggestCount > 0 || clusterMergeCount > 0 || clusterSuggestCount > 0)
-        {
-            logger.LogInformation("Janitor [Project: {ProjectId}]: Cycle complete.\n" +
-                "  Reports: Merged {RMerge}, Suggested {RSuggest}\n" +
-                "  Clusters: Merged {CMerge}, Suggested {CSuggest}",
-                projectId, reportMergeCount, reportSuggestCount, clusterMergeCount, clusterSuggestCount);
-        }
-
-        await db.SaveChangesAsync(ct);
     }
 
     private async Task PerformClusterMergeAsync(WinnowDbContext db, Guid sourceClusterId, Guid targetClusterId, CancellationToken ct)
