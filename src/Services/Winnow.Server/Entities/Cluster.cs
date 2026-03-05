@@ -14,6 +14,7 @@ public class Cluster : ITenantEntity
     public string? AssignedTo { get; set; }
     public Guid? SuggestedMergeClusterId { get; set; }
     public float? SuggestedMergeConfidenceScore { get; set; }
+    public DateTime? LastSummarizedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation

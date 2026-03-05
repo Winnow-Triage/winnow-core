@@ -16,26 +16,30 @@ internal sealed class ClusterRefinementJob(
         {
             try
             {
-                using var scope = scopeFactory.CreateScope();
-                var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
-
                 logger.LogInformation("Janitor: Starting global cluster refinement cycle.");
 
-                var projects = await db.Projects
-                    .AsNoTracking()
-                    .Select(p => p.Id)
-                    .ToListAsync(stoppingToken);
-
-                var embeddingService = scope.ServiceProvider.GetRequiredService<IEmbeddingService>();
-                var duplicateChecker = scope.ServiceProvider.GetRequiredService<IDuplicateChecker>();
-                var negativeCache = scope.ServiceProvider.GetRequiredService<INegativeMatchCache>();
-                var vectorCalculator = scope.ServiceProvider.GetRequiredService<IVectorCalculator>();
-                var clusterService = scope.ServiceProvider.GetRequiredService<IClusterService>();
+                List<Guid> projects;
+                using (var outerScope = scopeFactory.CreateScope())
+                {
+                    var db = outerScope.ServiceProvider.GetRequiredService<WinnowDbContext>();
+                    projects = await db.Projects
+                        .AsNoTracking()
+                        .Select(p => p.Id)
+                        .ToListAsync(stoppingToken);
+                }
 
                 foreach (var projectId in projects)
                 {
                     try
                     {
+                        using var scope = scopeFactory.CreateScope();
+                        var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
+                        var embeddingService = scope.ServiceProvider.GetRequiredService<IEmbeddingService>();
+                        var duplicateChecker = scope.ServiceProvider.GetRequiredService<IDuplicateChecker>();
+                        var negativeCache = scope.ServiceProvider.GetRequiredService<INegativeMatchCache>();
+                        var vectorCalculator = scope.ServiceProvider.GetRequiredService<IVectorCalculator>();
+                        var clusterService = scope.ServiceProvider.GetRequiredService<IClusterService>();
+
                         await ProcessProjectAsync(db, projectId, embeddingService, duplicateChecker, negativeCache, vectorCalculator, clusterService, stoppingToken);
                     }
                     catch (Exception ex)
@@ -195,6 +199,10 @@ internal sealed class ClusterRefinementJob(
             report.ClusterId = newCluster.Id;
             clusters.Add(newCluster);
         }
+
+        // Save changes before cluster-to-cluster merging so we don't have tracked entities
+        // depending on clusters that might be deleted via ExecuteDeleteAsync.
+        await db.SaveChangesAsync(ct);
 
         // 5. Cluster-to-Cluster Merging
         int clusterMergeCount = 0;
