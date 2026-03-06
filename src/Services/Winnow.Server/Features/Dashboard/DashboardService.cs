@@ -58,8 +58,25 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         var activeClusters = await clusterQuery
             .CountAsync(c => c.Status != "Closed", ct);
 
-        var pendingReviews = await baseQuery
-            .CountAsync(t => t.SuggestedClusterId != null && t.Status != "Duplicate" && t.Status != "Closed", ct);
+        // Use joins to match exactly what the review queue returns — only count suggestions
+        // where the target cluster still exists (deleted clusters would inflate the count otherwise).
+        var pendingReportReviews = await baseQuery
+            .Where(r => r.SuggestedClusterId != null && r.Status != "Duplicate" && r.Status != "Closed")
+            .Join(db.Clusters.Where(c => c.ProjectId == projectId),
+                r => r.SuggestedClusterId,
+                c => c.Id,
+                (r, c) => r.Id)
+            .CountAsync(ct);
+
+        var pendingClusterMerges = await clusterQuery
+            .Where(c => c.SuggestedMergeClusterId != null && c.Status != "Closed")
+            .Join(db.Clusters.Where(c => c.ProjectId == projectId),
+                c1 => c1.SuggestedMergeClusterId,
+                c2 => c2.Id,
+                (c1, c2) => c1.Id)
+            .CountAsync(ct);
+
+        var pendingReviews = pendingReportReviews + pendingClusterMerges;
 
         double noiseRatio = totalReports > 0
             ? 1.0 - ((double)activeClusters / totalReports)

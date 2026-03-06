@@ -78,6 +78,20 @@ public sealed class AcceptClusterMergeSuggestionEndpoint(WinnowDbContext db, ICl
             report.Status = "Duplicate";
         }
 
+        // Clear any suggestion references pointing to the source cluster before deleting it,
+        // to avoid orphaned SuggestedClusterId values inflating the pending decisions count.
+        await db.Reports
+            .Where(r => r.ProjectId == projectId && r.SuggestedClusterId == sourceCluster.Id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.SuggestedClusterId, (Guid?)null)
+                .SetProperty(r => r.SuggestedConfidenceScore, (float?)null), ct);
+
+        await db.Clusters
+            .Where(c => c.ProjectId == projectId && c.SuggestedMergeClusterId == sourceCluster.Id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(c => c.SuggestedMergeClusterId, (Guid?)null)
+                .SetProperty(c => c.SuggestedMergeConfidenceScore, (float?)null), ct);
+
         // Delete source cluster
         db.Clusters.Remove(sourceCluster);
         await db.SaveChangesAsync(ct);

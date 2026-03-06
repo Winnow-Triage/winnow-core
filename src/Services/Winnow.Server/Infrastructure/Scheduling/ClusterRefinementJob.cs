@@ -363,6 +363,19 @@ internal sealed class ClusterRefinementJob(
                 .SetProperty(r => r.ClusterId, targetClusterId)
                 .SetProperty(r => r.Status, "Duplicate"), ct);
 
+        // Clear any suggestion references pointing to the source cluster before deleting it
+        await db.Reports
+            .Where(r => r.SuggestedClusterId == sourceClusterId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.SuggestedClusterId, (Guid?)null)
+                .SetProperty(r => r.SuggestedConfidenceScore, (float?)null), ct);
+
+        await db.Clusters
+            .Where(c => c.SuggestedMergeClusterId == sourceClusterId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(c => c.SuggestedMergeClusterId, (Guid?)null)
+                .SetProperty(c => c.SuggestedMergeConfidenceScore, (float?)null), ct);
+
         // Delete source cluster
         await db.Clusters
             .Where(c => c.Id == sourceClusterId)
