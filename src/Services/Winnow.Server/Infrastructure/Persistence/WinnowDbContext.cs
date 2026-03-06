@@ -26,6 +26,16 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
     {
         base.OnModelCreating(modelBuilder);
 
+        var floatArrayComparer = new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<float[]>(
+            (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == null && c2 == null,
+            c => c != null ? c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())) : 0,
+            c => c != null ? c.ToArray() : null!);
+
+        var guidListComparer = new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<Guid>>(
+            (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == null && c2 == null,
+            c => c != null ? c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())) : 0,
+            c => c != null ? c.ToList() : null!);
+
         // Configure database-specific features
         if (Database.IsNpgsql())
         {
@@ -38,7 +48,8 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                     .HasConversion(
                         v => v == null ? null : new Pgvector.Vector(v),
                         v => v == null ? null : v.ToArray()
-                    );
+                    )
+                    .Metadata.SetValueComparer(floatArrayComparer);
 
                 // HNSW Index for vector similarity search
                 entity.HasIndex(r => r.Embedding)
@@ -60,7 +71,8 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                     .HasConversion(
                         v => v == null ? null : new Pgvector.Vector(v),
                         v => v == null ? null : v.ToArray()
-                    );
+                    )
+                    .Metadata.SetValueComparer(floatArrayComparer);
 
                 // HNSW Index for centroid similarity (merging/dedup)
                 entity.HasIndex(c => c.Centroid)
@@ -268,13 +280,15 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, _jsonOptions),
                     v => JsonSerializer.Deserialize<List<Guid>>(v, _jsonOptions) ?? new List<Guid>()
-                );
+                )
+                .Metadata.SetValueComparer(guidListComparer);
 
             entity.Property(oi => oi.InitialProjectIds)
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, _jsonOptions),
                     v => JsonSerializer.Deserialize<List<Guid>>(v, _jsonOptions) ?? new List<Guid>()
-                );
+                )
+                .Metadata.SetValueComparer(guidListComparer);
         });
 
         // Note: Global query filters for tenant isolation are applied at runtime
