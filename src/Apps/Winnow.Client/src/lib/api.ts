@@ -110,6 +110,8 @@ export interface BillingStatusResponse {
   subscriptionTier: string;
   reportsUsedThisMonth: number;
   reportLimit: number | null;
+  monthlySummaryLimit: number | null;
+  currentMonthSummaries: number;
   hasActiveSubscription: boolean;
 }
 
@@ -275,6 +277,8 @@ export interface QuotaStatus {
   monthlyReportCount: number;
   isOverage: boolean;
   isLocked: boolean;
+  aiSummaryLimit: number | null;
+  currentMonthAiSummaries: number;
 }
 
 export interface ProjectQuotaSummary {

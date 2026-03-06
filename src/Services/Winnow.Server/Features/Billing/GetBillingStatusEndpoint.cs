@@ -10,6 +10,8 @@ public class BillingStatusResponse
     public string SubscriptionTier { get; init; } = default!;
     public int ReportsUsedThisMonth { get; init; }
     public int? ReportLimit { get; init; }
+    public int? MonthlySummaryLimit { get; init; }
+    public int CurrentMonthSummaries { get; init; }
     public bool HasActiveSubscription { get; init; }
 }
 
@@ -55,11 +57,27 @@ public sealed class GetBillingStatusEndpoint(WinnowDbContext db, ITenantContext 
             _ => 50
         };
 
+        var effectiveLimit = org.MonthlySummaryLimit;
+        if (effectiveLimit == 0)
+        {
+            effectiveLimit = org.SubscriptionTier?.ToLowerInvariant() switch
+            {
+                "enterprise" => -1,
+                "pro" => 500,
+                "starter" => 50,
+                _ => 0
+            };
+        }
+
+        int? aiLimit = effectiveLimit == -1 ? null : effectiveLimit;
+
         var response = new BillingStatusResponse
         {
             SubscriptionTier = org.SubscriptionTier ?? "Free",
             ReportsUsedThisMonth = reportCount,
             ReportLimit = limit,
+            MonthlySummaryLimit = aiLimit,
+            CurrentMonthSummaries = org.CurrentMonthSummaries,
             HasActiveSubscription = !string.IsNullOrEmpty(org.StripeSubscriptionId) && !string.Equals(org.SubscriptionTier, "Free", StringComparison.OrdinalIgnoreCase)
         };
 

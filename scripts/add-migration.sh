@@ -36,53 +36,22 @@ echo " Dual-Provider Migration: $MIGRATION_NAME"
 echo "============================================"
 echo ""
 
-# ── Step 1: SQLite ──────────────────────────────────────────────────────────
-echo "▶ [1/2] Generating SQLite migration..."
+# ── Step 1: PostgreSQL ──────────────────────────────────────────────────────
+echo "▶ Generating PostgreSQL migration..."
 (
   cd "$SERVER_DIR"
-  # Hide Postgres migrations so SQLite generates from its own snapshot
-  if [ -d Migrations/Postgres ]; then
-    mv Migrations/Postgres Migrations/Postgres.bak
-  fi
-
-  DatabaseProvider=Sqlite dotnet ef migrations add "$MIGRATION_NAME" \
-    --output-dir Migrations/Sqlite \
-    --namespace Winnow.Server.Migrations.Sqlite
-
-  # Restore Postgres migrations
-  if [ -d Migrations/Postgres.bak ]; then
-    mv Migrations/Postgres.bak Migrations/Postgres
-  fi
-)
-echo "✅ SQLite migration created."
-echo ""
-
-# ── Step 2: PostgreSQL ──────────────────────────────────────────────────────
-echo "▶ [2/2] Generating PostgreSQL migration..."
-(
-  cd "$SERVER_DIR"
-  # Hide SQLite migrations so Postgres generates from its own snapshot
-  if [ -d Migrations/Sqlite ]; then
-    mv Migrations/Sqlite Migrations/Sqlite.bak
-  fi
 
   DatabaseProvider=Postgres dotnet ef migrations add "${MIGRATION_NAME}Pg" \
     --output-dir Migrations/Postgres \
     --namespace Winnow.Server.Migrations.Postgres
-
-  # Restore SQLite migrations
-  if [ -d Migrations/Sqlite.bak ]; then
-    mv Migrations/Sqlite.bak Migrations/Sqlite
-  fi
 )
 echo "✅ PostgreSQL migration created."
 echo ""
 
 echo "============================================"
-echo " ✅ Both migrations generated successfully!"
+echo " ✅ Migration generated successfully!"
 echo "============================================"
 echo ""
-echo "  SQLite:   Migrations/Sqlite/${MIGRATION_NAME}"
 echo "  Postgres: Migrations/Postgres/${MIGRATION_NAME}Pg"
 echo ""
 echo "Review the generated files, then commit."

@@ -53,6 +53,8 @@ public class QuotaStatus
     public int MonthlyReportCount { get; set; }
     public bool IsOverage { get; set; }
     public bool IsLocked { get; set; }
+    public int? AiSummaryLimit { get; set; }
+    public int CurrentMonthAiSummaries { get; set; }
 }
 
 public class ProjectQuotaSummary
@@ -183,13 +185,29 @@ public sealed class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : 
             _ => 100
         };
 
+        var effectiveAiLimit = organization.MonthlySummaryLimit;
+        if (effectiveAiLimit == 0)
+        {
+            effectiveAiLimit = organization.SubscriptionTier?.ToLowerInvariant() switch
+            {
+                "enterprise" => -1,
+                "pro" => 500,
+                "starter" => 50,
+                _ => 0
+            };
+        }
+
+        int? aiSummaryLimit = effectiveAiLimit == -1 ? null : effectiveAiLimit;
+
         var quotaStatus = new QuotaStatus
         {
             BaseLimit = baseLimit,
             GraceLimit = graceLimit,
             MonthlyReportCount = totalMonthlyReports,
             IsOverage = baseLimit != int.MaxValue && totalMonthlyReports >= baseLimit,
-            IsLocked = graceLimit != int.MaxValue && totalMonthlyReports >= graceLimit
+            IsLocked = graceLimit != int.MaxValue && totalMonthlyReports >= graceLimit,
+            AiSummaryLimit = aiSummaryLimit,
+            CurrentMonthAiSummaries = organization.CurrentMonthSummaries
         };
 
         var projectQuotas = organization.Projects

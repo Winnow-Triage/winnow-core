@@ -80,6 +80,29 @@ public sealed class GenerateClusterSummaryEndpoint(WinnowDbContext db, IClusterS
             ThrowError("Cluster not found.");
         }
 
+        var tenant = await db.Organizations.FindAsync([cluster.OrganizationId], ct);
+        if (tenant == null)
+        {
+            ThrowError("Tenant not found.");
+        }
+
+        var effectiveLimit = tenant.MonthlySummaryLimit;
+        if (effectiveLimit == 0)
+        {
+            effectiveLimit = tenant.SubscriptionTier?.ToLowerInvariant() switch
+            {
+                "enterprise" => -1,
+                "pro" => 500,
+                "starter" => 50,
+                _ => 0
+            };
+        }
+
+        if (effectiveLimit != -1 && tenant.CurrentMonthSummaries >= effectiveLimit)
+        {
+            ThrowError("AI Summary limit reached for this billing cycle. Please upgrade your plan.", 402);
+        }
+
         // Fetch a representative sample of reports to avoid overwhelming the LLM
         // We take the 20 most recent reports to provide the most relevant context
         var clusterReports = await db.Reports
@@ -103,6 +126,8 @@ public sealed class GenerateClusterSummaryEndpoint(WinnowDbContext db, IClusterS
         cluster.Summary = result.Summary;
         cluster.CriticalityScore = result.CriticalityScore;
         cluster.CriticalityReasoning = result.CriticalityReasoning;
+
+        tenant.CurrentMonthSummaries++;
 
         await db.SaveChangesAsync(ct);
 

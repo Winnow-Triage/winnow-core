@@ -10,6 +10,10 @@ public class Organization
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public bool IsSuspended { get; set; }
 
+    // Billing / Quotas
+    public int MonthlySummaryLimit { get; set; }
+    public int CurrentMonthSummaries { get; set; }
+
     // Navigation properties
     public ICollection<Team> Teams { get; set; } = [];
     public ICollection<OrganizationMember> Members { get; set; } = [];

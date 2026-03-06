@@ -55,7 +55,31 @@ internal sealed class CriticalMassSummaryJob(
                         var cluster = await innerDb.Clusters.FindAsync([clusterId], stoppingToken);
                         if (cluster == null || cluster.Status != "Open") continue;
 
-                        logger.LogInformation("CriticalMassSummaryJob: Summarizing cluster {ClusterId} due to critical mass.", cluster.Id);
+                        var tenant = await innerDb.Organizations.FindAsync([cluster.OrganizationId], stoppingToken);
+                        if (tenant == null) continue;
+
+                        logger.LogInformation("CriticalMassSummaryJob: Processing cluster {ClusterId} due to critical mass.", cluster.Id);
+
+                        var effectiveLimit = tenant.MonthlySummaryLimit;
+                        if (effectiveLimit == 0)
+                        {
+                            effectiveLimit = tenant.SubscriptionTier?.ToLowerInvariant() switch
+                            {
+                                "enterprise" => -1,
+                                "pro" => 500,
+                                "starter" => 50,
+                                _ => 0
+                            };
+                        }
+
+                        if (effectiveLimit != -1 && tenant.CurrentMonthSummaries >= effectiveLimit)
+                        {
+                            logger.LogWarning("CriticalMassSummaryJob: Cluster {ClusterId} skipped. Tenant {TenantId} has reached their monthly summary limit.", cluster.Id, tenant.Id);
+                            cluster.Summary = "AI Summary limit reached for this billing cycle. Please upgrade your plan to resume automatic AI triage.";
+                            cluster.LastSummarizedAt = DateTime.UtcNow;
+                            await innerDb.SaveChangesAsync(stoppingToken);
+                            continue;
+                        }
 
                         var reportsForSummary = await innerDb.Reports
                             .Where(r => r.ClusterId == cluster.Id)
@@ -72,6 +96,8 @@ internal sealed class CriticalMassSummaryJob(
                             cluster.CriticalityScore = result.CriticalityScore;
                             cluster.CriticalityReasoning = result.CriticalityReasoning;
                             cluster.LastSummarizedAt = DateTime.UtcNow;
+
+                            tenant.CurrentMonthSummaries++;
 
                             await innerDb.SaveChangesAsync(stoppingToken);
                         }

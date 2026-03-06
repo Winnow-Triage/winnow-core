@@ -68,12 +68,13 @@ export default function ClusterDetail() {
   const queryClient = useQueryClient();
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [isClearingSummary, setIsClearingSummary] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
     isOpen: boolean;
     title: string;
     description: string;
     action: () => Promise<void>;
-  }>({ isOpen: false, title: "", description: "", action: async () => {} });
+  }>({ isOpen: false, title: "", description: "", action: async () => { } });
 
   const {
     data: cluster,
@@ -114,8 +115,14 @@ export default function ClusterDetail() {
     try {
       await api.post(`/reports/${cluster.reports[0].id}/generate-summary`, {});
       await queryClient.invalidateQueries({ queryKey: ["cluster", id] });
-    } catch (e) {
+      await queryClient.invalidateQueries({ queryKey: ["billing-status"] });
+    } catch (e: any) {
       console.error("Failed to generate summary", e);
+      if (e.response?.status === 402 || e.response?.status === 403) {
+        setIsUpgradeModalOpen(true);
+      } else {
+        toast.error("Failed to generate summary");
+      }
     } finally {
       setIsGeneratingSummary(false);
     }
@@ -577,6 +584,33 @@ export default function ClusterDetail() {
               className="rounded-xl bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 font-bold transition-all"
             >
               Proceed
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={isUpgradeModalOpen}
+        onOpenChange={setIsUpgradeModalOpen}
+      >
+        <AlertDialogContent className="rounded-2xl border-white/10 backdrop-blur-2xl bg-background/80 shadow-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl font-black tracking-tight text-amber-500">
+              Upgrade Required
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-foreground/70 leading-relaxed font-medium">
+              You have reached your AI summary limit for this billing cycle. Please upgrade your plan to continue using AI triage.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6">
+            <AlertDialogCancel className="rounded-xl border-white/10 hover:bg-white/5 font-bold transition-all">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => navigate("/settings?tab=billing")}
+              className="rounded-xl bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-600/20 font-bold transition-all text-white"
+            >
+              View Plans
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

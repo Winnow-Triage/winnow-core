@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using Winnow.Server.Infrastructure.Persistence;
 namespace Winnow.Server.Migrations.Postgres
 {
     [DbContext(typeof(WinnowDbContext))]
-    partial class WinnowDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260306124047_AddKillSwitchLimitsPg")]
+    partial class AddKillSwitchLimitsPg
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

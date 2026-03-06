@@ -162,7 +162,7 @@ export function OrganizationDetailsModal({
                           Math.round(
                             (details.quota.monthlyReportCount /
                               details.quota.baseLimit) *
-                              100,
+                            100,
                           ),
                         )}
                         className="h-3"
@@ -188,6 +188,53 @@ export function OrganizationDetailsModal({
                             ? "Unlimited"
                             : details.quota.graceLimit}
                         </strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 mb-4 pt-4 border-t border-red-900/20">
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <p className="text-xl font-mono text-foreground font-bold">
+                          {details.quota.currentMonthAiSummaries}{" "}
+                          <span className="text-sm text-muted-foreground font-sans font-normal">
+                            AI summaries generated
+                          </span>
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                          AI Triage Limit
+                        </p>
+                        <p className="text-lg font-mono text-foreground">
+                          {details.quota.aiSummaryLimit === null
+                            ? "Unlimited"
+                            : details.quota.aiSummaryLimit}
+                        </p>
+                      </div>
+                    </div>
+                    {details.quota.aiSummaryLimit !== null && (
+                      <Progress
+                        value={Math.min(
+                          100,
+                          Math.round(
+                            (details.quota.currentMonthAiSummaries /
+                              details.quota.aiSummaryLimit) *
+                            100,
+                          ),
+                        )}
+                        className="h-3 bg-red-950/40"
+                        indicatorColor={
+                          details.quota.currentMonthAiSummaries >= details.quota.aiSummaryLimit
+                            ? "bg-amber-600"
+                            : "bg-amber-500"
+                        }
+                      />
+                    )}
+                    <div className="mt-2 text-xs text-muted-foreground text-right flex justify-between">
+                      <span>
+                        {details.quota.aiSummaryLimit !== null &&
+                          `${Math.min(100, Math.round((details.quota.currentMonthAiSummaries / details.quota.aiSummaryLimit) * 100))}% of AI limit used.`}
                       </span>
                     </div>
                   </div>

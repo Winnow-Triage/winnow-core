@@ -414,18 +414,18 @@ export default function Settings() {
                           0,
                           (billingStatus.reportsUsedThisMonth /
                             billingStatus.reportLimit) *
-                            100,
+                          100,
                         ),
                       )}
                       className="h-4"
                       indicatorColor={
                         billingStatus.reportsUsedThisMonth /
                           billingStatus.reportLimit >=
-                        2
+                          2
                           ? "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)]"
                           : billingStatus.reportsUsedThisMonth /
-                                billingStatus.reportLimit >=
-                              1
+                            billingStatus.reportLimit >=
+                            1
                             ? "bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.8)] animate-pulse"
                             : "bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.5)]"
                       }
@@ -442,10 +442,74 @@ export default function Settings() {
                     </div>
                   </div>
                 )}
+
+                <div className="mt-8 border-t pt-6">
+                  <h4 className="text-sm font-semibold mb-2">AI Summaries</h4>
+                  {billingStatus.monthlySummaryLimit === null ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                        <div className="h-2 w-full bg-green-500/20 rounded-full overflow-hidden">
+                          <div className="h-full bg-green-500 w-full" />
+                        </div>
+                      </div>
+                      <div className="flex justify-between text-xs text-muted-foreground w-full">
+                        <span>
+                          {billingStatus.currentMonthSummaries} generated
+                        </span>
+                        <span>Unlimited</span>
+                      </div>
+                    </div>
+                  ) : billingStatus.monthlySummaryLimit > 0 ? (
+                    <div className="space-y-2">
+                      <Progress
+                        value={Math.min(
+                          100,
+                          Math.max(
+                            0,
+                            (billingStatus.currentMonthSummaries /
+                              (billingStatus.monthlySummaryLimit || 1)) *
+                            100,
+                          ),
+                        )}
+                        className="h-4"
+                        indicatorColor={
+                          billingStatus.currentMonthSummaries /
+                            (billingStatus.monthlySummaryLimit || 1) >=
+                            1
+                            ? "bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.8)] animate-pulse"
+                            : billingStatus.currentMonthSummaries /
+                              (billingStatus.monthlySummaryLimit || 1) >=
+                              0.8
+                              ? "bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.6)]"
+                              : "bg-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.5)]"
+                        }
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground w-full">
+                        <span>
+                          {billingStatus.currentMonthSummaries} generated
+                        </span>
+                        <span>{billingStatus.monthlySummaryLimit} Limit</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>No AI Summaries generated.</span>
+                      {subscriptionTier === "Free" ? (
+                        <span>
+                          Upgrade to Starter or Pro to enable AI triage.
+                        </span>
+                      ) : (
+                        <span>
+                          AI Triage plan limit reached or disabled.
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </CardContent>
               {billingStatus.reportLimit !== null &&
                 billingStatus.reportsUsedThisMonth >=
-                  billingStatus.reportLimit && (
+                billingStatus.reportLimit && (
                   <CardFooter className="bg-destructive/10 text-destructive text-sm p-4 rounded-b-3xl border-t border-destructive/20">
                     You have reached your monthly ingestion limit. New reports
                     will be rejected until you upgrade your plan or until the
@@ -563,8 +627,8 @@ export default function Settings() {
                 <Button
                   className={`w-full ${subscriptionTier === "Enterprise" ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-800" : "bg-white text-zinc-950 hover:bg-zinc-200"}`}
                   onClick={() =>
-                    (window.location.href =
-                      "mailto:sales@winnowtriage.com?subject=Enterprise%20Plan%20Inquiry")
+                  (window.location.href =
+                    "mailto:sales@winnowtriage.com?subject=Enterprise%20Plan%20Inquiry")
                   }
                   disabled={subscriptionTier === "Enterprise"}
                 >
@@ -916,10 +980,10 @@ function TeamDetailsDrawer({
                           (tm: any) => tm.userId === om.id,
                         ),
                     ).length === 0 && (
-                      <div className="p-2 text-xs text-muted-foreground text-center">
-                        All active members already in team
-                      </div>
-                    )}
+                        <div className="p-2 text-xs text-muted-foreground text-center">
+                          All active members already in team
+                        </div>
+                      )}
                   </SelectContent>
                 </Select>
               </div>
@@ -1236,10 +1300,10 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
                           <AvatarFallback className="bg-primary/10 text-primary text-xs">
                             {member.fullName
                               ? member.fullName
-                                  .split(" ")
-                                  .map((n: string) => n[0])
-                                  .join("")
-                                  .toUpperCase()
+                                .split(" ")
+                                .map((n: string) => n[0])
+                                .join("")
+                                .toUpperCase()
                               : "?"}
                           </AvatarFallback>
                         </Avatar>
