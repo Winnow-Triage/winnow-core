@@ -77,8 +77,13 @@ internal static class ServiceExtensions
         // - Attempt Timeout: 15 seconds per request
 
         // Register named HTTP client for exporters with resilience handlers
+        // Register the tracker singleton before the HttpClient so it can be injected into the handler
+        services.AddSingleton<ExternalIntegrationHealthTracker>();
+        services.AddTransient<ExternalIntegrationTrackerHandler>();
+
         services.AddHttpClient("ExternalIntegrations")
             .RemoveAllLoggers() // Prevent health check polling from spamming logs on failure
+            .AddHttpMessageHandler<ExternalIntegrationTrackerHandler>()
             .AddStandardResilienceHandler();
 
         // Register typed HTTP clients for embedding providers with resilience handlers
@@ -241,11 +246,15 @@ internal static class ServiceExtensions
         // Health Checks
         services.AddHealthChecks()
             .AddDbContextCheck<WinnowDbContext>("Database", tags: HealthCheckReadyTags)
-            .AddCheck<ExternalIntegrationsHealthCheck>("ExternalIntegrations", tags: HealthCheckReadyTags)
+            .AddCheck<LlmHealthCheck>("LLM", tags: HealthCheckReadyTags)
+            .AddCheck<EmailHealthCheck>("Email", tags: HealthCheckReadyTags)
+            .AddCheck<TenantIntegrationsHealthCheck>("TenantIntegrations", tags: HealthCheckReadyTags)
             .AddCheck<S3StorageHealthCheck>("S3Storage", tags: HealthCheckReadyTags);
 
         // Register custom health check services
-        services.AddSingleton<ExternalIntegrationsHealthCheck>();
+        services.AddSingleton<LlmHealthCheck>();
+        services.AddSingleton<EmailHealthCheck>();
+        services.AddSingleton<TenantIntegrationsHealthCheck>();
         services.AddSingleton<S3StorageHealthCheck>();
 
         // Register caching and publisher for fast UI loading

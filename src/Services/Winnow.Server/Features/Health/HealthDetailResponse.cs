@@ -27,7 +27,7 @@ public sealed record HealthDetailResponse
     public sealed record CircuitBreakersInfo
     {
         internal CircuitBreakersInfo() { } // Internal constructor prevents direct instantiation
-        public required string ExternalIntegrations { get; init; }
+        public required string TenantIntegrations { get; init; }
         public required string HttpClients { get; init; }
     }
 
@@ -50,7 +50,7 @@ public sealed record HealthDetailResponse
             }).ToList(),
             CircuitBreakers = new CircuitBreakersInfo
             {
-                ExternalIntegrations = "Configured",
+                TenantIntegrations = "Tracked via ExternalIntegrationHealthTracker",
                 HttpClients = "With resilience pipeline"
             }
         };
