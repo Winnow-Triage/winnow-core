@@ -12,7 +12,8 @@ using Microsoft.SemanticKernel;
 using Winnow.Server.Domain.Services;
 using Winnow.Server.Entities;
 using Winnow.Server.Features.Dashboard;
-using Winnow.Server.Features.Reports.GenerateSummary;
+using Winnow.Server.Features.Clusters.GenerateSummary;
+using Winnow.Server.Infrastructure.Billing;
 using Winnow.Server.Infrastructure.Configuration;
 using Winnow.Server.Infrastructure.HealthChecks;
 using Winnow.Server.Infrastructure.Integrations;
@@ -44,6 +45,7 @@ internal static class ServiceExtensions
 
         // Stripe API Key Configuration
         Stripe.StripeConfiguration.ApiKey = config["Stripe:SecretKey"];
+        services.AddSingleton<IStripePlanMapper, StripePlanMapper>();
 
         // Assembly scanning for all strategy implementations
         services.Scan(scan => scan
@@ -99,12 +101,14 @@ internal static class ServiceExtensions
         services.AddMemoryCache();
 
         // AI Services
+        services.AddScoped<ClusterSummaryOrchestrator>();
         services.AddSingleton<IEmbeddingService, EmbeddingService>();
         services.AddSingleton<IVectorCalculator, VectorCalculator>();
         services.AddHostedService<ClusterRefinementJob>();
-        services.AddHostedService<InvitationCleanupJob>();
         services.AddHostedService<CriticalMassSummaryJob>();
+
         services.AddHostedService<AdminSeeder>();
+        services.AddHostedService<InvitationCleanupJob>();
 
         // Storage (S3/MinIO)
         var s3Settings = new S3Settings();

@@ -1,6 +1,7 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Stripe.BillingPortal;
+using Winnow.Server.Domain.Organizations.ValueObjects;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 
@@ -28,14 +29,13 @@ public sealed class CreateCustomerPortalSessionEndpoint(
     {
         Post("/billing/portal");
         DontThrowIfValidationFails();
-        // Endpoint requires authentication by default since AllowAnonymous() is NOT called.
     }
 
     public override async Task HandleAsync(PortalRequest req, CancellationToken ct)
     {
         if (!tenantContext.CurrentOrganizationId.HasValue)
         {
-            HttpContext.Response.StatusCode = 400;
+            await Send.ErrorsAsync(400, ct);
             return;
         }
 
@@ -48,13 +48,18 @@ public sealed class CreateCustomerPortalSessionEndpoint(
             return;
         }
 
-        if (string.IsNullOrEmpty(organization.StripeCustomerId))
+        // 1. Read from the Value Object instead of the primitive properties
+        var customerId = organization.BillingIdentity?.CustomerId;
+
+        if (string.IsNullOrEmpty(customerId))
         {
             logger.LogInformation("Creating new Stripe Customer for Organization {OrganizationId} directly from Portal Endpoint", organization.Id);
 
             var customerOptions = new Stripe.CustomerCreateOptions
             {
                 Name = organization.Name,
+                // Bonus: Pass the validated email to Stripe so they get their receipts!
+                Email = organization.ContactEmail.Value,
                 Metadata = new Dictionary<string, string>
                 {
                     { "OrganizationId", organization.Id.ToString() }
@@ -64,7 +69,10 @@ public sealed class CreateCustomerPortalSessionEndpoint(
             var customerService = new Stripe.CustomerService();
             var customer = await customerService.CreateAsync(customerOptions, cancellationToken: ct);
 
-            organization.StripeCustomerId = customer.Id;
+            customerId = customer.Id;
+
+            // 2. Use the Domain Method to update the aggregate's billing identity!
+            organization.LinkBillingIdentity(new BillingIdentity("Stripe", customerId, null));
             await db.SaveChangesAsync(ct);
         }
 
@@ -73,12 +81,12 @@ public sealed class CreateCustomerPortalSessionEndpoint(
 
         var options = new SessionCreateOptions
         {
-            Customer = organization.StripeCustomerId,
+            Customer = customerId,
             ReturnUrl = returnUrl,
         };
 
-        // Attach portal deep-link FlowData when an action and saved subscription ID are available.
-        var subscriptionId = organization.StripeSubscriptionId;
+        // 3. Read the Subscription ID from the Value Object
+        var subscriptionId = organization.BillingIdentity?.SubscriptionId;
 
         if (!string.IsNullOrEmpty(subscriptionId) && !string.IsNullOrEmpty(req.Action))
         {
@@ -107,6 +115,6 @@ public sealed class CreateCustomerPortalSessionEndpoint(
         var service = new Stripe.BillingPortal.SessionService();
         var session = await service.CreateAsync(options, cancellationToken: ct);
 
-        await Send.OkAsync(new PortalResponse { PortalUrl = new Uri(session.Url) }, cancellation: ct);
+        await Send.OkAsync(new PortalResponse { PortalUrl = new Uri(session.Url) }, ct);
     }
 }

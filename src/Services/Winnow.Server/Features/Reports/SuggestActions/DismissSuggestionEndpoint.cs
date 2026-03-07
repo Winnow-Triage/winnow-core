@@ -10,7 +10,7 @@ namespace Winnow.Server.Features.Reports.SuggestActions;
 /// <summary>
 /// Request to dismiss a suggested cluster assignment.
 /// </summary>
-public class DismissSuggestionRequest
+public class DismissSuggestionRequest : ProjectScopedRequest
 {
     /// <summary>
     /// ID of the report to dismiss the suggestion for.
@@ -18,7 +18,7 @@ public class DismissSuggestionRequest
     public Guid Id { get; set; }
 }
 
-public sealed class DismissSuggestionEndpoint(WinnowDbContext db, INegativeMatchCache negativeMatchCache) : Endpoint<DismissSuggestionRequest, ActionResponse>
+public sealed class DismissSuggestionEndpoint(WinnowDbContext db, INegativeMatchCache negativeMatchCache) : ProjectScopedEndpoint<DismissSuggestionRequest, ActionResponse>
 {
     public override void Configure()
     {
@@ -36,33 +36,8 @@ public sealed class DismissSuggestionEndpoint(WinnowDbContext db, INegativeMatch
 
     public override async Task HandleAsync(DismissSuggestionRequest req, CancellationToken ct)
     {
-        // Get user ID from JWT
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) ThrowError("Unauthorized", 401);
-
-        // Get project ID from header
-        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader))
-        {
-            ThrowError("Project ID is required in X-Project-ID header", 400);
-        }
-
-        if (!Guid.TryParse(projectIdHeader, out var projectId))
-        {
-            ThrowError("Invalid Project ID format", 400);
-        }
-
-        // Validate user owns this project
-        var userOwnsProject = await db.Projects
-            .AsNoTracking()
-            .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
-
-        if (!userOwnsProject)
-        {
-            ThrowError("Project not found or access denied", 404);
-        }
-
         var report = await db.Reports
-            .FirstOrDefaultAsync(r => r.Id == req.Id && r.ProjectId == projectId, ct);
+            .FirstOrDefaultAsync(r => r.Id == req.Id && r.ProjectId == req.CurrentProjectId, ct);
 
         if (report == null)
         {
@@ -76,12 +51,10 @@ public sealed class DismissSuggestionEndpoint(WinnowDbContext db, INegativeMatch
         }
 
         // Record negative match between report and cluster
-        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? "default";
-        negativeMatchCache.MarkAsMismatch(tenantId, report.Id, report.SuggestedClusterId.Value);
+        negativeMatchCache.MarkAsMismatch(req.CurrentOrganizationId.ToString(), report.Id, report.SuggestedClusterId.Value);
 
         // Clear suggestion
-        report.SuggestedClusterId = null;
-        report.SuggestedConfidenceScore = null;
+        report.ClearSuggestedCluster();
 
         await db.SaveChangesAsync(ct);
         await Send.OkAsync(new ActionResponse { Message = "Suggestion dismissed." }, ct);

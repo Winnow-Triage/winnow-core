@@ -45,7 +45,8 @@ public sealed class AssignClusterEndpoint(WinnowDbContext db) : Endpoint<AssignC
             return;
         }
 
-        cluster.AssignedTo = req.AssignedTo;
+        cluster.AssignTo(req.AssignedTo);
+
         await db.SaveChangesAsync(ct);
 
         await Send.NoContentAsync(ct);

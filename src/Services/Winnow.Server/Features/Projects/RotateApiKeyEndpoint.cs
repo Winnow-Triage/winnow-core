@@ -1,7 +1,8 @@
 using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
+// Make sure you are using the Domain namespace, not the old Entities one!
+using Winnow.Server.Domain.Projects;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Infrastructure.Security;
@@ -10,6 +11,8 @@ namespace Winnow.Server.Features.Projects;
 
 public class RotateApiKeyRequest
 {
+    // FastEndpoints Magic: Automatically grabs this from the route!
+    public Guid ProjectId { get; set; }
     public DateTimeOffset? ExpiresAt { get; set; }
 }
 
@@ -29,8 +32,9 @@ public sealed class RotateApiKeyEndpoint(
         Summary(s =>
         {
             s.Summary = "Rotate API Key";
-            s.Description = "Rotates the API Key for a specific project. The old key remains valid as a secondary key until the specified Expiration Date (ExpiresAt). If null, it remains valid until manually revoked.";
+            s.Description = "Rotates the API Key for a specific project.";
             s.Response<RotateApiKeyResponse>(200, "API Key rotated successfully");
+            s.Response(400, "Invalid request");
             s.Response(401, "Unauthorized");
             s.Response(404, "Project not found");
         });
@@ -40,36 +44,34 @@ public sealed class RotateApiKeyEndpoint(
     public override async Task HandleAsync(RotateApiKeyRequest req, CancellationToken ct)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) ThrowError("Unauthorized", 401);
+        if (userId is null)
+        {
+            await Send.UnauthorizedAsync(ct);
+            return;
+        }
 
         if (!tenantContext.CurrentOrganizationId.HasValue)
         {
             ThrowError("No organization selected", 400);
-        }
-
-        var projectIdStr = Route<string>("ProjectId");
-        if (!Guid.TryParse(projectIdStr, out var projectId))
-        {
-            ThrowError("Invalid Project ID", 400);
             return;
         }
 
         var project = await dbContext.Projects
-            .FirstOrDefaultAsync(p => p.Id == projectId && p.OwnerId == userId && p.OrganizationId == tenantContext.CurrentOrganizationId.Value, ct);
+            .FirstOrDefaultAsync(p => p.Id == req.ProjectId
+                                   && p.OwnerId == userId
+                                   && p.OrganizationId == tenantContext.CurrentOrganizationId.Value, ct);
 
         if (project == null)
         {
-            ThrowError("Project not found", 404);
+            await Send.NotFoundAsync(ct);
             return;
         }
 
-        // Move current key to secondary
-        project.SecondaryApiKeyHash = project.ApiKeyHash;
-        project.SecondaryApiKeyExpiresAt = req.ExpiresAt;
-
-        // Generate the new primary key
+        // Generate the new primary key (Infrastructure concern - stays in the handler!)
         var plaintextApiKey = apiKeyService.GeneratePlaintextKey(project.Id, "wm_live_");
-        project.ApiKeyHash = apiKeyService.HashKey(plaintextApiKey);
+        var newKeyHash = apiKeyService.HashKey(plaintextApiKey);
+
+        project.RotateApiKey(newKeyHash, req.ExpiresAt);
 
         await dbContext.SaveChangesAsync(ct);
 

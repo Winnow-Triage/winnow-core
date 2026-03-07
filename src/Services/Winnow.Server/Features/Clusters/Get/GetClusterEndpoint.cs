@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Clusters.Get;
@@ -9,6 +8,10 @@ namespace Winnow.Server.Features.Clusters.Get;
 public class GetClusterRequest
 {
     public Guid Id { get; set; }
+
+    // FastEndpoints magic: Let it bind and validate the header automatically!
+    [FromHeader("X-Project-ID", IsRequired = true)]
+    public Guid ProjectId { get; set; }
 }
 
 public class GetClusterResponse
@@ -37,7 +40,7 @@ public class ClusterMemberDto
     public string Message { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
-    public float? ConfidenceScore { get; set; }
+    public double? ConfidenceScore { get; set; }
 }
 
 public sealed class GetClusterEndpoint(WinnowDbContext db) : Endpoint<GetClusterRequest, GetClusterResponse>
@@ -50,20 +53,10 @@ public sealed class GetClusterEndpoint(WinnowDbContext db) : Endpoint<GetCluster
 
     public override async Task HandleAsync(GetClusterRequest req, CancellationToken ct)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) ThrowError("Unauthorized", 401);
-
-        Guid projectId = Guid.Empty;
-        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader) ||
-            !Guid.TryParse(projectIdHeader, out projectId))
-        {
-            ThrowError("Valid Project ID is required in X-Project-ID header", 400);
-        }
-
+        // 1. Fetch ONLY the Cluster aggregate
         var cluster = await db.Clusters
             .AsNoTracking()
-            .Include(c => c.Reports)
-            .FirstOrDefaultAsync(c => c.Id == req.Id && c.ProjectId == projectId, ct);
+            .FirstOrDefaultAsync(c => c.Id == req.Id && c.ProjectId == req.ProjectId, ct);
 
         if (cluster == null)
         {
@@ -71,6 +64,41 @@ public sealed class GetClusterEndpoint(WinnowDbContext db) : Endpoint<GetCluster
             return;
         }
 
+        var oneHourAgo = DateTime.UtcNow.AddHours(-1);
+        var oneDayAgo = DateTime.UtcNow.AddDays(-1);
+
+        // 2. The SQL Math Magic!
+        // We do a single, incredibly fast projection query to get all our stats
+        var stats = await db.Reports
+            .Where(r => r.ClusterId == cluster.Id)
+            .GroupBy(r => r.ClusterId)
+            .Select(g => new
+            {
+                Count = g.Count(),
+                FirstSeen = (DateTime?)g.Min(r => r.CreatedAt),
+                LastSeen = (DateTime?)g.Max(r => r.CreatedAt),
+                Velocity1h = g.Count(r => r.CreatedAt >= oneHourAgo),
+                Velocity24h = g.Count(r => r.CreatedAt >= oneDayAgo)
+            })
+            .FirstOrDefaultAsync(ct);
+
+        // 3. Fetch the actual report DTOs directly from the DbSet
+        var reports = await db.Reports
+            .Where(r => r.ClusterId == cluster.Id)
+            .OrderByDescending(r => r.CreatedAt)
+            .Take(100) // IMPORTANT: Put a cap on this so we don't return 10MB JSON payloads!
+            .Select(r => new ClusterMemberDto
+            {
+                Id = r.Id,
+                Title = r.Title,
+                Message = r.Message,
+                Status = r.Status.Name,
+                CreatedAt = r.CreatedAt,
+                ConfidenceScore = r.ConfidenceScore!.Value.Score
+            })
+            .ToListAsync(ct);
+
+        // 4. Map it all together
         await Send.OkAsync(new GetClusterResponse
         {
             Id = cluster.Id,
@@ -79,26 +107,15 @@ public sealed class GetClusterEndpoint(WinnowDbContext db) : Endpoint<GetCluster
             Summary = cluster.Summary,
             CriticalityScore = cluster.CriticalityScore,
             CriticalityReasoning = cluster.CriticalityReasoning,
-            Status = cluster.Status,
+            Status = cluster.Status.ToString(), // Map from Smart Enum to string
             AssignedTo = cluster.AssignedTo,
             CreatedAt = cluster.CreatedAt,
-            ReportCount = cluster.Reports.Count,
-            FirstSeen = cluster.Reports.Count > 0 ? cluster.Reports.Min(r => r.CreatedAt) : null,
-            LastSeen = cluster.Reports.Count > 0 ? cluster.Reports.Max(r => r.CreatedAt) : null,
-            Velocity1h = cluster.Reports.Count(r => r.CreatedAt >= DateTime.UtcNow.AddHours(-1)),
-            Velocity24h = cluster.Reports.Count(r => r.CreatedAt >= DateTime.UtcNow.AddDays(-1)),
-            Reports = cluster.Reports
-                .OrderByDescending(r => r.CreatedAt)
-                .Select(r => new ClusterMemberDto
-                {
-                    Id = r.Id,
-                    Title = r.Title,
-                    Message = r.Message,
-                    Status = r.Status,
-                    CreatedAt = r.CreatedAt,
-                    ConfidenceScore = r.ConfidenceScore
-                })
-                .ToList()
+            ReportCount = stats?.Count ?? 0,
+            FirstSeen = stats?.FirstSeen,
+            LastSeen = stats?.LastSeen,
+            Velocity1h = stats?.Velocity1h ?? 0,
+            Velocity24h = stats?.Velocity24h ?? 0,
+            Reports = reports
         }, ct);
     }
 }

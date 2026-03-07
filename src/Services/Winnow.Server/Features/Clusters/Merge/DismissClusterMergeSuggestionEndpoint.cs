@@ -63,8 +63,7 @@ public sealed class DismissClusterMergeSuggestionEndpoint(WinnowDbContext db, IN
         negativeMatchCache.MarkAsMismatch(tenantId, cluster.Id, cluster.SuggestedMergeClusterId.Value);
 
         // Clear suggestion
-        cluster.SuggestedMergeClusterId = null;
-        cluster.SuggestedMergeConfidenceScore = null;
+        cluster.ClearMergeSuggestion();
 
         await db.SaveChangesAsync(ct);
         await Send.OkAsync(new ActionResponse { Message = "Cluster merge suggestion dismissed." }, ct);

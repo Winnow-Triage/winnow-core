@@ -4,8 +4,7 @@ using FluentValidation;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Winnow.Server.Domain.Services;
-using Winnow.Server.Entities;
+
 using Winnow.Server.Extensions;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
@@ -33,11 +32,6 @@ public class IngestReportRequest
     public string? StackTrace { get; set; }
 
     /// <summary>
-    /// Base64 encoded screenshot image. (Deprecated in favor of direct S3 upload ScreenshotKey)
-    /// </summary>
-    public string? Screenshot { get; set; }
-
-    /// <summary>
     /// S3 object key returned from the presigned URL flow for direct uploads.
     /// </summary>
     public string? ScreenshotKey { get; set; }
@@ -63,13 +57,13 @@ internal class IngestReportValidator : Validator<IngestReportRequest>
 internal record ReportCreatedEvent
 {
     public Guid ReportId { get; init; }
+    public Guid OrganizationId { get; init; }
     public Guid ProjectId { get; init; }
     public string Title { get; init; } = default!;
     public string Message { get; init; } = default!;
     public string? StackTrace { get; init; }
     public DateTime CreatedAt { get; init; }
     public string? Metadata { get; init; }
-    public string? TenantId { get; init; }
 }
 
 /// <summary>
@@ -77,17 +71,12 @@ internal record ReportCreatedEvent
 /// </summary>
 public record IngestReportResponse
 {
-    /// <summary>
-    /// The ID of the created report.
-    /// </summary>
     public Guid Id { get; init; }
 }
 
 public sealed class IngestReportEndpoint(
     IPublishEndpoint publishEndpoint,
-    Winnow.Server.Services.Ai.IEmbeddingService embeddingService,
-    Winnow.Server.Services.Storage.IStorageService storageService,
-    Winnow.Server.Services.Quota.IQuotaService quotaService,
+    Services.Ai.IEmbeddingService embeddingService,
     WinnowDbContext dbContext,
     ILogger<IngestReportEndpoint> logger) : Endpoint<IngestReportRequest, IngestReportResponse>
 {
@@ -110,7 +99,6 @@ public sealed class IngestReportEndpoint(
 
     public override async Task HandleAsync(IngestReportRequest req, CancellationToken ct)
     {
-        // Authentication handled by ApiKey scheme
         var projectIdClaim = User.FindFirst("ProjectId");
         if (projectIdClaim == null || !Guid.TryParse(projectIdClaim.Value, out var projectId))
         {
@@ -119,7 +107,6 @@ public sealed class IngestReportEndpoint(
         }
 
         var tenantContext = dbContext.GetService<ITenantContext>();
-        var currentTenantId = ((TenantContext)tenantContext).TenantId;
         var currentOrgId = tenantContext.CurrentOrganizationId ?? Guid.Empty;
 
         if (currentOrgId == Guid.Empty)
@@ -131,119 +118,72 @@ public sealed class IngestReportEndpoint(
             }
         }
 
-        // 1. Generate Embedding
+        // Load the Aggregate that owns the rules
+        var organization = await dbContext.Organizations
+            .FirstOrDefaultAsync(o => o.Id == currentOrgId, ct);
+
+        if (organization == null)
+        {
+            logger.LogWarning("Report ingestion failed. Organization {OrgId} not found.", currentOrgId);
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        // Generate Embedding
         var textToEmbed = $"{req.Title}\n{req.Message}\n{req.StackTrace}";
         var embeddingFloats = await embeddingService.GetEmbeddingAsync(textToEmbed);
 
-        // 2. Generate Report ID upfront so we can use it in the S3 path
+        // Generate Report ID upfront
         var reportId = Guid.NewGuid();
 
-        // 3. Asset record creation map
-        Asset? screenshotAsset = null;
+        // Asset record creation map
+        Domain.Assets.Asset? screenshotAsset = null;
         if (!string.IsNullOrEmpty(req.ScreenshotKey))
         {
             var fileName = Path.GetFileName(req.ScreenshotKey);
-            screenshotAsset = new Asset
-            {
-                OrganizationId = currentOrgId,
-                ProjectId = projectId,
-                ReportId = reportId,
-                FileName = string.IsNullOrEmpty(fileName) ? "screenshot.png" : fileName,
-                S3Key = req.ScreenshotKey,
-                ContentType = "image/png", // We default to PNG as that's what SDK produces
-                SizeBytes = 0, // For direct uploads, we don't know the exact size upfront here
-                Status = AssetStatus.Pending
-            };
-            logger.LogInformation("Asset created for directly uploaded S3 Key: {Key}", req.ScreenshotKey);
-        }
-        else if (!string.IsNullOrEmpty(req.Screenshot))
-        {
-            // Legacy Base64 Flow
-            try
-            {
-                // Strip data URL prefix: "data:image/png;base64,..."
-                var base64Data = req.Screenshot;
-                var commaIndex = base64Data.IndexOf(',');
-                if (commaIndex >= 0)
-                    base64Data = base64Data[(commaIndex + 1)..];
-
-                var imageBytes = Convert.FromBase64String(base64Data);
-                var fileName = $"screenshot_{DateTime.UtcNow:yyyyMMddHHmmss}.png";
-                using var stream = new MemoryStream(imageBytes);
-
-                // Direct SDK upload with report-scoped path
-                var s3Key = await storageService.UploadFileAsync(
-                    Guid.Empty, // orgId — will be populated when multi-tenancy is wired
-                    projectId,
-                    reportId,
-                    stream,
-                    fileName,
-                    "image/png",
-                    currentTenantId, ct);
-
-                screenshotAsset = new Asset
-                {
-                    OrganizationId = Guid.Empty,
-                    ProjectId = projectId,
-                    ReportId = reportId,
-                    FileName = fileName,
-                    S3Key = s3Key,
-                    ContentType = "image/png",
-                    SizeBytes = imageBytes.Length,
-                    Status = AssetStatus.Pending
-                };
-
-                logger.LogInformation("Screenshot uploaded to quarantine: {Key}", s3Key);
-            }
-            catch (Exception ex)
-            {
-                // Don't fail report ingestion if S3 is unavailable
-                logger.LogWarning(ex, "Failed to upload screenshot to S3 — skipping");
-            }
+            screenshotAsset = new Domain.Assets.Asset(
+                currentOrgId,
+                projectId,
+                reportId,
+                string.IsNullOrEmpty(fileName) ? "screenshot.png" : fileName,
+                req.ScreenshotKey,
+                0,
+                "image/png"
+            );
         }
 
-        // Quota Evaluation - Evaluate Grace Period and Ransom triggers (do NOT block the request)
-        var quotaStatus = await quotaService.GetIngestionQuotaStatusAsync(currentOrgId, ct);
-        if (quotaStatus.isLocked)
-        {
-            // The Grace Limit was breached on this request, perform retroactive lock
-            await quotaService.EnforceRetroactiveRansomAsync(currentOrgId, ct);
-        }
-
-        var report = new Report
-        {
-            Id = reportId,
-            ProjectId = projectId,
-            OrganizationId = currentOrgId,
-            Title = req.Title,
-            Message = req.Message,
-            StackTrace = req.StackTrace,
-            Metadata = req.Metadata != null ? JsonSerializer.Serialize(req.Metadata) : null,
-            CreatedAt = DateTime.UtcNow,
-            Embedding = embeddingFloats,
-            ClusterId = null,
-            IsOverage = quotaStatus.isOverage,
-            IsLocked = quotaStatus.isLocked
-        };
+        var report = new Domain.Reports.Report(
+            projectId,
+            currentOrgId,
+            req.Title,
+            req.Message,
+            req.StackTrace,
+            null,
+            embeddingFloats,
+            null,
+            isOverage: organization.ReportQuota.IsOverage(),
+            isLocked: organization.IsLocked
+        );
 
         dbContext.Reports.Add(report);
+
         if (screenshotAsset != null)
             dbContext.Assets.Add(screenshotAsset);
+
         await dbContext.SaveChangesAsync(ct);
 
-        logger.LogInformation("IngestReportEndpoint: Publishing ReportCreatedEvent for report {Id} (Tenant: {Tenant})",
-            report.Id, ((TenantContext)dbContext.GetService<ITenantContext>()).TenantId);
+        logger.LogInformation("IngestReportEndpoint: Publishing ReportCreatedEvent for report {Id} (Org: {OrgId})", report.Id, currentOrgId);
 
         await publishEndpoint.Publish(new ReportCreatedEvent
         {
             ReportId = report.Id,
+            OrganizationId = currentOrgId,
             ProjectId = projectId,
             Title = report.Title,
             Message = report.Message,
             StackTrace = report.StackTrace,
             CreatedAt = report.CreatedAt,
-            Metadata = report.Metadata,
-            TenantId = ((TenantContext)dbContext.GetService<ITenantContext>()).TenantId
+            Metadata = report.Metadata != null ? JsonSerializer.Serialize(report.Metadata) : null
         }, ct);
 
         await Send.AcceptedAtAsync("GetReport", new { id = report.Id }, new IngestReportResponse { Id = report.Id }, false, ct);

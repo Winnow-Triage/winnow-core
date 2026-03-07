@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Features.Reports.GenerateSummary;
+using Winnow.Server.Domain.Clusters.ValueObjects;
+using Winnow.Server.Features.Clusters.GenerateSummary;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Infrastructure.Scheduling;
@@ -31,9 +32,9 @@ internal sealed class CriticalMassSummaryJob(
                 // We only select the IDs here so we don't load all clusters into memory.
                 var clusterIds = await db.Clusters
                     .AsNoTracking() // Important: Don't track here
-                    .Where(c => c.Status == "Open" &&
+                    .Where(c => c.Status == ClusterStatus.Open &&
                                 (c.LastSummarizedAt == null || c.LastSummarizedAt <= thirtyMinutesAgo))
-                    .Where(c => c.Reports.Count(r => r.CreatedAt >= oneHourAgo) > 5)
+                    .Where(c => db.Reports.Count(r => r.ClusterId == c.Id && r.CreatedAt >= oneHourAgo) > 5)
                     .Select(c => c.Id)
                     .ToListAsync(stoppingToken);
 
@@ -53,30 +54,16 @@ internal sealed class CriticalMassSummaryJob(
 
                         // Load the cluster we want to update
                         var cluster = await innerDb.Clusters.FindAsync([clusterId], stoppingToken);
-                        if (cluster == null || cluster.Status != "Open") continue;
+                        if (cluster == null || cluster.Status != ClusterStatus.Open) continue;
 
-                        var tenant = await innerDb.Organizations.FindAsync([cluster.OrganizationId], stoppingToken);
-                        if (tenant == null) continue;
+                        var organization = await innerDb.Organizations.FindAsync([cluster.OrganizationId], stoppingToken);
+                        if (organization == null) continue;
 
                         logger.LogInformation("CriticalMassSummaryJob: Processing cluster {ClusterId} due to critical mass.", cluster.Id);
 
-                        var effectiveLimit = tenant.MonthlySummaryLimit;
-                        if (effectiveLimit == 0)
+                        if (!organization.CanGenerateAiSummary())
                         {
-                            effectiveLimit = tenant.SubscriptionTier?.ToLowerInvariant() switch
-                            {
-                                "enterprise" => -1,
-                                "pro" => 500,
-                                "starter" => 50,
-                                _ => 0
-                            };
-                        }
-
-                        if (effectiveLimit != -1 && tenant.CurrentMonthSummaries >= effectiveLimit)
-                        {
-                            logger.LogWarning("CriticalMassSummaryJob: Cluster {ClusterId} skipped. Tenant {TenantId} has reached their monthly summary limit.", cluster.Id, tenant.Id);
-                            cluster.Summary = "AI Summary limit reached for this billing cycle. Please upgrade your plan to resume automatic AI triage.";
-                            cluster.LastSummarizedAt = DateTime.UtcNow;
+                            logger.LogWarning("CriticalMassSummaryJob: Cluster {ClusterId} skipped. Organization {OrganizationId} has reached their monthly summary limit.", cluster.Id, organization.Id);
                             await innerDb.SaveChangesAsync(stoppingToken);
                             continue;
                         }
@@ -91,13 +78,7 @@ internal sealed class CriticalMassSummaryJob(
 
                         if (!result.IsError)
                         {
-                            cluster.Title = result.Title;
-                            cluster.Summary = result.Summary;
-                            cluster.CriticalityScore = result.CriticalityScore;
-                            cluster.CriticalityReasoning = result.CriticalityReasoning;
-                            cluster.LastSummarizedAt = DateTime.UtcNow;
-
-                            tenant.CurrentMonthSummaries++;
+                            cluster.SetSummary(result.Title, result.Summary, result.CriticalityScore!.Value, result.CriticalityReasoning!);
 
                             await innerDb.SaveChangesAsync(stoppingToken);
                         }

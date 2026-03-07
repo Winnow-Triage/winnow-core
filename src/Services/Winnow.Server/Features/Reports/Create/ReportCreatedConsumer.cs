@@ -1,9 +1,10 @@
-using System.Linq;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Winnow.Server.Domain.Clusters;
+using Winnow.Server.Domain.Clusters.ValueObjects;
+using Winnow.Server.Domain.Common;
+using Winnow.Server.Domain.Reports.ValueObjects;
 using Winnow.Server.Domain.Services;
-using Winnow.Server.Entities;
-using Winnow.Server.Features.Reports.Create;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
@@ -20,36 +21,30 @@ internal class ReportCreatedConsumer(
 {
     public async Task Consume(ConsumeContext<ReportCreatedEvent> context)
     {
-        logger.LogInformation("ReportCreatedConsumer: Consuming message for report {Id} (Tenant: {Tenant}, Project: {Project})",
-            context.Message.ReportId, context.Message.TenantId, context.Message.ProjectId);
+        logger.LogInformation("ReportCreatedConsumer: Consuming message for report {Id} (Organization: {Organization}, Project: {Project})",
+            context.Message.ReportId, context.Message.OrganizationId, context.Message.ProjectId);
 
         if (tenantContext is TenantContext concreteContext)
         {
-            concreteContext.TenantId = context.Message.TenantId;
+            concreteContext.TenantId = context.Message.OrganizationId.ToString();
         }
 
         // 1. Load Report
         var report = await dbContext.Reports.FindAsync([context.Message.ReportId], context.CancellationToken);
         if (report == null) return;
 
-        // Ensure report has the correct ProjectId from the event
-        if (report.ProjectId == Guid.Empty && context.Message.ProjectId != Guid.Empty)
-        {
-            report.ProjectId = context.Message.ProjectId;
-            await dbContext.SaveChangesAsync(context.CancellationToken);
-        }
 
         var projectId = report.ProjectId;
 
         // 3. Cluster Matching — find best cluster by centroid similarity
-        if (report.Embedding != null && report.Status != "Duplicate" && report.Status != "Duplicate (StackHash)")
+        if (report.Embedding != null && report.Status != ReportStatus.Dismissed)
         {
             var embeddingFloats = report.Embedding;
 
             // Search existing clusters in this project
             var clusters = await dbContext.Clusters
                 .AsNoTracking()
-                .Where(c => c.ProjectId == projectId && c.Status != "Closed" && c.Centroid != null)
+                .Where(c => c.ProjectId == projectId && c.Status != ClusterStatus.Dismissed && c.Centroid != null)
                 .ToListAsync(context.CancellationToken);
 
             ClusterMatch? bestMatch = null;
@@ -70,9 +65,9 @@ internal class ReportCreatedConsumer(
                 if (bestMatch.Distance <= 0.15)
                 {
                     // Auto-merge: very high similarity
-                    report.ClusterId = bestMatch.Id;
-                    report.Status = "Duplicate";
-                    report.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                    report.AssignToCluster(bestMatch.Id);
+                    report.ChangeStatus(ReportStatus.Dismissed);
+                    report.SetConfidenceScore(new ConfidenceScore(Math.Max(0, 1.0 - bestMatch.Distance)));
                 }
                 else if (bestMatch.Distance <= 0.35)
                 {
@@ -94,54 +89,40 @@ internal class ReportCreatedConsumer(
 
                         if (areDuplicates)
                         {
-                            report.ClusterId = bestMatch.Id;
-                            report.Status = "Duplicate";
-                            report.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                            report.AssignToCluster(bestMatch.Id);
+                            report.ChangeStatus(ReportStatus.Dismissed);
+                            report.SetConfidenceScore(new ConfidenceScore(Math.Max(0, 1.0 - bestMatch.Distance)));
                         }
                         else
                         {
-                            report.SuggestedClusterId = bestMatch.Id;
-                            report.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                            report.SetSuggestedCluster(bestMatch.Id, new ConfidenceScore(Math.Max(0, 1.0 - bestMatch.Distance)));
                         }
                     }
                 }
                 else if (bestMatch.Distance <= 0.55)
                 {
                     // Low similarity: suggest only
-                    report.SuggestedClusterId = bestMatch.Id;
-                    report.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                    report.SetSuggestedCluster(bestMatch.Id, new ConfidenceScore(Math.Max(0, 1.0 - bestMatch.Distance)));
                 }
             }
 
             // 4. If no match found, create a new cluster for this report
             if (report.ClusterId == null && report.SuggestedClusterId == null)
             {
-                var newCluster = new Cluster
-                {
-                    ProjectId = projectId,
-                    OrganizationId = report.OrganizationId,
-                    Centroid = embeddingFloats,
-                    Title = report.Title,
-                    Status = "Open",
-                };
+                var newCluster = new Cluster(projectId, report.OrganizationId, report.Id);
+                newCluster.UpdateCentroid(embeddingFloats);
                 dbContext.Clusters.Add(newCluster);
-                report.ClusterId = newCluster.Id;
+                report.AssignToCluster(newCluster.Id);
             }
 
         }
         else if (report.Embedding != null && report.ClusterId == null)
         {
             // Report has embedding but is already duplicate/special status — create solo cluster
-            var newCluster = new Cluster
-            {
-                ProjectId = projectId,
-                OrganizationId = report.OrganizationId,
-                Centroid = report.Embedding,
-                Title = report.Title,
-                Status = "Open",
-            };
+            var newCluster = new Cluster(projectId, report.OrganizationId, report.Id);
+            newCluster.UpdateCentroid(report.Embedding);
             dbContext.Clusters.Add(newCluster);
-            report.ClusterId = newCluster.Id;
+            report.AssignToCluster(newCluster.Id);
         }
 
         await dbContext.SaveChangesAsync(context.CancellationToken);

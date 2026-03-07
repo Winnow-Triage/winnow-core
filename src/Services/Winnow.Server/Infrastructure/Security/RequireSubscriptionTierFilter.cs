@@ -1,6 +1,5 @@
-using System.Security.Claims;
-using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
+using Winnow.Server.Domain.Organizations.ValueObjects;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Infrastructure.Security;
@@ -9,9 +8,9 @@ namespace Winnow.Server.Infrastructure.Security;
 /// A Minimal API Endpoint Filter that restricts access based on the Organization's subscription tier.
 /// Performs a live database check to ensure recent billing updates take effect immediately without requiring a relogin.
 /// </summary>
-public class RequireSubscriptionTierFilter(string requiredTier) : IEndpointFilter
+public class RequireSubscriptionTierFilter(SubscriptionPlan requiredTier) : IEndpointFilter
 {
-    private readonly string _requiredTier = requiredTier;
+    private readonly SubscriptionPlan _requiredTier = requiredTier;
 
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
@@ -30,35 +29,11 @@ public class RequireSubscriptionTierFilter(string requiredTier) : IEndpointFilte
             .AsNoTracking() // Prevent tracking overhead just for auth check
             .FirstOrDefaultAsync(o => o.Id == orgId);
 
-        if (organization == null)
-        {
-            return Results.Forbid();
-        }
-
-        // Fallback to "Free" if the property is null for any reason
-        var currentTier = organization.SubscriptionTier ?? "Free";
-
-        if (!IsTierSufficient(currentTier, _requiredTier))
+        if (organization == null || !organization.Plan.IsAtLeast(_requiredTier))
         {
             return Results.Forbid();
         }
 
         return await next(context);
-    }
-
-    private static bool IsTierSufficient(string currentTier, string requiredTier)
-    {
-        var tierLevels = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "Free", 0 },
-            { "Starter", 1 },
-            { "Pro", 2 },
-            { "Enterprise", 3 }
-        };
-
-        var currentLevel = tierLevels.GetValueOrDefault(currentTier, 0);
-        var requiredLevel = tierLevels.GetValueOrDefault(requiredTier, 0);
-
-        return currentLevel >= requiredLevel;
     }
 }

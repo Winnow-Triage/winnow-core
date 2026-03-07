@@ -11,7 +11,7 @@ public class OrganizationMember
 
     // Navigation properties
     public ApplicationUser? User { get; set; }
-    public Organization? Organization { get; set; }
+    public Domain.Organizations.Organization? Organization { get; set; }
 
     // Helper methods
     public bool IsAdmin()

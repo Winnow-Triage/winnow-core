@@ -45,7 +45,7 @@ public sealed class GetCurrentOrganizationEndpoint(
         {
             Id = organization.Id,
             Name = organization.Name,
-            SubscriptionTier = string.IsNullOrEmpty(organization.SubscriptionTier) ? "Free" : organization.SubscriptionTier,
+            SubscriptionTier = organization.Plan.Name ?? "Free",
             CreatedAt = organization.CreatedAt
         }, cancellation: ct);
     }

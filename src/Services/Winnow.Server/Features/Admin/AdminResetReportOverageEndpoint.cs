@@ -42,7 +42,7 @@ public sealed class AdminResetReportOverageEndpoint(WinnowDbContext dbContext) :
             return;
         }
 
-        report.IsOverage = false;
+        report.AdminResetOverage();
 
         await dbContext.SaveChangesAsync(ct);
 

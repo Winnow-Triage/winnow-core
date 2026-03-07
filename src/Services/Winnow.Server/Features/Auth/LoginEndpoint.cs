@@ -73,13 +73,10 @@ public sealed class LoginEndpoint(
         if (organizationMemberships.Count == 0)
         {
             // Create a default organization for the user if they don't have one
-            var organization = new Organization
-            {
-                Id = Guid.NewGuid(),
-                Name = $"{user.FullName}'s Organization",
-                SubscriptionTier = "Free",
-                CreatedAt = DateTime.UtcNow
-            };
+            var organization = new Domain.Organizations.Organization(
+                $"{user.FullName}'s Organization",
+                new Domain.Common.Email(user.Email!)
+            );
 
             var organizationMember = new OrganizationMember
             {
@@ -96,14 +93,13 @@ public sealed class LoginEndpoint(
             // Create a Default Project for the new organization
             var projectId = Guid.NewGuid();
             var plaintextKey = apiKeyService.GeneratePlaintextKey(projectId);
-            var initialProject = new Project
-            {
-                Id = projectId,
-                Name = "Default Project",
-                OwnerId = user.Id,
-                OrganizationId = organization.Id,
-                ApiKeyHash = apiKeyService.HashKey(plaintextKey)
-            };
+            var initialProject = new Domain.Projects.Project(
+                organization.Id,
+                "Default Project",
+                user.Id,
+                apiKeyService.HashKey(plaintextKey),
+                projectId
+            );
             dbContext.Projects.Add(initialProject);
 
             await dbContext.SaveChangesAsync(ct);

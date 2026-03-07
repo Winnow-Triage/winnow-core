@@ -41,14 +41,17 @@ public sealed class GetTeamDashboardEndpoint(IDashboardService dashboardService,
             ThrowError("Organization ID not found in token", 401);
         }
 
-        // Validate user has access to this team in the organization
+        if (!Guid.TryParse(userId, out var userGuid))
+        {
+            ThrowError("Invalid user ID format", 401);
+        }
+
+        // 💥 THE FIX: Query the OrganizationMembers DbSet directly!
         var userHasAccess = await dbContext.Teams
-            .Include(t => t.Organization!)
-            .ThenInclude(o => o.Members)
             .AsNoTracking()
             .AnyAsync(t => t.Id == req.TeamId &&
-                         t.OrganizationId == organizationId &&
-                         t.Organization!.Members.Any(m => m.UserId == userId), ct);
+                           t.OrganizationId == organizationId &&
+                           dbContext.OrganizationMembers.Any(om => om.OrganizationId == organizationId && om.UserId == userGuid.ToString()), ct);
 
         if (!userHasAccess)
         {

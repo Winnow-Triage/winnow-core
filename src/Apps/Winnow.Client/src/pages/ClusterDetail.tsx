@@ -113,7 +113,7 @@ export default function ClusterDetail() {
   const handleGenerateSummary = async () => {
     setIsGeneratingSummary(true);
     try {
-      await api.post(`/reports/${cluster.reports[0].id}/generate-summary`, {});
+      await api.post(`/clusters/${cluster.id}/generate-summary`, {});
       await queryClient.invalidateQueries({ queryKey: ["cluster", id] });
       await queryClient.invalidateQueries({ queryKey: ["billing-status"] });
     } catch (e: any) {
@@ -131,7 +131,7 @@ export default function ClusterDetail() {
   const handleClearSummary = async () => {
     setIsClearingSummary(true);
     try {
-      await api.post(`/reports/${cluster.reports[0].id}/clear-summary`, {});
+      await api.post(`/clusters/${cluster.id}/clear-summary`, {});
       await queryClient.invalidateQueries({ queryKey: ["cluster", id] });
     } catch (e) {
       console.error("Failed to clear summary", e);
@@ -288,7 +288,7 @@ export default function ClusterDetail() {
                   description: `This will mark all ${cluster.reportCount} reports in this cluster as Closed. This action cannot be undone.`,
                   action: async () => {
                     await api.post(
-                      `/reports/${cluster.reports[0].id}/close-cluster`,
+                      `/clusters/${cluster.id}/close-cluster`,
                       {},
                     );
                     await queryClient.invalidateQueries({

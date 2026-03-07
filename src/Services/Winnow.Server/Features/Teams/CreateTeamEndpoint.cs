@@ -1,17 +1,17 @@
 using FastEndpoints;
-using Winnow.Server.Entities;
-using Winnow.Server.Infrastructure.MultiTenancy;
+using Winnow.Server.Domain.Teams;
+using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Teams;
 
-public class CreateTeamRequest
+public class CreateTeamRequest : OrganizationScopedRequest
 {
     public string Name { get; set; } = string.Empty;
 }
 
-public sealed class CreateTeamEndpoint(WinnowDbContext db, ITenantContext tenantContext)
-    : Endpoint<CreateTeamRequest, TeamResponse>
+public sealed class CreateTeamEndpoint(WinnowDbContext db)
+    : OrganizationScopedEndpoint<CreateTeamRequest, TeamResponse>
 {
     public override void Configure()
     {
@@ -21,27 +21,18 @@ public sealed class CreateTeamEndpoint(WinnowDbContext db, ITenantContext tenant
             s.Summary = "Create a new team";
             s.Description = "Adds a new team to the current organization.";
         });
+        Options(x => x.RequireAuthorization());
     }
 
     public override async Task HandleAsync(CreateTeamRequest req, CancellationToken ct)
     {
-        if (!tenantContext.CurrentOrganizationId.HasValue)
-        {
-            ThrowError("No organization context.");
-        }
 
         if (string.IsNullOrWhiteSpace(req.Name))
         {
             ThrowError("Team name is required.");
         }
 
-        var team = new Team
-        {
-            Id = Guid.NewGuid(),
-            Name = req.Name.Trim(),
-            OrganizationId = tenantContext.CurrentOrganizationId.Value,
-            CreatedAt = DateTime.UtcNow
-        };
+        var team = new Team(req.CurrentOrganizationId, req.Name);
 
         db.Teams.Add(team);
         await db.SaveChangesAsync(ct);

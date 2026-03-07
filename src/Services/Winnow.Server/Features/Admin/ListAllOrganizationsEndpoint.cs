@@ -1,11 +1,8 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Admin;
-
-
 
 /// <summary>
 /// Response DTO for an organization summary.
@@ -44,26 +41,25 @@ public sealed class ListAllOrganizationsEndpoint(WinnowDbContext dbContext) : En
 
     public override async Task HandleAsync(EmptyRequest req, CancellationToken ct)
     {
-        // Must ignore global query filters to see all organizations
-        var organizations = await dbContext.Organizations
+        // Execute the Select projection directly against the database
+        var result = await dbContext.Organizations
             .IgnoreQueryFilters()
-            .Include(o => o.Teams)
-            .Include(o => o.Projects)
-            .Include(o => o.Members)
-            .ToListAsync(ct);
+            .Select(o => new OrganizationSummaryResponse
+            {
+                Id = o.Id,
+                Name = o.Name,
+                // Safe unwrapping of your DDD Value Object for the SQL translation
+                StripeCustomerId = o.BillingIdentity.HasValue ? o.BillingIdentity.Value.CustomerId : null,
+                SubscriptionTier = o.Plan.Name,
+                CreatedAt = o.CreatedAt,
+                IsSuspended = o.IsSuspended,
 
-        var result = organizations.Select(o => new OrganizationSummaryResponse
-        {
-            Id = o.Id,
-            Name = o.Name,
-            StripeCustomerId = o.StripeCustomerId,
-            SubscriptionTier = o.SubscriptionTier,
-            CreatedAt = o.CreatedAt,
-            IsSuspended = o.IsSuspended,
-            TeamCount = o.Teams.Count,
-            MemberCount = o.Members.Count,
-            ProjectCount = o.Projects.Count
-        }).ToList();
+                // EF Core translates these perfectly into SQL COUNT() sub-queries
+                TeamCount = dbContext.Teams.IgnoreQueryFilters().Count(t => t.OrganizationId == o.Id),
+                MemberCount = dbContext.OrganizationMembers.IgnoreQueryFilters().Count(m => m.OrganizationId == o.Id),
+                ProjectCount = dbContext.Projects.IgnoreQueryFilters().Count(p => p.OrganizationId == o.Id)
+            })
+            .ToListAsync(ct);
 
         await Send.OkAsync(result, ct);
     }

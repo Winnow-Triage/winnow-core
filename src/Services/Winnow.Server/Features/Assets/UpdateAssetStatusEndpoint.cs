@@ -1,6 +1,6 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
+using Winnow.Server.Domain.Assets.ValueObjects;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Infrastructure.Security;
 
@@ -63,25 +63,53 @@ public sealed class UpdateAssetStatusEndpoint(
             return;
         }
 
-        if (!Enum.TryParse<AssetStatus>(req.Status, ignoreCase: true, out var newStatus)
-            || newStatus == AssetStatus.Pending)
+        AssetStatus newStatus;
+        try
+        {
+            if (!AssetStatus.TryFromName(req.Status, out var status))
+            {
+                AddError("Invalid status. Must be Clean, Infected, or Failed.");
+                await Send.ErrorsAsync(cancellation: ct);
+                return;
+            }
+            newStatus = status!.Value;
+        }
+        catch (ArgumentException)
         {
             AddError("Invalid status. Must be Clean, Infected, or Failed.");
             await Send.ErrorsAsync(cancellation: ct);
             return;
         }
 
-        asset.Status = newStatus;
-        asset.ScannedAt = DateTime.UtcNow;
-
-        if (!string.IsNullOrEmpty(req.NewS3Key))
+        if (newStatus == AssetStatus.Pending)
         {
-            asset.S3Key = req.NewS3Key;
+            AddError("Invalid status. Must be Clean, Infected, or Failed.");
+            await Send.ErrorsAsync(cancellation: ct);
+            return;
+        }
+
+        if (newStatus == AssetStatus.Clean)
+        {
+            if (string.IsNullOrEmpty(req.NewS3Key))
+            {
+                AddError("NewS3Key is required when status is Clean.");
+                await Send.ErrorsAsync(cancellation: ct);
+                return;
+            }
+            asset.MarkAsClean(req.NewS3Key);
+        }
+        else if (newStatus == AssetStatus.Infected)
+        {
+            asset.MarkAsInfected();
+        }
+        else if (newStatus == AssetStatus.Failed)
+        {
+            asset.MarkAsFailed("Scanning failed");
         }
 
         if (!string.IsNullOrEmpty(req.ContentType))
         {
-            asset.ContentType = req.ContentType;
+            asset.UpdateContentType(req.ContentType);
         }
 
         await dbContext.SaveChangesAsync(ct);

@@ -52,7 +52,7 @@ public sealed class UpdateOrganizationEndpoint(
             return;
         }
 
-        organization.Name = req.Name.Trim();
+        organization.Rename(req.Name);
 
         await db.SaveChangesAsync(ct);
 
@@ -60,7 +60,7 @@ public sealed class UpdateOrganizationEndpoint(
         {
             Id = organization.Id,
             Name = organization.Name,
-            SubscriptionTier = string.IsNullOrEmpty(organization.SubscriptionTier) ? "Free" : organization.SubscriptionTier,
+            SubscriptionTier = organization.Plan.Name,
             CreatedAt = organization.CreatedAt
         }, cancellation: ct);
     }

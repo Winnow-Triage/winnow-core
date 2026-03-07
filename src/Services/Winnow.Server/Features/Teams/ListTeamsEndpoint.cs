@@ -38,17 +38,23 @@ public sealed class ListTeamsEndpoint(WinnowDbContext db, ITenantContext tenantC
             s.Summary = "List all teams in the current organization";
             s.Description = "Returns a list of all teams belonging to the active organization.";
         });
+        Options(x => x.RequireAuthorization());
     }
 
     public override async Task HandleAsync(CancellationToken ct)
     {
         if (!tenantContext.CurrentOrganizationId.HasValue)
         {
-            ThrowError("No organization context.");
+            await Send.UnauthorizedAsync(ct);
+            return;
         }
 
+        var orgId = tenantContext.CurrentOrganizationId.Value;
+
         var teams = await db.Teams
-            .Where(t => t.OrganizationId == tenantContext.CurrentOrganizationId.Value)
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Where(t => t.OrganizationId == orgId)
             .OrderBy(t => t.Name)
             .Select(t => new TeamResponse
             {
@@ -63,15 +69,14 @@ public sealed class ListTeamsEndpoint(WinnowDbContext db, ITenantContext tenantC
                         UserId = tm.UserId,
                         FullName = tm.User!.FullName
                     }).ToList(),
-                Projects = t.Projects
-                    .Select(p => new TeamProjectSummary
-                    {
-                        Id = p.Id,
-                        Name = p.Name
-                    }).ToList()
+                Projects = db.Projects
+                    .Where(p => p.TeamId == t.Id)
+                    .Select(p => new TeamProjectSummary { Id = p.Id, Name = p.Name })
+                    .ToList()
             })
             .ToListAsync(ct);
 
+        // FastEndpoints native syntax
         await Send.OkAsync(teams, ct);
     }
 }

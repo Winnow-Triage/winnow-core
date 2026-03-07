@@ -1,6 +1,6 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
+using Winnow.Server.Domain.Reports.ValueObjects;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Admin;
@@ -60,8 +60,6 @@ public sealed class AdminListReportsEndpoint(WinnowDbContext dbContext) : Endpoi
         var query = dbContext.Reports
             .IgnoreQueryFilters()
             .AsNoTracking()
-            .Include(r => r.Project!)
-                .ThenInclude(p => p.Organization)
             .AsQueryable();
 
         // Apply filters
@@ -91,7 +89,8 @@ public sealed class AdminListReportsEndpoint(WinnowDbContext dbContext) : Endpoi
 
         if (!string.IsNullOrWhiteSpace(req.Status))
         {
-            query = query.Where(r => string.Equals(r.Status, req.Status, StringComparison.OrdinalIgnoreCase));
+            var status = ReportStatus.FromName(req.Status);
+            query = query.Where(r => r.Status == status);
         }
 
         if (req.IsLocked.HasValue)
@@ -121,14 +120,24 @@ public sealed class AdminListReportsEndpoint(WinnowDbContext dbContext) : Endpoi
             {
                 Id = r.Id,
                 Title = r.Title,
-                Status = r.Status,
+                Status = r.Status.Name,
                 IsLocked = r.IsLocked,
                 IsOverage = r.IsOverage,
                 CreatedAt = r.CreatedAt,
                 OrganizationId = r.OrganizationId,
-                OrganizationName = r.Project != null && r.Project.Organization != null ? r.Project.Organization.Name : "Unknown",
+
+                OrganizationName = dbContext.Organizations
+                    .IgnoreQueryFilters()
+                    .Where(o => o.Id == r.OrganizationId)
+                    .Select(o => o.Name)
+                    .FirstOrDefault() ?? "Unknown Organization",
+
                 ProjectId = r.ProjectId,
-                ProjectName = r.Project != null ? r.Project.Name : "Unknown"
+                ProjectName = dbContext.Projects
+                    .IgnoreQueryFilters()
+                    .Where(p => p.Id == r.ProjectId)
+                    .Select(p => p.Name)
+                    .FirstOrDefault() ?? "Unknown Project"
             })
             .ToListAsync(ct);
 

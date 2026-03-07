@@ -1,10 +1,10 @@
-using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
+using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Projects;
 
-public class ListProjectIntegrationsRequest
+public class ListProjectIntegrationsRequest : ProjectScopedRequest
 {
     public Guid ProjectId { get; set; }
 }
@@ -12,11 +12,11 @@ public class ListProjectIntegrationsRequest
 public record ProjectIntegrationDto(Guid Id, string Provider, string Name, bool IsActive);
 
 public sealed class ListProjectIntegrationsEndpoint(WinnowDbContext db)
-    : Endpoint<ListProjectIntegrationsRequest, List<ProjectIntegrationDto>>
+    : ProjectScopedEndpoint<ListProjectIntegrationsRequest, List<ProjectIntegrationDto>>
 {
     public override void Configure()
     {
-        Get("/projects/{projectId}/integrations");
+        Get("/integrations");
         Summary(s =>
         {
             s.Summary = "List project integrations";
@@ -29,13 +29,6 @@ public sealed class ListProjectIntegrationsEndpoint(WinnowDbContext db)
 
     public override async Task HandleAsync(ListProjectIntegrationsRequest req, CancellationToken ct)
     {
-        var projectExists = await db.Projects.AnyAsync(p => p.Id == req.ProjectId, ct);
-        if (!projectExists)
-        {
-            await Send.NotFoundAsync(ct);
-            return;
-        }
-
         var integrations = await db.Integrations
             .AsNoTracking()
             .Where(i => i.ProjectId == req.ProjectId)

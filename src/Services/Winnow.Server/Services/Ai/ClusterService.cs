@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Winnow.Server.Domain.Common;
 using Winnow.Server.Domain.Services;
 using Winnow.Server.Infrastructure.Persistence;
 
@@ -30,7 +31,7 @@ public class ClusterService(
 
         if (memberEmbeddings.Count > 0)
         {
-            cluster.Centroid = vectorCalculator.CalculateCentroid(memberEmbeddings);
+            cluster.UpdateCentroid(vectorCalculator.CalculateCentroid(memberEmbeddings));
             logger.LogInformation("ClusterService: Recalculated centroid for cluster {Id} ({Count} reports).", clusterId, memberEmbeddings.Count);
 
             // Fetch reports again to update confidence scores (we need tracked entities)
@@ -40,9 +41,9 @@ public class ClusterService(
 
             foreach (var member in membersToUpdate)
             {
-                var distance = vectorCalculator.CalculateCosineDistance(member.Embedding!, cluster.Centroid);
+                var distance = vectorCalculator.CalculateCosineDistance(member.Embedding!, cluster.Centroid!);
                 // Similarity = 1 - Distance. Convert to percentage.
-                member.ConfidenceScore = (float)(1.0 - distance);
+                member.SetConfidenceScore(new ConfidenceScore(1.0 - distance));
             }
 
             logger.LogInformation("ClusterService: Updated confidence scores for {Count} reports in cluster {Id}.", membersToUpdate.Count, clusterId);

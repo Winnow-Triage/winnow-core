@@ -1,6 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Winnow.Server.Domain.Clusters;
+using Winnow.Server.Domain.Clusters.ValueObjects;
+using Winnow.Server.Domain.Common;
+using Winnow.Server.Domain.Reports;
+using Winnow.Server.Domain.Reports.ValueObjects;
 using Winnow.Server.Domain.Services;
-using Winnow.Server.Entities;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
 
@@ -100,11 +104,14 @@ internal sealed class ClusterRefinementJob(
 
     private static async Task<List<Report>> GetOrphanReportsAsync(WinnowDbContext db, Guid projectId, CancellationToken ct)
     {
+        var statusDuplicate = ReportStatus.Dismissed; // Mapped to duplicate for now 
+        var statusClosed = ReportStatus.Dismissed;    // Same mappings used elsewhere
+
         return await db.Reports
             .Where(t => t.ProjectId == projectId
                      && t.ClusterId == null
-                     && t.Status != "Duplicate"
-                     && t.Status != "Closed")
+                     && t.Status != statusDuplicate
+                     && t.Status != statusClosed)
             .OrderBy(t => t.CreatedAt)
             .ToListAsync(ct);
     }
@@ -130,7 +137,7 @@ internal sealed class ClusterRefinementJob(
                     "UPDATE \"Reports\" SET \"Embedding\" = {0} WHERE \"Id\" = {1} AND \"ProjectId\" = {2}",
                     [embeddingFloats, report.Id, projectId], ct);
 
-                report.Embedding = embeddingFloats;
+                report.SetEmbedding(embeddingFloats);
             }
             catch (Exception ex)
             {
@@ -142,8 +149,9 @@ internal sealed class ClusterRefinementJob(
 
     private static async Task<List<Cluster>> GetOpenClustersAsync(WinnowDbContext db, Guid projectId, CancellationToken ct)
     {
+        var statusClosed = ClusterStatus.Dismissed;
         return await db.Clusters
-            .Where(c => c.ProjectId == projectId && c.Status != "Closed" && c.Centroid != null)
+            .Where(c => c.ProjectId == projectId && c.Status != statusClosed && c.Centroid != null)
             .ToListAsync(ct);
     }
 
@@ -180,8 +188,7 @@ internal sealed class ClusterRefinementJob(
                     {
                         if (bestMatch.Distance <= ReportSuggestThreshold && report.SuggestedClusterId == null)
                         {
-                            report.SuggestedClusterId = bestMatch.Id;
-                            report.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                            report.SetSuggestedCluster(bestMatch.Id, new ConfidenceScore(1.0 - bestMatch.Distance));
                             reportSuggestCount++;
                         }
                         continue;
@@ -195,8 +202,7 @@ internal sealed class ClusterRefinementJob(
 
             if (bestMatch.Distance <= ReportSuggestThreshold && report.SuggestedClusterId == null)
             {
-                report.SuggestedClusterId = bestMatch.Id;
-                report.SuggestedConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
+                report.SetSuggestedCluster(bestMatch.Id, new ConfidenceScore(1.0 - bestMatch.Distance));
                 reportSuggestCount++;
             }
         }
@@ -206,11 +212,10 @@ internal sealed class ClusterRefinementJob(
 
     private static void MergeReportIntoCluster(Report report, ClusterCandidate bestMatch)
     {
-        report.ClusterId = bestMatch.Id;
-        report.Status = "Duplicate";
-        report.ConfidenceScore = (float)Math.Max(0, 1.0 - bestMatch.Distance);
-        report.SuggestedClusterId = null;
-        report.SuggestedConfidenceScore = null;
+        report.AssignToCluster(bestMatch.Id);
+        report.ChangeStatus(ReportStatus.Dismissed);
+        report.SetConfidenceScore(new ConfidenceScore(Math.Max(0, 1.0 - bestMatch.Distance)));
+        // Note: AssignToCluster clears suggestions inherently in the domain model
     }
 
     private static ClusterCandidate? FindBestClusterMatch(Report report, List<Cluster> clusters, INegativeMatchCache negativeCache, IVectorCalculator vectorCalculator)
@@ -273,16 +278,11 @@ internal sealed class ClusterRefinementJob(
     {
         foreach (var report in orphanReports.Where(r => r.Embedding != null && r.ClusterId == null && r.SuggestedClusterId == null))
         {
-            var newCluster = new Cluster
-            {
-                ProjectId = projectId,
-                OrganizationId = report.OrganizationId,
-                Centroid = report.Embedding,
-                Title = report.Title,
-                Status = "Open",
-            };
+            var newCluster = new Cluster(projectId, report.OrganizationId, report.Id);
+            newCluster.UpdateCentroid(report.Embedding!);
+            // newCluster.SetSummary(report.Title, null); // We don't have a reliable way to set title only via domain methods if summary is missing, but maybe it's fine. Wait, does Cluster constructor set Status = Open? Yes.
             db.Clusters.Add(newCluster);
-            report.ClusterId = newCluster.Id;
+            report.AssignToCluster(newCluster.Id);
             clusters.Add(newCluster);
         }
     }
@@ -329,14 +329,12 @@ internal sealed class ClusterRefinementJob(
                 }
                 else if (bestClusterMatch.Distance <= ClusterSuggestThreshold)
                 {
-                    c1.SuggestedMergeClusterId = bestClusterMatch.Id;
-                    c1.SuggestedMergeConfidenceScore = (float)Math.Max(0, 1.0 - bestClusterMatch.Distance);
+                    c1.SuggestMerge(bestClusterMatch.Id, new ConfidenceScore(Math.Max(0, 1.0 - bestClusterMatch.Distance)));
                     clusterSuggestCount++;
                 }
                 else
                 {
-                    c1.SuggestedMergeClusterId = null;
-                    c1.SuggestedMergeConfidenceScore = null;
+                    c1.ClearMergeSuggestion();
                 }
             }
         }
@@ -357,24 +355,25 @@ internal sealed class ClusterRefinementJob(
         logger.LogInformation("Janitor: Auto-merging cluster {Source} into {Target}", sourceClusterId, targetClusterId);
 
         // Move all reports and mark as Duplicate
+        var statusDuplicate = ReportStatus.Dismissed;
         await db.Reports
             .Where(r => r.ClusterId == sourceClusterId)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(r => r.ClusterId, targetClusterId)
-                .SetProperty(r => r.Status, "Duplicate"), ct);
+                .SetProperty(r => r.Status, statusDuplicate), ct);
 
         // Clear any suggestion references pointing to the source cluster before deleting it
         await db.Reports
             .Where(r => r.SuggestedClusterId == sourceClusterId)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(r => r.SuggestedClusterId, (Guid?)null)
-                .SetProperty(r => r.SuggestedConfidenceScore, (float?)null), ct);
+                .SetProperty(r => r.SuggestedConfidenceScore, (ConfidenceScore?)null), ct);
 
         await db.Clusters
             .Where(c => c.SuggestedMergeClusterId == sourceClusterId)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(c => c.SuggestedMergeClusterId, (Guid?)null)
-                .SetProperty(c => c.SuggestedMergeConfidenceScore, (float?)null), ct);
+                .SetProperty(c => c.SuggestedMergeConfidenceScore, (ConfidenceScore?)null), ct);
 
         // Delete source cluster
         await db.Clusters

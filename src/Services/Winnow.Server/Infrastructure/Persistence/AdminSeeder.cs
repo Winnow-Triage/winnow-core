@@ -1,9 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using Winnow.Server.Domain.Common;
+using Winnow.Server.Domain.Organizations.ValueObjects;
 using Winnow.Server.Entities;
 
 namespace Winnow.Server.Infrastructure.Persistence;
@@ -75,13 +73,11 @@ public class AdminSeeder(IServiceProvider serviceProvider, ILogger<AdminSeeder> 
         {
             logger.LogInformation("Bootstrapping initial 'Winnow Admin' organization.");
 
-            adminOrg = new Organization
-            {
-                Id = Guid.NewGuid(),
-                Name = "Winnow Admin",
-                SubscriptionTier = "Enterprise",
-                CreatedAt = DateTime.UtcNow
-            };
+            adminOrg = new Domain.Organizations.Organization(
+                "Winnow Admin",
+                new Email("admin@winnowtriage.com"),
+                SubscriptionPlan.Enterprise
+            );
 
             dbContext.Organizations.Add(adminOrg);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -96,45 +92,61 @@ public class AdminSeeder(IServiceProvider serviceProvider, ILogger<AdminSeeder> 
         if (adminProject == null)
         {
             logger.LogInformation("Creating default project for 'Winnow Admin' organization.");
-            var apiKeyService = scope.ServiceProvider.GetRequiredService<Winnow.Server.Infrastructure.Security.IApiKeyService>();
+            var apiKeyService = scope.ServiceProvider.GetRequiredService<Security.IApiKeyService>();
             var projectId = Guid.NewGuid();
             var plaintextKey = apiKeyService.GeneratePlaintextKey(projectId);
 
-            adminProject = new Project
-            {
-                Id = projectId,
-                Name = "Default Project",
-                OwnerId = adminUser?.Id ?? "",
-                OrganizationId = adminOrg.Id,
-                ApiKeyHash = apiKeyService.HashKey(plaintextKey)
-            };
+            adminProject = new Domain.Projects.Project
+            (
+                adminOrg.Id,
+                "Default Project",
+                adminUser?.Id ?? "",
+                apiKeyService.HashKey(plaintextKey)
+            );
 
             dbContext.Projects.Add(adminProject);
             await dbContext.SaveChangesAsync(cancellationToken);
             logger.LogInformation("Default project created for 'Winnow Admin'. API Key: {Key}", plaintextKey);
         }
 
-        // 5. Ensure SuperAdmin user is owner of the 'Winnow Admin' organization
+        // Ensure SuperAdmin user is owner of the 'Winnow Admin' organization
         if (adminUser != null)
         {
+            // Force the dbContext to acknowledge the user exists 
+            // even though a different manager created them.
+            if (dbContext.Entry(adminUser).State == EntityState.Detached)
+            {
+                dbContext.Users.Attach(adminUser);
+            }
+
+            var finalOrgId = adminOrg.Id;
+            var finalUserId = adminUser.Id;
+
+            // Use the dbContext to check for existence so it stays in the same transaction
             var existingMembership = await dbContext.OrganizationMembers
                 .IgnoreQueryFilters()
-                .AnyAsync(m => m.UserId == adminUser.Id && m.OrganizationId == adminOrg.Id, cancellationToken);
+                .AnyAsync(m => m.UserId == finalUserId && m.OrganizationId == finalOrgId, cancellationToken);
 
             if (!existingMembership)
             {
+                logger.LogInformation("Creating membership link for {Email} and {OrgName}", adminEmail, adminOrg.Name);
+
                 var membership = new OrganizationMember
                 {
                     Id = Guid.NewGuid(),
-                    UserId = adminUser.Id,
-                    OrganizationId = adminOrg.Id,
+                    UserId = finalUserId,
+                    OrganizationId = finalOrgId,
+                    Organization = adminOrg,
                     Role = "owner",
-                    JoinedAt = DateTime.UtcNow
+                    JoinedAt = DateTime.UtcNow,
+                    IsLocked = false
                 };
 
                 dbContext.OrganizationMembers.Add(membership);
+
+                // Final save should now succeed because the User and Org are both 'tracked'
                 await dbContext.SaveChangesAsync(cancellationToken);
-                logger.LogInformation("Assigned superadmin user {Email} as owner of 'Winnow Admin' organization.", adminEmail);
+                logger.LogInformation("Successfully assigned owner role.");
             }
         }
     }

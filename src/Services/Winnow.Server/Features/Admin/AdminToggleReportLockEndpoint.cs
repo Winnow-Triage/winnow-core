@@ -42,7 +42,14 @@ public sealed class AdminToggleReportLockEndpoint(WinnowDbContext dbContext) : E
             return;
         }
 
-        report.IsLocked = !report.IsLocked;
+        if (report.IsLocked)
+        {
+            report.Unlock();
+        }
+        else
+        {
+            report.Lock();
+        }
 
         await dbContext.SaveChangesAsync(ct);
 

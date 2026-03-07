@@ -1,11 +1,22 @@
-using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
+using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Dashboard;
 
-public sealed class GetDashboardMetricsEndpoint(IDashboardService dashboardService, WinnowDbContext dbContext) : EndpointWithoutRequest<DashboardMetricsDto>
+
+public class GetDashboardMetricsRequest
+{
+    [FromHeader("X-Project-ID", IsRequired = true)]
+    public Guid ProjectId { get; set; }
+}
+
+public sealed class GetDashboardMetricsEndpoint(
+    IDashboardService dashboardService,
+    WinnowDbContext dbContext,
+    ITenantContext tenantContext)
+    : Endpoint<GetDashboardMetricsRequest, DashboardMetricsDto>
 {
     public override void Configure()
     {
@@ -13,56 +24,37 @@ public sealed class GetDashboardMetricsEndpoint(IDashboardService dashboardServi
         Summary(s =>
         {
             s.Summary = "Get dashboard metrics";
-            s.Description = "Retrieves aggregated metrics for the project dashboard (e.g., usage, error rates).";
+            s.Description = "Retrieves aggregated metrics for the project dashboard.";
             s.Response<DashboardMetricsDto>(200, "Metrics data");
             s.Response(400, "Invalid project ID");
-            s.Response(401, "Unauthorized");
+            s.Response(404, "Project not found or access denied");
         });
         Options(x => x.RequireAuthorization());
     }
 
-    public override async Task HandleAsync(CancellationToken ct)
+    public override async Task HandleAsync(GetDashboardMetricsRequest req, CancellationToken ct)
     {
-        // Get user ID and organization ID from JWT
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var organizationIdClaim = User.FindFirstValue("organization");
-
-        if (string.IsNullOrEmpty(userId))
+        // 3. Use your TenantContext to verify auth instead of manual claim parsing
+        if (!tenantContext.CurrentOrganizationId.HasValue)
         {
-            ThrowError("Unauthorized", 401);
+            await Send.UnauthorizedAsync(ct);
+            return;
         }
 
-        if (!Guid.TryParse(organizationIdClaim, out var organizationId))
+        var orgId = tenantContext.CurrentOrganizationId.Value;
+
+        var projectExists = await dbContext.Projects
+            .AnyAsync(p => p.Id == req.ProjectId && p.OrganizationId == orgId, ct);
+
+        if (!projectExists)
         {
-            ThrowError("Organization ID not found in token", 401);
+            await Send.NotFoundAsync(ct);
+            return;
         }
 
-        // Get project ID from header
-        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader))
-        {
-            ThrowError("Project ID is required in X-Project-ID header", 400);
-        }
+        // Pass the clean, validated IDs to your service
+        var metrics = await dashboardService.GetDashboardMetricsAsync(orgId, req.ProjectId, null, ct);
 
-        if (!Guid.TryParse(projectIdHeader, out var projectId))
-        {
-            ThrowError("Invalid Project ID format", 400);
-        }
-
-        // Validate user has access to this project in the organization
-        var userHasAccess = await dbContext.Projects
-            .Include(p => p.Organization!)
-            .ThenInclude(o => o.Members)
-            .AsNoTracking()
-            .AnyAsync(p => p.Id == projectId &&
-                         p.OrganizationId == organizationId &&
-                         p.Organization!.Members.Any(m => m.UserId == userId), ct);
-
-        if (!userHasAccess)
-        {
-            ThrowError("Project not found or access denied", 404);
-        }
-
-        var metrics = await dashboardService.GetDashboardMetricsAsync(organizationId, projectId, null, ct);
         await Send.OkAsync(metrics, ct);
     }
 }

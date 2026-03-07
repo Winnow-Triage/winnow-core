@@ -1,21 +1,9 @@
-using System.Security.Claims;
-using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
-using Winnow.Server.Infrastructure.MultiTenancy;
+using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Projects;
 
-/// <summary>
-/// Project details.
-/// </summary>
-/// <param name="Id">Unique identifier of the project.</param>
-/// <param name="Name">Name of the project.</param>
-/// <param name="ApiKey">API Key key for the project.</param>
-/// <param name="TeamId">The ID of the team this project belongs to, if any.</param>
-/// <param name="HasSecondaryKey">Indicates if there is an active secondary (old) key.</param>
-/// <param name="SecondaryApiKeyExpiresAt">When the secondary key will expire, if any.</param>
 public record ProjectDto(
     Guid Id,
     string Name,
@@ -24,12 +12,13 @@ public record ProjectDto(
     bool HasSecondaryKey = false,
     DateTimeOffset? SecondaryApiKeyExpiresAt = null);
 
-public class ListProjectsRequest
+public class ListProjectsRequest : OrganizationScopedRequest
 {
     public bool OrgWide { get; set; }
 }
 
-public sealed class ListProjectsEndpoint(WinnowDbContext dbContext, ITenantContext tenantContext) : Endpoint<ListProjectsRequest, List<ProjectDto>>
+public sealed class ListProjectsEndpoint(WinnowDbContext dbContext)
+    : OrganizationScopedEndpoint<ListProjectsRequest, List<ProjectDto>>
 {
     public override void Configure()
     {
@@ -38,51 +27,29 @@ public sealed class ListProjectsEndpoint(WinnowDbContext dbContext, ITenantConte
         {
             s.Summary = "List projects";
             s.Description = "Retrieves a list of projects. If OrgWide is true and user is admin, returns all projects in the organization.";
-            s.Response<List<ProjectDto>>(200, "List of projects");
-            s.Response(401, "Unauthorized");
         });
         Options(x => x.RequireAuthorization());
     }
 
     public override async Task HandleAsync(ListProjectsRequest req, CancellationToken ct)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) ThrowError("Unauthorized", 401);
-
-        if (!tenantContext.CurrentOrganizationId.HasValue)
-        {
-            ThrowError("No organization selected", 400);
-            return;
-        }
-
-        // Get user role in the organization
-        var membership = await dbContext.OrganizationMembers
-            .FirstOrDefaultAsync(om => om.UserId == userId && om.OrganizationId == tenantContext.CurrentOrganizationId.Value, ct);
-
-        if (membership == null)
-        {
-            ThrowError("User is not a member of this organization", 403);
-            return;
-        }
-
         var query = dbContext.Projects
             .AsNoTracking()
-            .Where(p => p.OrganizationId == tenantContext.CurrentOrganizationId.Value);
+            .Where(p => p.OrganizationId == req.CurrentOrganizationId);
 
-        // Access control:
-        // - Admins/Owners ALWAYS see all projects in the organization.
-        // - Members see projects assigned to their teams OR projects with NO team assigned.
-        bool shouldFilterByTeams = !membership.IsAdmin();
+        Console.WriteLine($"ROLES LOADED: {string.Join(", ", req.CurrentUserRoles)}");
+        // Filter by teams if they DIDN'T ask for OrgWide, OR if they lack the required roles.
+        bool shouldFilterByTeams = !req.HasAnyRole("Admin", "SuperAdmin", "Owner");
 
         if (shouldFilterByTeams)
         {
             var userTeamIds = await dbContext.TeamMembers
-                .Where(tm => tm.UserId == userId && tm.Team!.OrganizationId == tenantContext.CurrentOrganizationId.Value)
+                .Where(tm => tm.UserId == req.CurrentUserId && tm.Team!.OrganizationId == req.CurrentOrganizationId)
                 .Select(tm => tm.TeamId)
                 .ToListAsync(ct);
 
             var directProjectIds = await dbContext.ProjectMembers
-                .Where(pm => pm.UserId == userId && pm.Project!.OrganizationId == tenantContext.CurrentOrganizationId.Value)
+                .Where(pm => pm.UserId == req.CurrentUserId && pm.Project!.OrganizationId == req.CurrentOrganizationId)
                 .Select(pm => pm.ProjectId)
                 .ToListAsync(ct);
 

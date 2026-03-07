@@ -50,8 +50,7 @@ public sealed class RevokeSecondaryApiKeyEndpoint(
             return;
         }
 
-        project.SecondaryApiKeyHash = null;
-        project.SecondaryApiKeyExpiresAt = null;
+        project.RevokeSecondaryApiKey();
 
         await dbContext.SaveChangesAsync(ct);
 

@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Winnow.Server.Domain.Clusters.ValueObjects;
+using Winnow.Server.Domain.Reports.ValueObjects;
 using Winnow.Server.Features.Billing;
+using Winnow.Server.Features.Dashboard;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Dashboard;
@@ -56,12 +59,12 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         }
 
         var activeClusters = await clusterQuery
-            .CountAsync(c => c.Status != "Closed", ct);
+            .CountAsync(c => c.Status == ClusterStatus.Open, ct);
 
         // Use joins to match exactly what the review queue returns — only count suggestions
         // where the target cluster still exists (deleted clusters would inflate the count otherwise).
         var pendingReportReviews = await baseQuery
-            .Where(r => r.SuggestedClusterId != null && r.Status != "Duplicate" && r.Status != "Closed")
+            .Where(r => r.SuggestedClusterId != null && r.Status == ReportStatus.Open)
             .Join(db.Clusters.Where(c => c.ProjectId == projectId),
                 r => r.SuggestedClusterId,
                 c => c.Id,
@@ -69,7 +72,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
             .CountAsync(ct);
 
         var pendingClusterMerges = await clusterQuery
-            .Where(c => c.SuggestedMergeClusterId != null && c.Status != "Closed")
+            .Where(c => c.SuggestedMergeClusterId != null && c.Status == ClusterStatus.Open)
             .Join(db.Clusters.Where(c => c.ProjectId == projectId),
                 c1 => c1.SuggestedMergeClusterId,
                 c2 => c2.Id,
@@ -130,7 +133,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
                     trendingDtos.Add(new TrendingClusterDto(
                         t.ClusterId,
                         info.Title ?? "Untitled Cluster",
-                        info.Status,
+                        info.Status.Name,
                         total,
                         t.Velocity,
                         t.Velocity > 10
@@ -143,7 +146,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         var historyRaw = await baseQuery
             .AsNoTracking()
             .Where(r => r.CreatedAt >= yesterday)
-            .Select(r => new { r.CreatedAt, IsDuplicate = r.Status == "Duplicate" })
+            .Select(r => new { r.CreatedAt, IsDuplicate = r.Status == ReportStatus.Dismissed })
             .ToListAsync(ct);
 
         var grouped = historyRaw
@@ -194,7 +197,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
                 g.Key.Year,
                 g.Key.Month,
                 ReportCount = g.Count(),
-                UniqueCount = g.Count(x => x.Status != "Duplicate")
+                UniqueCount = g.Count(x => x.Status != ReportStatus.Dismissed)
             })
             .ToListAsync(ct);
 
@@ -214,10 +217,10 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
 
         var org = await db.Organizations
             .Where(o => o.Id == organizationId)
-            .Select(o => new { o.SubscriptionTier })
+            .Select(o => new { o.Plan })
             .FirstOrDefaultAsync(ct);
 
-        var tierId = org?.SubscriptionTier?.ToLowerInvariant() ?? "free";
+        var tierId = org?.Plan.Name?.ToLowerInvariant() ?? "free";
         int? limit = tierId switch
         {
             "free" => 50,
@@ -242,7 +245,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
                 t.Id,
                 t.Name,
                 ProjectCount = t.Projects.Count,
-                ReportVolume = db.Reports.Count(r => r.OrganizationId == organizationId && db.Projects.Any(p => p.Id == r.ProjectId && p.TeamId == t.Id) && r.Status != "Duplicate" && r.CreatedAt >= startOfMonth)
+                ReportVolume = db.Reports.Count(r => r.OrganizationId == organizationId && db.Projects.Any(p => p.Id == r.ProjectId && p.TeamId == t.Id) && r.Status != ReportStatus.Dismissed && r.CreatedAt >= startOfMonth)
             })
             .ToListAsync(ct);
 
@@ -258,7 +261,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
             {
                 ProjectId = g.Key,
                 TotalReports = g.Count(),
-                ActiveClusters = db.Clusters.Count(c => c.ProjectId == g.Key && c.Status != "Closed")
+                ActiveClusters = db.Clusters.Count(c => c.ProjectId == g.Key && c.Status == ClusterStatus.Open)
             })
             .OrderByDescending(x => x.TotalReports)
             .Take(5)
@@ -301,8 +304,8 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
             {
                 p.Id,
                 p.Name,
-                ReportVolume = db.Reports.Count(r => r.ProjectId == p.Id && r.Status != "Duplicate" && r.CreatedAt >= startOfMonth),
-                ActiveClusters = db.Clusters.Count(c => c.ProjectId == p.Id && c.Status != "Closed")
+                ReportVolume = db.Reports.Count(r => r.ProjectId == p.Id && r.Status != ReportStatus.Dismissed && r.CreatedAt >= startOfMonth),
+                ActiveClusters = db.Clusters.Count(c => c.ProjectId == p.Id && c.Status == ClusterStatus.Open)
             })
             .ToListAsync(ct);
 
@@ -340,7 +343,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
                     trendingDtos.Add(new TrendingClusterDto(
                         t.ClusterId,
                         info.Title ?? "Untitled Cluster",
-                        info.Status,
+                        info.Status.Name,
                         t.Total,
                         t.Velocity,
                         t.Velocity > 10
@@ -354,7 +357,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         var historyRaw = await db.Reports
             .AsNoTracking()
             .Where(r => projectIds.Contains(r.ProjectId) && r.CreatedAt >= yesterday)
-            .Select(r => new { r.CreatedAt, IsDuplicate = r.Status == "Duplicate" })
+            .Select(r => new { r.CreatedAt, IsDuplicate = r.Status == ReportStatus.Dismissed })
             .ToListAsync(ct);
 
         var grouped = historyRaw

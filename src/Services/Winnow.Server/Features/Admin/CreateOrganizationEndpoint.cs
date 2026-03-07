@@ -1,5 +1,8 @@
 using FastEndpoints;
-using Winnow.Server.Entities;
+using Winnow.Server.Domain.Common;
+using Winnow.Server.Domain.Organizations;
+using Winnow.Server.Domain.Organizations.ValueObjects;
+using Winnow.Server.Domain.Projects;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Admin;
@@ -7,7 +10,8 @@ namespace Winnow.Server.Features.Admin;
 public class CreateOrganizationRequest
 {
     public string Name { get; set; } = string.Empty;
-    public string SubscriptionTier { get; set; } = "Free";
+    public Email ContactEmail { get; set; } = new Email("");
+    public SubscriptionPlan Plan { get; set; } = SubscriptionPlan.Free;
 }
 
 public class CreateOrganizationResponse
@@ -44,12 +48,11 @@ public sealed class CreateOrganizationEndpoint(
     public override async Task HandleAsync(CreateOrganizationRequest req, CancellationToken ct)
     {
         var organization = new Organization
-        {
-            Id = Guid.NewGuid(),
-            Name = req.Name,
-            SubscriptionTier = req.SubscriptionTier,
-            CreatedAt = DateTime.UtcNow
-        };
+        (
+            req.Name,
+            req.ContactEmail,
+            req.Plan
+        );
 
         dbContext.Organizations.Add(organization);
 
@@ -57,13 +60,12 @@ public sealed class CreateOrganizationEndpoint(
         var projectId = Guid.NewGuid();
         var plaintextKey = apiKeyService.GeneratePlaintextKey(projectId);
         var project = new Project
-        {
-            Id = projectId,
-            Name = "Default Project",
-            OwnerId = "", // Admin created orgs might not have an owner yet
-            OrganizationId = organization.Id,
-            ApiKeyHash = apiKeyService.HashKey(plaintextKey)
-        };
+        (
+            organization.Id,
+            "Default Project",
+            "", // Admin created orgs might not have an owner yet
+            apiKeyService.HashKey(plaintextKey)
+        );
         dbContext.Projects.Add(project);
 
         await dbContext.SaveChangesAsync(ct);
@@ -72,7 +74,7 @@ public sealed class CreateOrganizationEndpoint(
         {
             Id = organization.Id,
             Name = organization.Name,
-            SubscriptionTier = organization.SubscriptionTier,
+            SubscriptionTier = organization.Plan.Name,
             DefaultProjectId = project.Id,
             DefaultProjectApiKey = plaintextKey
         }, ct);

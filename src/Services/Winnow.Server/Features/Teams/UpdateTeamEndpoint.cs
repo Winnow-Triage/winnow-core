@@ -2,17 +2,18 @@ using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Teams;
 
-public class UpdateTeamRequest
+public class UpdateTeamRequest : OrganizationScopedRequest
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
 }
 
-public sealed class UpdateTeamEndpoint(WinnowDbContext db, ITenantContext tenantContext)
-    : Endpoint<UpdateTeamRequest, TeamResponse>
+public sealed class UpdateTeamEndpoint(WinnowDbContext db)
+    : OrganizationScopedEndpoint<UpdateTeamRequest, TeamResponse>
 {
     public override void Configure()
     {
@@ -22,17 +23,13 @@ public sealed class UpdateTeamEndpoint(WinnowDbContext db, ITenantContext tenant
             s.Summary = "Update a team";
             s.Description = "Modifies an existing team in the current organization.";
         });
+        Options(x => x.RequireAuthorization());
     }
 
     public override async Task HandleAsync(UpdateTeamRequest req, CancellationToken ct)
     {
-        if (!tenantContext.CurrentOrganizationId.HasValue)
-        {
-            ThrowError("No organization context.");
-        }
-
         var team = await db.Teams
-            .FirstOrDefaultAsync(t => t.Id == req.Id && t.OrganizationId == tenantContext.CurrentOrganizationId.Value, ct);
+            .FirstOrDefaultAsync(t => t.Id == req.Id && t.OrganizationId == req.CurrentOrganizationId, ct);
 
         if (team == null)
         {
@@ -45,7 +42,7 @@ public sealed class UpdateTeamEndpoint(WinnowDbContext db, ITenantContext tenant
             ThrowError("Team name is required.");
         }
 
-        team.Name = req.Name.Trim();
+        team.Rename(req.Name.Trim());
         await db.SaveChangesAsync(ct);
 
         await Send.OkAsync(new TeamResponse

@@ -1,7 +1,8 @@
 using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
+using Winnow.Server.Domain.Clusters;
+using Winnow.Server.Domain.Reports.ValueObjects;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
@@ -11,7 +12,7 @@ namespace Winnow.Server.Features.Reports.Merge;
 /// <summary>
 /// Request to merge multiple reports into a target report's cluster.
 /// </summary>
-public class MergeReportsRequest
+public class MergeReportsRequest : ProjectScopedRequest
 {
     /// <summary>
     /// The target report ID that others will be merged INTO.
@@ -21,10 +22,10 @@ public class MergeReportsRequest
     /// <summary>
     /// List of source report IDs to merge into the target.
     /// </summary>
-    public List<Guid> SourceIds { get; set; } = new();
+    public List<Guid> SourceIds { get; set; } = [];
 }
 
-public sealed class MergeReportsEndpoint(WinnowDbContext db, IClusterService clusterService) : Endpoint<MergeReportsRequest, ActionResponse>
+public sealed class MergeReportsEndpoint(WinnowDbContext db, IClusterService clusterService) : ProjectScopedEndpoint<MergeReportsRequest, ActionResponse>
 {
     public override void Configure()
     {
@@ -41,30 +42,8 @@ public sealed class MergeReportsEndpoint(WinnowDbContext db, IClusterService clu
 
     public override async Task HandleAsync(MergeReportsRequest req, CancellationToken ct)
     {
-        // Get user ID from JWT
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) ThrowError("Unauthorized", 401);
-
-        // Get project ID from header
-        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader) || !Guid.TryParse(projectIdHeader, out Guid projectId))
-        {
-            ThrowError("Valid Project ID is required in X-Project-ID header", 400);
-            return;
-        }
-
-        // Validate user owns this project
-        var userOwnsProject = await db.Projects
-            .AsNoTracking()
-            .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
-
-        if (!userOwnsProject)
-        {
-            ThrowError("Project not found or access denied", 404);
-            return;
-        }
-
         var targetReport = await db.Reports
-            .FirstOrDefaultAsync(r => r.Id == req.Id && r.ProjectId == projectId, ct);
+            .FirstOrDefaultAsync(r => r.Id == req.Id && r.ProjectId == req.CurrentProjectId, ct);
         if (targetReport == null)
         {
             await Send.NotFoundAsync(ct);
@@ -74,16 +53,13 @@ public sealed class MergeReportsEndpoint(WinnowDbContext db, IClusterService clu
         // Ensure target has a cluster
         if (targetReport.ClusterId == null)
         {
-            var newCluster = new Cluster
+            var newCluster = new Cluster(req.CurrentProjectId, targetReport.OrganizationId, targetReport.Id);
+            if (targetReport.Embedding != null)
             {
-                ProjectId = projectId,
-                OrganizationId = targetReport.OrganizationId,
-                Centroid = targetReport.Embedding,
-                Title = targetReport.Title,
-                Status = "Open",
-            };
+                newCluster.UpdateCentroid(targetReport.Embedding);
+            }
             db.Clusters.Add(newCluster);
-            targetReport.ClusterId = newCluster.Id;
+            targetReport.AssignToCluster(newCluster.Id);
         }
 
         var targetClusterId = targetReport.ClusterId!.Value;
@@ -94,7 +70,8 @@ public sealed class MergeReportsEndpoint(WinnowDbContext db, IClusterService clu
             if (sourceId == req.Id) continue;
 
             var sourceReport = await db.Reports
-                .FirstOrDefaultAsync(r => r.Id == sourceId && r.ProjectId == projectId, ct);
+                .FirstOrDefaultAsync(r => r.Id == sourceId && r.ProjectId == req.CurrentProjectId, ct);
+
             if (sourceReport == null) continue;
 
             // If source has its own cluster, move all its members to target cluster
@@ -102,15 +79,15 @@ public sealed class MergeReportsEndpoint(WinnowDbContext db, IClusterService clu
             {
                 var sourceClusterId = sourceReport.ClusterId.Value;
                 var children = await db.Reports
-                    .Where(t => t.ProjectId == projectId && t.ClusterId == sourceClusterId)
+                    .Where(t => t.ProjectId == req.CurrentProjectId && t.ClusterId == sourceClusterId)
                     .ToListAsync(ct);
 
                 foreach (var child in children)
                 {
-                    child.ClusterId = targetClusterId;
+                    child.AssignToCluster(targetClusterId);
                     if (child.Id != targetReport.Id)
                     {
-                        child.Status = "Duplicate";
+                        child.ChangeStatus(ReportStatus.Dismissed);
                     }
                 }
 
@@ -118,8 +95,8 @@ public sealed class MergeReportsEndpoint(WinnowDbContext db, IClusterService clu
             }
             else
             {
-                sourceReport.ClusterId = targetClusterId;
-                sourceReport.Status = "Duplicate";
+                sourceReport.AssignToCluster(targetClusterId);
+                sourceReport.ChangeStatus(ReportStatus.Dismissed);
             }
         }
 

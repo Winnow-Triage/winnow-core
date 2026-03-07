@@ -151,13 +151,10 @@ public sealed class RegisterEndpoint(
         }
 
         // 2. Create Default Organization
-        var organization = new Organization
-        {
-            Id = Guid.NewGuid(),
-            Name = $"{req.FullName}'s Organization",
-            SubscriptionTier = "Free",
-            CreatedAt = DateTime.UtcNow
-        };
+        var organization = new Domain.Organizations.Organization(
+            $"{req.FullName}'s Organization",
+            new Domain.Common.Email(req.Email)
+        );
 
         var organizationMember = new OrganizationMember
         {
@@ -174,14 +171,13 @@ public sealed class RegisterEndpoint(
         // 3. Create Default "Personal" Project
         var projectId = Guid.NewGuid();
         var plaintextKey = apiKeyService.GeneratePlaintextKey(projectId);
-        var project = new Project
-        {
-            Id = projectId,
-            Name = "Default Project",
-            OwnerId = user.Id,
-            OrganizationId = organization.Id,
-            ApiKeyHash = apiKeyService.HashKey(plaintextKey)
-        };
+        var project = new Domain.Projects.Project(
+            organization.Id,
+            "Default Project",
+            user.Id,
+            apiKeyService.HashKey(plaintextKey),
+            projectId
+        );
 
         dbContext.Projects.Add(project);
         await dbContext.SaveChangesAsync(ct);

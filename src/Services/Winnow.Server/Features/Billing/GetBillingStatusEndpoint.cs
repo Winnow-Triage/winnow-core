@@ -42,43 +42,14 @@ public sealed class GetBillingStatusEndpoint(WinnowDbContext db, ITenantContext 
             return;
         }
 
-        var startOfMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        var reportCount = await db.Reports
-            .Where(r => r.OrganizationId == orgId && r.CreatedAt >= startOfMonth)
-            .CountAsync(ct);
-
-        int? limit = org.SubscriptionTier?.ToLowerInvariant() switch
-        {
-            "free" => 50,
-            "starter" => 500,
-            "pro" => null,
-            "enterprise" => null,
-            _ => 50
-        };
-
-        var effectiveLimit = org.MonthlySummaryLimit;
-        if (effectiveLimit == 0)
-        {
-            effectiveLimit = org.SubscriptionTier?.ToLowerInvariant() switch
-            {
-                "enterprise" => -1,
-                "pro" => 500,
-                "starter" => 50,
-                _ => 0
-            };
-        }
-
-        int? aiLimit = effectiveLimit == -1 ? null : effectiveLimit;
-
         var response = new BillingStatusResponse
         {
-            SubscriptionTier = org.SubscriptionTier ?? "Free",
-            ReportsUsedThisMonth = reportCount,
-            ReportLimit = limit,
-            MonthlySummaryLimit = aiLimit,
-            CurrentMonthSummaries = org.CurrentMonthSummaries,
-            HasActiveSubscription = !string.IsNullOrEmpty(org.StripeSubscriptionId) && !string.Equals(org.SubscriptionTier, "Free", StringComparison.OrdinalIgnoreCase)
+            SubscriptionTier = org.Plan.Name,
+            ReportsUsedThisMonth = org.ReportQuota.Consumed,
+            ReportLimit = org.Plan.MonthlyReportLimit == int.MaxValue ? null : org.Plan.MonthlyReportLimit,
+            CurrentMonthSummaries = org.SummaryQuota.Consumed,
+            MonthlySummaryLimit = org.Plan.MonthlySummaryLimit == int.MaxValue ? null : org.Plan.MonthlySummaryLimit,
+            HasActiveSubscription = org.HasActiveSubscription
         };
 
         await Send.OkAsync(response, cancellation: ct);

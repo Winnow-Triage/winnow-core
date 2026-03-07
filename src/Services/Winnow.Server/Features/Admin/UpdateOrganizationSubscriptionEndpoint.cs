@@ -1,6 +1,6 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
+using Winnow.Server.Domain.Organizations.ValueObjects;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Admin;
@@ -31,13 +31,8 @@ public class UpdateOrganizationSubscriptionResponse
 /// <summary>
 /// Admin endpoint to manually override an organization's subscription tier.
 /// </summary>
-public sealed class UpdateOrganizationSubscriptionEndpoint(WinnowDbContext dbContext, Winnow.Server.Services.Quota.IQuotaService quotaService) : Endpoint<UpdateOrganizationSubscriptionRequest, UpdateOrganizationSubscriptionResponse>
+public sealed class UpdateOrganizationSubscriptionEndpoint(WinnowDbContext dbContext, Services.Quota.IQuotaService quotaService) : Endpoint<UpdateOrganizationSubscriptionRequest, UpdateOrganizationSubscriptionResponse>
 {
-    private static readonly HashSet<string> _allowedTiers = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Free", "Starter", "Pro", "Enterprise"
-    };
-
     public override void Configure()
     {
         Post("/admin/organizations/{id}/subscription");
@@ -56,13 +51,6 @@ public sealed class UpdateOrganizationSubscriptionEndpoint(WinnowDbContext dbCon
 
     public override async Task HandleAsync(UpdateOrganizationSubscriptionRequest req, CancellationToken ct)
     {
-        // Validate subscription tier
-        if (!_allowedTiers.Contains(req.SubscriptionTier))
-        {
-            var allowed = string.Join(", ", _allowedTiers.OrderBy(t => t));
-            ThrowError($"Invalid subscription tier '{req.SubscriptionTier}'. Allowed values: {allowed}");
-        }
-
         // Must ignore global query filters to see the organization regardless of tenant
         var organization = await dbContext.Organizations
             .IgnoreQueryFilters()
@@ -75,12 +63,8 @@ public sealed class UpdateOrganizationSubscriptionEndpoint(WinnowDbContext dbCon
         }
 
         // Update fields
-        organization.SubscriptionTier = req.SubscriptionTier;
-        if (req.StripeCustomerId != null)
-        {
-            organization.StripeCustomerId = req.StripeCustomerId;
-        }
-
+        var newPlan = SubscriptionPlan.FromName(req.SubscriptionTier);
+        organization.ChangePlan(newPlan);
         await dbContext.SaveChangesAsync(ct);
 
         // Resolve any locked/overage discrepancies if the tier changed
@@ -90,9 +74,9 @@ public sealed class UpdateOrganizationSubscriptionEndpoint(WinnowDbContext dbCon
         {
             Id = organization.Id,
             Name = organization.Name,
-            SubscriptionTier = organization.SubscriptionTier,
-            StripeCustomerId = organization.StripeCustomerId,
-            IsPaidTier = organization.IsPaidTier(),
+            SubscriptionTier = organization.Plan.Name,
+            StripeCustomerId = organization.BillingIdentity?.CustomerId,
+            IsPaidTier = organization.Plan.TierLevel > 0,
             UpdatedAt = DateTime.UtcNow
         };
 

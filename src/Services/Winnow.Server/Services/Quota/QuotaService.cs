@@ -18,26 +18,10 @@ public class QuotaService(WinnowDbContext dbContext) : IQuotaService
             return (true, true); // Lock if organization doesn't exist
         }
 
-        // Tier definitions
-        int baseLimit = org.SubscriptionTier?.ToLowerInvariant() switch
-        {
-            "free" => 50,
-            "starter" => 500,
-            "pro" => int.MaxValue,
-            "enterprise" => int.MaxValue,
-            _ => 50 // Default fallback
-        };
+        int baseLimit = org.Plan.MonthlyReportLimit;
+        int graceLimit = org.Plan.MonthlyReportGraceLimit;
 
-        // Determine Grace Limit based on Tier
-        int graceLimit = org.SubscriptionTier?.ToLowerInvariant() switch
-        {
-            "free" => 100,
-            "starter" => 1000,
-            "pro" => int.MaxValue,
-            "enterprise" => int.MaxValue,
-            _ => 100 // Default fallback
-        };
-
+        // Pro and Enterprise use int.MaxValue
         if (baseLimit == int.MaxValue)
         {
             return (false, false);

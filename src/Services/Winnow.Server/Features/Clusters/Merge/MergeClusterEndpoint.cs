@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
+using Winnow.Server.Domain.Clusters.ValueObjects;
+using Winnow.Server.Domain.Reports.ValueObjects;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
@@ -77,8 +79,8 @@ public sealed class MergeClusterEndpoint(WinnowDbContext db, IClusterService clu
 
             foreach (var report in sourceReports)
             {
-                report.ClusterId = targetCluster.Id;
-                report.Status = "Duplicate";
+                report.AssignToCluster(targetCluster.Id);
+                report.ChangeStatus(ReportStatus.Dismissed);
             }
 
             db.Clusters.Remove(sourceCluster);

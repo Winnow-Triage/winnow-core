@@ -3,13 +3,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Stripe;
 using Stripe.Checkout;
-using Winnow.Server.Entities;
+using Winnow.Server.Domain.Organizations.ValueObjects;
+using Winnow.Server.Infrastructure.Billing;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Webhooks;
 
 [AllowAnonymous]
-public sealed class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext db, Winnow.Server.Services.Quota.IQuotaService quotaService, ILogger<StripeWebhookEndpoint> logger) : EndpointWithoutRequest
+public sealed class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext db, IStripePlanMapper mapper, ILogger<StripeWebhookEndpoint> logger) : EndpointWithoutRequest
 {
     public override void Configure()
     {
@@ -101,14 +102,13 @@ public sealed class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext
             return;
         }
 
-        organization.StripeCustomerId = customerId;
-        organization.StripeSubscriptionId = subscriptionId;
+        organization.LinkBillingIdentity(new BillingIdentity("Stripe", customerId, subscriptionId));
 
         try
         {
             var subscriptionService = new SubscriptionService();
             var subscription = await subscriptionService.GetAsync(subscriptionId, cancellationToken: ct);
-            organization.SubscriptionTier = GetTierFromSubscription(subscription);
+            organization.ChangePlan(mapper.MapToDomainPlan(subscription));
         }
         catch (Exception ex)
         {
@@ -116,30 +116,25 @@ public sealed class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext
         }
 
         await db.SaveChangesAsync(ct);
-        await quotaService.ResolveQuotaDiscrepanciesAsync(organization.Id, ct);
-        logger.LogInformation("Successfully processed checkout completed for Organization {OrganizationId}. Tier set to {Tier}.", organization.Id, organization.SubscriptionTier);
+        logger.LogInformation("Successfully processed checkout completed for Organization {OrganizationId}. Tier set to {Tier}.", organization.Id, organization.Plan.Name);
     }
 
     private async Task HandleSubscriptionUpdatedAsync(Event stripeEvent, CancellationToken ct)
     {
         if (stripeEvent.Data.Object is not Subscription subscription) return;
 
+        // 1. Safe EF Core Translation!
         var organization = await db.Organizations
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(o => o.StripeSubscriptionId == subscription.Id, ct);
+            .FirstOrDefaultAsync(o => o.BillingIdentity.HasValue && o.BillingIdentity.Value.SubscriptionId == subscription.Id, ct);
 
         if (organization == null)
         {
-            // If matching by SubscriptionId fails, try matching by CustomerId fallback 
-            // (Checkout session might not have completed yet)
             organization = await db.Organizations
                 .IgnoreQueryFilters()
-                .FirstOrDefaultAsync(o => o.StripeCustomerId == subscription.CustomerId, ct);
+                .FirstOrDefaultAsync(o => o.BillingIdentity.HasValue && o.BillingIdentity.Value.CustomerId == subscription.CustomerId, ct);
 
-            if (organization != null)
-            {
-                organization.StripeSubscriptionId = subscription.Id;
-            }
+            organization?.LinkBillingIdentity(new BillingIdentity("Stripe", subscription.CustomerId, subscription.Id));
         }
 
         if (organization == null)
@@ -148,11 +143,12 @@ public sealed class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext
             return;
         }
 
-        organization.SubscriptionTier = GetTierFromSubscription(subscription);
-        logger.LogInformation("Updated Organization {OrganizationId} tier to {Tier} due to subscription status: {Status}", organization.Id, organization.SubscriptionTier, subscription.Status);
+        organization.ChangePlan(mapper.MapToDomainPlan(subscription));
+
+        logger.LogInformation("Updated Organization {OrganizationId} tier to {Tier} due to subscription status: {Status}",
+            organization.Id, organization.Plan.Name, subscription.Status);
 
         await db.SaveChangesAsync(ct);
-        await quotaService.ResolveQuotaDiscrepanciesAsync(organization.Id, ct);
     }
 
     private async Task HandleSubscriptionDeletedAsync(Event stripeEvent, CancellationToken ct)
@@ -161,7 +157,7 @@ public sealed class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext
 
         var organization = await db.Organizations
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(o => o.StripeSubscriptionId == subscription.Id, ct);
+            .FirstOrDefaultAsync(o => o.BillingIdentity.HasValue && o.BillingIdentity.Value.SubscriptionId == subscription.Id, ct);
 
         if (organization == null)
         {
@@ -169,28 +165,9 @@ public sealed class StripeWebhookEndpoint(IConfiguration config, WinnowDbContext
             return;
         }
 
-        organization.SubscriptionTier = "Free";
-        organization.StripeSubscriptionId = null;
+        organization.CancelSubscription();
 
         await db.SaveChangesAsync(ct);
-        await quotaService.ResolveQuotaDiscrepanciesAsync(organization.Id, ct);
         logger.LogInformation("Downgraded Organization {OrganizationId} tier to Free and cleared SubscriptionId due to subscription deletion.", organization.Id);
-    }
-
-    private string GetTierFromSubscription(Subscription subscription)
-    {
-        if (subscription == null || (subscription.Status != "active" && subscription.Status != "trialing"))
-        {
-            return "Free";
-        }
-
-        var priceId = subscription.Items?.Data?.FirstOrDefault()?.Price?.Id;
-        return priceId switch
-        {
-            var id when id == config["Stripe:Prices:Starter"] => "Starter",
-            var id when id == config["Stripe:Prices:Pro"] => "Pro",
-            var id when id == config["Stripe:Prices:Enterprise"] => "Enterprise",
-            _ => "Free"
-        };
     }
 }

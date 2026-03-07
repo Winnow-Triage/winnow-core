@@ -48,7 +48,7 @@ public sealed class CreateCheckoutSessionEndpoint(
         }
 
         // 1. Create a new Stripe Customer if one does not exist for this Organization
-        if (string.IsNullOrEmpty(organization.StripeCustomerId))
+        if (organization.BillingIdentity == null || organization.BillingIdentity.Value.Provider != "Stripe")
         {
             logger.LogInformation("Creating new Stripe Customer for Organization {OrganizationId}", organization.Id);
 
@@ -64,7 +64,7 @@ public sealed class CreateCheckoutSessionEndpoint(
             var customerService = new CustomerService();
             var customer = await customerService.CreateAsync(customerOptions, cancellationToken: ct);
 
-            organization.StripeCustomerId = customer.Id;
+            organization.LinkBillingIdentity(new Winnow.Server.Domain.Organizations.ValueObjects.BillingIdentity("Stripe", customer.Id));
             await db.SaveChangesAsync(ct);
 
             logger.LogInformation("Successfully created Stripe Customer {CustomerId}", customer.Id);
@@ -94,7 +94,7 @@ public sealed class CreateCheckoutSessionEndpoint(
         var sessionOptions = new SessionCreateOptions
         {
             Mode = "subscription",
-            Customer = organization.StripeCustomerId,
+            Customer = organization.BillingIdentity!.Value.CustomerId,
             LineItems = [
                 new SessionLineItemOptions
                 {

@@ -113,11 +113,6 @@ public sealed class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : 
         // Must ignore global query filters to see the organization regardless of tenant
         var organization = await dbContext.Organizations
             .IgnoreQueryFilters()
-            .Include(o => o.Teams)
-            .ThenInclude(t => t.Projects)
-            .Include(o => o.Projects)
-            .Include(o => o.Members)
-            .ThenInclude(m => m.User)
             .FirstOrDefaultAsync(o => o.Id == req.Id, ct);
 
         if (organization == null)
@@ -135,7 +130,7 @@ public sealed class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : 
 
         var assetCount = await dbContext.Assets
             .IgnoreQueryFilters()
-            .Where(a => a.Report != null && a.Report.OrganizationId == req.Id)
+            .Where(a => a.OrganizationId == req.Id)
             .CountAsync(ct);
 
         var integrationCount = await dbContext.Integrations
@@ -150,10 +145,12 @@ public sealed class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : 
             .Select(r => (DateTime?)r.CreatedAt)
             .FirstOrDefaultAsync(ct);
 
-        var lastMemberJoinDate = organization.Members
+        var lastMemberJoinDate = await dbContext.OrganizationMembers
+            .IgnoreQueryFilters()
+            .Where(m => m.OrganizationId == req.Id)
             .OrderByDescending(m => m.JoinedAt)
             .Select(m => (DateTime?)m.JoinedAt)
-            .FirstOrDefault();
+            .FirstOrDefaultAsync(ct);
 
         // Calculate quotas
         var startOfMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -167,7 +164,7 @@ public sealed class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : 
 
         int totalMonthlyReports = monthlyReportCounts.Values.Sum();
 
-        int baseLimit = organization.SubscriptionTier?.ToLowerInvariant() switch
+        int baseLimit = organization.Plan.Name.ToLowerInvariant() switch
         {
             "free" => 50,
             "starter" => 500,
@@ -176,7 +173,7 @@ public sealed class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : 
             _ => 50
         };
 
-        int graceLimit = organization.SubscriptionTier?.ToLowerInvariant() switch
+        int graceLimit = organization.Plan.Name.ToLowerInvariant() switch
         {
             "free" => 100,
             "starter" => 1000,
@@ -185,10 +182,10 @@ public sealed class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : 
             _ => 100
         };
 
-        var effectiveAiLimit = organization.MonthlySummaryLimit;
+        var effectiveAiLimit = organization.SummaryQuota.Limit;
         if (effectiveAiLimit == 0)
         {
-            effectiveAiLimit = organization.SubscriptionTier?.ToLowerInvariant() switch
+            effectiveAiLimit = organization.Plan.Name.ToLowerInvariant() switch
             {
                 "enterprise" => -1,
                 "pro" => 500,
@@ -207,10 +204,15 @@ public sealed class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : 
             IsOverage = baseLimit != int.MaxValue && totalMonthlyReports >= baseLimit,
             IsLocked = graceLimit != int.MaxValue && totalMonthlyReports >= graceLimit,
             AiSummaryLimit = aiSummaryLimit,
-            CurrentMonthAiSummaries = organization.CurrentMonthSummaries
+            CurrentMonthAiSummaries = organization.SummaryQuota.Consumed
         };
 
-        var projectQuotas = organization.Projects
+        var projects = await dbContext.Projects
+            .IgnoreQueryFilters()
+            .Where(p => p.OrganizationId == req.Id)
+            .ToListAsync(ct);
+
+        var projectQuotas = projects
             .Select(p => new ProjectQuotaSummary
             {
                 Id = p.Id,
@@ -220,14 +222,27 @@ public sealed class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : 
             .OrderByDescending(p => p.MonthlyReportCount)
             .ToList();
 
+        var teams = await dbContext.Teams
+            .IgnoreQueryFilters()
+            .Where(t => t.OrganizationId == req.Id)
+            .ToListAsync(ct);
+
+        var projectCountPerTeam = projects.Where(p => p.TeamId.HasValue).GroupBy(p => p.TeamId!.Value).ToDictionary(g => g.Key, g => g.Count());
+
+        var membersList = await dbContext.OrganizationMembers
+            .IgnoreQueryFilters()
+            .Include(m => m.User)
+            .Where(m => m.OrganizationId == req.Id)
+            .ToListAsync(ct);
+
         var response = new OrganizationDetailsResponse
         {
             Id = organization.Id,
             Name = organization.Name,
-            StripeCustomerId = organization.StripeCustomerId,
-            SubscriptionTier = organization.SubscriptionTier ?? "Free",
+            StripeCustomerId = organization.BillingIdentity?.CustomerId,
+            SubscriptionTier = organization.Plan.Name,
             CreatedAt = organization.CreatedAt,
-            IsPaidTier = organization.IsPaidTier(),
+            IsPaidTier = organization.Plan.Name == "Starter" || organization.Plan.Name == "Pro" || organization.Plan.Name == "Enterprise",
             TeamCount = organization.Teams.Count,
             MemberCount = organization.Members.Count,
             ProjectCount = organization.Projects.Count,
@@ -236,14 +251,14 @@ public sealed class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : 
             IntegrationCount = integrationCount,
             LastReportDate = lastReportDate,
             LastMemberJoinDate = lastMemberJoinDate,
-            Teams = organization.Teams.Select(t => new TeamSummary
+            Teams = teams.Select(t => new TeamSummary
             {
                 Id = t.Id,
                 Name = t.Name,
                 CreatedAt = t.CreatedAt,
-                ProjectCount = t.Projects.Count
+                ProjectCount = projectCountPerTeam.GetValueOrDefault(t.Id, 0)
             }).ToList(),
-            Members = organization.Members.Select(m => new MemberSummary
+            Members = membersList.Select(m => new MemberSummary
             {
                 Id = m.Id,
                 UserId = m.UserId,

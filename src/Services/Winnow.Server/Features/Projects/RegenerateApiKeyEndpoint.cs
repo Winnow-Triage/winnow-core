@@ -71,7 +71,7 @@ public sealed class RegenerateApiKeyEndpoint(
         var apiKeyHash = apiKeyService.HashKey(plaintextApiKey);
 
         // Update the project
-        project.ApiKeyHash = apiKeyHash;
+        project.ForceSetPrimaryApiKey(apiKeyHash);
         await dbContext.SaveChangesAsync(ct);
 
         // Return the PLAINTEXT key exactly once

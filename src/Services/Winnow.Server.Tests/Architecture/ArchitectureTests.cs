@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using NetArchTest.Rules;
+using Winnow.Server.Domain.Core;
 using Xunit;
 
 namespace Winnow.Server.Tests.Architecture;
@@ -1099,5 +1100,82 @@ public class ArchitectureTests
         }
 
         Assert.True(true, "Switch statement check completed (guideline only)");
+    }
+
+    [Fact]
+    public void DomainAggregates_Should_Not_reference_Other_Aggregates_Directly()
+    {
+        // Rule: Domain Aggregates (Teams, Organizations, Clusters, etc) should not
+        // reference each other directly and should instead reference each other by
+        // Guid values.
+
+        var domainAssembly = typeof(Domain.Core.IAggregateRoot).Assembly;
+        const string domainNamespace = "Winnow.Server.Domain";
+
+        // 1. Identify all sub-namespaces under Winnow.Server.Domain
+        var allDomainTypes = Types.InAssembly(domainAssembly)
+            .That()
+            .ResideInNamespace(domainNamespace)
+            .GetTypes();
+
+        var aggregateNamespaces = allDomainTypes
+            .Select(t => t.Namespace)
+            .Where(n => n != null && n.StartsWith(domainNamespace + "."))
+            .Select(n =>
+            {
+                var parts = n!.Split('.');
+                // We want the base aggregate namespace: Winnow.Server.Domain.{Aggregate}
+                return string.Join(".", parts.Take(4));
+            })
+            .Distinct()
+            .Where(n => !n.EndsWith(".Common") && !n.EndsWith(".Core"))
+            .ToList();
+
+        var violations = new List<string>();
+
+        foreach (var currentNamespace in aggregateNamespaces)
+        {
+            var otherAggregateNamespaces = aggregateNamespaces
+                .Where(n => n != currentNamespace)
+                .ToArray();
+
+            if (otherAggregateNamespaces.Length == 0) continue;
+
+            var result = Types.InAssembly(domainAssembly)
+                .That()
+                .ResideInNamespace(currentNamespace)
+                .Should()
+                .NotHaveDependencyOnAny(otherAggregateNamespaces)
+                .GetResult();
+
+            if (!result.IsSuccessful)
+            {
+                foreach (var failingType in result.FailingTypeNames ?? [])
+                {
+                    violations.Add($"{failingType} (in {currentNamespace}) has a direct reference to another aggregate namespace.");
+                }
+            }
+        }
+
+        Assert.True(violations.Count == 0,
+            $"Found {violations.Count} aggregate boundary violations. Aggregates must reference each other by ID, not by object reference. \nViolations:\n{string.Join("\n", violations)}");
+    }
+
+    [Fact]
+    public void DomainEvents_Should_Be_Sealed_And_Immutable()
+    {
+        var domainAssembly = typeof(IAggregateRoot).Assembly;
+
+        var result = Types.InAssembly(domainAssembly)
+            .That()
+            .ImplementInterface(typeof(IDomainEvent))
+            .Should()
+            .BeSealed()
+            .And()
+            .BeImmutable()
+            .GetResult();
+
+        Assert.True(result.IsSuccessful,
+            $"Domain events must be sealed to prevent polymorphic routing bugs. \nViolations:\n{string.Join("\n", result.FailingTypeNames ?? [])}");
     }
 }

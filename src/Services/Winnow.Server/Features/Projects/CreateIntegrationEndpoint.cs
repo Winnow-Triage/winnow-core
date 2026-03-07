@@ -1,13 +1,15 @@
 using FastEndpoints;
 using Winnow.Integrations.Domain;
-using Winnow.Server.Entities;
+
+using Winnow.Server.Domain.Integrations;
+using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Integrations.Strategies;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Projects;
 
-public class CreateIntegrationRequest
+public class CreateIntegrationRequest : ProjectScopedRequest
 {
     public Guid ProjectId { get; set; }
 
@@ -22,13 +24,12 @@ public class CreateIntegrationRequest
 
 public sealed class CreateIntegrationEndpoint(
     WinnowDbContext db,
-    ITenantContext tenantContext,
     IEnumerable<IIntegrationConfigDeserializationStrategy> deserializationStrategies)
-    : Endpoint<CreateIntegrationRequest, Integration>
+    : ProjectScopedEndpoint<CreateIntegrationRequest, Integration>
 {
     public override void Configure()
     {
-        Post("/projects/{projectId}/integrations");
+        Post("/integrations");
         Summary(s =>
         {
             s.Summary = "Create project integration";
@@ -41,13 +42,10 @@ public sealed class CreateIntegrationEndpoint(
 
     public override async Task HandleAsync(CreateIntegrationRequest req, CancellationToken ct)
     {
-        // Global query filter ensures we only see projects for the current tenant
-        var projectExists = db.Projects.Any(p => p.Id == req.ProjectId);
-        if (!projectExists)
-        {
-            await Send.NotFoundAsync(ct);
-            return;
-        }
+        var strategy = deserializationStrategies.FirstOrDefault(s => s.CanHandle(req.Provider))
+            ?? throw new ArgumentException($"Unsupported provider: {req.Provider}");
+
+        IntegrationConfig newConfig = strategy.Deserialize(req.SettingsJson);
 
         Integration? integration;
 
@@ -64,25 +62,23 @@ public sealed class CreateIntegrationEndpoint(
                 await Send.ForbiddenAsync(ct);
                 return;
             }
+
+            integration.UpdateConfig(newConfig);
+            if (req.IsActive) integration.Reactivate(); else integration.Deactivate();
         }
         else
         {
-            integration = new Integration
-            {
-                ProjectId = req.ProjectId,
-                OrganizationId = tenantContext.CurrentOrganizationId.GetValueOrDefault()
-            };
+            integration = new Integration(
+                req.CurrentOrganizationId,
+                req.ProjectId,
+                req.Provider,
+                newConfig
+            );
+            if (!req.IsActive) integration.Deactivate();
+
             await db.Integrations.AddAsync(integration, ct);
         }
 
-        integration.Provider = req.Provider;
-        integration.IsActive = req.IsActive;
-
-        var strategy = deserializationStrategies.FirstOrDefault(s => s.CanHandle(req.Provider))
-            ?? throw new ArgumentException($"Unsupported provider: {req.Provider}");
-
-        IntegrationConfig newConfig = strategy.Deserialize(req.SettingsJson);
-        integration.UpdateConfig(newConfig);
         await db.SaveChangesAsync(ct);
 
         await Send.OkAsync(integration, ct);

@@ -40,7 +40,7 @@ public sealed class UpdateOrganizationStatusEndpoint(WinnowDbContext dbContext) 
             return;
         }
 
-        org.IsSuspended = req.IsSuspended;
+        org.Suspend("Unknown Reasoning"); // TODO: update to support a reasoning parameter in the request
         await dbContext.SaveChangesAsync(ct);
 
         await Send.OkAsync(cancellation: ct);

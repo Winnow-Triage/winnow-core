@@ -55,7 +55,7 @@ public sealed class AdminGetReportEndpoint(WinnowDbContext dbContext) : Endpoint
             ProjectId = report.ProjectId,
             OrganizationId = report.OrganizationId,
             Title = report.Title,
-            Status = report.Status,
+            Status = report.Status.Name,
             IsLocked = report.IsLocked,
             IsOverage = report.IsOverage,
             CreatedAt = report.CreatedAt

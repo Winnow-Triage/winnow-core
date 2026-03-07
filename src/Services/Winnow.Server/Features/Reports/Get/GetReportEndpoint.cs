@@ -1,7 +1,12 @@
 using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
+using Winnow.Server.Domain.Assets.ValueObjects;
+using Winnow.Server.Domain.Clusters;
+using Winnow.Server.Domain.Clusters.ValueObjects;
+using Winnow.Server.Domain.Reports;
+using Winnow.Server.Domain.Reports.ValueObjects;
+using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Reports.Get;
@@ -9,7 +14,7 @@ namespace Winnow.Server.Features.Reports.Get;
 /// <summary>
 /// Request to retrieve a single report.
 /// </summary>
-public class GetReportRequest
+public class GetReportRequest : ProjectScopedRequest
 {
     /// <summary>
     /// The unique identifier of the report to retrieve.
@@ -226,7 +231,7 @@ public class RelatedReportDto
     public float? ConfidenceScore { get; set; }
 }
 
-public sealed class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services.Storage.IStorageService storageService, ILogger<GetReportEndpoint> logger) : Endpoint<GetReportRequest, GetReportResponse>
+public sealed class GetReportEndpoint(WinnowDbContext db, Services.Storage.IStorageService storageService, ILogger<GetReportEndpoint> logger) : ProjectScopedEndpoint<GetReportRequest, GetReportResponse>
 {
     public override void Configure()
     {
@@ -244,35 +249,10 @@ public sealed class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services
 
     public override async Task HandleAsync(GetReportRequest req, CancellationToken ct)
     {
-        // Get user ID from JWT
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) ThrowError("Unauthorized", 401);
-
-        // Get project ID from header
-        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader))
-        {
-            ThrowError("Project ID is required in X-Project-ID header", 400);
-        }
-
-        if (!Guid.TryParse(projectIdHeader, out var projectId))
-        {
-            ThrowError("Invalid Project ID format", 400);
-        }
-
-        // Validate user owns this project
-        var userOwnsProject = await db.Projects
-            .AsNoTracking()
-            .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
-
-        if (!userOwnsProject)
-        {
-            ThrowError("Project not found or access denied", 404);
-        }
-
         var report = await db.Reports
             .AsNoTracking()
             .Include(r => r.Assets)
-            .FirstOrDefaultAsync(t => t.Id == req.Id && t.ProjectId == projectId, ct);
+            .FirstOrDefaultAsync(t => t.Id == req.Id && t.ProjectId == req.CurrentProjectId, ct);
 
         if (report == null)
         {
@@ -287,14 +267,14 @@ public sealed class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services
             // Get other reports in the same cluster
             var clusterReports = await db.Reports
                 .AsNoTracking()
-                .Where(t => t.ProjectId == projectId && t.ClusterId == report.ClusterId && t.Id != report.Id)
+                .Where(t => t.ProjectId == req.CurrentProjectId && t.ClusterId == report.ClusterId && t.Id != report.Id)
                 .Select(t => new RelatedReportDto
                 {
                     Id = t.Id,
                     Message = t.Message,
-                    Status = t.Status,
+                    Status = t.Status.Name,
                     CreatedAt = t.CreatedAt,
-                    ConfidenceScore = t.ConfidenceScore
+                    ConfidenceScore = t.ConfidenceScore != null ? (float)t.ConfidenceScore.Value.Score : null
                 })
                 .ToListAsync(ct);
 
@@ -342,7 +322,11 @@ public sealed class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services
 
         // Build asset DTOs with download URLs for clean files
         var assetDtos = new List<AssetDto>();
-        foreach (var asset in report.Assets)
+        var assetObjects = await db.Assets
+            .Where(a => report.Assets.Contains(a.Id))
+            .ToListAsync(ct);
+
+        foreach (var asset in assetObjects)
         {
             Uri? downloadUrl = null;
             if (asset.Status == AssetStatus.Clean)
@@ -377,17 +361,17 @@ public sealed class GetReportEndpoint(WinnowDbContext db, Winnow.Server.Services
             Title = report.Title,
             Message = report.Message,
             StackTrace = report.StackTrace,
-            Status = report.Status,
+            Status = report.Status.Name,
             CreatedAt = report.CreatedAt,
             ClusterId = report.ClusterId,
             AssignedTo = report.AssignedTo,
             Summary = clusterSummary,
-            ConfidenceScore = report.ConfidenceScore,
+            ConfidenceScore = (float?)report.ConfidenceScore?.Score,
             CriticalityScore = criticalityScore,
             CriticalityReasoning = criticalityReasoning,
             ClusterTitle = clusterTitle,
             SuggestedClusterId = report.SuggestedClusterId,
-            SuggestedConfidenceScore = report.SuggestedConfidenceScore,
+            SuggestedConfidenceScore = (float?)report.SuggestedConfidenceScore?.Score,
             SuggestedClusterSummary = suggestedClusterSummary,
             SuggestedClusterTitle = suggestedClusterTitle,
             Metadata = report.Metadata,

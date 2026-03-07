@@ -1,17 +1,17 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
+using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Teams;
 
-public class DeleteTeamRequest
+public class DeleteTeamRequest : OrganizationScopedRequest
 {
     public Guid Id { get; set; }
 }
 
-public sealed class DeleteTeamEndpoint(WinnowDbContext db, ITenantContext tenantContext)
-    : Endpoint<DeleteTeamRequest>
+public sealed class DeleteTeamEndpoint(WinnowDbContext db) : OrganizationScopedEndpoint<DeleteTeamRequest>
 {
     public override void Configure()
     {
@@ -21,17 +21,14 @@ public sealed class DeleteTeamEndpoint(WinnowDbContext db, ITenantContext tenant
             s.Summary = "Delete a team";
             s.Description = "Permanently removes a team and unassigns its projects (projects are NOT deleted).";
         });
+        Options(x => x.RequireAuthorization());
     }
 
     public override async Task HandleAsync(DeleteTeamRequest req, CancellationToken ct)
     {
-        if (!tenantContext.CurrentOrganizationId.HasValue)
-        {
-            ThrowError("No organization context.");
-        }
 
         var team = await db.Teams
-            .FirstOrDefaultAsync(t => t.Id == req.Id && t.OrganizationId == tenantContext.CurrentOrganizationId.Value, ct);
+            .FirstOrDefaultAsync(t => t.Id == req.Id && t.OrganizationId == req.CurrentOrganizationId, ct);
 
         if (team == null)
         {

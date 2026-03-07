@@ -2,7 +2,6 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Pgvector;
-using Winnow.Server.Domain.Services;
 using Winnow.Server.Entities;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Security;
@@ -41,12 +40,12 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         {
             modelBuilder.HasPostgresExtension("vector");
 
-            modelBuilder.Entity<Report>(entity =>
+            modelBuilder.Entity<Domain.Reports.Report>(entity =>
             {
                 entity.Property(b => b.Embedding)
                     .HasColumnType("vector(384)")
                     .HasConversion(
-                        v => v == null ? null : new Pgvector.Vector(v),
+                        v => v == null ? null : new Vector(v),
                         v => v == null ? null : v.ToArray()
                     )
                     .Metadata.SetValueComparer(floatArrayComparer);
@@ -64,12 +63,12 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                     .IsDescending(false, false, true);
             });
 
-            modelBuilder.Entity<Cluster>(entity =>
+            modelBuilder.Entity<Domain.Clusters.Cluster>(entity =>
             {
                 entity.Property(b => b.Centroid)
                     .HasColumnType("vector(384)")
                     .HasConversion(
-                        v => v == null ? null : new Pgvector.Vector(v),
+                        v => v == null ? null : new Vector(v),
                         v => v == null ? null : v.ToArray()
                     )
                     .Metadata.SetValueComparer(floatArrayComparer);
@@ -88,36 +87,18 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
             });
         }
 
+        modelBuilder.Ignore<Winnow.Integrations.Domain.IntegrationConfig>();
+
         // Organization -> Team -> Project hierarchy
-        modelBuilder.Entity<Organization>(entity =>
-        {
-            entity.HasKey(o => o.Id);
+        modelBuilder.ApplyConfiguration(new Configurations.OrganizationConfiguration());
+        modelBuilder.ApplyConfiguration(new Configurations.TeamConfiguration());
+        modelBuilder.ApplyConfiguration(new Configurations.ProjectConfiguration());
+        modelBuilder.ApplyConfiguration(new Configurations.ReportConfiguration());
+        modelBuilder.ApplyConfiguration(new Configurations.ClusterConfiguration());
+        modelBuilder.ApplyConfiguration(new Configurations.AssetConfiguration());
 
-            entity.HasMany(o => o.Teams)
-                .WithOne(t => t.Organization)
-                .HasForeignKey(t => t.OrganizationId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasMany(o => o.Members)
-                .WithOne(m => m.Organization)
-                .HasForeignKey(m => m.OrganizationId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasMany(o => o.Projects)
-                .WithOne(p => p.Organization)
-                .HasForeignKey(p => p.OrganizationId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        modelBuilder.Entity<Team>(entity =>
-        {
-            entity.HasKey(t => t.Id);
-
-            entity.HasOne(t => t.Organization)
-                .WithMany(o => o.Teams)
-                .HasForeignKey(t => t.OrganizationId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
+        var encryptedConverter = new EncryptedStringConverter(_encryptionKey);
+        modelBuilder.ApplyConfiguration(new Configurations.IntegrationConfiguration(encryptedConverter));
 
         modelBuilder.Entity<TeamMember>(entity =>
         {
@@ -143,7 +124,7 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                 .IsUnique();
 
             entity.HasOne(om => om.Organization)
-                .WithMany(o => o.Members)
+                .WithMany()
                 .HasForeignKey(om => om.OrganizationId)
                 .OnDelete(DeleteBehavior.Cascade);
 
@@ -172,96 +153,7 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        modelBuilder.Entity<Project>(entity =>
-        {
-            entity.HasKey(p => p.Id);
 
-            entity.HasOne(p => p.Team)
-                .WithMany(t => t.Projects)
-                .HasForeignKey(p => p.TeamId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(p => p.Organization)
-                .WithMany(o => o.Projects)
-                .HasForeignKey(p => p.OrganizationId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(p => p.Owner)
-                .WithMany(u => u.Projects)
-                .HasForeignKey(p => p.OwnerId)
-                .OnDelete(DeleteBehavior.SetNull);
-
-            entity.HasMany(p => p.Integrations)
-                .WithOne(i => i.Project)
-                .HasForeignKey(i => i.ProjectId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        // Report relationships
-        modelBuilder.Entity<Report>(entity =>
-        {
-            entity.HasKey(r => r.Id);
-
-            entity.HasOne(r => r.Project)
-                .WithMany(p => p.Reports)
-                .HasForeignKey(r => r.ProjectId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(r => r.Cluster)
-                .WithMany(c => c.Reports)
-                .HasForeignKey(r => r.ClusterId)
-                .OnDelete(DeleteBehavior.SetNull);
-        });
-
-        // Cluster relationships
-        modelBuilder.Entity<Cluster>(entity =>
-        {
-            entity.HasKey(c => c.Id);
-
-            entity.HasOne(c => c.Project)
-                .WithMany(p => p.Clusters)
-                .HasForeignKey(c => c.ProjectId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        // Asset -> Report relationship
-        modelBuilder.Entity<Asset>(entity =>
-        {
-            entity.HasKey(a => a.Id);
-
-            entity.HasOne(a => a.Report)
-                .WithMany(r => r.Assets)
-                .HasForeignKey(a => a.ReportId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            // Store enum as string — works for both SQLite and Postgres
-            entity.Property(a => a.Status)
-                .HasConversion<string>();
-
-            // Multi-tenancy index
-            entity.HasIndex(a => a.OrganizationId);
-        });
-
-        // Integration -> IntegrationConfig (polymorphic) configuration
-        var encryptedConverter = new EncryptedStringConverter(_encryptionKey);
-
-        modelBuilder.Entity<Integration>(entity =>
-        {
-            entity.HasKey(i => i.Id);
-
-            entity.Property(i => i.Token)
-                .HasConversion(encryptedConverter);
-
-            entity.Property(i => i.Config)
-                .HasColumnType("jsonb")
-                .HasConversion(
-                    v => JsonSerializer.Serialize(v, _jsonOptions),
-                    v => JsonSerializer.Deserialize<Winnow.Integrations.Domain.IntegrationConfig>(v, _jsonOptions)!
-                );
-
-            // Multi-tenancy index
-            entity.HasIndex(i => i.OrganizationId);
-        });
 
         // Organization -> Invitation relationship
         modelBuilder.Entity<OrganizationInvitation>(entity =>
@@ -299,15 +191,15 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         // to apply filters dynamically.
     }
 
-    public DbSet<Organization> Organizations { get; set; } = null!;
-    public DbSet<Team> Teams { get; set; } = null!;
+    public DbSet<Domain.Organizations.Organization> Organizations { get; set; } = null!;
+    public DbSet<Domain.Teams.Team> Teams { get; set; } = null!;
     public DbSet<TeamMember> TeamMembers { get; set; } = null!;
-    public DbSet<OrganizationMember> OrganizationMembers { get; set; } = null!;
-    public DbSet<Report> Reports { get; set; } = null!;
-    public DbSet<Cluster> Clusters { get; set; } = null!;
-    public DbSet<Asset> Assets { get; set; } = null!;
-    public DbSet<Integration> Integrations { get; set; } = null!;
-    public DbSet<Project> Projects { get; set; } = null!;
-    public DbSet<ProjectMember> ProjectMembers { get; set; } = null!;
-    public DbSet<OrganizationInvitation> OrganizationInvitations { get; set; } = null!;
+    public DbSet<Entities.OrganizationMember> OrganizationMembers { get; set; } = null!;
+    public DbSet<Domain.Reports.Report> Reports { get; set; } = null!;
+    public DbSet<Domain.Clusters.Cluster> Clusters { get; set; } = null!;
+    public DbSet<Domain.Assets.Asset> Assets { get; set; } = null!;
+    public DbSet<Domain.Integrations.Integration> Integrations { get; set; } = null!;
+    public DbSet<Domain.Projects.Project> Projects { get; set; } = null!;
+    public DbSet<Entities.ProjectMember> ProjectMembers { get; set; } = null!;
+    public DbSet<Entities.OrganizationInvitation> OrganizationInvitations { get; set; } = null!;
 }

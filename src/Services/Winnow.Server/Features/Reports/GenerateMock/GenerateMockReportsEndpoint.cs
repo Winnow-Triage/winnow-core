@@ -5,8 +5,9 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.SemanticKernel;
-using Winnow.Server.Entities;
+
 using Winnow.Server.Features.Reports.Create;
+using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 
@@ -15,7 +16,7 @@ namespace Winnow.Server.Features.Reports.GenerateMock;
 /// <summary>
 /// Request to generate mock data.
 /// </summary>
-public class GenerateMockReportsRequest
+public class GenerateMockReportsRequest : ProjectScopedRequest
 {
     /// <summary>
     /// Number of reports to generate.
@@ -32,9 +33,9 @@ public sealed class GenerateMockReportsEndpoint(
     Kernel kernel,
     WinnowDbContext db,
     IPublishEndpoint publishEndpoint,
-    Winnow.Server.Services.Ai.IEmbeddingService embeddingService,
-    Winnow.Server.Services.Quota.IQuotaService quotaService,
-    ILogger<GenerateMockReportsEndpoint> logger) : Endpoint<GenerateMockReportsRequest>
+    Services.Ai.IEmbeddingService embeddingService,
+    Services.Quota.IQuotaService quotaService,
+    ILogger<GenerateMockReportsEndpoint> logger) : ProjectScopedEndpoint<GenerateMockReportsRequest>
 {
     private static readonly JsonSerializerOptions options = new()
     {
@@ -57,31 +58,6 @@ public sealed class GenerateMockReportsEndpoint(
 
     public override async Task HandleAsync(GenerateMockReportsRequest req, CancellationToken ct)
     {
-        // Get user ID from JWT
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) ThrowError("Unauthorized", 401);
-
-        // Get project ID from header
-        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader))
-        {
-            ThrowError("Project ID is required in X-Project-ID header", 400);
-        }
-
-        if (!Guid.TryParse(projectIdHeader, out var projectId))
-        {
-            ThrowError("Invalid Project ID format", 400);
-        }
-
-        // Validate user owns this project
-        var userOwnsProject = await db.Projects
-            .AsNoTracking()
-            .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
-
-        if (!userOwnsProject)
-        {
-            ThrowError("Project not found or access denied", 404);
-        }
-
         var prompt = $$"""
             Generate {{req.Count}} realistic technical support reports for a software application.
             Scenario context: {{req.Scenario ?? "General SaaS application issues"}}
@@ -127,18 +103,18 @@ public sealed class GenerateMockReportsEndpoint(
                 var textToEmbed = $"{dt.Title}\n{dt.Message}";
                 var embeddingFloats = await embeddingService.GetEmbeddingAsync(textToEmbed);
 
-                var report = new Report
-                {
-                    Title = dt.Title,
-                    Message = dt.Message,
-                    Status = "New",
-                    CreatedAt = DateTime.UtcNow,
-                    ProjectId = projectId, // Set the project ID
-                    OrganizationId = currentOrgId,
-                    Embedding = embeddingFloats, // Include the embedding
-                    IsOverage = quotaStatus.isOverage,
-                    IsLocked = quotaStatus.isLocked
-                };
+                var report = new Domain.Reports.Report(
+                    req.CurrentProjectId,
+                    currentOrgId,
+                    dt.Title,
+                    dt.Message,
+                    null,
+                    null,
+                    embeddingFloats,
+                    null,
+                    quotaStatus.isOverage,
+                    quotaStatus.isLocked
+                );
 
                 db.Reports.Add(report);
                 await db.SaveChangesAsync(ct);
@@ -149,8 +125,8 @@ public sealed class GenerateMockReportsEndpoint(
                     Title = report.Title,
                     Message = report.Message,
                     CreatedAt = report.CreatedAt,
-                    ProjectId = projectId, // Use the actual project ID
-                    TenantId = tenantId
+                    ProjectId = req.CurrentProjectId,
+                    OrganizationId = Guid.TryParse(tenantId, out var orgId) ? orgId : throw new Exception("Invalid Tenant ID format")
                 }, ct);
             }
 

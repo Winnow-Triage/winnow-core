@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Winnow.Integrations;
-using Winnow.Integrations.Domain;
-using Winnow.Server.Entities;
+using Winnow.Server.Domain.Integrations;
 using Winnow.Server.Infrastructure.Integrations.Strategies;
 using Winnow.Server.Infrastructure.Persistence;
 

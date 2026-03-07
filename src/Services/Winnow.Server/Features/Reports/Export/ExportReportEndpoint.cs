@@ -107,8 +107,7 @@ public sealed class ExportReportEndpoint(WinnowDbContext db, IExporterFactory ex
             var externalUrlString = await exporter.ExportReportAsync(report.Title, contentToExport ?? "", ct);
             var externalUrl = new Uri(externalUrlString);
 
-            report.Status = "Exported";
-            report.ExternalUrl = externalUrl;
+            report.MarkAsExported(externalUrl);
             await db.SaveChangesAsync(ct);
 
             await Send.OkAsync(new ExportReportResponse { ExternalUrl = externalUrl }, ct);

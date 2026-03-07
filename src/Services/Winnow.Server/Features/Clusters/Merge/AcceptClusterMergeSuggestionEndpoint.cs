@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
+using Winnow.Server.Domain.Common;
+using Winnow.Server.Domain.Reports.ValueObjects;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
@@ -74,23 +76,24 @@ public sealed class AcceptClusterMergeSuggestionEndpoint(WinnowDbContext db, ICl
 
         foreach (var report in sourceReports)
         {
-            report.ClusterId = targetCluster.Id;
-            report.Status = "Duplicate";
+            report.AssignToCluster(targetCluster.Id);
+            report.ChangeStatus(ReportStatus.Duplicate);
+            report.ClearSuggestedCluster();
         }
 
         // Clear any suggestion references pointing to the source cluster before deleting it,
         // to avoid orphaned SuggestedClusterId values inflating the pending decisions count.
-        await db.Reports
-            .Where(r => r.ProjectId == projectId && r.SuggestedClusterId == sourceCluster.Id)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(r => r.SuggestedClusterId, (Guid?)null)
-                .SetProperty(r => r.SuggestedConfidenceScore, (float?)null), ct);
+        // await db.Reports
+        //     .Where(r => r.ProjectId == projectId && r.SuggestedClusterId == sourceCluster.Id)
+        //     .ExecuteUpdateAsync(s => s
+        //         .SetProperty(r => r.SuggestedClusterId, (Guid?)null)
+        //         .SetProperty(r => r.SuggestedConfidenceScore, (ConfidenceScore?)null), ct);
 
         await db.Clusters
             .Where(c => c.ProjectId == projectId && c.SuggestedMergeClusterId == sourceCluster.Id)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(c => c.SuggestedMergeClusterId, (Guid?)null)
-                .SetProperty(c => c.SuggestedMergeConfidenceScore, (float?)null), ct);
+                .SetProperty(c => c.SuggestedMergeConfidenceScore, (ConfidenceScore?)null), ct);
 
         // Delete source cluster
         db.Clusters.Remove(sourceCluster);
