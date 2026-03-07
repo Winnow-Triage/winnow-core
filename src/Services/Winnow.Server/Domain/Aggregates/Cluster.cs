@@ -59,7 +59,7 @@ public class Cluster : IAggregateRoot
 
         // Clusters are born with their first report — enforces the invariant from creation
         _reportIds.Add(firstReportId);
-        _domainEvents.Add(new ReportAddedToClusterEvent(Id, firstReportId));
+        _domainEvents.Add(new ClusterReportAddedEvent(Id, firstReportId));
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -74,7 +74,7 @@ public class Cluster : IAggregateRoot
             return; // idempotent
 
         _reportIds.Add(reportId);
-        _domainEvents.Add(new ReportAddedToClusterEvent(Id, reportId));
+        _domainEvents.Add(new ClusterReportAddedEvent(Id, reportId));
     }
 
     public void RemoveReport(Guid reportId)

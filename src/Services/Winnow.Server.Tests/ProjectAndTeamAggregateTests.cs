@@ -95,7 +95,8 @@ public class ProjectAggregateTests
         project.AssignToTeam(teamId);
 
         Assert.Equal(teamId, project.TeamId);
-        var evt = Assert.Single(project.DomainEvents.OfType<ProjectAssignedToTeamEvent>());
+        var evt = Assert.Single(project.DomainEvents.OfType<ProjectTeamAssignedEvent>());
+        Assert.Equal(project.Id, evt.ProjectId);
         Assert.Equal(teamId, evt.TeamId);
     }
 

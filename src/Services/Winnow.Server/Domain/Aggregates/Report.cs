@@ -92,7 +92,7 @@ public class Report : IAggregateRoot
 
         ClusterId = clusterId;
         ConfidenceScore = confidenceScore;
-        _domainEvents.Add(new ReportAssignedToClusterEvent(Id, clusterId));
+        _domainEvents.Add(new ReportClusterAssignedEvent(Id, clusterId));
     }
 
     public void RemoveFromCluster()
@@ -102,7 +102,7 @@ public class Report : IAggregateRoot
         var previous = ClusterId.Value;
         ClusterId = null;
         ConfidenceScore = null;
-        _domainEvents.Add(new ReportRemovedFromClusterEvent(Id, previous));
+        _domainEvents.Add(new ReportClusterRemovedEvent(Id, previous));
     }
 
     public void SetSuggestedCluster(Guid clusterId, ConfidenceScore score)

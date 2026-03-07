@@ -117,7 +117,7 @@ public class Project : IAggregateRoot
         if (TeamId == teamId) return; // idempotent
 
         TeamId = teamId;
-        _domainEvents.Add(new ProjectAssignedToTeamEvent(Id, teamId));
+        _domainEvents.Add(new ProjectTeamAssignedEvent(Id, teamId));
     }
 
     public void RemoveFromTeam() => TeamId = null;

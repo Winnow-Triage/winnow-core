@@ -44,7 +44,7 @@ public class ReportAggregateTests
         report.AssignToCluster(clusterId);
 
         Assert.Equal(clusterId, report.ClusterId);
-        var evt = Assert.Single(report.DomainEvents.OfType<ReportAssignedToClusterEvent>());
+        var evt = Assert.Single(report.DomainEvents.OfType<ReportClusterAssignedEvent>());
         Assert.Equal(report.Id, evt.ReportId);
         Assert.Equal(clusterId, evt.ClusterId);
     }
@@ -60,7 +60,7 @@ public class ReportAggregateTests
         report.RemoveFromCluster();
 
         Assert.Null(report.ClusterId);
-        var evt = Assert.Single(report.DomainEvents.OfType<ReportRemovedFromClusterEvent>());
+        var evt = Assert.Single(report.DomainEvents.OfType<ReportClusterRemovedEvent>());
         Assert.Equal(clusterId, evt.PreviousClusterId);
     }
 
@@ -149,7 +149,7 @@ public class ClusterAggregateTests
 
         Assert.Single(cluster.ReportIds);
         Assert.Contains(reportId, cluster.ReportIds);
-        var evt = Assert.Single(cluster.DomainEvents.OfType<ReportAddedToClusterEvent>());
+        var evt = Assert.Single(cluster.DomainEvents.OfType<ClusterReportAddedEvent>());
         Assert.Equal(reportId, evt.ReportId);
     }
 
@@ -174,7 +174,7 @@ public class ClusterAggregateTests
         cluster.AddReport(newReportId);
 
         Assert.Equal(2, cluster.ReportCount);
-        var evt = Assert.Single(cluster.DomainEvents.OfType<ReportAddedToClusterEvent>());
+        var evt = Assert.Single(cluster.DomainEvents.OfType<ClusterReportAddedEvent>());
         Assert.Equal(newReportId, evt.ReportId);
     }
 
