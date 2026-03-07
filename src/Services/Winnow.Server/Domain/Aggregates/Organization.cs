@@ -1,3 +1,4 @@
+using Winnow.Server.Domain;
 using Winnow.Server.Domain.Events;
 using Winnow.Server.Domain.ValueObjects;
 
@@ -6,7 +7,7 @@ namespace Winnow.Server.Domain.Aggregates;
 /// <summary>
 /// Represents an organization that uses the Winnow service.
 /// </summary>
-public class Organization
+public class Organization : IAggregateRoot
 {
     private readonly List<IDomainEvent> _domainEvents = [];
     public IReadOnlyList<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();

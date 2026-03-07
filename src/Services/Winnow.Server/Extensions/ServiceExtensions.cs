@@ -189,6 +189,7 @@ internal static class ServiceExtensions
                     npgsql.UseVector();
                     npgsql.MigrationsAssembly("Winnow.Server");
                 });
+            options.AddInterceptors(sp.GetRequiredService<DomainEventInterceptor>());
         });
 
         // Identity
@@ -362,8 +363,10 @@ internal static class ServiceExtensions
         });
 
         // MediatR — in-process domain event dispatcher
+        // DomainEventInterceptor automatically dispatches events from all IAggregateRoot
+        // implementations after each SaveChangesAsync — no manual wiring needed.
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
-        services.AddScoped<DomainEventDispatcher>();
+        services.AddScoped<DomainEventInterceptor>();
 
         return services;
     }
