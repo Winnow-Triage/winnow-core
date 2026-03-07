@@ -415,6 +415,9 @@ public class ArchitectureTests
 
         foreach (var type in eventTypes)
         {
+            // IDomainEvent is a marker interface, not a domain event — skip it
+            if (type.Name == "IDomainEvent") continue;
+
             var typeName = type.Name;
 
             // Remove "Event" suffix
