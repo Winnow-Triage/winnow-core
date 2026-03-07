@@ -1,3 +1,4 @@
+using Winnow.Server.Domain.Events;
 using Winnow.Server.Domain.ValueObjects;
 
 namespace Winnow.Server.Domain.Aggregates;
@@ -7,6 +8,10 @@ namespace Winnow.Server.Domain.Aggregates;
 /// </summary>
 public class Organization
 {
+    private readonly List<IDomainEvent> _domainEvents = [];
+    public IReadOnlyList<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
+    public void ClearDomainEvents() => _domainEvents.Clear();
+
     public Guid Id { get; private set; }
     public string Name { get; private set; }
     public Email ContactEmail { get; private set; }
@@ -60,12 +65,13 @@ public class Organization
     {
         if (!CanGenerateAiSummary())
         {
+            _domainEvents.Add(new AiSummaryLimitReachedEvent(Id, Plan));
             throw new InvalidOperationException(
                 $"Organization {Name} on the {Plan.Name} plan has reached its AI summary limit of {Plan.MonthlySummaryLimit}."
             );
         }
 
-        SummaryQuota.Consume();
+        SummaryQuota = SummaryQuota.Consume();
     }
 
     // <summary>
@@ -83,12 +89,13 @@ public class Organization
     {
         if (!CanGenerateReport())
         {
+            _domainEvents.Add(new ReportLimitReachedEvent(Id, Plan));
             throw new InvalidOperationException(
                 $"Organization {Name} on the {Plan.Name} plan has reached its report limit of {Plan.MonthlyReportLimit}."
             );
         }
 
-        ReportQuota.Consume();
+        ReportQuota = ReportQuota.Consume();
     }
 
     // <summary>
@@ -99,6 +106,7 @@ public class Organization
     {
         // The Aggregate asks the Value Object to do the comparison!
         bool isUpgrade = newPlan.IsUpgradeFrom(Plan);
+        var oldPlan = Plan;
 
         Plan = newPlan;
 
@@ -106,6 +114,11 @@ public class Organization
         {
             ReportQuota = ReportQuota.WithLimit(newPlan.MonthlyReportLimit);
             SummaryQuota = SummaryQuota.WithLimit(newPlan.MonthlySummaryLimit);
+            _domainEvents.Add(new PlanUpgradedEvent(Id, oldPlan, newPlan));
+        }
+        else
+        {
+            _domainEvents.Add(new PlanDowngradedEvent(Id, oldPlan, newPlan));
         }
     }
 

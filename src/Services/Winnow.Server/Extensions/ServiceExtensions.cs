@@ -4,6 +4,7 @@ using Amazon.SimpleEmail;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using MassTransit;
+using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -359,6 +360,10 @@ internal static class ServiceExtensions
                 cfg.ConfigureEndpoints(context);
             });
         });
+
+        // MediatR — in-process domain event dispatcher
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
+        services.AddScoped<DomainEventDispatcher>();
 
         return services;
     }
