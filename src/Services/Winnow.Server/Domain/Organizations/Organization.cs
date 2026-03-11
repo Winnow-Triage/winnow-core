@@ -2,7 +2,8 @@ using Winnow.Server.Domain.Common;
 using Winnow.Server.Domain.Core;
 using Winnow.Server.Domain.Organizations.Events;
 using Winnow.Server.Domain.Organizations.ValueObjects;
-using Winnow.Server.Entities;
+using Winnow.Server.Domain.Projects;
+using Winnow.Server.Domain.Teams;
 
 namespace Winnow.Server.Domain.Organizations;
 
@@ -25,6 +26,15 @@ public class Organization : IAggregateRoot
 
     private readonly List<Guid> _memberIds = [];
     public IReadOnlyCollection<Guid> Members => _memberIds.AsReadOnly();
+
+    // EF Core Navigation Properties - Private/Internal to maintain DDD boundaries
+    private readonly List<Team> _teams = [];
+    private readonly List<Project> _projects = [];
+    private readonly List<OrganizationMember> _memberships = [];
+
+    internal IReadOnlyCollection<Team> OrganizationTeams => _teams.AsReadOnly();
+    internal IReadOnlyCollection<Project> OrganizationProjects => _projects.AsReadOnly();
+    internal IReadOnlyCollection<OrganizationMember> OrganizationMemberships => _memberships.AsReadOnly();
 
     public string Name { get; private set; }
     public Email ContactEmail { get; private set; }

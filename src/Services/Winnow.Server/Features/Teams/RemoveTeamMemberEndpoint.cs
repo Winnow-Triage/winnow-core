@@ -1,7 +1,7 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
 using Winnow.Server.Features.Shared;
+using Winnow.Server.Infrastructure.Identity;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 
@@ -30,11 +30,12 @@ public sealed class RemoveTeamMemberEndpoint(WinnowDbContext db)
     public override async Task HandleAsync(RemoveTeamMemberRequest req, CancellationToken ct)
     {
         var member = await db.TeamMembers
-            .Include(tm => tm.Team)
-            .FirstOrDefaultAsync(tm =>
-                tm.TeamId == req.TeamId &&
-                tm.UserId == req.UserId &&
-                tm.Team!.OrganizationId == req.CurrentOrganizationId, ct);
+            .Join(db.Teams, tm => tm.TeamId, t => t.Id, (tm, t) => new { tm, t })
+            .Where(x => x.tm.TeamId == req.TeamId &&
+                        x.tm.UserId == req.UserId &&
+                        x.t.OrganizationId == req.CurrentOrganizationId)
+            .Select(x => x.tm)
+            .FirstOrDefaultAsync(ct);
 
         if (member == null)
         {

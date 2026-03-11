@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.MultiTenancy;
@@ -40,6 +41,12 @@ public abstract class OrganizationScopedEndpoint<TRequest, TResponse> : Endpoint
         if (!string.IsNullOrEmpty(membership.Role))
         {
             req.CurrentUserRoles.Add(membership.Role);
+        }
+
+        // Also add identity roles from JWT claims (e.g., "Admin", "SuperAdmin")
+        foreach (var roleClaim in User.FindAll(ClaimTypes.Role))
+        {
+            req.CurrentUserRoles.Add(roleClaim.Value);
         }
     }
 }

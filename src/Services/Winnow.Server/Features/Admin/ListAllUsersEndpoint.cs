@@ -1,7 +1,9 @@
 using FastEndpoints;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
+using Winnow.Server.Infrastructure.Identity;
+using Winnow.Server.Domain.Reports.ValueObjects;
+using Winnow.Server.Domain.Clusters.ValueObjects;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Admin;
@@ -24,7 +26,8 @@ public class UserSummaryResponse
 }
 
 public sealed class ListAllUsersEndpoint(
-    UserManager<ApplicationUser> userManager) : EndpointWithoutRequest<List<UserSummaryResponse>>
+    UserManager<ApplicationUser> userManager,
+    WinnowDbContext dbContext) : EndpointWithoutRequest<List<UserSummaryResponse>>
 {
     public override void Configure()
     {
@@ -42,8 +45,14 @@ public sealed class ListAllUsersEndpoint(
     {
         var users = await userManager.Users
             .Include(u => u.OrganizationMemberships)
-            .ThenInclude(om => om.Organization)
             .ToListAsync(ct);
+
+        // Get all organizations involved
+        var orgIds = users.SelectMany(u => u.OrganizationMemberships).Select(om => om.OrganizationId).Distinct().ToList();
+        var orgNames = await dbContext.Organizations
+            .Where(o => orgIds.Contains(o.Id))
+            .Select(o => new { o.Id, o.Name })
+            .ToDictionaryAsync(x => x.Id, x => x.Name, ct);
 
         var responses = new List<UserSummaryResponse>();
 
@@ -63,7 +72,7 @@ public sealed class ListAllUsersEndpoint(
                 Organizations = user.OrganizationMemberships.Select(om => new UserOrganization
                 {
                     Id = om.OrganizationId,
-                    Name = om.Organization?.Name ?? "Unknown"
+                    Name = orgNames.GetValueOrDefault(om.OrganizationId, "Unknown")
                 }).ToList()
             });
         }

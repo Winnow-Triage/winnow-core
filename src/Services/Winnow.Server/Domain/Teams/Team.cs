@@ -1,4 +1,5 @@
 using Winnow.Server.Domain.Core;
+using Winnow.Server.Domain.Organizations;
 using Winnow.Server.Domain.Teams.Events;
 
 namespace Winnow.Server.Domain.Teams;
@@ -17,6 +18,10 @@ public class Team : IAggregateRoot
     private readonly List<Guid> _projectIds = [];
 
     public IReadOnlyCollection<Guid> Projects => _projectIds.AsReadOnly();
+
+    // EF Core Navigation Properties - Private/Internal to maintain DDD boundaries
+    private readonly List<TeamMember> _members = [];
+    internal IReadOnlyCollection<TeamMember> TeamMembers => _members.AsReadOnly();
 
     public string Name { get; private set; }
     public Guid OrganizationId { get; private set; }

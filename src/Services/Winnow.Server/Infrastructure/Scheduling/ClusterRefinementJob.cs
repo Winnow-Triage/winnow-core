@@ -104,14 +104,11 @@ internal sealed class ClusterRefinementJob(
 
     private static async Task<List<Report>> GetOrphanReportsAsync(WinnowDbContext db, Guid projectId, CancellationToken ct)
     {
-        var statusDuplicate = ReportStatus.Dismissed; // Mapped to duplicate for now 
-        var statusClosed = ReportStatus.Dismissed;    // Same mappings used elsewhere
-
+        // We only want reports that are truly "orphan" (no cluster) and "open"
         return await db.Reports
             .Where(t => t.ProjectId == projectId
                      && t.ClusterId == null
-                     && t.Status != statusDuplicate
-                     && t.Status != statusClosed)
+                     && t.Status == ReportStatus.Open)
             .OrderBy(t => t.CreatedAt)
             .ToListAsync(ct);
     }
@@ -213,7 +210,7 @@ internal sealed class ClusterRefinementJob(
     private static void MergeReportIntoCluster(Report report, ClusterCandidate bestMatch)
     {
         report.AssignToCluster(bestMatch.Id);
-        report.ChangeStatus(ReportStatus.Dismissed);
+        report.ChangeStatus(ReportStatus.Duplicate);
         report.SetConfidenceScore(new ConfidenceScore(Math.Max(0, 1.0 - bestMatch.Distance)));
         // Note: AssignToCluster clears suggestions inherently in the domain model
     }
@@ -355,7 +352,7 @@ internal sealed class ClusterRefinementJob(
         logger.LogInformation("Janitor: Auto-merging cluster {Source} into {Target}", sourceClusterId, targetClusterId);
 
         // Move all reports and mark as Duplicate
-        var statusDuplicate = ReportStatus.Dismissed;
+        var statusDuplicate = ReportStatus.Duplicate;
         await db.Reports
             .Where(r => r.ClusterId == sourceClusterId)
             .ExecuteUpdateAsync(s => s

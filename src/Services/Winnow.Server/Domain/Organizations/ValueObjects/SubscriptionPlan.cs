@@ -112,7 +112,7 @@ public readonly record struct SubscriptionPlan
     /// <summary>
     /// Gets the starter subscription plan.
     /// </summary>
-    public static readonly SubscriptionPlan Starter = new("Starter", 1, 500, 1000, 50, 0);
+    public static readonly SubscriptionPlan Starter = new("Starter", 1, 500, 1000, 50, 50);
 
     /// <summary>
     /// Gets the pro subscription plan.

@@ -65,6 +65,27 @@ public class OrganizationConfiguration : IEntityTypeConfiguration<Organization>
             billing.Property(b => b.SubscriptionId).HasColumnName("StripeSubscriptionId");
         });
 
+        // EF Core Navigation Properties - Mapped to internal collections
+        builder.HasMany(o => o.OrganizationTeams)
+            .WithOne()
+            .HasForeignKey(t => t.OrganizationId);
+        builder.Navigation(o => o.OrganizationTeams).HasField("_teams");
+
+        builder.HasMany(o => o.OrganizationProjects)
+            .WithOne()
+            .HasForeignKey(p => p.OrganizationId);
+        builder.Navigation(o => o.OrganizationProjects).HasField("_projects");
+
+        builder.HasMany(o => o.OrganizationMemberships)
+            .WithOne()
+            .HasForeignKey(m => m.OrganizationId);
+        builder.Navigation(o => o.OrganizationMemberships).HasField("_memberships");
+
+        // Ignore the DDD Guid lists for persistence since we use navigations instead
+        builder.Ignore(o => o.Teams);
+        builder.Ignore(o => o.Projects);
+        builder.Ignore(o => o.Members);
+
         // Ignore DomainEvents since they aren't mapped to the database
         builder.Ignore(o => o.DomainEvents);
     }

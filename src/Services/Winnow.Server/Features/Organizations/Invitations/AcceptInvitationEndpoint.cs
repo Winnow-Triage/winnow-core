@@ -3,7 +3,9 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
+using Winnow.Server.Infrastructure.Identity;
+using Winnow.Server.Domain.Reports.ValueObjects;
+using Winnow.Server.Domain.Clusters.ValueObjects;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Emails;
 
@@ -50,7 +52,6 @@ public sealed class AcceptInvitationEndpoint(
     {
         Console.WriteLine($"[INVITE-ACCEPT] HandleAsync started for token: {req.Token}");
         var invitation = await db.OrganizationInvitations
-            .Include(oi => oi.Organization)
             .FirstOrDefaultAsync(oi => oi.Token == req.Token, ct);
 
         if (invitation == null)
@@ -59,17 +60,18 @@ public sealed class AcceptInvitationEndpoint(
             return;
         }
 
-        if (invitation.ExpiresAt < DateTime.UtcNow)
+        if (invitation.IsExpired())
         {
             await Send.ErrorsAsync(410, ct); // Gone
             return;
         }
 
         // 1. Create the User record
+        var emailStr = invitation.Email.Value;
         var user = new ApplicationUser
         {
-            UserName = invitation.Email,
-            Email = invitation.Email,
+            UserName = emailStr,
+            Email = emailStr,
             FullName = $"{req.FirstName} {req.LastName}",
             EmailConfirmed = true // They came from a verified invite link
         };
@@ -86,34 +88,27 @@ public sealed class AcceptInvitationEndpoint(
         }
 
         // 2. Assign to Organization
-        var member = new OrganizationMember
-        {
-            OrganizationId = invitation.OrganizationId,
-            UserId = user.Id,
-            Role = invitation.Role
-        };
+        var member = new Winnow.Server.Domain.Organizations.OrganizationMember(
+            invitation.OrganizationId,
+            user.Id,
+            invitation.Role);
 
         db.OrganizationMembers.Add(member);
 
         // 3. Assign to Initial Teams
         foreach (var teamId in invitation.InitialTeamIds)
         {
-            db.TeamMembers.Add(new TeamMember
-            {
-                TeamId = teamId,
-                UserId = user.Id
-            });
+            db.TeamMembers.Add(new Winnow.Server.Domain.Teams.TeamMember(teamId, user.Id));
         }
 
         // 4. Assign to Initial Projects
         foreach (var projectId in invitation.InitialProjectIds)
         {
-            db.ProjectMembers.Add(new ProjectMember
-            {
-                ProjectId = projectId,
-                UserId = user.Id
-            });
+            db.ProjectMembers.Add(new Winnow.Server.Domain.Projects.ProjectMember(projectId, user.Id));
         }
+
+        // Mark invitation as accepted to emit events
+        invitation.Accept();
 
         // 5. Delete the invitation
         db.OrganizationInvitations.Remove(invitation);

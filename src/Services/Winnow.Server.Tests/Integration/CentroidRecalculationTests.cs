@@ -1,7 +1,15 @@
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
-using Winnow.Server.Entities;
+using Winnow.Server.Domain.Clusters;
+using Winnow.Server.Domain.Clusters.ValueObjects;
+using Winnow.Server.Domain.Common;
+using Winnow.Server.Domain.Organizations;
+using Winnow.Server.Domain.Organizations.ValueObjects;
+using Winnow.Server.Domain.Projects;
+using Winnow.Server.Domain.Reports;
+using Winnow.Server.Domain.Reports.ValueObjects;
+using Winnow.Server.Infrastructure.Identity;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
 using Xunit;
@@ -33,8 +41,8 @@ public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetim
         await db.Database.EnsureCreatedAsync();
 
         // Setup Test Data
-        _organizationId = Guid.NewGuid();
-        var organization = new Organization { Id = _organizationId, Name = "Test Org", SubscriptionTier = "free", CreatedAt = DateTime.UtcNow };
+        var organization = new Organization("Test Org", new Email("test@example.com"), SubscriptionPlan.Free);
+        _organizationId = organization.Id;
         db.Organizations.Add(organization);
 
         var userId = "test-user-id";
@@ -52,26 +60,11 @@ public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetim
             throw new Exception($"Failed to create test user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
         }
 
-        var orgMember = new OrganizationMember
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            OrganizationId = _organizationId,
-            Role = "owner",
-            JoinedAt = DateTime.UtcNow
-        };
+        var orgMember = new OrganizationMember(_organizationId, userId, "owner");
         db.OrganizationMembers.Add(orgMember);
 
-        _projectId = Guid.NewGuid();
-        var project = new Project
-        {
-            Id = _projectId,
-            Name = "Test Project",
-            OrganizationId = _organizationId,
-            OwnerId = userId,
-            ApiKeyHash = "test-hash",
-            CreatedAt = DateTime.UtcNow
-        };
+        var project = new Project(_organizationId, "Test Project", userId, "test-hash");
+        _projectId = project.Id;
         db.Projects.Add(project);
 
         await db.SaveChangesAsync();
@@ -86,46 +79,31 @@ public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetim
         using var scope = _app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
-        // 1. Create a cluster with two reports
-        var cluster = new Cluster
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Test Cluster",
-            Status = "Open",
-            Centroid = MakeVector(1.0f, 0.0f) // Initial dummy centroid
-        };
-        db.Clusters.Add(cluster);
+        // 1. Create reports
+        var report1 = new Report(_projectId, _organizationId, "Report 1", "Message 1");
+        report1.SetEmbedding(MakeVector(1.0f, 0.0f));
+        report1.ChangeStatus(ReportStatus.Duplicate);
 
-        var report1 = new Report
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Report 1",
-            Message = "Message 1",
-            ClusterId = cluster.Id,
-            Embedding = MakeVector(1.0f, 0.0f),
-            CreatedAt = DateTime.UtcNow,
-            Status = "Grouped"
-        };
-        var report2 = new Report
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Report 2",
-            Message = "Message 2",
-            ClusterId = cluster.Id,
-            Embedding = MakeVector(0.0f, 1.0f),
-            CreatedAt = DateTime.UtcNow,
-            Status = "Grouped"
-        };
+        var report2 = new Report(_projectId, _organizationId, "Report 2", "Message 2");
+        report2.SetEmbedding(MakeVector(0.0f, 1.0f));
+        report2.ChangeStatus(ReportStatus.Duplicate);
+
         db.Reports.AddRange(report1, report2);
         await db.SaveChangesAsync();
 
-        // 2. Initial centroid should be average: [0.5, 0.5]
+        // 2. Create a cluster with these reports
+        var cluster = new Cluster(_projectId, _organizationId, report1.Id);
+        cluster.AddReport(report2.Id);
+        cluster.UpdateCentroid(MakeVector(1.0f, 0.0f)); // Initial dummy centroid
+        db.Clusters.Add(cluster);
+        await db.SaveChangesAsync();
+
+        // Assign reports to cluster in DB
+        report1.AssignToCluster(cluster.Id);
+        report2.AssignToCluster(cluster.Id);
+        await db.SaveChangesAsync();
+
+        // 3. Initial centroid should be average: [0.5, 0.5]
         var clusterService = scope.ServiceProvider.GetRequiredService<IClusterService>();
         await clusterService.RecalculateCentroidAsync(cluster.Id);
         await db.SaveChangesAsync();
@@ -141,10 +119,10 @@ public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetim
         var r2 = await db.Reports.FindAsync(report2.Id);
         Assert.NotNull(r1?.ConfidenceScore);
         Assert.NotNull(r2?.ConfidenceScore);
-        Assert.Equal(0.707f, r1.ConfidenceScore.Value, 3);
-        Assert.Equal(0.707f, r2.ConfidenceScore.Value, 3);
+        Assert.Equal(0.707f, r1.ConfidenceScore.Value.Score, 3);
+        Assert.Equal(0.707f, r2.ConfidenceScore.Value.Score, 3);
 
-        // 3. Login to get token
+        // 4. Login to get token
         var loginRequest = new Winnow.Server.Features.Auth.LoginRequest
         {
             Email = "test@example.com",
@@ -155,22 +133,22 @@ public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetim
         Assert.NotNull(cookie);
         var token = cookie.Split(';')[0]["winnow_auth=".Length..];
 
-        // 4. Ungroup report 1
+        // 5. Ungroup report 1
         client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         client.DefaultRequestHeaders.Add("X-Project-ID", _projectId.ToString());
 
         var response = await client.PostAsJsonAsync($"/reports/{report1.Id}/ungroup", new { });
         Assert.True(response.IsSuccessStatusCode);
 
-        // 5. Verify report 1 is ungrouped
+        // 6. Verify report 1 is ungrouped
         db.ChangeTracker.Clear();
         var ungroupedReport = await db.Reports.FindAsync(report1.Id);
         Assert.NotNull(ungroupedReport);
         Assert.Null(ungroupedReport.ClusterId);
         Assert.Null(ungroupedReport.ConfidenceScore);
-        Assert.Equal("New", ungroupedReport.Status);
+        Assert.Equal(ReportStatus.Open, ungroupedReport.Status);
 
-        // 6. Verify cluster centroid is updated to report 2's embedding: [0.0, 1.0]
+        // 7. Verify cluster centroid is updated to report 2's embedding: [0.0, 1.0]
         var finalCluster = await db.Clusters.FindAsync(cluster.Id);
         Assert.NotNull(finalCluster);
         Assert.NotNull(finalCluster.Centroid);
@@ -179,7 +157,7 @@ public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetim
 
         // Verify remaining report confidence is now 1.0 (it IS the centroid)
         var remainingReport = await db.Reports.FindAsync(report2.Id);
-        Assert.Equal(1.0f, remainingReport!.ConfidenceScore!.Value, 3);
+        Assert.Equal(1.0f, remainingReport!.ConfidenceScore!.Value.Score, 3);
     }
 
     [Fact]
@@ -188,49 +166,33 @@ public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetim
         using var scope = _app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
-        // 1. Create a cluster with one report
-        var cluster = new Cluster
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Test Cluster",
-            Status = "Open",
-            Centroid = MakeVector(1.0f, 0.0f)
-        };
-        db.Clusters.Add(cluster);
-
-        var report1 = new Report
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "First Report",
-            Message = "Message 1",
-            ClusterId = cluster.Id,
-            Embedding = MakeVector(1.0f, 0.0f),
-            CreatedAt = DateTime.UtcNow,
-            Status = "Grouped"
-        };
+        // 1. Create a report and its cluster
+        var report1 = new Report(_projectId, _organizationId, "First Report", "Message 1");
+        report1.SetEmbedding(MakeVector(1.0f, 0.0f));
+        report1.ChangeStatus(ReportStatus.Duplicate);
         db.Reports.Add(report1);
+        await db.SaveChangesAsync();
+
+        var cluster = new Cluster(_projectId, _organizationId, report1.Id);
+        cluster.UpdateCentroid(MakeVector(1.0f, 0.0f));
+        db.Clusters.Add(cluster);
+        await db.SaveChangesAsync();
+
+        report1.AssignToCluster(cluster.Id);
         await db.SaveChangesAsync();
 
         // 2. Simulate report creation through the consumer
         var clusterService = scope.ServiceProvider.GetRequiredService<IClusterService>();
 
-        var report2 = new Report
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Second Report",
-            Message = "Message 2",
-            ClusterId = cluster.Id,
-            Embedding = MakeVector(0.0f, 1.0f),
-            CreatedAt = DateTime.UtcNow,
-            Status = "Grouped"
-        };
+        var report2 = new Report(_projectId, _organizationId, "Second Report", "Message 2");
+        report2.SetEmbedding(MakeVector(0.0f, 1.0f));
+        report2.ChangeStatus(ReportStatus.Duplicate);
         db.Reports.Add(report2);
+        await db.SaveChangesAsync();
+
+        // Manually assign to cluster (simulating clustering logic)
+        report2.AssignToCluster(cluster.Id);
+        cluster.AddReport(report2.Id);
         await db.SaveChangesAsync();
 
         // Trigger recalculation (simulating what ReportCreatedConsumer does)

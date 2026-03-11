@@ -1,6 +1,6 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
+using Winnow.Server.Infrastructure.Identity;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 
@@ -42,14 +42,13 @@ public sealed class ListOrganizationMembersEndpoint(WinnowDbContext db, ITenantC
         // 1. Query Active Members
         var members = await db.OrganizationMembers
             .Where(om => om.OrganizationId == orgId)
-            .Include(om => om.User)
-            .Select(om => new OrganizationDirectoryMemberDto
+            .Join(db.Users, om => om.UserId, u => u.Id, (om, u) => new OrganizationDirectoryMemberDto
             {
                 // Note: Identity User Id is generally a string. 
                 // We'll try to parse it to Guid as requested by the DTO spec.
                 Id = Guid.Parse(om.UserId),
-                FullName = om.User!.FullName,
-                Email = om.User!.Email!,
+                FullName = u.FullName,
+                Email = u.Email!,
                 GlobalRole = om.Role,
                 Status = "Active",
                 JoinedAt = om.JoinedAt,
@@ -64,7 +63,7 @@ public sealed class ListOrganizationMembersEndpoint(WinnowDbContext db, ITenantC
             {
                 Id = oi.Id,
                 FullName = null,
-                Email = oi.Email,
+                Email = oi.Email.Value, // Using .Value for Email value object
                 GlobalRole = oi.Role,
                 Status = "Pending",
                 JoinedAt = oi.CreatedAt

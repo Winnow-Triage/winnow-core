@@ -59,7 +59,6 @@ public sealed class ResendOrganizationInvitationEndpoint(
         }
 
         var invitation = await db.OrganizationInvitations
-            .Include(oi => oi.Organization)
             .FirstOrDefaultAsync(oi => oi.Id == invitationId && oi.OrganizationId == orgId, ct);
 
         if (invitation == null)
@@ -68,12 +67,14 @@ public sealed class ResendOrganizationInvitationEndpoint(
             return;
         }
 
-        // Regenerate token to invalidate old links
-        var oldToken = invitation.Token;
-        invitation.Token = Guid.NewGuid().ToString("N");
+        var organizationName = await db.Organizations
+            .Where(o => o.Id == orgId)
+            .Select(o => o.Name)
+            .FirstOrDefaultAsync(ct) ?? "Organization";
 
-        // Extend expiration
-        invitation.ExpiresAt = DateTime.UtcNow.AddHours(24);
+        // Regenerate token and extend expiration using domain method
+        var oldToken = invitation.Token;
+        invitation.Resend(Guid.NewGuid().ToString("N"));
 
         Console.WriteLine($"[RESEND] Regenerated token for invitation {invitation.Id}: {oldToken} -> {invitation.Token}");
 
@@ -81,7 +82,7 @@ public sealed class ResendOrganizationInvitationEndpoint(
 
         // Resend email
         var inviteLink = new Uri($"http://localhost:5173/accept-invite?token={invitation.Token}");
-        await emailService.SendOrganizationInviteAsync(invitation.Email, invitation.Organization.Name, inviteLink);
+        await emailService.SendOrganizationInviteAsync(invitation.Email.Value, organizationName, inviteLink);
 
         await Send.OkAsync(new { Message = "Invitation resent successfully" }, ct);
     }

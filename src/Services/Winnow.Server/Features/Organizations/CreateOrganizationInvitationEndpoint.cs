@@ -1,7 +1,7 @@
 using FastEndpoints;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
+using Winnow.Server.Infrastructure.Identity;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Emails;
 
@@ -55,15 +55,13 @@ public sealed class CreateOrganizationInvitationEndpoint(
         }
 
         var token = Guid.NewGuid().ToString("N"); // Secure enough for local/MVP
-        var invitation = new OrganizationInvitation
-        {
-            OrganizationId = req.OrgId,
-            Email = req.Email,
-            Role = req.Role,
-            Token = token,
-            InitialTeamIds = req.TeamIds,
-            InitialProjectIds = req.ProjectIds
-        };
+        var invitation = new Winnow.Server.Domain.Organizations.OrganizationInvitation(
+            req.OrgId,
+            new Winnow.Server.Domain.Common.Email(req.Email),
+            req.Role,
+            token,
+            req.TeamIds,
+            req.ProjectIds);
 
         db.OrganizationInvitations.Add(invitation);
         await db.SaveChangesAsync(ct);

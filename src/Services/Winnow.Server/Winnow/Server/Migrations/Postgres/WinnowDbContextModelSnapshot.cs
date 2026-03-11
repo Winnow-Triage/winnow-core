@@ -397,6 +397,91 @@ namespace Winnow.Server.Migrations.Postgres
                     b.ToTable("Organizations", (string)null);
                 });
 
+            modelBuilder.Entity("Winnow.Server.Domain.Organizations.OrganizationInvitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InitialProjectIds")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("InitialTeamIds")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsAccepted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.ToTable("OrganizationInvitations", (string)null);
+                });
+
+            modelBuilder.Entity("Winnow.Server.Domain.Organizations.OrganizationMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("OrganizationId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("OrganizationMembers", (string)null);
+                });
+
             modelBuilder.Entity("Winnow.Server.Domain.Projects.Project", b =>
                 {
                     b.Property<Guid>("Id")
@@ -405,6 +490,9 @@ namespace Winnow.Server.Migrations.Postgres
 
                     b.Property<string>("ApiKeyHash")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ApplicationUserId")
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
@@ -433,7 +521,37 @@ namespace Winnow.Server.Migrations.Postgres
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ApplicationUserId");
+
+                    b.HasIndex("OrganizationId");
+
                     b.ToTable("Projects");
+                });
+
+            modelBuilder.Entity("Winnow.Server.Domain.Projects.ProjectMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ProjectId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("ProjectMembers", (string)null);
                 });
 
             modelBuilder.Entity("Winnow.Server.Domain.Reports.Report", b =>
@@ -540,10 +658,38 @@ namespace Winnow.Server.Migrations.Postgres
 
                     b.HasKey("Id");
 
+                    b.HasIndex("OrganizationId");
+
                     b.ToTable("Teams");
                 });
 
-            modelBuilder.Entity("Winnow.Server.Entities.ApplicationUser", b =>
+            modelBuilder.Entity("Winnow.Server.Domain.Teams.TeamMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("TeamId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("TeamMembers", (string)null);
+                });
+
+            modelBuilder.Entity("Winnow.Server.Infrastructure.Identity.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
@@ -614,451 +760,6 @@ namespace Winnow.Server.Migrations.Postgres
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("Winnow.Server.Entities.Asset", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("CleanS3Key")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ReportId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("S3Key")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("ScannedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("SizeBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReportId");
-
-                    b.ToTable("Asset");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.Cluster", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("AssignedTo")
-                        .HasColumnType("text");
-
-                    b.PrimitiveCollection<float[]>("Centroid")
-                        .HasColumnType("real[]");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CriticalityReasoning")
-                        .HasColumnType("text");
-
-                    b.Property<int?>("CriticalityScore")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("LastSummarizedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid?>("SuggestedMergeClusterId")
-                        .HasColumnType("uuid");
-
-                    b.Property<float?>("SuggestedMergeConfidenceScore")
-                        .HasColumnType("real");
-
-                    b.Property<string>("Summary")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Title")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjectId");
-
-                    b.ToTable("Cluster");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.Integration", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Provider")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Token")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjectId");
-
-                    b.ToTable("Integration");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.Organization", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("CurrentMonthSummaries")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("IsSuspended")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("MonthlySummaryLimit")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("StripeCustomerId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("StripeSubscriptionId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("SubscriptionTier")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Organization");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.OrganizationInvitation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("InitialProjectIds")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("InitialTeamIds")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Token")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OrganizationId");
-
-                    b.HasIndex("Token")
-                        .IsUnique();
-
-                    b.ToTable("OrganizationInvitations");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.OrganizationMember", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsLocked")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("OrganizationId1")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OrganizationId");
-
-                    b.HasIndex("OrganizationId1");
-
-                    b.HasIndex("UserId", "OrganizationId")
-                        .IsUnique();
-
-                    b.ToTable("OrganizationMembers");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.Project", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ApiKeyHash")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("OwnerId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset?>("SecondaryApiKeyExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("SecondaryApiKeyHash")
-                        .HasColumnType("text");
-
-                    b.Property<Guid?>("TeamId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OrganizationId");
-
-                    b.HasIndex("OwnerId");
-
-                    b.HasIndex("TeamId");
-
-                    b.ToTable("Project");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.ProjectMember", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("ProjectId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("ProjectMembers");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.Report", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("AssignedTo")
-                        .HasColumnType("text");
-
-                    b.Property<Guid?>("ClusterId")
-                        .HasColumnType("uuid");
-
-                    b.Property<float?>("ConfidenceScore")
-                        .HasColumnType("real");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.PrimitiveCollection<float[]>("Embedding")
-                        .HasColumnType("real[]");
-
-                    b.Property<string>("ExternalUrl")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsLocked")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsOverage")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Metadata")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Screenshot")
-                        .HasColumnType("text");
-
-                    b.Property<string>("StackTrace")
-                        .HasColumnType("text");
-
-                    b.Property<string>("StackTraceHash")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid?>("SuggestedClusterId")
-                        .HasColumnType("uuid");
-
-                    b.Property<float?>("SuggestedConfidenceScore")
-                        .HasColumnType("real");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClusterId");
-
-                    b.HasIndex("ProjectId");
-
-                    b.ToTable("Report");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.Team", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OrganizationId");
-
-                    b.ToTable("Team");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.TeamMember", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("TeamId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("TeamId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("TeamMembers");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -1070,7 +771,7 @@ namespace Winnow.Server.Migrations.Postgres
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
-                    b.HasOne("Winnow.Server.Entities.ApplicationUser", null)
+                    b.HasOne("Winnow.Server.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1079,7 +780,7 @@ namespace Winnow.Server.Migrations.Postgres
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
-                    b.HasOne("Winnow.Server.Entities.ApplicationUser", null)
+                    b.HasOne("Winnow.Server.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1094,7 +795,7 @@ namespace Winnow.Server.Migrations.Postgres
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Winnow.Server.Entities.ApplicationUser", null)
+                    b.HasOne("Winnow.Server.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1103,208 +804,100 @@ namespace Winnow.Server.Migrations.Postgres
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
-                    b.HasOne("Winnow.Server.Entities.ApplicationUser", null)
+                    b.HasOne("Winnow.Server.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Winnow.Server.Entities.Asset", b =>
+            modelBuilder.Entity("Winnow.Server.Domain.Organizations.OrganizationInvitation", b =>
                 {
-                    b.HasOne("Winnow.Server.Entities.Report", "Report")
-                        .WithMany("Assets")
-                        .HasForeignKey("ReportId")
+                    b.HasOne("Winnow.Server.Domain.Organizations.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Report");
                 });
 
-            modelBuilder.Entity("Winnow.Server.Entities.Cluster", b =>
+            modelBuilder.Entity("Winnow.Server.Domain.Organizations.OrganizationMember", b =>
                 {
-                    b.HasOne("Winnow.Server.Entities.Project", "Project")
-                        .WithMany("Clusters")
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Project");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.Integration", b =>
-                {
-                    b.HasOne("Winnow.Server.Entities.Project", "Project")
-                        .WithMany("Integrations")
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Project");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.OrganizationInvitation", b =>
-                {
-                    b.HasOne("Winnow.Server.Entities.Organization", "Organization")
+                    b.HasOne("Winnow.Server.Domain.Organizations.Organization", null)
                         .WithMany()
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Organization");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.OrganizationMember", b =>
-                {
-                    b.HasOne("Winnow.Server.Domain.Organizations.Organization", "Organization")
-                        .WithMany()
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Winnow.Server.Entities.Organization", null)
-                        .WithMany("Members")
-                        .HasForeignKey("OrganizationId1");
-
-                    b.HasOne("Winnow.Server.Entities.ApplicationUser", "User")
+                    b.HasOne("Winnow.Server.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany("OrganizationMemberships")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Organization");
-
-                    b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Winnow.Server.Entities.Project", b =>
+            modelBuilder.Entity("Winnow.Server.Domain.Projects.Project", b =>
                 {
-                    b.HasOne("Winnow.Server.Entities.Organization", "Organization")
+                    b.HasOne("Winnow.Server.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany("Projects")
+                        .HasForeignKey("ApplicationUserId");
+
+                    b.HasOne("Winnow.Server.Domain.Organizations.Organization", null)
+                        .WithMany("OrganizationProjects")
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("Winnow.Server.Entities.ApplicationUser", "Owner")
-                        .WithMany("Projects")
-                        .HasForeignKey("OwnerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Winnow.Server.Entities.Team", "Team")
-                        .WithMany("Projects")
-                        .HasForeignKey("TeamId");
-
-                    b.Navigation("Organization");
-
-                    b.Navigation("Owner");
-
-                    b.Navigation("Team");
                 });
 
-            modelBuilder.Entity("Winnow.Server.Entities.ProjectMember", b =>
+            modelBuilder.Entity("Winnow.Server.Domain.Projects.ProjectMember", b =>
                 {
-                    b.HasOne("Winnow.Server.Entities.Project", "Project")
+                    b.HasOne("Winnow.Server.Domain.Projects.Project", null)
                         .WithMany()
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Winnow.Server.Entities.ApplicationUser", "User")
+                    b.HasOne("Winnow.Server.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Project");
-
-                    b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Winnow.Server.Entities.Report", b =>
+            modelBuilder.Entity("Winnow.Server.Domain.Teams.Team", b =>
                 {
-                    b.HasOne("Winnow.Server.Entities.Cluster", "Cluster")
-                        .WithMany("Reports")
-                        .HasForeignKey("ClusterId");
-
-                    b.HasOne("Winnow.Server.Entities.Project", "Project")
-                        .WithMany("Reports")
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Cluster");
-
-                    b.Navigation("Project");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.Team", b =>
-                {
-                    b.HasOne("Winnow.Server.Entities.Organization", "Organization")
-                        .WithMany("Teams")
+                    b.HasOne("Winnow.Server.Domain.Organizations.Organization", null)
+                        .WithMany("OrganizationTeams")
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Organization");
                 });
 
-            modelBuilder.Entity("Winnow.Server.Entities.TeamMember", b =>
+            modelBuilder.Entity("Winnow.Server.Domain.Teams.TeamMember", b =>
                 {
-                    b.HasOne("Winnow.Server.Entities.Team", "Team")
+                    b.HasOne("Winnow.Server.Domain.Teams.Team", null)
                         .WithMany()
                         .HasForeignKey("TeamId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Winnow.Server.Entities.ApplicationUser", "User")
+                    b.HasOne("Winnow.Server.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Team");
-
-                    b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Winnow.Server.Entities.ApplicationUser", b =>
+            modelBuilder.Entity("Winnow.Server.Domain.Organizations.Organization", b =>
+                {
+                    b.Navigation("OrganizationProjects");
+
+                    b.Navigation("OrganizationTeams");
+                });
+
+            modelBuilder.Entity("Winnow.Server.Infrastructure.Identity.ApplicationUser", b =>
                 {
                     b.Navigation("OrganizationMemberships");
 
-                    b.Navigation("Projects");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.Cluster", b =>
-                {
-                    b.Navigation("Reports");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.Organization", b =>
-                {
-                    b.Navigation("Members");
-
-                    b.Navigation("Projects");
-
-                    b.Navigation("Teams");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.Project", b =>
-                {
-                    b.Navigation("Clusters");
-
-                    b.Navigation("Integrations");
-
-                    b.Navigation("Reports");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.Report", b =>
-                {
-                    b.Navigation("Assets");
-                });
-
-            modelBuilder.Entity("Winnow.Server.Entities.Team", b =>
-                {
                     b.Navigation("Projects");
                 });
 #pragma warning restore 612, 618

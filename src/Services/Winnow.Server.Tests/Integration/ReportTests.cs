@@ -2,7 +2,12 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using Winnow.Server.Domain.Common;
+using Winnow.Server.Domain.Organizations;
+using Winnow.Server.Domain.Organizations.ValueObjects;
+using Winnow.Server.Domain.Projects;
 using Winnow.Server.Features.Reports.Create;
+using Winnow.Server.Infrastructure.Identity;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
 using Winnow.Server.Services.Storage;
@@ -68,15 +73,15 @@ public class ReportTests : IAsyncLifetime
         _apiKey = apiKeyService.GeneratePlaintextKey(_projectId);
 
         // Create the project with the hashed API key
-        using var db = scope.ServiceProvider.GetRequiredService<Winnow.Server.Infrastructure.Persistence.WinnowDbContext>();
+        using var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
         await db.Database.EnsureCreatedAsync();
 
         // Create a dummy user for the project owner
         var testUserId = Guid.NewGuid().ToString();
-        var testUser = new Winnow.Server.Entities.ApplicationUser
+        var testUser = new ApplicationUser
         {
             Id = testUserId,
-            UserName = "test-user",
+            UserName = "test@example.com",
             Email = "test@example.com",
             FullName = "Test User",
             CreatedAt = DateTime.UtcNow
@@ -85,37 +90,27 @@ public class ReportTests : IAsyncLifetime
         await db.SaveChangesAsync();
 
         // Create a test organization
-        var organizationId = Guid.NewGuid();
-        var organization = new Winnow.Server.Entities.Organization
-        {
-            Id = organizationId,
-            Name = "Test Organization",
-            SubscriptionTier = "free",
-            CreatedAt = DateTime.UtcNow
-        };
+        var organization = new Organization(
+            "Test Organization",
+            new Email("test@example.com"),
+            SubscriptionPlan.Free);
+        var organizationId = organization.Id;
         db.Organizations.Add(organization);
 
         // Add user as member of organization
-        var organizationMember = new Winnow.Server.Entities.OrganizationMember
-        {
-            Id = Guid.NewGuid(),
-            UserId = testUserId,
-            OrganizationId = organizationId,
-            Role = "owner",
-            JoinedAt = DateTime.UtcNow
-        };
+        var organizationMember = new OrganizationMember(
+            organizationId,
+            testUserId,
+            "owner");
         db.OrganizationMembers.Add(organizationMember);
 
         // Create the project with the hashed API key
-        var project = new Winnow.Server.Entities.Project
-        {
-            Id = _projectId,
-            Name = "Test Project",
-            ApiKeyHash = apiKeyService.HashKey(_apiKey),
-            OwnerId = testUserId,
-            OrganizationId = organizationId,
-            CreatedAt = DateTime.UtcNow
-        };
+        var project = new Project(
+            organizationId,
+            "Test Project",
+            testUserId,
+            apiKeyService.HashKey(_apiKey),
+            _projectId);
         db.Projects.Add(project);
         await db.SaveChangesAsync();
 

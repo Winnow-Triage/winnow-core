@@ -44,10 +44,10 @@ public sealed class ListUserOrganizationsEndpoint(WinnowDbContext db)
 
         var organizations = await db.OrganizationMembers
             .Where(om => om.UserId == userId)
-            .Select(om => new OrganizationDto
+            .Join(db.Organizations, om => om.OrganizationId, o => o.Id, (om, o) => new OrganizationDto
             {
-                Id = om.OrganizationId,
-                Name = om.Organization!.Name
+                Id = o.Id,
+                Name = o.Name
             })
             .ToListAsync(ct);
 

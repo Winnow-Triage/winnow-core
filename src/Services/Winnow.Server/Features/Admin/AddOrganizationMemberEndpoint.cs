@@ -2,7 +2,9 @@ using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
+using Winnow.Server.Infrastructure.Identity;
+using Winnow.Server.Domain.Reports.ValueObjects;
+using Winnow.Server.Domain.Clusters.ValueObjects;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Admin;
@@ -93,14 +95,10 @@ public sealed class AddOrganizationMemberEndpoint(
         }
 
         // 4. Create Membership
-        var membership = new OrganizationMember
-        {
-            Id = Guid.NewGuid(),
-            UserId = targetUserId,
-            OrganizationId = req.OrganizationId,
-            Role = req.Role,
-            JoinedAt = DateTime.UtcNow
-        };
+        var membership = new Domain.Organizations.OrganizationMember(
+            req.OrganizationId,
+            targetUserId,
+            req.Role);
 
         dbContext.OrganizationMembers.Add(membership);
         await dbContext.SaveChangesAsync(ct);

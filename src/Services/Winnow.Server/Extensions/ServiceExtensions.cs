@@ -9,17 +9,23 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.SemanticKernel;
+using Winnow.Server.Domain.Core;
+using Winnow.Server.Domain.Organizations;
+using Winnow.Server.Domain.Projects;
+using Winnow.Server.Domain.Reports;
 using Winnow.Server.Domain.Services;
-using Winnow.Server.Entities;
-using Winnow.Server.Features.Dashboard;
+using Winnow.Server.Domain.Teams;
 using Winnow.Server.Features.Clusters.GenerateSummary;
+using Winnow.Server.Features.Dashboard;
 using Winnow.Server.Infrastructure.Billing;
 using Winnow.Server.Infrastructure.Configuration;
 using Winnow.Server.Infrastructure.HealthChecks;
+using Winnow.Server.Infrastructure.Identity;
 using Winnow.Server.Infrastructure.Integrations;
 using Winnow.Server.Infrastructure.Integrations.Strategies;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Infrastructure.Persistence.Repositories;
 using Winnow.Server.Infrastructure.Scheduling;
 using Winnow.Server.Infrastructure.Security;
 using Winnow.Server.Services.Ai;
@@ -159,6 +165,13 @@ internal static class ServiceExtensions
         {
             services.AddScoped<IClusterSummaryService, PlaceholderSummaryService>();
         }
+
+        // Repositories
+        services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
+        services.AddScoped<IOrganizationRepository, EfOrganizationRepository>();
+        services.AddScoped<IProjectRepository, EfProjectRepository>();
+        services.AddScoped<IReportRepository, EfReportRepository>();
+        services.AddScoped<ITeamRepository, EfTeamRepository>();
 
         // Always register the duplicate checker (It handles fail-safe internally)
         services.AddScoped<IDuplicateChecker, OllamaDuplicateChecker>();

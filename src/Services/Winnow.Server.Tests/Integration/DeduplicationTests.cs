@@ -4,8 +4,10 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
-using Winnow.Server.Entities;
+using Winnow.Server.Domain.Reports;
+using Winnow.Server.Domain.Reports.ValueObjects;
 using Winnow.Server.Features.Reports.Create;
+using Winnow.Server.Infrastructure.Identity;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
 using Winnow.Server.Services.Storage;
@@ -58,7 +60,10 @@ public class DeduplicationTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await _app.ResetDatabaseAsync();
-        _client = _app.CreateClient();
+        _client = _app.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions
+        {
+            HandleCookies = false
+        });
         // Create a test project in the database and get the generated API key
         var (projectId, apiKey) = await _app.CreateTestProjectAsync("dedup-test@example.com", "Password123!");
         _projectId = projectId;
@@ -222,7 +227,7 @@ public class DeduplicationTests : IAsyncLifetime
         // Assert: Both should be standalone reports (not duplicates, in their own clusters or unclustered)
         Assert.NotNull(reportA);
         Assert.NotNull(reportB);
-        Assert.NotEqual("Duplicate", reportA.Status);
-        Assert.NotEqual("Duplicate", reportB.Status);
+        Assert.NotEqual(ReportStatus.Duplicate, reportA.Status);
+        Assert.NotEqual(ReportStatus.Duplicate, reportB.Status);
     }
 }

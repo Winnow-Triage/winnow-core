@@ -33,23 +33,28 @@ public sealed class ListProjectsEndpoint(WinnowDbContext dbContext)
 
     public override async Task HandleAsync(ListProjectsRequest req, CancellationToken ct)
     {
+        Console.WriteLine($"[DEBUG] ListProjects - User: {req.CurrentUserId}, Org: {req.CurrentOrganizationId}, Roles: {string.Join(", ", req.CurrentUserRoles)}");
+
+        var allOrgs = await dbContext.Organizations.Select(o => o.Id).ToListAsync(ct);
+        Console.WriteLine($"[DEBUG] ListProjects - All Orgs in DB: {string.Join(", ", allOrgs)}");
+
         var query = dbContext.Projects
             .AsNoTracking()
             .Where(p => p.OrganizationId == req.CurrentOrganizationId);
 
-        Console.WriteLine($"ROLES LOADED: {string.Join(", ", req.CurrentUserRoles)}");
         // Filter by teams if they DIDN'T ask for OrgWide, OR if they lack the required roles.
         bool shouldFilterByTeams = !req.HasAnyRole("Admin", "SuperAdmin", "Owner");
+        Console.WriteLine($"[DEBUG] ListProjects - Should Filter By Teams: {shouldFilterByTeams}");
 
         if (shouldFilterByTeams)
         {
             var userTeamIds = await dbContext.TeamMembers
-                .Where(tm => tm.UserId == req.CurrentUserId && tm.Team!.OrganizationId == req.CurrentOrganizationId)
+                .Where(tm => tm.UserId == req.CurrentUserId)
                 .Select(tm => tm.TeamId)
                 .ToListAsync(ct);
 
             var directProjectIds = await dbContext.ProjectMembers
-                .Where(pm => pm.UserId == req.CurrentUserId && pm.Project!.OrganizationId == req.CurrentOrganizationId)
+                .Where(pm => pm.UserId == req.CurrentUserId)
                 .Select(pm => pm.ProjectId)
                 .ToListAsync(ct);
 

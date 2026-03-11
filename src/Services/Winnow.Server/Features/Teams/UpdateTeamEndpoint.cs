@@ -1,8 +1,8 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
+using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
-using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Teams;
 
@@ -53,10 +53,10 @@ public sealed class UpdateTeamEndpoint(WinnowDbContext db)
             ProjectCount = await db.Projects.CountAsync(p => p.TeamId == team.Id, ct),
             Members = await db.TeamMembers
                 .Where(tm => tm.TeamId == team.Id)
-                .Select(tm => new TeamMemberSummary
+                .Join(db.Users, tm => tm.UserId, u => u.Id, (tm, u) => new TeamMemberSummary
                 {
                     UserId = tm.UserId,
-                    FullName = tm.User!.FullName
+                    FullName = u.FullName
                 }).ToListAsync(ct),
             Projects = await db.Projects
                 .Where(p => p.TeamId == team.Id)

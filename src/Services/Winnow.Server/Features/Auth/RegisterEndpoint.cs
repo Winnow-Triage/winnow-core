@@ -5,7 +5,9 @@ using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
-using Winnow.Server.Entities;
+using Winnow.Server.Infrastructure.Identity;
+using Winnow.Server.Domain.Reports.ValueObjects;
+using Winnow.Server.Domain.Clusters.ValueObjects;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Emails;
 
@@ -156,14 +158,11 @@ public sealed class RegisterEndpoint(
             new Domain.Common.Email(req.Email)
         );
 
-        var organizationMember = new OrganizationMember
-        {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            OrganizationId = organization.Id,
-            Role = "owner",
-            JoinedAt = DateTime.UtcNow
-        };
+        var organizationMember = new Winnow.Server.Domain.Organizations.OrganizationMember(
+            organization.Id,
+            user.Id,
+            "owner"
+        );
 
         dbContext.Organizations.Add(organization);
         dbContext.OrganizationMembers.Add(organizationMember);
@@ -222,8 +221,9 @@ public sealed class RegisterEndpoint(
 
         await Send.OkAsync(new AuthResponse
         {
+            Token = token,
             UserId = user.Id,
-            Email = user.Email,
+            Email = user.Email ?? "",
             FullName = user.FullName,
             IsEmailVerified = user.EmailConfirmed,
             DefaultProjectId = project.Id,

@@ -5,6 +5,11 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Winnow.Server.Domain.Common;
+using Winnow.Server.Domain.Organizations;
+using Winnow.Server.Domain.Organizations.ValueObjects;
+using Winnow.Server.Domain.Projects;
+using Winnow.Server.Infrastructure.Identity;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
 
@@ -83,7 +88,7 @@ public class WinnowTestApp : WebApplicationFactory<Program>, IAsyncLifetime
     {
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Winnow.Server.Entities.ApplicationUser>>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var apiKeyService = scope.ServiceProvider.GetRequiredService<Winnow.Server.Infrastructure.Security.IApiKeyService>();
 
         // Create a dummy user for the project owner
@@ -94,7 +99,7 @@ public class WinnowTestApp : WebApplicationFactory<Program>, IAsyncLifetime
         var existingUser = await db.Users.FirstOrDefaultAsync(u => u.Email == testUserEmail);
         if (existingUser == null)
         {
-            var user = new Winnow.Server.Entities.ApplicationUser
+            var user = new ApplicationUser
             {
                 Id = testUserId,
                 UserName = testUserEmail,
@@ -107,40 +112,27 @@ public class WinnowTestApp : WebApplicationFactory<Program>, IAsyncLifetime
             existingUser = user;
         }
 
-        var organizationId = Guid.NewGuid();
-        var organization = new Winnow.Server.Entities.Organization
-        {
-            Id = organizationId,
-            Name = "Test Organization",
-            SubscriptionTier = "free",
-            CreatedAt = DateTime.UtcNow
-        };
+        var name = "Test Organization";
+        var contactEmail = new Email(testUserEmail);
+        var plan = SubscriptionPlan.Free;
+        var organization = new Organization(name, contactEmail, plan);
         db.Organizations.Add(organization);
 
-        var organizationMember = new Winnow.Server.Entities.OrganizationMember
-        {
-            Id = Guid.NewGuid(),
-            UserId = existingUser.Id,
-            OrganizationId = organizationId,
-            Role = "owner",
-            JoinedAt = DateTime.UtcNow
-        };
+        var organizationMember = new OrganizationMember(organization.Id, existingUser.Id, "owner");
         db.OrganizationMembers.Add(organizationMember);
 
         var projectId = Guid.NewGuid();
         var generatedApiKey = apiKeyService.GeneratePlaintextKey(projectId);
-        var project = new Winnow.Server.Entities.Project
-        {
-            Id = projectId,
-            Name = "Test Project",
-            ApiKeyHash = apiKeyService.HashKey(generatedApiKey),
-            OwnerId = existingUser.Id,
-            OrganizationId = organizationId,
-            CreatedAt = DateTime.UtcNow
-        };
+        var project = new Project(
+            organization.Id,
+            "Test Project",
+            existingUser.Id,
+            apiKeyService.HashKey(generatedApiKey),
+            projectId);
+
         db.Projects.Add(project);
         await db.SaveChangesAsync();
-        return (projectId, generatedApiKey);
+        return (project.Id, generatedApiKey);
     }
 
     /// <summary>

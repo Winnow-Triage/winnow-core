@@ -5,7 +5,9 @@ using FastEndpoints;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Winnow.Server.Entities;
+using Winnow.Server.Infrastructure.Identity;
+using Winnow.Server.Domain.Reports.ValueObjects;
+using Winnow.Server.Domain.Clusters.ValueObjects;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Auth;
@@ -78,14 +80,10 @@ public sealed class LoginEndpoint(
                 new Domain.Common.Email(user.Email!)
             );
 
-            var organizationMember = new OrganizationMember
-            {
-                Id = Guid.NewGuid(),
-                UserId = user.Id,
-                OrganizationId = organization.Id,
-                Role = "owner",
-                JoinedAt = DateTime.UtcNow
-            };
+            var organizationMember = new Winnow.Server.Domain.Organizations.OrganizationMember(
+                organization.Id,
+                user.Id,
+                "owner");
 
             dbContext.Organizations.Add(organization);
             dbContext.OrganizationMembers.Add(organizationMember);
@@ -175,6 +173,7 @@ public sealed class LoginEndpoint(
 
         await Send.OkAsync(new AuthResponse
         {
+            Token = token,
             UserId = user.Id,
             Email = user.Email ?? "",
             FullName = user.FullName,

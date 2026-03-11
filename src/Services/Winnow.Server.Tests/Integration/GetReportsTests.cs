@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
-using Winnow.Server.Entities;
+using Winnow.Server.Domain.Projects;
+using Winnow.Server.Domain.Reports;
+using Winnow.Server.Infrastructure.Identity;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
 using Winnow.Server.Services.Storage;
@@ -57,7 +59,10 @@ public class GetReportsTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await _app.ResetDatabaseAsync();
-        _client = _app.CreateClient();
+        _client = _app.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions
+        {
+            HandleCookies = false
+        });
         // Create a test project in the database and get the generated API key
         // Use a unique email to avoid conflicts between tests
         var (projectId, apiKey) = await _app.CreateTestProjectAsync($"getreports-test-{Guid.NewGuid():N}@example.com");
@@ -79,6 +84,8 @@ public class GetReportsTests : IAsyncLifetime
                 Email = user.Email!,
                 Password = "Password123!" // Default password set by CreateTestProjectAsync
             };
+            _client.DefaultRequestHeaders.Clear();
+            _client.DefaultRequestHeaders.Clear();
             _client.DefaultRequestHeaders.Add("X-Tenant-ID", "test-tenant");
             var loginResponse = await _client.PostAsJsonAsync("/auth/login", loginRequest);
             var authResult = await loginResponse.Content.ReadFromJsonAsync<Features.Auth.AuthResponse>();
@@ -122,7 +129,6 @@ public class GetReportsTests : IAsyncLifetime
         };
 
         _client.DefaultRequestHeaders.Clear();
-        // Use API key authentication (IngestReportEndpoint uses ApiKey scheme)
         _client.DefaultRequestHeaders.Add("X-Winnow-Key", _apiKey);
         _client.DefaultRequestHeaders.Add("X-Tenant-ID", "test-tenant");
 
@@ -219,6 +225,7 @@ public class GetReportsTests : IAsyncLifetime
                     Email = userB.Email!,
                     Password = "Password123!"
                 };
+                _client.DefaultRequestHeaders.Clear();
                 _client.DefaultRequestHeaders.Add("X-Tenant-ID", "test-tenant");
                 var loginResponse = await _client.PostAsJsonAsync("/auth/login", loginRequest);
                 var authResult = await loginResponse.Content.ReadFromJsonAsync<Features.Auth.AuthResponse>();

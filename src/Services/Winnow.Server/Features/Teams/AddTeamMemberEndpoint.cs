@@ -1,6 +1,6 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
+using Winnow.Server.Infrastructure.Identity;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Persistence;
@@ -37,11 +37,7 @@ public sealed class AddTeamMemberEndpoint(WinnowDbContext db)
             return;
         }
 
-        var member = new TeamMember
-        {
-            TeamId = req.TeamId,
-            UserId = req.UserId
-        };
+        var member = new Winnow.Server.Domain.Teams.TeamMember(req.TeamId, req.UserId);
 
         db.TeamMembers.Add(member);
         await db.SaveChangesAsync(ct);

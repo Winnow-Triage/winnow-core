@@ -2,7 +2,9 @@ using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Memory;
-using Winnow.Server.Entities;
+using Winnow.Server.Infrastructure.Identity;
+using Winnow.Server.Domain.Reports.ValueObjects;
+using Winnow.Server.Domain.Clusters.ValueObjects;
 using Winnow.Server.Services.Emails;
 
 namespace Winnow.Server.Features.Auth;

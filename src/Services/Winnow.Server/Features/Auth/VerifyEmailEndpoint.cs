@@ -1,6 +1,8 @@
 using FastEndpoints;
 using Microsoft.AspNetCore.Identity;
-using Winnow.Server.Entities;
+using Winnow.Server.Infrastructure.Identity;
+using Winnow.Server.Domain.Reports.ValueObjects;
+using Winnow.Server.Domain.Clusters.ValueObjects;
 
 namespace Winnow.Server.Features.Auth;
 

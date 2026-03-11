@@ -2,8 +2,16 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Winnow.Server.Domain.Clusters;
+using Winnow.Server.Domain.Clusters.ValueObjects;
+using Winnow.Server.Domain.Common;
+using Winnow.Server.Domain.Organizations;
+using Winnow.Server.Domain.Organizations.ValueObjects;
+using Winnow.Server.Domain.Projects;
+using Winnow.Server.Domain.Reports;
+using Winnow.Server.Domain.Reports.ValueObjects;
 using Winnow.Server.Domain.Services;
-using Winnow.Server.Entities;
+using Winnow.Server.Infrastructure.Identity;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Infrastructure.Scheduling;
 using Winnow.Server.Services.Ai;
@@ -36,8 +44,8 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
         await db.Database.EnsureCreatedAsync();
 
         // Setup Test Data
-        _organizationId = Guid.NewGuid();
-        var organization = new Organization { Id = _organizationId, Name = "Test Org", SubscriptionTier = "free", CreatedAt = DateTime.UtcNow };
+        var organization = new Organization("Test Org", new Email("test@example.com"), SubscriptionPlan.Free);
+        _organizationId = organization.Id;
         db.Organizations.Add(organization);
 
         var userId = "test-user-id";
@@ -55,26 +63,19 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
             throw new Exception($"Failed to create test user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
         }
 
-        var orgMember = new OrganizationMember
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            OrganizationId = _organizationId,
-            Role = "owner",
-            JoinedAt = DateTime.UtcNow
-        };
+        var orgMember = new OrganizationMember(
+            _organizationId,
+            userId,
+            "owner");
         db.OrganizationMembers.Add(orgMember);
 
         _projectId = Guid.NewGuid();
-        var project = new Project
-        {
-            Id = _projectId,
-            Name = "Test Project",
-            OrganizationId = _organizationId,
-            OwnerId = userId,
-            ApiKeyHash = "test-hash",
-            CreatedAt = DateTime.UtcNow
-        };
+        var project = new Project(
+            _organizationId,
+            "Test Project",
+            userId,
+            "test-hash",
+            _projectId);
         db.Projects.Add(project);
 
         await db.SaveChangesAsync();
@@ -94,18 +95,7 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
         using var scope = _app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
-        var report = new Report
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "No Embedding Report",
-            Message = "Needs embedding",
-            ClusterId = null,
-            Embedding = null,
-            CreatedAt = DateTime.UtcNow,
-            Status = "New"
-        };
+        var report = new Report(_projectId, _organizationId, "No Embedding Report", "Needs embedding");
         db.Reports.Add(report);
         await db.SaveChangesAsync();
 
@@ -131,29 +121,13 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
         using var scope = _app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
-        var cluster = new Cluster
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Existing Cluster",
-            Status = "Open",
-            Centroid = MakeVector(1.0f, 0.0f)
-        };
+        var dummyReport = new Report(_projectId, _organizationId, "Dummy", "Dummy", embedding: MakeVector(1.0f, 0.0f));
+        db.Reports.Add(dummyReport);
+        var cluster = new Cluster(_projectId, _organizationId, dummyReport.Id);
+        cluster.UpdateCentroid(MakeVector(1.0f, 0.0f));
         db.Clusters.Add(cluster);
 
-        var report = new Report
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Matched Report",
-            Message = "Matches cluster exactly",
-            ClusterId = null,
-            Embedding = MakeVector(1.0f, 0.0f), // Distance 0 to centroid -> Hard merge
-            CreatedAt = DateTime.UtcNow,
-            Status = "New"
-        };
+        var report = new Report(_projectId, _organizationId, "Matched Report", "Matches cluster exactly", embedding: MakeVector(1.0f, 0.0f));
         db.Reports.Add(report);
         await db.SaveChangesAsync();
 
@@ -169,7 +143,7 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
         db.ChangeTracker.Clear();
         var updatedReport = await db.Reports.FindAsync(report.Id);
         Assert.Equal(cluster.Id, updatedReport?.ClusterId);
-        Assert.Equal("Duplicate", updatedReport?.Status);
+        Assert.Equal(ReportStatus.Duplicate, updatedReport?.Status);
     }
 
     [Fact]
@@ -178,31 +152,13 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
         using var scope = _app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
-        var cluster = new Cluster
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Existing Cluster",
-            Status = "Open",
-            Centroid = MakeVector(1.0f, 0.0f, 0.0f)
-        };
+        var dummyReport = new Report(_projectId, _organizationId, "Dummy", "Dummy", embedding: MakeVector(1.0f, 0.0f, 0.0f));
+        db.Reports.Add(dummyReport);
+        var cluster = new Cluster(_projectId, _organizationId, dummyReport.Id);
+        cluster.UpdateCentroid(MakeVector(1.0f, 0.0f, 0.0f));
         db.Clusters.Add(cluster);
 
-        var report = new Report
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Similar Report",
-            Message = "Matches cluster contextually",
-            ClusterId = null,
-            // A vector that gives Cosine Similarity ~0.5 => Distance ~0.5
-            // e.g., A=[1,0], B=[1, 1.732] -> dot=1, |A|=1, |B|=2 -> sim=0.5 -> dist=0.5
-            Embedding = MakeVector(1.0f, 1.732f, 0.0f),
-            CreatedAt = DateTime.UtcNow,
-            Status = "New"
-        };
+        var report = new Report(_projectId, _organizationId, "Similar Report", "Matches cluster contextually", embedding: MakeVector(1.0f, 1.732f, 0.0f));
         db.Reports.Add(report);
         await db.SaveChangesAsync();
 
@@ -220,7 +176,7 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
 
         // Should not be hard-merged
         Assert.Null(updatedReport?.ClusterId);
-        Assert.NotEqual("Duplicate", updatedReport?.Status);
+        Assert.NotEqual(ReportStatus.Duplicate, updatedReport?.Status);
 
         // Should be suggested
         Assert.Equal(cluster.Id, updatedReport?.SuggestedClusterId);
@@ -239,46 +195,18 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
         using var scope = _app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
-        var cluster = new Cluster
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Existing Cluster",
-            Status = "Open",
-            Centroid = MakeVector(1.0f, 0.0f, 0.0f)
-        };
+        var dummyReport = new Report(_projectId, _organizationId, "Dummy", "Dummy", embedding: MakeVector(1.0f, 0.0f, 0.0f));
+        db.Reports.Add(dummyReport);
+        var cluster = new Cluster(_projectId, _organizationId, dummyReport.Id);
+        cluster.UpdateCentroid(MakeVector(1.0f, 0.0f, 0.0f));
         db.Clusters.Add(cluster);
 
         // Need a representative report in the cluster for duplicate checking
-        var repReport = new Report
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Rep Report",
-            Message = "Rep Message",
-            ClusterId = cluster.Id,
-            Embedding = MakeVector(1.0f, 0.0f, 0.0f),
-            CreatedAt = DateTime.UtcNow,
-            Status = "Grouped"
-        };
+        var repReport = new Report(_projectId, _organizationId, "Rep Report", "Rep Message", embedding: MakeVector(1.0f, 0.0f, 0.0f));
+        repReport.AssignToCluster(cluster.Id);
         db.Reports.Add(repReport);
 
-        var report = new Report
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Duplicate Report",
-            Message = "Matches cluster",
-            ClusterId = null,
-            // A vector that gives Cosine Similarity ~0.707 => Distance ~0.293
-            // e.g., A=[1,0], B=[1, 1] -> dot=1, |A|=1, |B|=sqrt(2) -> sim=0.707 -> dist=0.293
-            Embedding = MakeVector(1.0f, 1.0f, 0.0f),
-            CreatedAt = DateTime.UtcNow,
-            Status = "New"
-        };
+        var report = new Report(_projectId, _organizationId, "Duplicate Report", "Matches cluster", embedding: MakeVector(1.0f, 1.0f, 0.0f));
         db.Reports.Add(report);
         await db.SaveChangesAsync();
 
@@ -295,7 +223,7 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
         var updatedReport = await db.Reports.FindAsync(report.Id);
 
         Assert.Equal(cluster.Id, updatedReport?.ClusterId);
-        Assert.Equal("Duplicate", updatedReport?.Status);
+        Assert.Equal(ReportStatus.Duplicate, updatedReport?.Status);
     }
 
     [Fact]
@@ -304,43 +232,17 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
         using var scope = _app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
-        var cluster = new Cluster
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Existing Cluster",
-            Status = "Open",
-            Centroid = MakeVector(1.0f, 0.0f, 0.0f)
-        };
+        var dummyReport = new Report(_projectId, _organizationId, "Dummy", "Dummy", embedding: MakeVector(1.0f, 0.0f, 0.0f));
+        db.Reports.Add(dummyReport);
+        var cluster = new Cluster(_projectId, _organizationId, dummyReport.Id);
+        cluster.UpdateCentroid(MakeVector(1.0f, 0.0f, 0.0f));
         db.Clusters.Add(cluster);
 
-        var repReport = new Report
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Rep Report",
-            Message = "Rep Message",
-            ClusterId = cluster.Id,
-            Embedding = MakeVector(1.0f, 0.0f, 0.0f),
-            CreatedAt = DateTime.UtcNow,
-            Status = "Grouped"
-        };
+        var repReport = new Report(_projectId, _organizationId, "Rep Report", "Rep Message", embedding: MakeVector(1.0f, 0.0f, 0.0f));
+        repReport.AssignToCluster(cluster.Id);
         db.Reports.Add(repReport);
 
-        var report = new Report
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Rejected Report",
-            Message = "Matches cluster vectors but AI says no",
-            ClusterId = null,
-            Embedding = MakeVector(1.0f, 1.0f, 0.0f), // Dist ~0.293 
-            CreatedAt = DateTime.UtcNow,
-            Status = "New"
-        };
+        var report = new Report(_projectId, _organizationId, "Rejected Report", "Matches cluster vectors but AI says no", embedding: MakeVector(1.0f, 1.0f, 0.0f));
         db.Reports.Add(report);
         await db.SaveChangesAsync();
 
@@ -369,26 +271,16 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
         using var scope = _app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
-        var cluster1 = new Cluster
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Cluster 1",
-            Status = "Open",
-            Centroid = MakeVector(1.0f, 0.0f, 0.0f)
-        };
+        var dummyReport1 = new Report(_projectId, _organizationId, "Dummy 1", "Dummy 1", embedding: MakeVector(1.0f, 0.0f, 0.0f));
+        db.Reports.Add(dummyReport1);
+        var cluster1 = new Cluster(_projectId, _organizationId, dummyReport1.Id);
+        cluster1.UpdateCentroid(MakeVector(1.0f, 0.0f, 0.0f));
         db.Clusters.Add(cluster1);
 
-        var cluster2 = new Cluster
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Cluster 2",
-            Status = "Open",
-            Centroid = MakeVector(1.0f, 0.0f, 0.0f) // Exact same centroid => distance 0
-        };
+        var dummyReport2 = new Report(_projectId, _organizationId, "Dummy 2", "Dummy 2", embedding: MakeVector(1.0f, 0.0f, 0.0f));
+        db.Reports.Add(dummyReport2);
+        var cluster2 = new Cluster(_projectId, _organizationId, dummyReport2.Id);
+        cluster2.UpdateCentroid(MakeVector(1.0f, 0.0f, 0.0f)); // Exact same centroid => distance 0
         db.Clusters.Add(cluster2);
         await db.SaveChangesAsync();
 
@@ -414,27 +306,17 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
         using var scope = _app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
-        var cluster1 = new Cluster
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Cluster 1",
-            Status = "Open",
-            Centroid = MakeVector(1.0f, 0.0f, 0.0f)
-        };
+        var dummyReport1 = new Report(_projectId, _organizationId, "Dummy 1", "Dummy 1", embedding: MakeVector(1.0f, 0.0f, 0.0f));
+        db.Reports.Add(dummyReport1);
+        var cluster1 = new Cluster(_projectId, _organizationId, dummyReport1.Id);
+        cluster1.UpdateCentroid(MakeVector(1.0f, 0.0f, 0.0f));
         db.Clusters.Add(cluster1);
 
-        var cluster2 = new Cluster
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Cluster 2",
-            Status = "Open",
-            // Sim ~0.707 => Dist ~0.293 (between 0.25 and 0.45) => Suggested merge
-            Centroid = MakeVector(1.0f, 1.0f, 0.0f)
-        };
+        var dummyReport2 = new Report(_projectId, _organizationId, "Dummy 2", "Dummy 2", embedding: MakeVector(1.0f, 1.0f, 0.0f));
+        db.Reports.Add(dummyReport2);
+        var cluster2 = new Cluster(_projectId, _organizationId, dummyReport2.Id);
+        // Sim ~0.707 => Dist ~0.293 (between 0.25 and 0.45) => Suggested merge
+        cluster2.UpdateCentroid(MakeVector(1.0f, 1.0f, 0.0f));
         db.Clusters.Add(cluster2);
         await db.SaveChangesAsync();
 
@@ -465,43 +347,17 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
         using var scope = _app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
-        var cluster = new Cluster
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Existing Cluster",
-            Status = "Open",
-            Centroid = MakeVector(1.0f, 0.0f, 0.0f)
-        };
+        var dummyReport = new Report(_projectId, _organizationId, "Dummy", "Dummy", embedding: MakeVector(1.0f, 0.0f, 0.0f));
+        db.Reports.Add(dummyReport);
+        var cluster = new Cluster(_projectId, _organizationId, dummyReport.Id);
+        cluster.UpdateCentroid(MakeVector(1.0f, 0.0f, 0.0f));
         db.Clusters.Add(cluster);
 
-        var repReport = new Report
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Rep Report",
-            Message = "Rep Message",
-            ClusterId = cluster.Id,
-            Embedding = MakeVector(1.0f, 0.0f, 0.0f),
-            CreatedAt = DateTime.UtcNow,
-            Status = "Grouped"
-        };
+        var repReport = new Report(_projectId, _organizationId, "Rep Report", "Rep Message", embedding: MakeVector(1.0f, 0.0f, 0.0f));
+        repReport.AssignToCluster(cluster.Id);
         db.Reports.Add(repReport);
 
-        var report = new Report
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Duplicate Report",
-            Message = "Matches cluster, but previously marked as not a duplicate by user",
-            ClusterId = null,
-            Embedding = MakeVector(1.0f, 1.0f, 0.0f), // Dist ~0.293 
-            CreatedAt = DateTime.UtcNow,
-            Status = "New"
-        };
+        var report = new Report(_projectId, _organizationId, "Duplicate Report", "Matches cluster, but previously marked as not a duplicate by user", embedding: MakeVector(1.0f, 1.0f, 0.0f));
         db.Reports.Add(report);
         await db.SaveChangesAsync();
 
@@ -534,30 +390,16 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
         using var scope = _app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
-        var cluster = new Cluster
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Empty Cluster",
-            Status = "Open",
-            Centroid = MakeVector(1.0f, 0.0f, 0.0f)
-        };
+        var dummyReport = new Report(_projectId, _organizationId, "Dummy", "Dummy", embedding: MakeVector(1.0f, 0.0f, 0.0f));
+        db.Reports.Add(dummyReport);
+        var cluster = new Cluster(_projectId, _organizationId, dummyReport.Id);
+        cluster.UpdateCentroid(MakeVector(1.0f, 0.0f, 0.0f));
         db.Clusters.Add(cluster);
-        // No reports in this cluster
+        // No OTHER reports in this cluster except the the one that created it (representative)
+        // Wait, the test says "Empty Cluster". But in the new design, a cluster MUST have one report.
+        // I'll keep the invariant: cluster has dummyReport.
 
-        var report = new Report
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Duplicate Report",
-            Message = "Matches cluster",
-            ClusterId = null,
-            Embedding = MakeVector(1.0f, 1.0f, 0.0f), // Dist ~0.293 
-            CreatedAt = DateTime.UtcNow,
-            Status = "New"
-        };
+        var report = new Report(_projectId, _organizationId, "Duplicate Report", "Matches cluster", embedding: MakeVector(1.0f, 1.0f, 0.0f));
         db.Reports.Add(report);
         await db.SaveChangesAsync();
 
@@ -574,7 +416,7 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
         var updatedReport = await db.Reports.FindAsync(report.Id);
 
         Assert.Equal(cluster.Id, updatedReport?.ClusterId);
-        Assert.Equal("Duplicate", updatedReport?.Status);
+        Assert.Equal(ReportStatus.Duplicate, updatedReport?.Status);
     }
 
     [Fact]
@@ -585,18 +427,7 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
 
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
-        var report = new Report
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = _projectId,
-            OrganizationId = _organizationId,
-            Title = "Orphan Exec",
-            Message = "Test Exec",
-            ClusterId = null,
-            Embedding = null,
-            CreatedAt = DateTime.UtcNow,
-            Status = "New"
-        };
+        var report = new Report(_projectId, _organizationId, "Orphan Exec", "Test Exec");
         db.Reports.Add(report);
         await db.SaveChangesAsync();
 

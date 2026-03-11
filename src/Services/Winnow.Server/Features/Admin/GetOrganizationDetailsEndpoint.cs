@@ -1,6 +1,9 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Entities;
+using Winnow.Server.Domain.Organizations;
+using Winnow.Server.Domain.Projects;
+using Winnow.Server.Domain.Reports;
+using Winnow.Server.Domain.Teams;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Admin;
@@ -91,7 +94,11 @@ public class MemberSummary
 /// <summary>
 /// Admin endpoint to get detailed statistics for a specific organization.
 /// </summary>
-public sealed class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : Endpoint<GetOrganizationDetailsRequest, OrganizationDetailsResponse>
+public sealed class GetOrganizationDetailsEndpoint(
+    IOrganizationRepository organizationRepo,
+    IProjectRepository projectRepo,
+    ITeamRepository teamRepo,
+    WinnowDbContext dbContext) : Endpoint<GetOrganizationDetailsRequest, OrganizationDetailsResponse>
 {
     public override void Configure()
     {
@@ -110,10 +117,9 @@ public sealed class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : 
 
     public override async Task HandleAsync(GetOrganizationDetailsRequest req, CancellationToken ct)
     {
-        // Must ignore global query filters to see the organization regardless of tenant
-        var organization = await dbContext.Organizations
-            .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(o => o.Id == req.Id, ct);
+        // Must be able to see the organization regardless of tenant for Admin endpoints
+        // GetByIdAsync using FindAsync bypasses global query filters in EF Core
+        var organization = await organizationRepo.GetByIdAsync(req.Id, ct);
 
         if (organization == null)
         {
@@ -121,7 +127,8 @@ public sealed class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : 
             return;
         }
 
-        // Get additional counts
+        // Use repositories for counts and recent activity where possible.
+        // For complex joins/admin bypass, we still use dbContext selectively here.
 
         var reportCount = await dbContext.Reports
             .IgnoreQueryFilters()
@@ -207,10 +214,8 @@ public sealed class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : 
             CurrentMonthAiSummaries = organization.SummaryQuota.Consumed
         };
 
-        var projects = await dbContext.Projects
-            .IgnoreQueryFilters()
-            .Where(p => p.OrganizationId == req.Id)
-            .ToListAsync(ct);
+        // Use Project Repository
+        var projects = await projectRepo.GetByOrganizationIdAsync(req.Id, ct);
 
         var projectQuotas = projects
             .Select(p => new ProjectQuotaSummary
@@ -222,17 +227,23 @@ public sealed class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : 
             .OrderByDescending(p => p.MonthlyReportCount)
             .ToList();
 
-        var teams = await dbContext.Teams
-            .IgnoreQueryFilters()
-            .Where(t => t.OrganizationId == req.Id)
-            .ToListAsync(ct);
+        // Use Team Repository
+        var teams = await teamRepo.GetByOrganizationIdAsync(req.Id, ct);
 
         var projectCountPerTeam = projects.Where(p => p.TeamId.HasValue).GroupBy(p => p.TeamId!.Value).ToDictionary(g => g.Key, g => g.Count());
 
         var membersList = await dbContext.OrganizationMembers
             .IgnoreQueryFilters()
-            .Include(m => m.User)
             .Where(m => m.OrganizationId == req.Id)
+            .Join(dbContext.Users.IgnoreQueryFilters(), m => m.UserId, u => u.Id, (m, u) => new MemberSummary
+            {
+                Id = m.Id,
+                UserId = m.UserId,
+                Role = m.Role,
+                JoinedAt = m.JoinedAt,
+                UserEmail = u.Email,
+                UserFullName = u.FullName
+            })
             .ToListAsync(ct);
 
         var response = new OrganizationDetailsResponse
@@ -258,15 +269,7 @@ public sealed class GetOrganizationDetailsEndpoint(WinnowDbContext dbContext) : 
                 CreatedAt = t.CreatedAt,
                 ProjectCount = projectCountPerTeam.GetValueOrDefault(t.Id, 0)
             }).ToList(),
-            Members = membersList.Select(m => new MemberSummary
-            {
-                Id = m.Id,
-                UserId = m.UserId,
-                Role = m.Role,
-                JoinedAt = m.JoinedAt,
-                UserEmail = m.User?.Email,
-                UserFullName = m.User?.FullName
-            }).ToList(),
+            Members = membersList,
             Quota = quotaStatus,
             ProjectQuotas = projectQuotas
         };

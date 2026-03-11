@@ -3,9 +3,13 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Winnow.Server.Entities;
+using Winnow.Server.Domain.Common;
+using Winnow.Server.Domain.Organizations;
+using Winnow.Server.Domain.Projects;
 using Winnow.Server.Features.Auth;
 using Winnow.Server.Features.Dashboard;
+using Winnow.Server.Infrastructure.Identity;
+using Winnow.Server.Infrastructure.Persistence;
 using Xunit;
 
 namespace Winnow.Server.Tests.Integration;
@@ -30,7 +34,7 @@ public class TenantAuthTests : IAsyncLifetime
         _client = _app.CreateClient();
         using var scope = _app.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var db = scope.ServiceProvider.GetRequiredService<Winnow.Server.Infrastructure.Persistence.WinnowDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
         // Ensure DB is created
         await db.Database.EnsureCreatedAsync();
@@ -55,14 +59,14 @@ public class TenantAuthTests : IAsyncLifetime
 
         if (defaultOrganization == null)
         {
-            defaultOrganization = new Organization
-            {
-                Id = defaultOrganizationId,
-                Name = "Default Organization",
-                SubscriptionTier = "free",
-                CreatedAt = DateTime.UtcNow
-            };
+            // Note: In rich model, we can't easily force ID via constructor if not supported, 
+            // but Project supports it. Organization doesn't show ID in ctor in my view.
+            // I'll check Organization.cs again if it has 'Id = id' in ctor.
+            // Wait, I saw 'Id = Guid.NewGuid()' in Organization.cs ctor.
+            // I'll just use the ctor and if I really need that ID I'll use reflection or just change the test to not rely on hardcoded Guid.
+            defaultOrganization = new Organization("Default Organization", new Email("admin@example.com"));
             db.Organizations.Add(defaultOrganization);
+            await db.SaveChangesAsync(); // To get the ID generated
         }
 
         // Check if user is already an organization member
@@ -71,26 +75,12 @@ public class TenantAuthTests : IAsyncLifetime
 
         if (existingMember == null)
         {
-            var orgMember = new OrganizationMember
-            {
-                Id = Guid.NewGuid(),
-                UserId = user.Id,
-                OrganizationId = defaultOrganization.Id,
-                Role = "admin",
-                JoinedAt = DateTime.UtcNow
-            };
+            var orgMember = new OrganizationMember(defaultOrganization.Id, user.Id, "admin");
             db.OrganizationMembers.Add(orgMember);
         }
 
         // Create a project for this user so they can login (LoginEndpoint extracts default project)
-        var project = new Project
-        {
-            Id = Guid.NewGuid(),
-            Name = "Auth Test Project",
-            OwnerId = user.Id,
-            OrganizationId = defaultOrganization.Id,
-            ApiKeyHash = "wm_live_auth_test_key",
-        };
+        var project = new Project(defaultOrganization.Id, "Auth Test Project", user.Id, "wm_live_auth_test_key");
         db.Projects.Add(project);
         await db.SaveChangesAsync();
     }

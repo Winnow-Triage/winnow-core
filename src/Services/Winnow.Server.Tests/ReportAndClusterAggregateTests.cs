@@ -1,6 +1,10 @@
-using Winnow.Server.Domain.Aggregates;
-using Winnow.Server.Domain.Events;
-using Winnow.Server.Domain.ValueObjects;
+using Winnow.Server.Domain.Clusters;
+using Winnow.Server.Domain.Clusters.Events;
+using Winnow.Server.Domain.Clusters.ValueObjects;
+using Winnow.Server.Domain.Common;
+using Winnow.Server.Domain.Reports;
+using Winnow.Server.Domain.Reports.Events;
+using Winnow.Server.Domain.Reports.ValueObjects;
 
 namespace Winnow.Server.Tests;
 
@@ -17,10 +21,10 @@ public class ReportAggregateTests
     // ──────────────────────────────────────────────────────────────
 
     [Fact]
-    public void Constructor_WithValidArgs_SetsStatusToNew()
+    public void Constructor_WithValidArgs_SetsStatusToOpen()
     {
         var report = CreateReport();
-        Assert.Equal(ReportStatus.New, report.Status);
+        Assert.Equal(ReportStatus.Open, report.Status);
         Assert.Null(report.ClusterId);
     }
 
@@ -68,6 +72,7 @@ public class ReportAggregateTests
     public void RemoveFromCluster_WhenAlreadyUnassigned_IsIdempotent()
     {
         var report = CreateReport();
+        report.ClearDomainEvents();
 
         report.RemoveFromCluster(); // should not throw or raise event
 
@@ -83,19 +88,20 @@ public class ReportAggregateTests
     {
         var report = CreateReport();
 
-        report.ChangeStatus(ReportStatus.Reviewed);
+        report.ChangeStatus(ReportStatus.Resolved);
 
         var evt = Assert.Single(report.DomainEvents.OfType<ReportStatusChangedEvent>());
-        Assert.Equal(ReportStatus.New, evt.OldStatus);
-        Assert.Equal(ReportStatus.Reviewed, evt.NewStatus);
+        Assert.Equal(ReportStatus.Open, evt.OldStatus);
+        Assert.Equal(ReportStatus.Resolved, evt.NewStatus);
     }
 
     [Fact]
     public void ChangeStatus_ToSameStatus_DoesNotRaiseEvent()
     {
         var report = CreateReport();
+        report.ClearDomainEvents();
 
-        report.ChangeStatus(ReportStatus.New);
+        report.ChangeStatus(ReportStatus.Open);
 
         Assert.Empty(report.DomainEvents);
     }
@@ -265,7 +271,7 @@ public class ClusterAggregateTests
         cluster.SuggestMerge(targetId, new ConfidenceScore(0.85));
 
         Assert.Equal(targetId, cluster.SuggestedMergeClusterId);
-        var evt = Assert.Single(cluster.DomainEvents.OfType<ClusterMergeSuggestedEvent>());
+        var evt = Assert.Single(cluster.DomainEvents.OfType<Winnow.Server.Domain.Clusters.Events.ClusterMergeSuggestedEvent>());
         Assert.Equal(targetId, evt.TargetClusterId);
     }
 
@@ -279,11 +285,11 @@ public class ClusterAggregateTests
         var cluster = CreateCluster();
         cluster.ClearDomainEvents();
 
-        cluster.ChangeStatus(ClusterStatus.Resolved);
+        cluster.ChangeStatus(ClusterStatus.Dismissed);
 
         var evt = Assert.Single(cluster.DomainEvents.OfType<ClusterStatusChangedEvent>());
         Assert.Equal(ClusterStatus.Open, evt.OldStatus);
-        Assert.Equal(ClusterStatus.Resolved, evt.NewStatus);
+        Assert.Equal(ClusterStatus.Dismissed, evt.NewStatus);
     }
 
     [Fact]

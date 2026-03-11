@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
+using Winnow.Server.Domain.Reports.ValueObjects;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
@@ -52,6 +53,7 @@ public sealed class UngroupReportEndpoint(WinnowDbContext db, IClusterService cl
 
         var oldClusterId = report.ClusterId;
         report.RemoveFromCluster();
+        report.ChangeStatus(ReportStatus.Open);
 
         await db.SaveChangesAsync(ct);
 

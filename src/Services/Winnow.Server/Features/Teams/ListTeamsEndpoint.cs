@@ -64,10 +64,10 @@ public sealed class ListTeamsEndpoint(WinnowDbContext db, ITenantContext tenantC
                 ProjectCount = t.Projects.Count,
                 Members = db.TeamMembers
                     .Where(tm => tm.TeamId == t.Id)
-                    .Select(tm => new TeamMemberSummary
+                    .Join(db.Users, tm => tm.UserId, u => u.Id, (tm, u) => new TeamMemberSummary
                     {
                         UserId = tm.UserId,
-                        FullName = tm.User!.FullName
+                        FullName = u.FullName
                     }).ToList(),
                 Projects = db.Projects
                     .Where(p => p.TeamId == t.Id)

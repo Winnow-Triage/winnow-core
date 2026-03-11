@@ -27,8 +27,8 @@ public sealed class GetInvitationDetailsEndpoint(WinnowDbContext db) : Endpoint<
     public override async Task HandleAsync(GetInvitationDetailsRequest req, CancellationToken ct)
     {
         var invitation = await db.OrganizationInvitations
-            .Include(oi => oi.Organization)
-            .FirstOrDefaultAsync(oi => oi.Token == req.Token, ct);
+            .Join(db.Organizations, oi => oi.OrganizationId, o => o.Id, (oi, o) => new { oi, o })
+            .FirstOrDefaultAsync(x => x.oi.Token == req.Token, ct);
 
         if (invitation == null)
         {
@@ -36,7 +36,7 @@ public sealed class GetInvitationDetailsEndpoint(WinnowDbContext db) : Endpoint<
             return;
         }
 
-        if (invitation.ExpiresAt < DateTime.UtcNow)
+        if (invitation.oi.ExpiresAt < DateTime.UtcNow)
         {
             await Send.ErrorsAsync(410, ct); // Gone
             return;
@@ -44,8 +44,8 @@ public sealed class GetInvitationDetailsEndpoint(WinnowDbContext db) : Endpoint<
 
         await Send.OkAsync(new GetInvitationDetailsResponse
         {
-            Email = invitation.Email,
-            OrganizationName = invitation.Organization.Name
+            Email = invitation.oi.Email.Value,
+            OrganizationName = invitation.o.Name
         }, ct);
     }
 }

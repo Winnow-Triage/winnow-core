@@ -1,5 +1,7 @@
-using Winnow.Server.Domain.Aggregates;
-using Winnow.Server.Domain.Events;
+using Winnow.Server.Domain.Projects;
+using Winnow.Server.Domain.Projects.Events;
+using Winnow.Server.Domain.Teams;
+using Winnow.Server.Domain.Teams.Events;
 
 namespace Winnow.Server.Tests;
 
@@ -38,47 +40,43 @@ public class ProjectAggregateTests
     // ──────────────────────────────────────────────────────────────
 
     [Fact]
-    public void IssueSecondaryApiKey_SetsSecondaryHashAndExpiry()
+    public void RotateApiKey_SetsNewHashAndDemotesOldOne()
     {
         var project = CreateProject();
+        var initialHash = project.ApiKeyHash;
+        var newHash = "hash-new-1";
         var expiry = DateTimeOffset.UtcNow.AddDays(7);
 
-        project.IssueSecondaryApiKey("hash-secondary-1", expiry);
+        project.RotateApiKey(newHash, expiry);
 
-        Assert.Equal("hash-secondary-1", project.SecondaryApiKeyHash);
+        Assert.Equal(newHash, project.ApiKeyHash);
+        Assert.Equal(initialHash, project.SecondaryApiKeyHash);
         Assert.Equal(expiry, project.SecondaryApiKeyExpiresAt);
-    }
-
-    [Fact]
-    public void IssueSecondaryApiKey_WithPastExpiry_Throws()
-    {
-        var project = CreateProject();
-
-        Assert.Throws<ArgumentException>(() =>
-            project.IssueSecondaryApiKey("hash-secondary-1", DateTimeOffset.UtcNow.AddMinutes(-1)));
-    }
-
-    [Fact]
-    public void RotateToPrimary_PromotesSecondaryAndRaisesEvent()
-    {
-        var project = CreateProject();
-        project.IssueSecondaryApiKey("hash-secondary-1", DateTimeOffset.UtcNow.AddDays(7));
-        project.ClearDomainEvents();
-
-        project.RotateToPrimary();
-
-        Assert.Equal("hash-secondary-1", project.ApiKeyHash);
-        Assert.Null(project.SecondaryApiKeyHash);
-        Assert.Null(project.SecondaryApiKeyExpiresAt);
         Assert.Single(project.DomainEvents.OfType<ProjectApiKeyRotatedEvent>());
     }
 
     [Fact]
-    public void RotateToPrimary_WithNoSecondaryKey_Throws()
+    public void RotateApiKey_WithPastExpiry_Throws()
     {
         var project = CreateProject();
 
-        Assert.Throws<InvalidOperationException>(() => project.RotateToPrimary());
+        Assert.Throws<ArgumentException>(() =>
+            project.RotateApiKey("hash-new-1", DateTimeOffset.UtcNow.AddMinutes(-1)));
+    }
+
+    [Fact]
+    public void ForceSetPrimaryApiKey_NukesSecondaryKey()
+    {
+        var project = CreateProject();
+        project.RotateApiKey("hash-2", DateTimeOffset.UtcNow.AddDays(7));
+        Assert.NotNull(project.SecondaryApiKeyHash);
+
+        project.ForceSetPrimaryApiKey("hash-3");
+
+        Assert.Equal("hash-3", project.ApiKeyHash);
+        Assert.Null(project.SecondaryApiKeyHash);
+        Assert.Null(project.SecondaryApiKeyExpiresAt);
+        Assert.Equal(2, project.DomainEvents.OfType<ProjectApiKeyRotatedEvent>().Count());
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -86,13 +84,13 @@ public class ProjectAggregateTests
     // ──────────────────────────────────────────────────────────────
 
     [Fact]
-    public void AssignToTeam_SetsTeamIdAndRaisesEvent()
+    public void ChangeTeam_SetsTeamIdAndRaisesEvent()
     {
         var project = CreateProject();
         var teamId = Guid.NewGuid();
         project.ClearDomainEvents();
 
-        project.AssignToTeam(teamId);
+        project.ChangeTeam(teamId);
 
         Assert.Equal(teamId, project.TeamId);
         var evt = Assert.Single(project.DomainEvents.OfType<ProjectTeamAssignedEvent>());
@@ -101,14 +99,14 @@ public class ProjectAggregateTests
     }
 
     [Fact]
-    public void AssignToTeam_SameTeam_IsIdempotent()
+    public void ChangeTeam_SameTeam_IsIdempotent()
     {
         var project = CreateProject();
         var teamId = Guid.NewGuid();
-        project.AssignToTeam(teamId);
+        project.ChangeTeam(teamId);
         project.ClearDomainEvents();
 
-        project.AssignToTeam(teamId);
+        project.ChangeTeam(teamId);
 
         Assert.Empty(project.DomainEvents);
     }
@@ -117,7 +115,7 @@ public class ProjectAggregateTests
     public void RemoveFromTeam_ClearsTeamId()
     {
         var project = CreateProject();
-        project.AssignToTeam(Guid.NewGuid());
+        project.ChangeTeam(Guid.NewGuid());
 
         project.RemoveFromTeam();
 
@@ -142,6 +140,7 @@ public class TeamAggregateTests
         var team = CreateTeam("Backend Team");
 
         var evt = Assert.Single(team.DomainEvents.OfType<TeamCreatedEvent>());
+        Assert.Equal(team.Id, evt.TeamId);
         Assert.Equal("Backend Team", evt.Name);
         Assert.Equal(SomeOrg, evt.OrganizationId);
     }
@@ -166,6 +165,7 @@ public class TeamAggregateTests
 
         Assert.Equal("New Name", team.Name);
         var evt = Assert.Single(team.DomainEvents.OfType<TeamRenamedEvent>());
+        Assert.Equal(team.Id, evt.TeamId);
         Assert.Equal("Old Name", evt.OldName);
         Assert.Equal("New Name", evt.NewName);
     }

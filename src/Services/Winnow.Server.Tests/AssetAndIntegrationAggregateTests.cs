@@ -1,7 +1,9 @@
 using Winnow.Integrations.Domain;
-using Winnow.Server.Domain.Aggregates;
-using Winnow.Server.Domain.Events;
-using Winnow.Server.Domain.ValueObjects;
+using Winnow.Server.Domain.Assets;
+using Winnow.Server.Domain.Assets.Events;
+using Winnow.Server.Domain.Assets.ValueObjects;
+using Winnow.Server.Domain.Integrations;
+using Winnow.Server.Domain.Integrations.Events;
 
 namespace Winnow.Server.Tests;
 
@@ -94,7 +96,7 @@ public class IntegrationAggregateTests
     private static readonly Guid SomeOrg = Guid.NewGuid();
     private static readonly Guid SomeProject = Guid.NewGuid();
 
-    private static Winnow.Server.Domain.Aggregates.Integration CreateIntegration() =>
+    private static Winnow.Server.Domain.Integrations.Integration CreateIntegration() =>
         new(SomeOrg, SomeProject, "GitHub", new GitHubConfig { ApiKey = "initial" });
 
     [Fact]

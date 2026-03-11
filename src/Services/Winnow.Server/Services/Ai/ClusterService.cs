@@ -43,8 +43,10 @@ public class ClusterService(
             {
                 var distance = vectorCalculator.CalculateCosineDistance(member.Embedding!, cluster.Centroid!);
                 // Similarity = 1 - Distance. Convert to percentage.
-                member.SetConfidenceScore(new ConfidenceScore(1.0 - distance));
+                member.SetConfidenceScore(new ConfidenceScore(Math.Clamp(1.0 - distance, 0.0, 1.0)));
             }
+
+            await dbContext.SaveChangesAsync(ct);
 
             logger.LogInformation("ClusterService: Updated confidence scores for {Count} reports in cluster {Id}.", membersToUpdate.Count, clusterId);
         }

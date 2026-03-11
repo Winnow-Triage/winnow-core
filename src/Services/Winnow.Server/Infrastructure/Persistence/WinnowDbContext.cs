@@ -2,7 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Pgvector;
-using Winnow.Server.Entities;
+using Winnow.Server.Infrastructure.Identity;
 using Winnow.Server.Infrastructure.MultiTenancy;
 using Winnow.Server.Infrastructure.Security;
 
@@ -18,8 +18,6 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
 
     private readonly string _encryptionKey = configuration["Encryption:MasterKey"]
         ?? throw new InvalidOperationException("Encryption config: 'Encryption:MasterKey' is missing.");
-
-    private static readonly JsonSerializerOptions _jsonOptions = new() { };
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -97,91 +95,13 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         modelBuilder.ApplyConfiguration(new Configurations.ClusterConfiguration());
         modelBuilder.ApplyConfiguration(new Configurations.AssetConfiguration());
 
+        modelBuilder.ApplyConfiguration(new Configurations.OrganizationMemberConfiguration());
+        modelBuilder.ApplyConfiguration(new Configurations.TeamMemberConfiguration());
+        modelBuilder.ApplyConfiguration(new Configurations.ProjectMemberConfiguration());
+        modelBuilder.ApplyConfiguration(new Configurations.OrganizationInvitationConfiguration());
+
         var encryptedConverter = new EncryptedStringConverter(_encryptionKey);
         modelBuilder.ApplyConfiguration(new Configurations.IntegrationConfiguration(encryptedConverter));
-
-        modelBuilder.Entity<TeamMember>(entity =>
-        {
-            entity.HasKey(tm => tm.Id);
-
-            entity.HasIndex(tm => new { tm.TeamId, tm.UserId })
-                .IsUnique();
-
-            entity.HasOne(tm => tm.Team)
-                .WithMany()
-                .HasForeignKey(tm => tm.TeamId);
-
-            entity.HasOne(tm => tm.User)
-                .WithMany()
-                .HasForeignKey(tm => tm.UserId);
-        });
-
-        modelBuilder.Entity<OrganizationMember>(entity =>
-        {
-            entity.HasKey(om => om.Id);
-
-            entity.HasIndex(om => new { om.UserId, om.OrganizationId })
-                .IsUnique();
-
-            entity.HasOne(om => om.Organization)
-                .WithMany()
-                .HasForeignKey(om => om.OrganizationId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(om => om.User)
-                .WithMany(u => u.OrganizationMemberships)
-                .HasForeignKey(om => om.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        // Project relationships
-        modelBuilder.Entity<ProjectMember>(entity =>
-        {
-            entity.HasKey(pm => pm.Id);
-
-            entity.HasIndex(pm => new { pm.ProjectId, pm.UserId })
-                .IsUnique();
-
-            entity.HasOne(pm => pm.Project)
-                .WithMany()
-                .HasForeignKey(pm => pm.ProjectId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(pm => pm.User)
-                .WithMany()
-                .HasForeignKey(pm => pm.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-
-
-        // Organization -> Invitation relationship
-        modelBuilder.Entity<OrganizationInvitation>(entity =>
-        {
-            entity.HasKey(oi => oi.Id);
-
-            entity.HasIndex(oi => oi.Token)
-                .IsUnique();
-
-            entity.HasOne(oi => oi.Organization)
-                .WithMany()
-                .HasForeignKey(oi => oi.OrganizationId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.Property(oi => oi.InitialTeamIds)
-                .HasConversion(
-                    v => JsonSerializer.Serialize(v, _jsonOptions),
-                    v => JsonSerializer.Deserialize<List<Guid>>(v, _jsonOptions) ?? new List<Guid>()
-                )
-                .Metadata.SetValueComparer(guidListComparer);
-
-            entity.Property(oi => oi.InitialProjectIds)
-                .HasConversion(
-                    v => JsonSerializer.Serialize(v, _jsonOptions),
-                    v => JsonSerializer.Deserialize<List<Guid>>(v, _jsonOptions) ?? new List<Guid>()
-                )
-                .Metadata.SetValueComparer(guidListComparer);
-        });
 
         // Note: Global query filters for tenant isolation are applied at runtime
         // via the ITenantContext service, not at model creation time.
@@ -193,13 +113,13 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
 
     public DbSet<Domain.Organizations.Organization> Organizations { get; set; } = null!;
     public DbSet<Domain.Teams.Team> Teams { get; set; } = null!;
-    public DbSet<TeamMember> TeamMembers { get; set; } = null!;
-    public DbSet<Entities.OrganizationMember> OrganizationMembers { get; set; } = null!;
+    public DbSet<Domain.Teams.TeamMember> TeamMembers { get; set; } = null!;
+    public DbSet<Domain.Organizations.OrganizationMember> OrganizationMembers { get; set; } = null!;
     public DbSet<Domain.Reports.Report> Reports { get; set; } = null!;
     public DbSet<Domain.Clusters.Cluster> Clusters { get; set; } = null!;
     public DbSet<Domain.Assets.Asset> Assets { get; set; } = null!;
     public DbSet<Domain.Integrations.Integration> Integrations { get; set; } = null!;
     public DbSet<Domain.Projects.Project> Projects { get; set; } = null!;
-    public DbSet<Entities.ProjectMember> ProjectMembers { get; set; } = null!;
-    public DbSet<Entities.OrganizationInvitation> OrganizationInvitations { get; set; } = null!;
+    public DbSet<Domain.Projects.ProjectMember> ProjectMembers { get; set; } = null!;
+    public DbSet<Domain.Organizations.OrganizationInvitation> OrganizationInvitations { get; set; } = null!;
 }

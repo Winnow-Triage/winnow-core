@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Domain.Common;
 using Winnow.Server.Domain.Organizations.ValueObjects;
-using Winnow.Server.Entities;
+using Winnow.Server.Infrastructure.Identity;
 
 namespace Winnow.Server.Infrastructure.Persistence;
 
@@ -131,16 +131,10 @@ public class AdminSeeder(IServiceProvider serviceProvider, ILogger<AdminSeeder> 
             {
                 logger.LogInformation("Creating membership link for {Email} and {OrgName}", adminEmail, adminOrg.Name);
 
-                var membership = new OrganizationMember
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = finalUserId,
-                    OrganizationId = finalOrgId,
-                    Organization = adminOrg,
-                    Role = "owner",
-                    JoinedAt = DateTime.UtcNow,
-                    IsLocked = false
-                };
+                var membership = new Winnow.Server.Domain.Organizations.OrganizationMember(
+                    finalOrgId,
+                    finalUserId,
+                    "owner");
 
                 dbContext.OrganizationMembers.Add(membership);
 

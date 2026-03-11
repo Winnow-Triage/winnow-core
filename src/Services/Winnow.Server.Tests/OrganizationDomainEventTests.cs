@@ -1,6 +1,7 @@
-using Winnow.Server.Domain.Aggregates;
-using Winnow.Server.Domain.Events;
-using Winnow.Server.Domain.ValueObjects;
+using Winnow.Server.Domain.Common;
+using Winnow.Server.Domain.Organizations;
+using Winnow.Server.Domain.Organizations.Events;
+using Winnow.Server.Domain.Organizations.ValueObjects;
 
 namespace Winnow.Server.Tests;
 
@@ -27,7 +28,7 @@ public class OrganizationDomainEventTests
 
         org.ChangePlan(SubscriptionPlan.Pro);
 
-        var evt = Assert.Single(org.DomainEvents.OfType<PlanUpgradedEvent>());
+        var evt = Assert.Single(org.DomainEvents.OfType<OrganizationPlanUpgradedEvent>());
         Assert.Equal(org.Id, evt.OrganizationId);
         Assert.Equal(SubscriptionPlan.Starter, evt.OldPlan);
         Assert.Equal(SubscriptionPlan.Pro, evt.NewPlan);
@@ -40,7 +41,7 @@ public class OrganizationDomainEventTests
 
         org.ChangePlan(SubscriptionPlan.Free);
 
-        var evt = Assert.Single(org.DomainEvents.OfType<PlanDowngradedEvent>());
+        var evt = Assert.Single(org.DomainEvents.OfType<OrganizationPlanDowngradedEvent>());
         Assert.Equal(org.Id, evt.OrganizationId);
         Assert.Equal(SubscriptionPlan.Starter, evt.OldPlan);
         Assert.Equal(SubscriptionPlan.Free, evt.NewPlan);
@@ -53,7 +54,7 @@ public class OrganizationDomainEventTests
 
         org.ChangePlan(SubscriptionPlan.Pro);
 
-        Assert.Empty(org.DomainEvents.OfType<PlanDowngradedEvent>());
+        Assert.Empty(org.DomainEvents.OfType<OrganizationPlanDowngradedEvent>());
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -63,22 +64,25 @@ public class OrganizationDomainEventTests
     [Fact]
     public void RecordReportUsage_WhenLimitReached_RaisesReportLimitReachedEvent()
     {
-        // Free plan has a limit of 0 — first usage call hits the limit immediately
-        var org = CreateFreeOrg();
+        // Free plan has a limit of 50 — using a custom plan with 0 limit to hit it immediately
+        var zeroLimitPlan = new SubscriptionPlan("Zero", 0, 0, 0, 0, 0);
+        var org = new Organization("Test Org", new Email("test@example.com"), zeroLimitPlan);
+        org.ClearDomainEvents();
 
-        Assert.Throws<InvalidOperationException>(() => org.RecordReportUsage());
+        org.RecordReportUsage();
 
         var evt = Assert.Single(org.DomainEvents.OfType<ReportLimitReachedEvent>());
         Assert.Equal(org.Id, evt.OrganizationId);
-        Assert.Equal(SubscriptionPlan.Free, evt.Plan);
+        Assert.Equal(org.Plan, evt.Plan);
     }
 
     [Fact]
     public void RecordAiSummaryUsage_WhenLimitReached_RaisesAiSummaryLimitReachedEvent()
     {
         var org = CreateFreeOrg();
+        org.ClearDomainEvents();
 
-        Assert.Throws<InvalidOperationException>(() => org.RecordAiSummaryUsage());
+        org.RecordAiSummaryUsage();
 
         var evt = Assert.Single(org.DomainEvents.OfType<AiSummaryLimitReachedEvent>());
         Assert.Equal(org.Id, evt.OrganizationId);
@@ -115,12 +119,13 @@ public class OrganizationDomainEventTests
     public void MultipleOperations_AccumulateEventsInOrder()
     {
         var org = CreateStarterOrg();
+        org.ClearDomainEvents();
 
         org.ChangePlan(SubscriptionPlan.Pro);
         org.ChangePlan(SubscriptionPlan.Starter);
 
         Assert.Equal(2, org.DomainEvents.Count);
-        Assert.IsType<PlanUpgradedEvent>(org.DomainEvents[0]);
-        Assert.IsType<PlanDowngradedEvent>(org.DomainEvents[1]);
+        Assert.IsType<OrganizationPlanUpgradedEvent>(org.DomainEvents[0]);
+        Assert.IsType<OrganizationPlanDowngradedEvent>(org.DomainEvents[1]);
     }
 }

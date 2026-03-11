@@ -1,6 +1,6 @@
+using System.Security.Claims;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Organizations;
@@ -57,7 +57,10 @@ public sealed class ToggleMemberLockEndpoint(WinnowDbContext db)
             return;
         }
 
-        member.IsLocked = !member.IsLocked;
+        if (member.IsLocked)
+            member.Unlock();
+        else
+            member.Lock();
         await db.SaveChangesAsync(ct);
 
         await Send.OkAsync(new { member.IsLocked }, ct);
