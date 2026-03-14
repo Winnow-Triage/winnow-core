@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, searchClusters, type ClusterSearchDto } from "@/lib/api";
 import { useProject } from "@/context/ProjectContext";
 import {
   Table,
@@ -13,21 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Merge, RefreshCw, AlertCircle, ShieldAlert } from "lucide-react";
 import { PageTitle } from "@/components/ui/page-title";
 
-interface Cluster {
-  id: string;
-  title: string | null;
-  summary: string | null;
-  criticalityScore: number | null;
-  status: string;
-  createdAt: string;
-  reportCount: number;
-  isLocked: boolean;
-  isOverage: boolean;
-}
+
 
 export default function Clusters() {
   const [search, setSearch] = useState("");
@@ -39,24 +29,52 @@ export default function Clusters() {
   const queryClient = useQueryClient();
   const { currentProject } = useProject();
 
+  // Debounce the search input
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+
+  // Sync the debounced value
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [search]);
+
   const {
     data: clusters,
     isLoading,
     refetch,
-  } = useQuery<Cluster[]>({
-    queryKey: ["clusters", currentProject?.id, sortBy],
+  } = useQuery<ClusterSearchDto[]>({
+    queryKey: ["clusters", currentProject?.id, debouncedSearch],
     queryFn: async () => {
-      const { data } = await api.get(`/clusters?sort=${sortBy}`);
-      return data;
+      if (!debouncedSearch) {
+        const { data } = await api.get(`/clusters?sort=${sortBy}`);
+        // Map backend Cluster to ClusterSearchDto to conform to type
+        return data; 
+      }
+      const data = await searchClusters(debouncedSearch, 1, 50);
+      return data.items;
     },
     staleTime: 30 * 1000,
     enabled: !!currentProject,
   });
 
-  const filteredClusters =
-    clusters?.filter((c) =>
-      (c.title || c.summary || "").toLowerCase().includes(search.toLowerCase()),
-    ) || [];
+  const sortedClusters = [...(clusters || [])].sort((a, b) => {
+    if (debouncedSearch) {
+      // If actively searching, maintain the backend relevance order (which is default index order)
+      return 0;
+    }
+    if (sortBy === "size") {
+      return (b.reportCount || 0) - (a.reportCount || 0);
+    }
+    if (sortBy === "criticality") {
+      return (b.criticalityScore || 0) - (a.criticalityScore || 0);
+    }
+    if (sortBy === "newest") {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
+    return 0;
+  });
 
   const handleMerge = async () => {
     if (selectedIds.length < 2) return;
@@ -143,23 +161,24 @@ export default function Clusters() {
               <TableHead>Criticality</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="text-right">Related Reports</TableHead>
+              {debouncedSearch && <TableHead>Relevance</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={debouncedSearch ? 7 : 6} className="h-24 text-center">
                   Loading...
                 </TableCell>
               </TableRow>
-            ) : filteredClusters.length === 0 ? (
+            ) : sortedClusters.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={debouncedSearch ? 7 : 6} className="h-24 text-center">
                   No clusters found.
                 </TableCell>
               </TableRow>
             ) : (
-              filteredClusters.map((cluster) => {
+              sortedClusters.map((cluster) => {
                 const isSelected = selectedIds.includes(cluster.id);
                 return (
                   <TableRow
@@ -237,6 +256,28 @@ export default function Clusters() {
                         {cluster.reportCount}
                       </Badge>
                     </TableCell>
+                    {debouncedSearch && (
+                      <TableCell>
+                        {cluster.relevanceScore !== undefined &&
+                        cluster.relevanceScore !== null ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
+                              <div
+                                className={`h-full ${cluster.relevanceScore > 0.05 ? "bg-green-500" : cluster.relevanceScore > 0.02 ? "bg-yellow-500" : "bg-blue-500"}`}
+                                style={{
+                                  width: `${Math.min(cluster.relevanceScore * 1000, 100)}%`,
+                                }}
+                              />
+                            </div>
+                            <span className="text-xs text-muted-foreground mr-1">
+                              {(cluster.relevanceScore * 1000).toFixed(0)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })

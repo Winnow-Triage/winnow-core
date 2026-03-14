@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, searchReports, type ReportSearchDto } from "@/lib/api";
 import { useProject } from "@/context/ProjectContext";
 import {
   Table,
@@ -13,18 +13,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AlertCircle, ShieldAlert, Merge, RefreshCw } from "lucide-react";
 import { PageTitle } from "@/components/ui/page-title";
 
 interface Report {
   id: string;
   title: string;
-  message: string;
+  description: string;
   status: string;
-  createdAt: string;
+  updatedAt: string;
   clusterId?: string;
-  confidenceScore?: number;
+  relevanceScore?: number;
   isOverage?: boolean;
   isLocked?: boolean;
 }
@@ -40,29 +40,38 @@ export default function AllReports() {
   const { currentProject } = useProject();
   const queryClient = useQueryClient();
 
-  const { data: reports, isLoading } = useQuery<Report[]>({
-    queryKey: ["reports", currentProject?.id],
+  // Debounce the search input
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+
+  // Sync the debounced value
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [search]);
+
+  // Query: Either all reports, or search results if there is a query
+  const { data: reports, isLoading } = useQuery<ReportSearchDto[]>({
+    queryKey: ["reports", currentProject?.id, debouncedSearch],
     queryFn: async () => {
-      const { data } = await api.get("/reports");
-      return data;
+      if (!debouncedSearch) {
+        // Fallback to initial "show all" logic utilizing the search API without a specific term
+        const data = await searchReports("");
+        return data.items;
+      }
+      const data = await searchReports(debouncedSearch);
+      return data.items;
     },
     enabled: !!currentProject,
   });
 
-  const filteredReports =
-    reports?.filter(
-      (t) =>
-        t.title?.toLowerCase().includes(search.toLowerCase()) ||
-        t.message?.toLowerCase().includes(search.toLowerCase()) ||
-        t.status.toLowerCase().includes(search.toLowerCase()),
-    ) || [];
-
-  const sortedReports = [...filteredReports].sort((a, b) => {
+  const sortedReports = [...(reports || [])].sort((a, b) => {
     if (!sortConfig) return 0;
     const { key, direction } = sortConfig;
 
-    const aValue = a[key] ?? (key === "confidenceScore" ? 0 : "");
-    const bValue = b[key] ?? (key === "confidenceScore" ? 0 : "");
+    const aValue = (a as any)[key] ?? (key === "relevanceScore" ? 0 : "");
+    const bValue = (b as any)[key] ?? (key === "relevanceScore" ? 0 : "");
 
     if (aValue < bValue) return direction === "asc" ? -1 : 1;
     if (aValue > bValue) return direction === "asc" ? 1 : -1;
@@ -160,16 +169,16 @@ export default function AllReports() {
               </TableHead>
               <TableHead
                 className="cursor-pointer"
-                onClick={() => handleSort("createdAt")}
+                onClick={() => handleSort("updatedAt")}
               >
-                Created
+                Updated
               </TableHead>
               <TableHead>Cluster</TableHead>
               <TableHead
                 className="cursor-pointer"
-                onClick={() => handleSort("confidenceScore")}
+                onClick={() => handleSort("relevanceScore")}
               >
-                Confidence
+                Relevance
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -220,7 +229,7 @@ export default function AllReports() {
                         >
                           {report.isLocked
                             ? "Locked Report (Limit Exceeded)"
-                            : report.title || report.message}
+                            : report.title || report.description}
                         </Link>
                       </div>
                     </TableCell>
@@ -238,7 +247,7 @@ export default function AllReports() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {new Date(report.createdAt).toLocaleDateString()}
+                      {new Date(report.updatedAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
                       {report.clusterId ? (
@@ -250,19 +259,19 @@ export default function AllReports() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {report.confidenceScore !== undefined &&
-                        report.confidenceScore !== null ? (
+                      {report.relevanceScore !== undefined &&
+                        report.relevanceScore !== null ? (
                         <div className="flex items-center gap-2">
                           <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
                             <div
-                              className={`h-full ${report.confidenceScore > 0.8 ? "bg-green-500" : report.confidenceScore > 0.5 ? "bg-yellow-500" : "bg-red-500"}`}
+                              className={`h-full ${report.relevanceScore > 0.05 ? "bg-green-500" : report.relevanceScore > 0.02 ? "bg-yellow-500" : "bg-blue-500"}`}
                               style={{
-                                width: `${report.confidenceScore * 100}%`,
+                                width: `${Math.min(report.relevanceScore * 1000, 100)}%`,
                               }}
                             />
                           </div>
-                          <span className="text-xs text-muted-foreground">
-                            {(report.confidenceScore * 100).toFixed(0)}%
+                          <span className="text-xs text-muted-foreground mr-1">
+                            {(report.relevanceScore * 1000).toFixed(0)}
                           </span>
                         </div>
                       ) : (

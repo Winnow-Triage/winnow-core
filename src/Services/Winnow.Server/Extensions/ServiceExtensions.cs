@@ -174,6 +174,10 @@ internal static class ServiceExtensions
         services.AddScoped<IReportRepository, EfReportRepository>();
         services.AddScoped<ITeamRepository, EfTeamRepository>();
 
+        // Register new ReportSearchRepository for raw SQL Hybrid semantic queries
+        services.AddScoped<Winnow.Server.Features.Reports.Search.IReportSearchRepository, Winnow.Server.Features.Reports.Search.ReportSearchRepository>();
+        services.AddScoped<Winnow.Server.Features.Clusters.Search.IClusterSearchRepository, Winnow.Server.Features.Clusters.Search.ClusterSearchRepository>();
+
         // Always register the duplicate checker (It handles fail-safe internally)
         services.AddScoped<IDuplicateChecker, OllamaDuplicateChecker>();
         services.AddSingleton<INegativeMatchCache, NegativeMatchCache>();

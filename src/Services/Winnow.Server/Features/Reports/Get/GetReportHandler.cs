@@ -17,7 +17,6 @@ public class GetReportHandler(WinnowDbContext db, IStorageService storageService
     {
         var report = await db.Reports
             .AsNoTracking()
-            .Include(r => r.Assets)
             .FirstOrDefaultAsync(t => t.Id == request.ReportId && t.ProjectId == request.ProjectId, cancellationToken);
 
         if (report == null)

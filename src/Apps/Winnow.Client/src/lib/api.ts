@@ -480,3 +480,57 @@ export const revokeProjectSecondaryApiKey = async (
 ): Promise<void> => {
   await api.post(`/projects/${projectId}/api-key/revoke-secondary`);
 };
+
+export interface PaginatedSearchList<T> {
+  items: T[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+}
+
+export interface ReportSearchDto {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  updatedAt: string;
+  clusterId?: string;
+  isOverage?: boolean;
+  isLocked?: boolean;
+  relevanceScore?: number;
+}
+
+export const searchReports = async (
+  q: string,
+  page: number = 1,
+  size: number = 20,
+): Promise<PaginatedSearchList<ReportSearchDto>> => {
+  const response = await api.get("/reports/search", {
+    params: { q, page, size },
+  });
+  return response.data;
+};
+
+export interface ClusterSearchDto {
+  id: string;
+  title: string | null;
+  summary: string | null;
+  status: string;
+  createdAt: string;
+  criticalityScore: number | null;
+  reportCount: number;
+  isLocked: boolean;
+  isOverage: boolean;
+  relevanceScore?: number;
+}
+
+export const searchClusters = async (
+  q: string,
+  page: number = 1,
+  size: number = 20,
+): Promise<PaginatedSearchList<ClusterSearchDto>> => {
+  const response = await api.get("/clusters/search", {
+    params: { q, page, size },
+  });
+  return response.data;
+};
