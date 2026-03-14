@@ -1,7 +1,6 @@
-
-using Microsoft.EntityFrameworkCore;
+using FastEndpoints;
+using MediatR;
 using Winnow.Server.Features.Shared;
-using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Reports.List;
 
@@ -34,7 +33,7 @@ public record ReportDto(
     bool IsOverage,
     bool IsLocked);
 
-public sealed class ListReportsEndpoint(WinnowDbContext dbContext) : ProjectScopedEndpoint<ListReportsRequest, List<ReportDto>>
+public sealed class ListReportsEndpoint(IMediator mediator) : ProjectScopedEndpoint<ListReportsRequest, List<ReportDto>>
 {
     public override void Configure()
     {
@@ -53,31 +52,9 @@ public sealed class ListReportsEndpoint(WinnowDbContext dbContext) : ProjectScop
     public override async Task HandleAsync(ListReportsRequest req, CancellationToken ct)
     {
         string sort = HttpContext.Request.Query["sort"].ToString();
-        if (string.IsNullOrEmpty(sort)) sort = "newest";
 
-        var query = dbContext.Reports.AsNoTracking()
-            .Where(r => r.ProjectId == req.CurrentProjectId);
-
-        query = sort switch
-        {
-            "confidence" => query.OrderByDescending(r => r.ConfidenceScore).ThenByDescending(r => r.CreatedAt),
-            _ => query.OrderByDescending(r => r.CreatedAt)
-        };
-
-        var reports = await query
-            .Select(r => new ReportDto(
-                r.Id,
-                r.Title,
-                r.Message,
-                r.StackTrace,
-                r.Status.Name,
-                r.CreatedAt,
-                r.ClusterId,
-                r.ConfidenceScore!.Value.Score,
-                r.Metadata,
-                r.IsOverage,
-                r.IsLocked))
-            .ToListAsync(ct);
+        var query = new ListReportsQuery(req.CurrentProjectId, sort);
+        var reports = await mediator.Send(query, ct);
 
         await Send.OkAsync(reports, ct);
     }

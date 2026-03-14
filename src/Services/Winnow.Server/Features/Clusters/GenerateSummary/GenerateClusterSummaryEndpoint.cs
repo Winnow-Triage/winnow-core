@@ -1,4 +1,5 @@
 using FastEndpoints;
+using MediatR;
 using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Clusters.GenerateSummary;
@@ -8,7 +9,7 @@ public class GenerateClusterSummaryRequest : ProjectScopedRequest
     public Guid Id { get; set; }
 }
 
-public sealed class GenerateClusterSummaryEndpoint(ClusterSummaryOrchestrator orchestrator) : ProjectScopedEndpoint<GenerateClusterSummaryRequest, ActionResponse>
+public sealed class GenerateClusterSummaryEndpoint(IMediator mediator) : ProjectScopedEndpoint<GenerateClusterSummaryRequest, ActionResponse>
 {
     public override void Configure()
     {
@@ -27,11 +28,13 @@ public sealed class GenerateClusterSummaryEndpoint(ClusterSummaryOrchestrator or
 
     public override async Task HandleAsync(GenerateClusterSummaryRequest req, CancellationToken ct)
     {
-        var success = await orchestrator.GenerateAndChargeAsync(req.Id, req.CurrentProjectId, ct);
+        var command = new GenerateClusterSummaryCommand(req.Id, req.CurrentProjectId);
+        var result = await mediator.Send(command, ct);
 
-        if (!success)
+        if (!result.IsSuccess)
         {
-            ThrowError("Summary generation failed or quota exceeded.", 400);
+            ThrowError(result.ErrorMessage ?? "Summary generation failed or quota exceeded.", result.StatusCode ?? 400);
+            return;
         }
 
         await Send.OkAsync(new ActionResponse { Message = "Summary generated successfully." }, ct);

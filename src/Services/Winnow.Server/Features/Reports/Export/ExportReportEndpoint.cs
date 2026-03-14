@@ -1,8 +1,6 @@
 using System.Security.Claims;
 using FastEndpoints;
-using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Infrastructure.Integrations;
-using Winnow.Server.Infrastructure.Persistence;
+using MediatR;
 
 namespace Winnow.Server.Features.Reports.Export;
 
@@ -28,7 +26,7 @@ public class ExportReportResponse
     public Uri ExternalUrl { get; set; } = default!;
 }
 
-public sealed class ExportReportEndpoint(WinnowDbContext db, IExporterFactory exporterFactory) : Endpoint<ExportReportRequest>
+public sealed class ExportReportEndpoint(IMediator mediator) : Endpoint<ExportReportRequest>
 {
     public override void Configure()
     {
@@ -62,60 +60,27 @@ public sealed class ExportReportEndpoint(WinnowDbContext db, IExporterFactory ex
             ThrowError("Invalid Project ID format", 400);
         }
 
-        // Validate user owns this project
-        var userOwnsProject = await db.Projects
-            .AsNoTracking()
-            .AnyAsync(p => p.Id == projectId && p.OwnerId == userId, ct);
-
-        if (!userOwnsProject)
-        {
-            ThrowError("Project not found or access denied", 404);
-        }
-
         var reportId = Route<Guid>("Id");
-        var report = await db.Reports
-            .FirstOrDefaultAsync(r => r.Id == reportId && r.ProjectId == projectId, ct);
 
-        if (report == null)
+        var command = new ExportReportCommand(reportId, projectId, userId, req.ConfigId);
+        var result = await mediator.Send(command, ct);
+
+        if (!result.IsSuccess)
         {
-            await Send.NotFoundAsync(ct);
+            if (result.StatusCode == 404)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+            if (result.StatusCode == 400)
+            {
+                AddError(result.ErrorMessage!);
+                ThrowIfAnyErrors();
+            }
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
             return;
         }
 
-        var exporter = await exporterFactory.GetExporterByIdAsync(req.ConfigId, ct);
-
-        try
-        {
-            // Get cluster summary if available
-            string? clusterSummary = null;
-            if (report.ClusterId != null)
-            {
-                clusterSummary = await db.Clusters
-                    .AsNoTracking()
-                    .Where(c => c.Id == report.ClusterId)
-                    .Select(c => c.Summary)
-                    .FirstOrDefaultAsync(ct);
-            }
-
-            var contentToExport = string.IsNullOrWhiteSpace(clusterSummary)
-                ? report.StackTrace
-                : $"## AI Perspective\n{clusterSummary}\n\n## Original Details\n{report.StackTrace}";
-
-            var backlink = $"http://localhost:5173/reports/{report.Id}";
-            contentToExport += $"\n\n---\n[View in Winnow]({backlink})";
-
-            var externalUrlString = await exporter.ExportReportAsync(report.Title, contentToExport ?? "", ct);
-            var externalUrl = new Uri(externalUrlString);
-
-            report.MarkAsExported(externalUrl);
-            await db.SaveChangesAsync(ct);
-
-            await Send.OkAsync(new ExportReportResponse { ExternalUrl = externalUrl }, ct);
-        }
-        catch (Exception ex)
-        {
-            AddError($"Export failed: {ex.Message}");
-            ThrowIfAnyErrors();
-        }
+        await Send.OkAsync(result.Data!, ct);
     }
 }

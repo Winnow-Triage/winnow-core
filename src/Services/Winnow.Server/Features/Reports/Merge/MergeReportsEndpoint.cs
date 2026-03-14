@@ -1,11 +1,6 @@
-using System.Security.Claims;
 using FastEndpoints;
-using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Domain.Clusters;
-using Winnow.Server.Domain.Reports.ValueObjects;
+using MediatR;
 using Winnow.Server.Features.Shared;
-using Winnow.Server.Infrastructure.Persistence;
-using Winnow.Server.Services.Ai;
 
 namespace Winnow.Server.Features.Reports.Merge;
 
@@ -25,7 +20,7 @@ public class MergeReportsRequest : ProjectScopedRequest
     public List<Guid> SourceIds { get; set; } = [];
 }
 
-public sealed class MergeReportsEndpoint(WinnowDbContext db, IClusterService clusterService) : ProjectScopedEndpoint<MergeReportsRequest, ActionResponse>
+public sealed class MergeReportsEndpoint(IMediator mediator) : ProjectScopedEndpoint<MergeReportsRequest, ActionResponse>
 {
     public override void Configure()
     {
@@ -42,83 +37,20 @@ public sealed class MergeReportsEndpoint(WinnowDbContext db, IClusterService clu
 
     public override async Task HandleAsync(MergeReportsRequest req, CancellationToken ct)
     {
-        var targetReport = await db.Reports
-            .FirstOrDefaultAsync(r => r.Id == req.Id && r.ProjectId == req.CurrentProjectId, ct);
-        if (targetReport == null)
+        var command = new MergeReportsCommand(req.Id, req.CurrentProjectId, req.CurrentOrganizationId, req.SourceIds);
+        var result = await mediator.Send(command, ct);
+
+        if (!result.IsSuccess)
         {
-            await Send.NotFoundAsync(ct);
+            if (result.StatusCode == 404)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
             return;
         }
 
-        // Ensure target has a cluster
-        if (targetReport.ClusterId == null)
-        {
-            var newCluster = new Cluster(req.CurrentProjectId, targetReport.OrganizationId, targetReport.Id);
-            if (targetReport.Embedding != null)
-            {
-                newCluster.UpdateCentroid(targetReport.Embedding);
-            }
-            db.Clusters.Add(newCluster);
-            targetReport.AssignToCluster(newCluster.Id);
-        }
-
-        var targetClusterId = targetReport.ClusterId!.Value;
-        var clustersToDelete = new HashSet<Guid>();
-
-        foreach (var sourceId in req.SourceIds)
-        {
-            if (sourceId == req.Id) continue;
-
-            var sourceReport = await db.Reports
-                .FirstOrDefaultAsync(r => r.Id == sourceId && r.ProjectId == req.CurrentProjectId, ct);
-
-            if (sourceReport == null) continue;
-
-            // If source has its own cluster, move all its members to target cluster
-            if (sourceReport.ClusterId != null && sourceReport.ClusterId != targetClusterId)
-            {
-                var sourceClusterId = sourceReport.ClusterId.Value;
-                var children = await db.Reports
-                    .Where(t => t.ProjectId == req.CurrentProjectId && t.ClusterId == sourceClusterId)
-                    .ToListAsync(ct);
-
-                foreach (var child in children)
-                {
-                    child.AssignToCluster(targetClusterId);
-                    if (child.Id != targetReport.Id)
-                    {
-                        child.ChangeStatus(ReportStatus.Dismissed);
-                    }
-                }
-
-                clustersToDelete.Add(sourceClusterId);
-            }
-            else
-            {
-                sourceReport.AssignToCluster(targetClusterId);
-                sourceReport.ChangeStatus(ReportStatus.Dismissed);
-            }
-        }
-
-        // Delete empty source clusters
-        foreach (var cid in clustersToDelete)
-        {
-            var cluster = await db.Clusters.FindAsync([cid], ct);
-            if (cluster != null)
-            {
-                db.Clusters.Remove(cluster);
-            }
-        }
-
-        await db.SaveChangesAsync(ct);
-
-        // Recalculate centroid for the target cluster
-        if (targetClusterId != Guid.Empty)
-        {
-            await clusterService.RecalculateCentroidAsync(targetClusterId, ct);
-            await db.SaveChangesAsync(ct);
-        }
-
-        await Send.OkAsync(new ActionResponse { Message = "Reports merged successfully." }, ct);
+        await Send.OkAsync(new ActionResponse { Message = result.Message! }, ct);
     }
 }

@@ -1,10 +1,6 @@
-using System.Security.Claims;
 using FastEndpoints;
-using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Domain.Reports.ValueObjects;
+using MediatR;
 using Winnow.Server.Features.Shared;
-using Winnow.Server.Infrastructure.Persistence;
-using Winnow.Server.Services.Ai;
 
 namespace Winnow.Server.Features.Reports.Ungroup;
 
@@ -19,7 +15,7 @@ public class UngroupReportRequest : ProjectScopedRequest
     public Guid Id { get; set; }
 }
 
-public sealed class UngroupReportEndpoint(WinnowDbContext db, IClusterService clusterService) : ProjectScopedEndpoint<UngroupReportRequest, ActionResponse>
+public sealed class UngroupReportEndpoint(IMediator mediator) : ProjectScopedEndpoint<UngroupReportRequest, ActionResponse>
 {
     public override void Configure()
     {
@@ -37,31 +33,25 @@ public sealed class UngroupReportEndpoint(WinnowDbContext db, IClusterService cl
 
     public override async Task HandleAsync(UngroupReportRequest req, CancellationToken ct)
     {
-        var report = await db.Reports
-            .FirstOrDefaultAsync(r => r.Id == req.Id && r.ProjectId == req.CurrentProjectId, ct);
+        var command = new UngroupReportCommand(req.Id, req.CurrentProjectId);
+        var result = await mediator.Send(command, ct);
 
-        if (report == null)
+        if (!result.IsSuccess)
         {
-            await Send.NotFoundAsync(ct);
+            if (result.StatusCode == 404)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+            if (result.StatusCode == 400)
+            {
+                AddError(result.ErrorMessage!);
+                ThrowIfAnyErrors();
+            }
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
             return;
         }
 
-        if (report.ClusterId == null)
-        {
-            ThrowError("Report is not grouped.");
-        }
-
-        var oldClusterId = report.ClusterId;
-        report.RemoveFromCluster();
-        report.ChangeStatus(ReportStatus.Open);
-
-        await db.SaveChangesAsync(ct);
-
-        if (oldClusterId != null)
-        {
-            await clusterService.RecalculateCentroidAsync(oldClusterId.Value, ct);
-        }
-
-        await Send.OkAsync(new ActionResponse { Message = "Report ungrouped successfully." }, ct);
+        await Send.OkAsync(new ActionResponse { Message = result.Message! }, ct);
     }
 }

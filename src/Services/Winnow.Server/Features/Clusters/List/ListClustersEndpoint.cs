@@ -1,8 +1,7 @@
 using System.Security.Claims;
 using FastEndpoints;
-using Microsoft.EntityFrameworkCore;
+using MediatR;
 using Winnow.Server.Features.Shared;
-using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Clusters.List;
 
@@ -22,7 +21,7 @@ public record ClusterDto(
     bool IsLocked,
     bool IsOverage);
 
-public sealed class ListClustersEndpoint(WinnowDbContext dbContext) : ProjectScopedEndpoint<ListClustersRequest, List<ClusterDto>>
+public sealed class ListClustersEndpoint(IMediator mediator) : ProjectScopedEndpoint<ListClustersRequest, List<ClusterDto>>
 {
     public override void Configure()
     {
@@ -44,31 +43,15 @@ public sealed class ListClustersEndpoint(WinnowDbContext dbContext) : ProjectSco
         string sort = HttpContext.Request.Query["sort"].ToString();
         if (string.IsNullOrEmpty(sort)) sort = "criticality";
 
-        var query = dbContext.Clusters
-            .AsNoTracking()
-            .Where(c => c.ProjectId == req.CurrentProjectId);
+        var query = new ListClustersQuery(req.CurrentProjectId, sort);
+        var result = await mediator.Send(query, ct);
 
-        var clusters = await query
-            .Select(c => new ClusterDto(
-                c.Id,
-                c.Title,
-                c.Summary,
-                c.CriticalityScore,
-                c.Status.Name,
-                c.CreatedAt,
-                dbContext.Reports.Count(r => r.ClusterId == c.Id),
-                dbContext.Reports.Any(r => r.ClusterId == c.Id && r.IsLocked),
-                dbContext.Reports.Any(r => r.ClusterId == c.Id && r.IsOverage)))
-            .ToListAsync(ct);
-
-        // Perform sorting in memory for simplicity if complex, but here we can do it
-        var sortedClusters = sort switch
+        if (!result.IsSuccess)
         {
-            "criticality" => clusters.OrderByDescending(c => c.CriticalityScore ?? 0).ThenByDescending(c => c.ReportCount),
-            "newest" => clusters.OrderByDescending(c => c.CreatedAt),
-            _ => clusters.OrderByDescending(c => c.ReportCount)
-        };
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
+            return;
+        }
 
-        await Send.OkAsync(sortedClusters.ToList(), ct);
+        await Send.OkAsync(result.Data!, ct);
     }
 }

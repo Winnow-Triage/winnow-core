@@ -3,7 +3,7 @@ using System.Security.Claims;
 
 namespace Winnow.Server.Features.Shared;
 
-public abstract class OrganizationScopedRequest
+public abstract class OrganizationScopedRequest : IOrganizationScopedRequest
 {
     public Guid CurrentOrganizationId { get; set; }
 

@@ -1,10 +1,6 @@
-using System.Security.Claims;
 using FastEndpoints;
-using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Domain.Clusters.ValueObjects;
-using Winnow.Server.Domain.Reports.ValueObjects;
+using MediatR;
 using Winnow.Server.Features.Shared;
-using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Reports.Close;
 
@@ -19,7 +15,7 @@ public class CloseClusterRequest : ProjectScopedRequest
     public Guid Id { get; set; }
 }
 
-public sealed class CloseClusterEndpoint(WinnowDbContext db) : ProjectScopedEndpoint<CloseClusterRequest, ActionResponse>
+public sealed class CloseClusterEndpoint(IMediator mediator) : ProjectScopedEndpoint<CloseClusterRequest, ActionResponse>
 {
     public override void Configure()
     {
@@ -36,31 +32,20 @@ public sealed class CloseClusterEndpoint(WinnowDbContext db) : ProjectScopedEndp
 
     public override async Task HandleAsync(CloseClusterRequest req, CancellationToken ct)
     {
-        var cluster = await db.Clusters.FindAsync([req.Id], ct);
+        var command = new CloseClusterCommand(req.Id, req.CurrentProjectId);
+        var result = await mediator.Send(command, ct);
 
-        if (cluster == null || cluster.ProjectId != req.CurrentProjectId)
+        if (!result.IsSuccess)
         {
-            await Send.NotFoundAsync(ct);
+            if (result.StatusCode == 404)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
             return;
         }
 
-        var clusterId = cluster.Id;
-
-        // Close all reports in the cluster
-        var clusterReports = await db.Reports
-            .Where(t => t.ProjectId == req.CurrentProjectId && t.ClusterId == clusterId)
-            .ToListAsync(ct);
-
-        foreach (var t in clusterReports)
-        {
-            // We should use the same mapped state. Let's use Dismissed.
-            t.ChangeStatus(ReportStatus.Dismissed);
-        }
-
-        // Close the cluster itself
-        cluster.ChangeStatus(ClusterStatus.Dismissed);
-
-        await db.SaveChangesAsync(ct);
-        await Send.OkAsync(new ActionResponse { Message = $"Closed {clusterReports.Count} reports in cluster." }, ct);
+        await Send.OkAsync(new ActionResponse { Message = result.Message! }, ct);
     }
 }

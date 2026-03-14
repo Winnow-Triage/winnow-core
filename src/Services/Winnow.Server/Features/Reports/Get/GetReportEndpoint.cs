@@ -1,13 +1,6 @@
-using System.Security.Claims;
 using FastEndpoints;
-using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Domain.Assets.ValueObjects;
-using Winnow.Server.Domain.Clusters;
-using Winnow.Server.Domain.Clusters.ValueObjects;
-using Winnow.Server.Domain.Reports;
-using Winnow.Server.Domain.Reports.ValueObjects;
+using MediatR;
 using Winnow.Server.Features.Shared;
-using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Reports.Get;
 
@@ -231,7 +224,7 @@ public class RelatedReportDto
     public float? ConfidenceScore { get; set; }
 }
 
-public sealed class GetReportEndpoint(WinnowDbContext db, Services.Storage.IStorageService storageService, ILogger<GetReportEndpoint> logger) : ProjectScopedEndpoint<GetReportRequest, GetReportResponse>
+public sealed class GetReportEndpoint(IMediator mediator) : ProjectScopedEndpoint<GetReportRequest, GetReportResponse>
 {
     public override void Configure()
     {
@@ -249,137 +242,20 @@ public sealed class GetReportEndpoint(WinnowDbContext db, Services.Storage.IStor
 
     public override async Task HandleAsync(GetReportRequest req, CancellationToken ct)
     {
-        var report = await db.Reports
-            .AsNoTracking()
-            .Include(r => r.Assets)
-            .FirstOrDefaultAsync(t => t.Id == req.Id && t.ProjectId == req.CurrentProjectId, ct);
+        var query = new GetReportQuery(req.Id, req.CurrentProjectId);
+        var result = await mediator.Send(query, ct);
 
-        if (report == null)
+        if (!result.IsSuccess)
         {
-            await Send.NotFoundAsync(ct);
+            if (result.StatusCode == 404)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
             return;
         }
 
-        var evidence = new List<RelatedReportDto>();
-
-        if (report.ClusterId != null)
-        {
-            // Get other reports in the same cluster
-            var clusterReports = await db.Reports
-                .AsNoTracking()
-                .Where(t => t.ProjectId == req.CurrentProjectId && t.ClusterId == report.ClusterId && t.Id != report.Id)
-                .Select(t => new RelatedReportDto
-                {
-                    Id = t.Id,
-                    Message = t.Message,
-                    Status = t.Status.Name,
-                    CreatedAt = t.CreatedAt,
-                    ConfidenceScore = t.ConfidenceScore != null ? (float)t.ConfidenceScore.Value.Score : null
-                })
-                .ToListAsync(ct);
-
-            evidence.AddRange(clusterReports);
-        }
-
-        // Load cluster metadata for summary/criticality
-        string? clusterTitle = null;
-        string? clusterSummary = null;
-        int? criticalityScore = null;
-        string? criticalityReasoning = null;
-
-        if (report.ClusterId != null)
-        {
-            var cluster = await db.Clusters
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == report.ClusterId, ct);
-
-            if (cluster != null)
-            {
-                clusterTitle = cluster.Title;
-                clusterSummary = cluster.Summary;
-                criticalityScore = cluster.CriticalityScore;
-                criticalityReasoning = cluster.CriticalityReasoning;
-            }
-        }
-
-        // Load suggested cluster info
-        string? suggestedClusterSummary = null;
-        string? suggestedClusterTitle = null;
-        if (report.SuggestedClusterId != null)
-        {
-            var suggestedCluster = await db.Clusters
-                .AsNoTracking()
-                .Where(c => c.Id == report.SuggestedClusterId)
-                .Select(c => new { c.Summary, c.Title })
-                .FirstOrDefaultAsync(ct);
-
-            if (suggestedCluster != null)
-            {
-                suggestedClusterSummary = suggestedCluster.Summary;
-                suggestedClusterTitle = suggestedCluster.Title;
-            }
-        }
-
-        // Build asset DTOs with download URLs for clean files
-        var assetDtos = new List<AssetDto>();
-        var assetObjects = await db.Assets
-            .Where(a => report.Assets.Contains(a.Id))
-            .ToListAsync(ct);
-
-        foreach (var asset in assetObjects)
-        {
-            Uri? downloadUrl = null;
-            if (asset.Status == AssetStatus.Clean)
-            {
-                try
-                {
-                    downloadUrl = await storageService.GenerateDownloadUrlAsync(asset.S3Key, ct);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogDebug(ex, "Could not generate download URL for asset {AssetId}", asset.Id);
-                }
-            }
-
-            assetDtos.Add(new AssetDto
-            {
-                Id = asset.Id,
-                FileName = asset.FileName,
-                ContentType = asset.ContentType,
-                SizeBytes = asset.SizeBytes,
-                Status = asset.Status.ToString(),
-                DownloadUrl = downloadUrl,
-                CreatedAt = asset.CreatedAt,
-                ScannedAt = asset.ScannedAt
-            });
-        }
-
-        await Send.OkAsync(new GetReportResponse
-        {
-            Id = report.Id,
-            ProjectId = report.ProjectId,
-            Title = report.Title,
-            Message = report.Message,
-            StackTrace = report.StackTrace,
-            Status = report.Status.Name,
-            CreatedAt = report.CreatedAt,
-            ClusterId = report.ClusterId,
-            AssignedTo = report.AssignedTo,
-            Summary = clusterSummary,
-            ConfidenceScore = (float?)report.ConfidenceScore?.Score,
-            CriticalityScore = criticalityScore,
-            CriticalityReasoning = criticalityReasoning,
-            ClusterTitle = clusterTitle,
-            SuggestedClusterId = report.SuggestedClusterId,
-            SuggestedConfidenceScore = (float?)report.SuggestedConfidenceScore?.Score,
-            SuggestedClusterSummary = suggestedClusterSummary,
-            SuggestedClusterTitle = suggestedClusterTitle,
-            Metadata = report.Metadata,
-            IsOverage = report.IsOverage,
-            IsLocked = report.IsLocked,
-            ExternalUrl = report.ExternalUrl,
-            Assets = assetDtos,
-            Evidence = evidence
-        }, ct);
+        await Send.OkAsync(result.Data!, ct);
     }
 }

@@ -1,10 +1,6 @@
-using System.Security.Claims;
 using FastEndpoints;
-using Microsoft.EntityFrameworkCore;
+using MediatR;
 using Winnow.Server.Features.Shared;
-using Winnow.Server.Domain.Reports.ValueObjects;
-using Winnow.Server.Infrastructure.Persistence;
-using Winnow.Server.Services.Ai;
 
 namespace Winnow.Server.Features.Reports.SuggestActions;
 
@@ -19,7 +15,7 @@ public class AcceptSuggestionRequest : ProjectScopedRequest
     public Guid Id { get; set; }
 }
 
-public sealed class AcceptSuggestionEndpoint(WinnowDbContext db, IClusterService clusterService) : ProjectScopedEndpoint<AcceptSuggestionRequest, ActionResponse>
+public sealed class AcceptSuggestionEndpoint(IMediator mediator) : ProjectScopedEndpoint<AcceptSuggestionRequest, ActionResponse>
 {
     public override void Configure()
     {
@@ -37,39 +33,25 @@ public sealed class AcceptSuggestionEndpoint(WinnowDbContext db, IClusterService
 
     public override async Task HandleAsync(AcceptSuggestionRequest req, CancellationToken ct)
     {
-        var report = await db.Reports
-            .FirstOrDefaultAsync(r => r.Id == req.Id && r.ProjectId == req.CurrentProjectId, ct);
+        var command = new AcceptSuggestionCommand(req.Id, req.CurrentProjectId);
+        var result = await mediator.Send(command, ct);
 
-        if (report == null)
+        if (!result.IsSuccess)
         {
-            await Send.NotFoundAsync(ct);
+            if (result.StatusCode == 404)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+            if (result.StatusCode == 400)
+            {
+                AddError(result.ErrorMessage!);
+                ThrowIfAnyErrors();
+            }
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
             return;
         }
 
-        if (report.SuggestedClusterId == null)
-        {
-            ThrowError("No pending suggestion for this report.");
-        }
-
-        // Verify suggested cluster exists
-        var cluster = await db.Clusters.FindAsync([report.SuggestedClusterId], ct);
-        if (cluster == null)
-        {
-            ThrowError("The suggested cluster no longer exists.");
-        }
-
-        // Accept suggestion
-        cluster.AddReport(report.Id);
-        report.AssignToCluster(cluster.Id, report.SuggestedConfidenceScore);
-        report.ChangeStatus(ReportStatus.Duplicate);
-        report.ClearSuggestedCluster();
-
-        if (cluster != null)
-        {
-            await clusterService.RecalculateCentroidAsync(cluster.Id, ct);
-        }
-
-        await db.SaveChangesAsync(ct);
-        await Send.OkAsync(new ActionResponse { Message = "Suggestion accepted. Report added to cluster." }, ct);
+        await Send.OkAsync(new ActionResponse { Message = result.Message! }, ct);
     }
 }

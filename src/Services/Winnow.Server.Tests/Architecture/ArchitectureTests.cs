@@ -368,7 +368,7 @@ public class ArchitectureTests
             .GetTypes();
 
         var verbViolations = new List<string>();
-        var validVerbs = new HashSet<string> { "Create", "Update", "Delete", "Get", "List", "Add", "Remove", "Import", "Export", "Generate", "Process", "Send", "Notify", "Assign", "Close", "Merge", "Ungroup", "Suggest", "Ingest" };
+        var validVerbs = new HashSet<string> { "Create", "Update", "Delete", "Get", "List", "Add", "Remove", "Import", "Export", "Generate", "Regenerate", "Revoke", "Rotate", "Process", "Send", "Notify", "Assign", "Close", "Merge", "Ungroup", "Suggest", "Ingest", "Change", "Admin", "Impersonate", "Toggle", "Login", "Register", "Verify", "Resend", "Forgot", "Reset", "Accept", "Dismiss", "Clear", "Submit" };
 
         foreach (var type in commandTypes)
         {

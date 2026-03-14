@@ -1,7 +1,6 @@
 using FastEndpoints;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Organizations.Invitations;
 
@@ -16,7 +15,7 @@ public class GetInvitationDetailsResponse
     public string OrganizationName { get; set; } = string.Empty;
 }
 
-public sealed class GetInvitationDetailsEndpoint(WinnowDbContext db) : Endpoint<GetInvitationDetailsRequest, GetInvitationDetailsResponse>
+public sealed class GetInvitationDetailsEndpoint(IMediator mediator) : Endpoint<GetInvitationDetailsRequest, GetInvitationDetailsResponse>
 {
     public override void Configure()
     {
@@ -26,26 +25,26 @@ public sealed class GetInvitationDetailsEndpoint(WinnowDbContext db) : Endpoint<
 
     public override async Task HandleAsync(GetInvitationDetailsRequest req, CancellationToken ct)
     {
-        var invitation = await db.OrganizationInvitations
-            .Join(db.Organizations, oi => oi.OrganizationId, o => o.Id, (oi, o) => new { oi, o })
-            .FirstOrDefaultAsync(x => x.oi.Token == req.Token, ct);
+        var query = new GetInvitationDetailsQuery(req.Token);
+        var result = await mediator.Send(query, ct);
 
-        if (invitation == null)
+        if (!result.IsSuccess)
         {
-            await Send.NotFoundAsync(ct);
+            if (result.StatusCode == 404)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+            if (result.StatusCode == 410)
+            {
+                await Send.ErrorsAsync(410, ct); // Gone
+                return;
+            }
+
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
             return;
         }
 
-        if (invitation.oi.ExpiresAt < DateTime.UtcNow)
-        {
-            await Send.ErrorsAsync(410, ct); // Gone
-            return;
-        }
-
-        await Send.OkAsync(new GetInvitationDetailsResponse
-        {
-            Email = invitation.oi.Email.Value,
-            OrganizationName = invitation.o.Name
-        }, ct);
+        await Send.OkAsync(result.Data!, ct);
     }
 }

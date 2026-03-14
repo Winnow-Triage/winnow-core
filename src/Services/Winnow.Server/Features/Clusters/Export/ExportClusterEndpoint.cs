@@ -1,9 +1,6 @@
 using System.Security.Claims;
 using FastEndpoints;
-using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Domain.Clusters.ValueObjects;
-using Winnow.Server.Infrastructure.Integrations;
-using Winnow.Server.Infrastructure.Persistence;
+using MediatR;
 
 namespace Winnow.Server.Features.Clusters.Export;
 
@@ -22,10 +19,7 @@ public class ExportClusterResponse
     public Uri ExternalUrl { get; set; } = default!;
 }
 
-public sealed class ExportClusterEndpoint(
-    WinnowDbContext db,
-    IExporterFactory exporterFactory,
-    IConfiguration config)
+public sealed class ExportClusterEndpoint(IMediator mediator)
     : Endpoint<ExportClusterRequest, ExportClusterResponse>
 {
     public override void Configure()
@@ -48,77 +42,22 @@ public sealed class ExportClusterEndpoint(
             return;
         }
 
-        // 2. Fetch only the Cluster
-        var cluster = await db.Clusters
-            .FirstOrDefaultAsync(c => c.Id == req.ClusterId && c.ProjectId == req.ProjectId, ct);
+        var command = new ExportClusterCommand(req.ClusterId, req.ProjectId, req.ConfigId);
+        var result = await mediator.Send(command, ct);
 
-        if (cluster == null)
+        if (!result.IsSuccess)
         {
-            await Send.NotFoundAsync(ct);
+            if (result.StatusCode == 404)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+
+            AddError($"Export failed: {result.ErrorMessage}");
+            ThrowIfAnyErrors();
             return;
         }
 
-        // 3. Ask the DB for the exact stats we need (Incredibly fast, minimal memory)
-        var reportStats = await db.Reports
-            .Where(r => r.ClusterId == cluster.Id)
-            .GroupBy(r => r.ClusterId)
-            .Select(g => new
-            {
-                Count = g.Count(),
-                FirstSeen = g.Min(r => r.CreatedAt),
-                LastSeen = g.Max(r => r.CreatedAt)
-            })
-            .FirstOrDefaultAsync(ct);
-
-        var reportCount = reportStats?.Count ?? 0;
-
-        // 4. Ask the DB for ONLY the titles of the 10 most recent reports
-        var topReports = await db.Reports
-            .Where(r => r.ClusterId == cluster.Id)
-            .OrderByDescending(r => r.CreatedAt)
-            .Take(10)
-            .Select(r => new { r.Id, r.Title })
-            .ToListAsync(ct);
-
-        var exporter = await exporterFactory.GetExporterByIdAsync(req.ConfigId, ct);
-
-        try
-        {
-            var contentToExport = $"""
-                ## AI Synthesis
-                {cluster.Summary ?? "No summary available."}
-
-                ## Criticality Analysis
-                Score: {cluster.CriticalityScore}/10
-                Reasoning: {cluster.CriticalityReasoning}
-
-                ## Impact
-                Report Count: {reportCount}
-                First Seen: {reportStats?.FirstSeen.ToString("g") ?? "N/A"}
-                Last Seen: {reportStats?.LastSeen.ToString("g") ?? "N/A"}
-
-                ## Reports
-                {string.Join("\n", topReports.Select(r => $"- {r.Title} (R-{r.Id.ToString()[..8]})"))}
-                {(reportCount > 10 ? $"\n... and {reportCount - 10} more" : "")}
-                """;
-
-            var frontendUrl = config["FrontendUrl"]?.TrimEnd('/') ?? "http://localhost:5173";
-            var backlink = $"{frontendUrl}/clusters/{cluster.Id}";
-            contentToExport += $"\n\n---\n[View in Winnow]({backlink})";
-
-            var externalUrlString = await exporter.ExportReportAsync(cluster.Title ?? $"Cluster {cluster.Id.ToString()[..8]}", contentToExport, ct);
-            var externalUrl = new Uri(externalUrlString);
-
-            // Perfect use of the Domain method!
-            cluster.ChangeStatus(ClusterStatus.Exported);
-            await db.SaveChangesAsync(ct);
-
-            await Send.OkAsync(new ExportClusterResponse { ExternalUrl = externalUrl }, ct);
-        }
-        catch (Exception ex)
-        {
-            AddError($"Export failed: {ex.Message}");
-            ThrowIfAnyErrors();
-        }
+        await Send.OkAsync(new ExportClusterResponse { ExternalUrl = result.ExternalUrl! }, ct);
     }
 }

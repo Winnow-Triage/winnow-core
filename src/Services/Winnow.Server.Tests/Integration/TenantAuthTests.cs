@@ -1,3 +1,6 @@
+using Winnow.Server.Features.Dashboard.Dtos;
+using Winnow.Server.Features.Auth.Auth;
+using Winnow.Server.Features.Auth.Login;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Identity;
@@ -108,7 +111,7 @@ public class TenantAuthTests : IAsyncLifetime
 
         // Assert
         Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
-        var result = await response.Content.ReadFromJsonAsync<AuthResponse>();
+        var result = await response.Content.ReadFromJsonAsync<AuthResult>();
         Assert.NotNull(result);
 
         var cookie = response.Headers.GetValues("Set-Cookie").FirstOrDefault(c => c.StartsWith("winnow_auth="));
@@ -132,7 +135,7 @@ public class TenantAuthTests : IAsyncLifetime
         var loginRequest = new LoginRequest { Email = TestEmail, Password = TestPassword };
         _client.DefaultRequestHeaders.Add("X-Tenant-ID", TestTenantId);
         var loginResponse = await _client.PostAsJsonAsync("/auth/login", loginRequest);
-        var authResult = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        var authResult = await loginResponse.Content.ReadFromJsonAsync<AuthResult>();
 
         var cookie = loginResponse.Headers.GetValues("Set-Cookie").First(c => c.StartsWith("winnow_auth="));
         var token = cookie.Split(';')[0].Substring("winnow_auth=".Length);

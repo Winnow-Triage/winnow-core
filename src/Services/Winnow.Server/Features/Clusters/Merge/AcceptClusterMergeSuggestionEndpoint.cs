@@ -1,11 +1,7 @@
 using System.Security.Claims;
 using FastEndpoints;
-using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Domain.Common;
-using Winnow.Server.Domain.Reports.ValueObjects;
+using MediatR;
 using Winnow.Server.Features.Shared;
-using Winnow.Server.Infrastructure.Persistence;
-using Winnow.Server.Services.Ai;
 
 namespace Winnow.Server.Features.Clusters.Merge;
 
@@ -14,7 +10,7 @@ public class AcceptClusterMergeSuggestionRequest
     public Guid Id { get; set; }
 }
 
-public sealed class AcceptClusterMergeSuggestionEndpoint(WinnowDbContext db, IClusterService clusterService)
+public sealed class AcceptClusterMergeSuggestionEndpoint(IMediator mediator)
     : Endpoint<AcceptClusterMergeSuggestionRequest, ActionResponse>
 {
     public override void Configure()
@@ -46,62 +42,19 @@ public sealed class AcceptClusterMergeSuggestionEndpoint(WinnowDbContext db, ICl
             ThrowError("Invalid Project ID format", 400);
         }
 
-        var sourceCluster = await db.Clusters
-            .FirstOrDefaultAsync(c => c.Id == req.Id && c.ProjectId == projectId, ct);
+        var command = new AcceptClusterMergeSuggestionCommand(req.Id, projectId);
+        var result = await mediator.Send(command, ct);
 
-        if (sourceCluster == null)
+        if (!result.IsSuccess)
         {
-            await Send.NotFoundAsync(ct);
+            if (result.StatusCode == 404)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
             return;
         }
-
-        if (sourceCluster.SuggestedMergeClusterId == null)
-        {
-            ThrowError("No pending merge suggestion for this cluster.");
-        }
-
-        var targetClusterId = sourceCluster.SuggestedMergeClusterId.Value;
-        var targetCluster = await db.Clusters
-            .FirstOrDefaultAsync(c => c.Id == targetClusterId && c.ProjectId == projectId, ct);
-
-        if (targetCluster == null)
-        {
-            ThrowError("The suggested target cluster no longer exists.");
-        }
-
-        // Move all reports from source to target
-        var sourceReports = await db.Reports
-            .Where(r => r.ClusterId == sourceCluster.Id && r.ProjectId == projectId)
-            .ToListAsync(ct);
-
-        foreach (var report in sourceReports)
-        {
-            report.AssignToCluster(targetCluster.Id);
-            report.ChangeStatus(ReportStatus.Duplicate);
-            report.ClearSuggestedCluster();
-        }
-
-        // Clear any suggestion references pointing to the source cluster before deleting it,
-        // to avoid orphaned SuggestedClusterId values inflating the pending decisions count.
-        // await db.Reports
-        //     .Where(r => r.ProjectId == projectId && r.SuggestedClusterId == sourceCluster.Id)
-        //     .ExecuteUpdateAsync(s => s
-        //         .SetProperty(r => r.SuggestedClusterId, (Guid?)null)
-        //         .SetProperty(r => r.SuggestedConfidenceScore, (ConfidenceScore?)null), ct);
-
-        await db.Clusters
-            .Where(c => c.ProjectId == projectId && c.SuggestedMergeClusterId == sourceCluster.Id)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(c => c.SuggestedMergeClusterId, (Guid?)null)
-                .SetProperty(c => c.SuggestedMergeConfidenceScore, (ConfidenceScore?)null), ct);
-
-        // Delete source cluster
-        db.Clusters.Remove(sourceCluster);
-        await db.SaveChangesAsync(ct);
-
-        // Recalculate centroid for the target cluster
-        await clusterService.RecalculateCentroidAsync(targetCluster.Id, ct);
-        await db.SaveChangesAsync(ct);
 
         await Send.OkAsync(new ActionResponse { Message = "Cluster merge accepted successfully." }, ct);
     }

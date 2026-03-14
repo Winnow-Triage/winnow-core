@@ -1,9 +1,7 @@
 using System.Security.Claims;
 using FastEndpoints;
-using Microsoft.EntityFrameworkCore;
+using MediatR;
 using Winnow.Server.Features.Shared;
-using Winnow.Server.Infrastructure.Persistence;
-using Winnow.Server.Services.Ai;
 
 namespace Winnow.Server.Features.Clusters.Merge;
 
@@ -12,7 +10,7 @@ public class DismissClusterMergeSuggestionRequest
     public Guid Id { get; set; }
 }
 
-public sealed class DismissClusterMergeSuggestionEndpoint(WinnowDbContext db, INegativeMatchCache negativeMatchCache)
+public sealed class DismissClusterMergeSuggestionEndpoint(IMediator mediator)
     : Endpoint<DismissClusterMergeSuggestionRequest, ActionResponse>
 {
     public override void Configure()
@@ -44,28 +42,22 @@ public sealed class DismissClusterMergeSuggestionEndpoint(WinnowDbContext db, IN
             ThrowError("Invalid Project ID format", 400);
         }
 
-        var cluster = await db.Clusters
-            .FirstOrDefaultAsync(c => c.Id == req.Id && c.ProjectId == projectId, ct);
+        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? "default";
 
-        if (cluster == null)
+        var command = new DismissClusterMergeSuggestionCommand(req.Id, projectId, tenantId);
+        var result = await mediator.Send(command, ct);
+
+        if (!result.IsSuccess)
         {
-            await Send.NotFoundAsync(ct);
+            if (result.StatusCode == 404)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
             return;
         }
 
-        if (cluster.SuggestedMergeClusterId == null)
-        {
-            ThrowError("No pending merge suggestion for this cluster.");
-        }
-
-        // Record negative match between the two clusters
-        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? "default";
-        negativeMatchCache.MarkAsMismatch(tenantId, cluster.Id, cluster.SuggestedMergeClusterId.Value);
-
-        // Clear suggestion
-        cluster.ClearMergeSuggestion();
-
-        await db.SaveChangesAsync(ct);
         await Send.OkAsync(new ActionResponse { Message = "Cluster merge suggestion dismissed." }, ct);
     }
 }

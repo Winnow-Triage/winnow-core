@@ -1,8 +1,6 @@
 using FastEndpoints;
-using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Domain.Reports.ValueObjects;
+using MediatR;
 using Winnow.Server.Features.Shared;
-using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Reports.Assign;
 
@@ -22,7 +20,7 @@ public class AssignReportRequest : ProjectScopedRequest
     public string? AssignedTo { get; set; }
 }
 
-public sealed class AssignReportEndpoint(WinnowDbContext db) : ProjectScopedEndpoint<AssignReportRequest, ActionResponse>
+public sealed class AssignReportEndpoint(IMediator mediator) : ProjectScopedEndpoint<AssignReportRequest, ActionResponse>
 {
     public override void Configure()
     {
@@ -39,19 +37,20 @@ public sealed class AssignReportEndpoint(WinnowDbContext db) : ProjectScopedEndp
 
     public override async Task HandleAsync(AssignReportRequest req, CancellationToken ct)
     {
-        var report = await db.Reports
-            .FirstOrDefaultAsync(r => r.Id == req.Id && r.ProjectId == req.CurrentProjectId, ct);
+        var command = new AssignReportCommand(req.Id, req.CurrentProjectId, req.AssignedTo);
+        var result = await mediator.Send(command, ct);
 
-        if (report == null)
+        if (!result.IsSuccess)
         {
-            await Send.NotFoundAsync(ct);
+            if (result.StatusCode == 404)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
             return;
         }
 
-        report.AssignTo(req.AssignedTo);
-
-
-        await db.SaveChangesAsync(ct);
-        await Send.OkAsync(new ActionResponse { Message = $"Report assigned to {req.AssignedTo ?? "Unassigned"}" }, ct);
+        await Send.OkAsync(new ActionResponse { Message = result.Message! }, ct);
     }
 }

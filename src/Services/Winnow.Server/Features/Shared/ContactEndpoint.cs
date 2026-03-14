@@ -1,5 +1,5 @@
 using FastEndpoints;
-using Winnow.Server.Services.Emails;
+using MediatR;
 
 namespace Winnow.Server.Features.Shared;
 
@@ -11,7 +11,7 @@ public class ContactRequest
     public string Message { get; set; } = string.Empty;
 }
 
-public sealed class ContactEndpoint(IEmailService emailService, IConfiguration config) : Endpoint<ContactRequest>
+public sealed class ContactEndpoint(IMediator mediator) : Endpoint<ContactRequest>
 {
     public override void Configure()
     {
@@ -26,19 +26,14 @@ public sealed class ContactEndpoint(IEmailService emailService, IConfiguration c
 
     public override async Task HandleAsync(ContactRequest req, CancellationToken ct)
     {
-        var supportEmail = config["EmailSettings:SupportEmail"] ?? "support@winnow-triage.com";
+        var command = new SubmitContactFormCommand(req.FirstName, req.LastName, req.Email, req.Message);
+        var result = await mediator.Send(command, ct);
 
-        var emailBody = $@"
-            <h3>New Contact Form Submission</h3>
-            <p><strong>From:</strong> {req.FirstName} {req.LastName} ({req.Email})</p>
-            <p><strong>Message:</strong></p>
-            <p>{req.Message}</p>
-        ";
-
-        await emailService.SendEmailAsync(
-            supportEmail,
-            $"Contact Form: {req.FirstName} {req.LastName}",
-            emailBody);
+        if (!result.IsSuccess)
+        {
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
+            return;
+        }
 
         await Send.OkAsync(cancellation: ct);
     }

@@ -1,13 +1,7 @@
 using FastEndpoints;
 using FluentValidation;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Infrastructure.Identity;
-using Winnow.Server.Domain.Reports.ValueObjects;
-using Winnow.Server.Domain.Clusters.ValueObjects;
-using Winnow.Server.Infrastructure.Persistence;
-using Winnow.Server.Services.Emails;
 
 namespace Winnow.Server.Features.Organizations.Invitations;
 
@@ -38,9 +32,7 @@ public class AcceptInvitationValidator : Validator<AcceptInvitationRequest>
 }
 
 public sealed class AcceptInvitationEndpoint(
-    WinnowDbContext db,
-    UserManager<ApplicationUser> userManager,
-    IEmailService emailService) : Endpoint<AcceptInvitationRequest>
+    IMediator mediator) : Endpoint<AcceptInvitationRequest>
 {
     public override void Configure()
     {
@@ -51,81 +43,34 @@ public sealed class AcceptInvitationEndpoint(
     public override async Task HandleAsync(AcceptInvitationRequest req, CancellationToken ct)
     {
         Console.WriteLine($"[INVITE-ACCEPT] HandleAsync started for token: {req.Token}");
-        var invitation = await db.OrganizationInvitations
-            .FirstOrDefaultAsync(oi => oi.Token == req.Token, ct);
 
-        if (invitation == null)
-        {
-            await Send.NotFoundAsync(ct);
-            return;
-        }
+        var command = new AcceptInvitationCommand(req.Token, req.FirstName, req.LastName, req.Password);
+        var result = await mediator.Send(command, ct);
 
-        if (invitation.IsExpired())
+        if (!result.IsSuccess)
         {
-            await Send.ErrorsAsync(410, ct); // Gone
-            return;
-        }
-
-        // 1. Create the User record
-        var emailStr = invitation.Email.Value;
-        var user = new ApplicationUser
-        {
-            UserName = emailStr,
-            Email = emailStr,
-            FullName = $"{req.FirstName} {req.LastName}",
-            EmailConfirmed = true // They came from a verified invite link
-        };
-
-        var result = await userManager.CreateAsync(user, req.Password);
-        if (!result.Succeeded)
-        {
-            foreach (var error in result.Errors)
+            if (result.StatusCode == 404)
             {
-                AddError(error.Description);
+                await Send.NotFoundAsync(ct);
+                return;
             }
-            await Send.ErrorsAsync(400, ct);
+            if (result.StatusCode == 410)
+            {
+                await Send.ErrorsAsync(410, ct); // Gone
+                return;
+            }
+            if (result.StatusCode == 400 && result.IdentityErrors != null)
+            {
+                foreach (var error in result.IdentityErrors)
+                {
+                    AddError(error);
+                }
+                await Send.ErrorsAsync(400, ct);
+                return;
+            }
+
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
             return;
-        }
-
-        // 2. Assign to Organization
-        var member = new Winnow.Server.Domain.Organizations.OrganizationMember(
-            invitation.OrganizationId,
-            user.Id,
-            invitation.Role);
-
-        db.OrganizationMembers.Add(member);
-
-        // 3. Assign to Initial Teams
-        foreach (var teamId in invitation.InitialTeamIds)
-        {
-            db.TeamMembers.Add(new Winnow.Server.Domain.Teams.TeamMember(teamId, user.Id));
-        }
-
-        // 4. Assign to Initial Projects
-        foreach (var projectId in invitation.InitialProjectIds)
-        {
-            db.ProjectMembers.Add(new Winnow.Server.Domain.Projects.ProjectMember(projectId, user.Id));
-        }
-
-        // Mark invitation as accepted to emit events
-        invitation.Accept();
-
-        // 5. Delete the invitation
-        db.OrganizationInvitations.Remove(invitation);
-
-        await db.SaveChangesAsync(ct);
-
-        // 6. Send Welcome Email
-        try
-        {
-            Console.WriteLine($"[INVITE-ACCEPT] Sending welcome email to {user.Email}");
-            await emailService.SendWelcomeEmailAsync(user.Email!, user.FullName);
-            Console.WriteLine($"[INVITE-ACCEPT] Welcome email sent to {user.Email}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[INVITE-ACCEPT] FAILED to send welcome email to {user.Email}: {ex.Message}");
-            // Don't throw, we want registration to succeed even if email fails
         }
 
         await Send.OkAsync(new { Message = "Invitation accepted successfully" }, ct);

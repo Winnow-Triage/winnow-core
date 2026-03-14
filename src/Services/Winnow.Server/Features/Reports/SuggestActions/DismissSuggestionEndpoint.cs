@@ -1,9 +1,6 @@
-using System.Security.Claims;
 using FastEndpoints;
-using Microsoft.EntityFrameworkCore;
+using MediatR;
 using Winnow.Server.Features.Shared;
-using Winnow.Server.Infrastructure.Persistence;
-using Winnow.Server.Services.Ai;
 
 namespace Winnow.Server.Features.Reports.SuggestActions;
 
@@ -18,7 +15,7 @@ public class DismissSuggestionRequest : ProjectScopedRequest
     public Guid Id { get; set; }
 }
 
-public sealed class DismissSuggestionEndpoint(WinnowDbContext db, INegativeMatchCache negativeMatchCache) : ProjectScopedEndpoint<DismissSuggestionRequest, ActionResponse>
+public sealed class DismissSuggestionEndpoint(IMediator mediator) : ProjectScopedEndpoint<DismissSuggestionRequest, ActionResponse>
 {
     public override void Configure()
     {
@@ -36,27 +33,25 @@ public sealed class DismissSuggestionEndpoint(WinnowDbContext db, INegativeMatch
 
     public override async Task HandleAsync(DismissSuggestionRequest req, CancellationToken ct)
     {
-        var report = await db.Reports
-            .FirstOrDefaultAsync(r => r.Id == req.Id && r.ProjectId == req.CurrentProjectId, ct);
+        var command = new DismissSuggestionCommand(req.Id, req.CurrentProjectId, req.CurrentOrganizationId);
+        var result = await mediator.Send(command, ct);
 
-        if (report == null)
+        if (!result.IsSuccess)
         {
-            await Send.NotFoundAsync(ct);
+            if (result.StatusCode == 404)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+            if (result.StatusCode == 400)
+            {
+                AddError(result.ErrorMessage!);
+                ThrowIfAnyErrors();
+            }
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
             return;
         }
 
-        if (report.SuggestedClusterId == null)
-        {
-            ThrowError("No pending suggestion for this report.");
-        }
-
-        // Record negative match between report and cluster
-        negativeMatchCache.MarkAsMismatch(req.CurrentOrganizationId.ToString(), report.Id, report.SuggestedClusterId.Value);
-
-        // Clear suggestion
-        report.ClearSuggestedCluster();
-
-        await db.SaveChangesAsync(ct);
-        await Send.OkAsync(new ActionResponse { Message = "Suggestion dismissed." }, ct);
+        await Send.OkAsync(new ActionResponse { Message = result.Message! }, ct);
     }
 }

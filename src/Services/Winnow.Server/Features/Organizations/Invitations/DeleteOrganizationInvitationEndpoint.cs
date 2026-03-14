@@ -1,10 +1,9 @@
 using FastEndpoints;
-using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Infrastructure.Persistence;
+using MediatR;
 
 namespace Winnow.Server.Features.Organizations.Invitations;
 
-public sealed class DeleteOrganizationInvitationEndpoint(WinnowDbContext db)
+public sealed class DeleteOrganizationInvitationEndpoint(IMediator mediator)
     : EndpointWithoutRequest
 {
     public override void Configure()
@@ -39,26 +38,24 @@ public sealed class DeleteOrganizationInvitationEndpoint(WinnowDbContext db)
             return;
         }
 
-        var isOwner = await db.OrganizationMembers
-            .AnyAsync(om => om.OrganizationId == orgId && om.UserId == userId && (om.Role == "owner" || om.Role == "Admin"), ct);
+        var command = new DeleteOrganizationInvitationCommand(orgId, invitationId, userId);
+        var result = await mediator.Send(command, ct);
 
-        if (!isOwner)
+        if (!result.IsSuccess)
         {
-            await Send.ForbiddenAsync(ct);
+            if (result.StatusCode == 403)
+            {
+                await Send.ForbiddenAsync(ct);
+                return;
+            }
+            if (result.StatusCode == 404)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
             return;
         }
-
-        var invitation = await db.OrganizationInvitations
-            .FirstOrDefaultAsync(oi => oi.Id == invitationId && oi.OrganizationId == orgId, ct);
-
-        if (invitation == null)
-        {
-            await Send.NotFoundAsync(ct);
-            return;
-        }
-
-        db.OrganizationInvitations.Remove(invitation);
-        await db.SaveChangesAsync(ct);
 
         await Send.NoContentAsync(ct);
     }

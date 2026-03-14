@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using FastEndpoints;
-using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Infrastructure.Persistence;
+using MediatR;
 
 namespace Winnow.Server.Features.Clusters.Get;
 
@@ -43,7 +42,7 @@ public class ClusterMemberDto
     public double? ConfidenceScore { get; set; }
 }
 
-public sealed class GetClusterEndpoint(WinnowDbContext db) : Endpoint<GetClusterRequest, GetClusterResponse>
+public sealed class GetClusterEndpoint(IMediator mediator) : Endpoint<GetClusterRequest, GetClusterResponse>
 {
     public override void Configure()
     {
@@ -53,69 +52,21 @@ public sealed class GetClusterEndpoint(WinnowDbContext db) : Endpoint<GetCluster
 
     public override async Task HandleAsync(GetClusterRequest req, CancellationToken ct)
     {
-        // 1. Fetch ONLY the Cluster aggregate
-        var cluster = await db.Clusters
-            .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == req.Id && c.ProjectId == req.ProjectId, ct);
+        var query = new GetClusterQuery(req.Id, req.ProjectId);
+        var result = await mediator.Send(query, ct);
 
-        if (cluster == null)
+        if (!result.IsSuccess)
         {
-            await Send.NotFoundAsync(ct);
+            if (result.StatusCode == 404)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
             return;
         }
 
-        var oneHourAgo = DateTime.UtcNow.AddHours(-1);
-        var oneDayAgo = DateTime.UtcNow.AddDays(-1);
-
-        // 2. The SQL Math Magic!
-        // We do a single, incredibly fast projection query to get all our stats
-        var stats = await db.Reports
-            .Where(r => r.ClusterId == cluster.Id)
-            .GroupBy(r => r.ClusterId)
-            .Select(g => new
-            {
-                Count = g.Count(),
-                FirstSeen = (DateTime?)g.Min(r => r.CreatedAt),
-                LastSeen = (DateTime?)g.Max(r => r.CreatedAt),
-                Velocity1h = g.Count(r => r.CreatedAt >= oneHourAgo),
-                Velocity24h = g.Count(r => r.CreatedAt >= oneDayAgo)
-            })
-            .FirstOrDefaultAsync(ct);
-
-        // 3. Fetch the actual report DTOs directly from the DbSet
-        var reports = await db.Reports
-            .Where(r => r.ClusterId == cluster.Id)
-            .OrderByDescending(r => r.CreatedAt)
-            .Take(100) // IMPORTANT: Put a cap on this so we don't return 10MB JSON payloads!
-            .Select(r => new ClusterMemberDto
-            {
-                Id = r.Id,
-                Title = r.Title,
-                Message = r.Message,
-                Status = r.Status.Name,
-                CreatedAt = r.CreatedAt,
-                ConfidenceScore = r.ConfidenceScore!.Value.Score
-            })
-            .ToListAsync(ct);
-
-        // 4. Map it all together
-        await Send.OkAsync(new GetClusterResponse
-        {
-            Id = cluster.Id,
-            ProjectId = cluster.ProjectId,
-            Title = cluster.Title,
-            Summary = cluster.Summary,
-            CriticalityScore = cluster.CriticalityScore,
-            CriticalityReasoning = cluster.CriticalityReasoning,
-            Status = cluster.Status.ToString(), // Map from Smart Enum to string
-            AssignedTo = cluster.AssignedTo,
-            CreatedAt = cluster.CreatedAt,
-            ReportCount = stats?.Count ?? 0,
-            FirstSeen = stats?.FirstSeen,
-            LastSeen = stats?.LastSeen,
-            Velocity1h = stats?.Velocity1h ?? 0,
-            Velocity24h = stats?.Velocity24h ?? 0,
-            Reports = reports
-        }, ct);
+        await Send.OkAsync(result.Data!, ct);
     }
 }

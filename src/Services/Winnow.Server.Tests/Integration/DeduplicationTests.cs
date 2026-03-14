@@ -1,3 +1,5 @@
+using Winnow.Server.Features.Auth.Auth;
+using Winnow.Server.Features.Auth.Login;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.TestHost;
@@ -79,14 +81,14 @@ public class DeduplicationTests : IAsyncLifetime
         var user = await db.Users.FindAsync(_userId);
         if (user != null)
         {
-            var loginRequest = new Features.Auth.LoginRequest
+            var loginRequest = new Features.Auth.Login.LoginRequest
             {
                 Email = user.Email!,
                 Password = "Password123!" // Default password set by CreateTestProjectAsync
             };
             _client.DefaultRequestHeaders.Add("X-Tenant-ID", "test-tenant");
             var loginResponse = await _client.PostAsJsonAsync("/auth/login", loginRequest);
-            var authResult = await loginResponse.Content.ReadFromJsonAsync<Features.Auth.AuthResponse>();
+            var authResult = await loginResponse.Content.ReadFromJsonAsync<Features.Auth.Auth.AuthResult>();
             _jwtToken = authResult?.Token;
             _client.DefaultRequestHeaders.Clear();
         }

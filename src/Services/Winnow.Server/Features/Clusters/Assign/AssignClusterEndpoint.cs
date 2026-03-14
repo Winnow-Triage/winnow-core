@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using FastEndpoints;
-using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Infrastructure.Persistence;
+using MediatR;
 
 namespace Winnow.Server.Features.Clusters.Assign;
 
@@ -11,7 +10,7 @@ public class AssignClusterRequest
     public string? AssignedTo { get; set; }
 }
 
-public sealed class AssignClusterEndpoint(WinnowDbContext db) : Endpoint<AssignClusterRequest>
+public sealed class AssignClusterEndpoint(IMediator mediator) : Endpoint<AssignClusterRequest>
 {
     public override void Configure()
     {
@@ -36,18 +35,19 @@ public sealed class AssignClusterEndpoint(WinnowDbContext db) : Endpoint<AssignC
             return;
         }
 
-        var cluster = await db.Clusters
-            .FirstOrDefaultAsync(c => c.Id == req.Id && c.ProjectId == projectId, ct);
+        var command = new AssignClusterCommand(req.Id, projectId, req.AssignedTo);
+        var result = await mediator.Send(command, ct);
 
-        if (cluster == null)
+        if (!result.IsSuccess)
         {
-            await Send.NotFoundAsync(ct);
+            if (result.StatusCode == 404)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
             return;
         }
-
-        cluster.AssignTo(req.AssignedTo);
-
-        await db.SaveChangesAsync(ct);
 
         await Send.NoContentAsync(ct);
     }

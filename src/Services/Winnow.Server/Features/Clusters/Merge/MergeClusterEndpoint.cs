@@ -1,11 +1,7 @@
 using System.Security.Claims;
 using FastEndpoints;
-using Microsoft.EntityFrameworkCore;
-using Winnow.Server.Domain.Clusters.ValueObjects;
-using Winnow.Server.Domain.Reports.ValueObjects;
+using MediatR;
 using Winnow.Server.Features.Shared;
-using Winnow.Server.Infrastructure.Persistence;
-using Winnow.Server.Services.Ai;
 
 namespace Winnow.Server.Features.Clusters.Merge;
 
@@ -18,7 +14,7 @@ public class MergeClusterRequest
     public List<Guid> SourceIds { get; set; } = new();
 }
 
-public sealed class MergeClusterEndpoint(WinnowDbContext db, IClusterService clusterService)
+public sealed class MergeClusterEndpoint(IMediator mediator)
     : Endpoint<MergeClusterRequest, ActionResponse>
 {
     public override void Configure()
@@ -45,52 +41,19 @@ public sealed class MergeClusterEndpoint(WinnowDbContext db, IClusterService clu
             return; // unreachable but satisfies compiler
         }
 
-        // Validate the target cluster exists and belongs to this project
-        var targetCluster = await db.Clusters
-            .FirstOrDefaultAsync(c => c.Id == req.Id && c.ProjectId == projectId, ct);
+        var command = new MergeClusterCommand(req.Id, projectId, req.SourceIds);
+        var result = await mediator.Send(command, ct);
 
-        if (targetCluster == null)
+        if (!result.IsSuccess)
         {
-            await Send.NotFoundAsync(ct);
+            if (result.StatusCode == 404)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+            ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
             return;
         }
-
-        var sourceIds = req.SourceIds
-            .Where(id => id != req.Id)
-            .Distinct()
-            .ToList();
-
-        if (sourceIds.Count == 0)
-        {
-            ThrowError("At least one distinct source cluster ID is required.", 400);
-        }
-
-        // Re-assign all reports from source clusters to the target cluster
-        foreach (var sourceClusterId in sourceIds)
-        {
-            var sourceCluster = await db.Clusters
-                .FirstOrDefaultAsync(c => c.Id == sourceClusterId && c.ProjectId == projectId, ct);
-
-            if (sourceCluster == null) continue;
-
-            var sourceReports = await db.Reports
-                .Where(r => r.ClusterId == sourceClusterId && r.ProjectId == projectId)
-                .ToListAsync(ct);
-
-            foreach (var report in sourceReports)
-            {
-                report.AssignToCluster(targetCluster.Id);
-                report.ChangeStatus(ReportStatus.Dismissed);
-            }
-
-            db.Clusters.Remove(sourceCluster);
-        }
-
-        await db.SaveChangesAsync(ct);
-
-        // Recalculate centroid for the target cluster with all merged reports
-        await clusterService.RecalculateCentroidAsync(targetCluster.Id, ct);
-        await db.SaveChangesAsync(ct);
 
         await Send.OkAsync(new ActionResponse { Message = "Clusters merged successfully." }, ct);
     }

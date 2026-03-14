@@ -1,3 +1,4 @@
+using Winnow.Server.Features.Auth.Login;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -123,7 +124,7 @@ public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetim
         Assert.Equal(0.707f, r2.ConfidenceScore.Value.Score, 3);
 
         // 4. Login to get token
-        var loginRequest = new Winnow.Server.Features.Auth.LoginRequest
+        var loginRequest = new Winnow.Server.Features.Auth.Login.LoginRequest
         {
             Email = "test@example.com",
             Password = "Password123!"

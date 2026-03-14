@@ -1,6 +1,5 @@
-using Microsoft.EntityFrameworkCore;
+using MediatR;
 using Winnow.Server.Features.Shared;
-using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Projects.Update;
 
@@ -30,7 +29,7 @@ public class UpdateProjectResponse
     public DateTime CreatedAt { get; set; }
 }
 
-public sealed class UpdateProjectEndpoint(WinnowDbContext dbContext) : ProjectScopedEndpoint<UpdateProjectRequest, UpdateProjectResponse>
+public sealed class UpdateProjectEndpoint(IMediator mediator) : ProjectScopedEndpoint<UpdateProjectRequest, UpdateProjectResponse>
 {
     public override void Configure()
     {
@@ -49,26 +48,24 @@ public sealed class UpdateProjectEndpoint(WinnowDbContext dbContext) : ProjectSc
 
     public override async Task HandleAsync(UpdateProjectRequest req, CancellationToken ct)
     {
-        var project = await dbContext.Projects
-            .FirstOrDefaultAsync(p => p.Id == req.CurrentProjectId && p.OwnerId == req.CurrentUserId && p.OrganizationId == req.CurrentOrganizationId, ct);
-
-        if (project == null)
+        var command = new UpdateProjectCommand
         {
-            ThrowError("Project not found", 404);
-            return;
+            Name = req.Name,
+            TeamId = req.TeamId,
+            CurrentProjectId = req.CurrentProjectId,
+            CurrentOrganizationId = req.CurrentOrganizationId,
+            CurrentUserId = req.CurrentUserId,
+            CurrentUserRoles = req.CurrentUserRoles
+        };
+
+        try
+        {
+            var result = await mediator.Send(command, ct);
+            await Send.OkAsync(result, ct);
         }
-
-        // Update properties
-        project.Rename(req.Name);
-        project.ChangeTeam(req.TeamId);
-
-        await dbContext.SaveChangesAsync(ct);
-
-        await Send.OkAsync(new UpdateProjectResponse
+        catch (InvalidOperationException)
         {
-            Id = project.Id,
-            Name = project.Name,
-            CreatedAt = project.CreatedAt
-        }, ct);
+            await Send.NotFoundAsync(ct);
+        }
     }
 }

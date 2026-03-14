@@ -1,3 +1,6 @@
+using Winnow.Server.Features.Projects.Dtos;
+using Winnow.Server.Features.Auth.Auth;
+using Winnow.Server.Features.Auth.Login;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -89,8 +92,8 @@ public class VisibilityTests : IAsyncLifetime
         _client.DefaultRequestHeaders.Add("X-Tenant-ID", "test-tenant");
         var response = await _client.PostAsJsonAsync("/auth/login", new LoginRequest { Email = email, Password = password });
         response.EnsureSuccessStatusCode();
-        var authResponse = await response.Content.ReadFromJsonAsync<AuthResponse>();
-        return authResponse?.Token ?? throw new InvalidOperationException("Token not found in login response.");
+        var authResult = await response.Content.ReadFromJsonAsync<AuthResult>();
+        return authResult?.Token ?? throw new InvalidOperationException("Token not found in login response.");
     }
 
     [Fact]
