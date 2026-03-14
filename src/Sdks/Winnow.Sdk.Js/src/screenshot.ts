@@ -37,6 +37,12 @@ async function captureWithMasking(): Promise<string> {
         pixelRatio: 1,
         backgroundColor: bgColor,
 
+        // --- OPTIMIZATION & BUG FIX ---
+        // Bypass web font parsing to prevent Firefox `TypeError: can't access property "trim" of undefined`
+        // and avoid cross-origin CSS rule getter DOMExceptions.
+        skipFonts: true,
+        fontEmbedCSS: '',
+
         style: {
             transform: `translate(${-window.scrollX}px, ${-window.scrollY}px)`,
             transformOrigin: 'top left',
