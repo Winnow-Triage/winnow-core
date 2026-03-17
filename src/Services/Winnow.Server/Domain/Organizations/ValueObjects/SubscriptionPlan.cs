@@ -107,17 +107,17 @@ public readonly record struct SubscriptionPlan
     /// <summary>
     /// Gets the free subscription plan.
     /// </summary>
-    public static readonly SubscriptionPlan Free = new("Free", 0, 50, 100, 0, 0);
+    public static readonly SubscriptionPlan Free = new("Free", 0, 100, 200, 0, 0);
 
     /// <summary>
     /// Gets the starter subscription plan.
     /// </summary>
-    public static readonly SubscriptionPlan Starter = new("Starter", 1, 500, 1000, 50, 50);
+    public static readonly SubscriptionPlan Starter = new("Starter", 1, 1000, 1200, 50, 50);
 
     /// <summary>
     /// Gets the pro subscription plan.
     /// </summary>
-    public static readonly SubscriptionPlan Pro = new("Pro", 2, int.MaxValue, int.MaxValue, int.MaxValue, int.MaxValue);
+    public static readonly SubscriptionPlan Pro = new("Pro", 2, 10000, 12000, 500, 500);
 
     /// <summary>
     /// Gets the enterprise subscription plan.
