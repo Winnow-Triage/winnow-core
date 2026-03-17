@@ -324,6 +324,7 @@ internal static class ServiceExtensions
                 });
 
                 s.OperationProcessors.Add(new Winnow.Server.Infrastructure.Security.Swagger.SwaggerSecurityProcessor());
+                s.OperationProcessors.Add(new Winnow.Server.Infrastructure.Security.Swagger.MediatRAuthOperationProcessor());
             };
         });
         services.AddAuthorization(options =>
@@ -387,7 +388,12 @@ internal static class ServiceExtensions
         // MediatR — in-process domain event dispatcher
         // DomainEventInterceptor automatically dispatches events from all IAggregateRoot
         // implementations after each SaveChangesAsync — no manual wiring needed.
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
+        services.AddHttpContextAccessor();
+        services.AddMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssemblyContaining<Program>();
+            cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(Winnow.Server.Infrastructure.Security.Authorization.AuthorizationBehavior<,>));
+        });
         services.AddScoped<DomainEventInterceptor>();
 
         return services;
