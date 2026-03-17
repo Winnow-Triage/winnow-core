@@ -7,10 +7,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Roles.Delete;
 
 [RequirePermission("roles:manage")]
-public record DeleteRoleCommand(Guid OrganizationId, Guid RoleId) : IRequest<DeleteRoleResult>, IOrgScopedRequest
-{
-    public Guid OrgId => OrganizationId;
-}
+public record DeleteRoleCommand(Guid CurrentOrganizationId, Guid RoleId) : IRequest<DeleteRoleResult>, IOrgScopedRequest;
 
 public record DeleteRoleResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -20,7 +17,7 @@ public class DeleteRoleHandler(WinnowDbContext db) : IRequestHandler<DeleteRoleC
     {
         var role = await db.Roles
             .Include(r => r.OrganizationMembers)
-            .FirstOrDefaultAsync(r => r.Id == request.RoleId && r.OrganizationId == request.OrganizationId, cancellationToken);
+            .FirstOrDefaultAsync(r => r.Id == request.RoleId && r.OrganizationId == request.CurrentOrganizationId, cancellationToken);
 
         if (role == null)
         {

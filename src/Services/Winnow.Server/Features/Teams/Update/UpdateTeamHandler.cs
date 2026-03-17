@@ -9,7 +9,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Teams.Update;
 
 [RequirePermission("teams:write")]
-public record UpdateTeamCommand(Guid OrgId, Guid Id, string Name) : IRequest<UpdateTeamResult>, IOrgScopedRequest;
+public record UpdateTeamCommand(Guid CurrentOrganizationId, Guid Id, string Name) : IRequest<UpdateTeamResult>, IOrgScopedRequest;
 
 public record UpdateTeamResult(bool IsSuccess, TeamResponse? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -18,7 +18,7 @@ public class UpdateTeamHandler(WinnowDbContext db) : IRequestHandler<UpdateTeamC
     public async Task<UpdateTeamResult> Handle(UpdateTeamCommand request, CancellationToken cancellationToken)
     {
         var team = await db.Teams
-            .FirstOrDefaultAsync(t => t.Id == request.Id && t.OrganizationId == request.OrgId, cancellationToken);
+            .FirstOrDefaultAsync(t => t.Id == request.Id && t.OrganizationId == request.CurrentOrganizationId, cancellationToken);
 
         if (team == null)
         {

@@ -8,7 +8,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Teams.AddMember;
 
 [RequirePermission("teams:write")]
-public record AddTeamMemberCommand(Guid OrgId, Guid TeamId, string UserId) : IRequest<AddTeamMemberResult>, IOrgScopedRequest;
+public record AddTeamMemberCommand(Guid CurrentOrganizationId, Guid TeamId, string UserId) : IRequest<AddTeamMemberResult>, IOrgScopedRequest;
 
 public record AddTeamMemberResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 

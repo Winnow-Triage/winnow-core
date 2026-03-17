@@ -1,10 +1,13 @@
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Billing.Get;
 
-public record GetBillingStatusQuery(Guid OrganizationId) : IRequest<GetBillingStatusResult>;
+[RequirePermission("billing:manage")]
+public record GetBillingStatusQuery(Guid CurrentOrganizationId) : IRequest<GetBillingStatusResult>, IOrgScopedRequest;
 
 public record GetBillingStatusResult(
     bool IsSuccess,
@@ -18,7 +21,7 @@ public class GetBillingStatusHandler(WinnowDbContext db) : IRequestHandler<GetBi
     {
         var org = await db.Organizations
             .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.Id == request.OrganizationId, cancellationToken);
+            .FirstOrDefaultAsync(o => o.Id == request.CurrentOrganizationId, cancellationToken);
 
         if (org == null)
         {

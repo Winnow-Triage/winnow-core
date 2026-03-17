@@ -1,9 +1,10 @@
 using FastEndpoints;
 using MediatR;
+using Winnow.Server.Infrastructure.MultiTenancy;
 
 namespace Winnow.Server.Features.Integrations.Delete;
 
-public sealed class DeleteIntegrationConfigEndpoint(IMediator mediator) : EndpointWithoutRequest
+public sealed class DeleteIntegrationConfigEndpoint(IMediator mediator, ITenantContext tenantContext) : EndpointWithoutRequest
 {
     public override void Configure()
     {
@@ -22,7 +23,13 @@ public sealed class DeleteIntegrationConfigEndpoint(IMediator mediator) : Endpoi
     {
         var id = Route<Guid>("id");
 
-        var command = new DeleteIntegrationConfigCommand(id);
+        if (!tenantContext.CurrentOrganizationId.HasValue)
+        {
+            await Send.UnauthorizedAsync(ct);
+            return;
+        }
+
+        var command = new DeleteIntegrationConfigCommand(id, tenantContext.CurrentOrganizationId.Value);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

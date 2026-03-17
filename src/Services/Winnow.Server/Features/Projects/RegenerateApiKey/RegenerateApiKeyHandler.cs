@@ -1,4 +1,5 @@
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
@@ -6,6 +7,7 @@ using Winnow.Server.Infrastructure.Security;
 
 namespace Winnow.Server.Features.Projects.RegenerateApiKey;
 
+[RequirePermission("projects:manage")]
 public record RegenerateApiKeyCommand : IRequest<RegenerateApiKeyResponse>, IOrganizationScopedRequest
 {
     public Guid ProjectId { get; set; }

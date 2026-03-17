@@ -1,4 +1,5 @@
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -6,10 +7,12 @@ using Stripe;
 using Stripe.Checkout;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Domain.Organizations.ValueObjects;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Billing.Create;
 
-public record CreateCheckoutSessionCommand(Guid OrganizationId, string TargetTier) : IRequest<CreateCheckoutSessionResult>;
+[RequirePermission("billing:manage")]
+public record CreateCheckoutSessionCommand(Guid CurrentOrganizationId, string TargetTier) : IRequest<CreateCheckoutSessionResult>, IOrgScopedRequest;
 
 public record CreateCheckoutSessionResult(bool IsSuccess, Uri? CheckoutUrl, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -21,7 +24,7 @@ public class CreateCheckoutSessionHandler(
     public async Task<CreateCheckoutSessionResult> Handle(CreateCheckoutSessionCommand request, CancellationToken cancellationToken)
     {
         var organization = await db.Organizations
-            .FirstOrDefaultAsync(o => o.Id == request.OrganizationId, cancellationToken);
+            .FirstOrDefaultAsync(o => o.Id == request.CurrentOrganizationId, cancellationToken);
 
         if (organization == null)
         {

@@ -10,7 +10,7 @@ using Winnow.Server.Infrastructure.Security.Authorization;
 using Winnow.Server.Features.Shared;
 
 [RequirePermission("reports:write")]
-public record AcceptSuggestionCommand(Guid OrgId, Guid Id, Guid ProjectId) : IRequest<AcceptSuggestionResult>, IOrgScopedRequest;
+public record AcceptSuggestionCommand(Guid CurrentOrganizationId, Guid Id, Guid ProjectId) : IRequest<AcceptSuggestionResult>, IOrgScopedRequest;
 
 public record AcceptSuggestionResult(bool IsSuccess, string? Message = null, string? ErrorMessage = null, int? StatusCode = null);
 

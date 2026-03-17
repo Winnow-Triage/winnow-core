@@ -8,7 +8,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Reports.List;
 
 [RequirePermission("reports:read")]
-public record ListReportsQuery(Guid OrgId, Guid ProjectId, string Sort) : IRequest<List<ReportDto>>, IOrgScopedRequest;
+public record ListReportsQuery(Guid CurrentOrganizationId, Guid ProjectId, string Sort) : IRequest<List<ReportDto>>, IOrgScopedRequest;
 
 public class ListReportsHandler(WinnowDbContext dbContext) : IRequestHandler<ListReportsQuery, List<ReportDto>>
 {

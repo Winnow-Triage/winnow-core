@@ -11,7 +11,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Reports.Get;
 
 [RequirePermission("reports:read")]
-public record GetReportQuery(Guid OrgId, Guid ReportId, Guid ProjectId) : IRequest<GetReportResult>, IOrgScopedRequest;
+public record GetReportQuery(Guid CurrentOrganizationId, Guid ReportId, Guid ProjectId) : IRequest<GetReportResult>, IOrgScopedRequest;
 
 public record GetReportResult(bool IsSuccess, GetReportResponse? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 

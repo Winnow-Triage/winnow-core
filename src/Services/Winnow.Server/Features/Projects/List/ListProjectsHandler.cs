@@ -1,11 +1,13 @@
 using Winnow.Server.Features.Projects.Dtos;
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Projects.List;
 
+[RequirePermission("projects:read")]
 public record ListProjectsQuery : IRequest<List<ProjectDto>>, IOrganizationScopedRequest
 {
     public bool OrgWide { get; set; }

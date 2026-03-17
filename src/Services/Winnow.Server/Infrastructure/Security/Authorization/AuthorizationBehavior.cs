@@ -33,7 +33,7 @@ public class AuthorizationBehavior<TRequest, TResponse>(
             throw new UnauthorizedAccessException("User is not authenticated.");
         }
 
-        var orgId = orgScopedRequest.OrgId;
+        var orgId = orgScopedRequest.CurrentOrganizationId;
         var requiredPermissions = requirePermissionAttributes.Select(a => a.Permission).ToList();
 
         var userPermissions = await dbContext.OrganizationMembers

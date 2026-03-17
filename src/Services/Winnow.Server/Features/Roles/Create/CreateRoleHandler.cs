@@ -8,7 +8,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Roles.Create;
 
 [RequirePermission("roles:manage")]
-public record CreateRoleCommand(Guid OrgId, string Name, List<Guid> PermissionIds) : IRequest<CreateRoleResult>, IOrgScopedRequest;
+public record CreateRoleCommand(Guid CurrentOrganizationId, string Name, List<Guid> PermissionIds) : IRequest<CreateRoleResult>, IOrgScopedRequest;
 
 public record CreateRoleResponse(Guid Id, string Name);
 
@@ -19,7 +19,7 @@ public class CreateRoleHandler(WinnowDbContext db) : IRequestHandler<CreateRoleC
     public async Task<CreateRoleResult> Handle(CreateRoleCommand request, CancellationToken cancellationToken)
     {
         var existingRole = await db.Roles
-            .AnyAsync(r => r.Name == request.Name && r.OrganizationId == request.OrgId, cancellationToken);
+            .AnyAsync(r => r.Name == request.Name && r.OrganizationId == request.CurrentOrganizationId, cancellationToken);
 
         if (existingRole)
         {
@@ -36,7 +36,7 @@ public class CreateRoleHandler(WinnowDbContext db) : IRequestHandler<CreateRoleC
             return new CreateRoleResult(false, null, "One or more invalid permission IDs provided", 400);
         }
 
-        var role = new Role(request.Name, request.OrgId);
+        var role = new Role(request.Name, request.CurrentOrganizationId);
 
         db.Roles.Add(role);
 

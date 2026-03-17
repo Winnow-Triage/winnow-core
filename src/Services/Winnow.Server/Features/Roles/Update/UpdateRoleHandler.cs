@@ -8,7 +8,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Roles.Update;
 
 [RequirePermission("roles:manage")]
-public record UpdateRoleCommand(Guid OrgId, Guid RoleId, string Name, List<Guid> PermissionIds) : IRequest<UpdateRoleResult>, IOrgScopedRequest;
+public record UpdateRoleCommand(Guid CurrentOrganizationId, Guid RoleId, string Name, List<Guid> PermissionIds) : IRequest<UpdateRoleResult>, IOrgScopedRequest;
 
 public record UpdateRoleResponse(Guid Id, string Name);
 
@@ -20,7 +20,7 @@ public class UpdateRoleHandler(WinnowDbContext db) : IRequestHandler<UpdateRoleC
     {
         var role = await db.Roles
             .Include(r => r.Permissions)
-            .FirstOrDefaultAsync(r => r.Id == request.RoleId && r.OrganizationId == request.OrgId, cancellationToken);
+            .FirstOrDefaultAsync(r => r.Id == request.RoleId && r.OrganizationId == request.CurrentOrganizationId, cancellationToken);
 
         if (role == null)
         {
@@ -30,7 +30,7 @@ public class UpdateRoleHandler(WinnowDbContext db) : IRequestHandler<UpdateRoleC
         if (role.Name != request.Name)
         {
             var existingName = await db.Roles
-                .AnyAsync(r => r.Name == request.Name && r.OrganizationId == request.OrgId && r.Id != request.RoleId, cancellationToken);
+                .AnyAsync(r => r.Name == request.Name && r.OrganizationId == request.CurrentOrganizationId && r.Id != request.RoleId, cancellationToken);
 
             if (existingName)
             {

@@ -8,7 +8,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Clusters.GenerateSummary;
 
 [RequirePermission("clusters:write")]
-public record ClearClusterSummaryCommand(Guid OrgId, Guid Id, Guid ProjectId) : IRequest<ClearClusterSummaryResult>, IOrgScopedRequest;
+public record ClearClusterSummaryCommand(Guid CurrentOrganizationId, Guid Id, Guid ProjectId) : IRequest<ClearClusterSummaryResult>, IOrgScopedRequest;
 
 public record ClearClusterSummaryResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 

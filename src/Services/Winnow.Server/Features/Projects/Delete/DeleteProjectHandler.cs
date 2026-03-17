@@ -1,6 +1,7 @@
 using Amazon.S3;
 using Amazon.S3.Model;
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
@@ -8,6 +9,7 @@ using Winnow.Server.Services.Storage;
 
 namespace Winnow.Server.Features.Projects.Delete;
 
+[RequirePermission("projects:manage")]
 public record DeleteProjectCommand : IRequest, IProjectScopedRequest
 {
     public Guid CurrentProjectId { get; set; }

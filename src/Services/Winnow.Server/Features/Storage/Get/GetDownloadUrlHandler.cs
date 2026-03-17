@@ -1,11 +1,15 @@
 using MediatR;
 using Winnow.Server.Services.Storage;
+using Winnow.Server.Infrastructure.Security.Authorization;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Storage.Get;
 
-public record GetDownloadUrlQuery : IRequest<Uri>
+[RequirePermission("reports:read")]
+public class GetDownloadUrlQuery : IRequest<Uri>, IOrgScopedRequest
 {
     public string Key { get; init; } = default!;
+    public Guid CurrentOrganizationId { get; set; }
 }
 
 public class GetDownloadUrlHandler(IStorageService storage) : IRequestHandler<GetDownloadUrlQuery, Uri>

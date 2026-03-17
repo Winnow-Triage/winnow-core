@@ -11,7 +11,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Clusters.Export;
 
 [RequirePermission("clusters:write")]
-public record ExportClusterCommand(Guid OrgId, Guid ClusterId, Guid ProjectId, Guid ConfigId) : IRequest<ExportClusterResult>, IOrgScopedRequest;
+public record ExportClusterCommand(Guid CurrentOrganizationId, Guid ClusterId, Guid ProjectId, Guid ConfigId) : IRequest<ExportClusterResult>, IOrgScopedRequest;
 
 public record ExportClusterResult(bool IsSuccess, Uri? ExternalUrl, string? ErrorMessage = null, int? StatusCode = null);
 

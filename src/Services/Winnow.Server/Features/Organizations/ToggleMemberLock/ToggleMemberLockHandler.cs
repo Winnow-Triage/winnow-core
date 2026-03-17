@@ -1,10 +1,13 @@
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Organizations.ToggleMemberLock;
 
-public record ToggleMemberLockCommand(Guid OrganizationId, string MemberUserId, string CurrentUserId) : IRequest<ToggleMemberLockResult>;
+[RequirePermission("members:manage")]
+public record ToggleMemberLockCommand(Guid CurrentOrganizationId, string MemberUserId, string CurrentUserId) : IRequest<ToggleMemberLockResult>, IOrgScopedRequest;
 
 public record ToggleMemberLockResult(bool IsSuccess, bool? IsLocked = null, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -13,7 +16,7 @@ public class ToggleMemberLockHandler(WinnowDbContext db) : IRequestHandler<Toggl
     public async Task<ToggleMemberLockResult> Handle(ToggleMemberLockCommand request, CancellationToken cancellationToken)
     {
         var isOwner = await db.OrganizationMembers
-            .AnyAsync(om => om.OrganizationId == request.OrganizationId && om.UserId == request.CurrentUserId && (om.Role.Name == "Owner" || om.Role.Name == "Admin"), cancellationToken);
+            .AnyAsync(om => om.OrganizationId == request.CurrentOrganizationId && om.UserId == request.CurrentUserId && (om.Role.Name == "Owner" || om.Role.Name == "Admin"), cancellationToken);
 
         if (!isOwner)
         {
@@ -21,7 +24,7 @@ public class ToggleMemberLockHandler(WinnowDbContext db) : IRequestHandler<Toggl
         }
 
         var member = await db.OrganizationMembers
-            .FirstOrDefaultAsync(om => om.OrganizationId == request.OrganizationId && om.UserId == request.MemberUserId, cancellationToken);
+            .FirstOrDefaultAsync(om => om.OrganizationId == request.CurrentOrganizationId && om.UserId == request.MemberUserId, cancellationToken);
 
         if (member == null)
         {

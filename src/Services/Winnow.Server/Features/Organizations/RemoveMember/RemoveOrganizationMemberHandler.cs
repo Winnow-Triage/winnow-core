@@ -1,10 +1,13 @@
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Organizations.RemoveMember;
 
-public record RemoveOrganizationMemberCommand(Guid OrganizationId, string MemberUserId, string CurrentUserId) : IRequest<RemoveOrganizationMemberResult>;
+[RequirePermission("members:manage")]
+public record RemoveOrganizationMemberCommand(Guid CurrentOrganizationId, string MemberUserId, string CurrentUserId) : IRequest<RemoveOrganizationMemberResult>, IOrgScopedRequest;
 
 public record RemoveOrganizationMemberResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -13,7 +16,7 @@ public class RemoveOrganizationMemberHandler(WinnowDbContext db) : IRequestHandl
     public async Task<RemoveOrganizationMemberResult> Handle(RemoveOrganizationMemberCommand request, CancellationToken cancellationToken)
     {
         var isOwner = await db.OrganizationMembers
-            .AnyAsync(om => om.OrganizationId == request.OrganizationId && om.UserId == request.CurrentUserId && (om.Role.Name == "Owner" || om.Role.Name == "Admin"), cancellationToken);
+            .AnyAsync(om => om.OrganizationId == request.CurrentOrganizationId && om.UserId == request.CurrentUserId && (om.Role.Name == "Owner" || om.Role.Name == "Admin"), cancellationToken);
 
         if (!isOwner)
         {
@@ -21,7 +24,7 @@ public class RemoveOrganizationMemberHandler(WinnowDbContext db) : IRequestHandl
         }
 
         var member = await db.OrganizationMembers
-            .FirstOrDefaultAsync(om => om.OrganizationId == request.OrganizationId && om.UserId == request.MemberUserId, cancellationToken);
+            .FirstOrDefaultAsync(om => om.OrganizationId == request.CurrentOrganizationId && om.UserId == request.MemberUserId, cancellationToken);
 
         if (member == null)
         {

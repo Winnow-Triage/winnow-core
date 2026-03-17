@@ -1,10 +1,13 @@
 using System.Text.Json;
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Integrations.GetDetails;
 
-public record GetIntegrationConfigDetailQuery(Guid Id) : IRequest<GetIntegrationConfigDetailResult>;
+[RequirePermission("integrations:read")]
+public record GetIntegrationConfigDetailQuery(Guid Id, Guid CurrentOrganizationId) : IRequest<GetIntegrationConfigDetailResult>, IOrgScopedRequest;
 
 public record GetIntegrationConfigDetailResult(bool IsSuccess, IntegrationDetailResponse? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 

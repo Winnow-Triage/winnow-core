@@ -1,10 +1,13 @@
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Organizations.Get;
 
-public record GetCurrentOrganizationQuery(Guid OrganizationId) : IRequest<GetCurrentOrganizationResult>;
+[RequirePermission("organizations:read")]
+public record GetCurrentOrganizationQuery(Guid CurrentOrganizationId) : IRequest<GetCurrentOrganizationResult>, IOrgScopedRequest;
 
 public record GetCurrentOrganizationResult(bool IsSuccess, CurrentOrganizationResponse? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -14,7 +17,7 @@ public class GetCurrentOrganizationHandler(WinnowDbContext db) : IRequestHandler
     {
         var organization = await db.Organizations
             .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.Id == request.OrganizationId, cancellationToken);
+            .FirstOrDefaultAsync(o => o.Id == request.CurrentOrganizationId, cancellationToken);
 
         if (organization == null)
         {

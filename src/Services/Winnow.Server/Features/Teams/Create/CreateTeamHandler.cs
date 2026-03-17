@@ -9,7 +9,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Teams.Create;
 
 [RequirePermission("teams:write")]
-public record CreateTeamCommand(Guid OrgId, string Name) : IRequest<CreateTeamResult>, IOrgScopedRequest;
+public record CreateTeamCommand(Guid CurrentOrganizationId, string Name) : IRequest<CreateTeamResult>, IOrgScopedRequest;
 
 public record CreateTeamResult(bool IsSuccess, TeamResponse? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -17,7 +17,7 @@ public class CreateTeamHandler(WinnowDbContext db) : IRequestHandler<CreateTeamC
 {
     public async Task<CreateTeamResult> Handle(CreateTeamCommand request, CancellationToken cancellationToken)
     {
-        var team = new Team(request.OrgId, request.Name);
+        var team = new Team(request.CurrentOrganizationId, request.Name);
 
         db.Teams.Add(team);
         await db.SaveChangesAsync(cancellationToken);

@@ -1,10 +1,12 @@
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Projects.RevokeSecondaryApiKey;
 
+[RequirePermission("projects:manage")]
 public record RevokeSecondaryApiKeyCommand : IRequest, IOrganizationScopedRequest
 {
     public Guid ProjectId { get; set; }

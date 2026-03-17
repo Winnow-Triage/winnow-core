@@ -10,7 +10,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Reports.Ungroup;
 
 [RequirePermission("reports:write")]
-public record UngroupReportCommand(Guid OrgId, Guid Id, Guid ProjectId) : IRequest<UngroupReportResult>, IOrgScopedRequest;
+public record UngroupReportCommand(Guid CurrentOrganizationId, Guid Id, Guid ProjectId) : IRequest<UngroupReportResult>, IOrgScopedRequest;
 
 public record UngroupReportResult(bool IsSuccess, string? Message = null, string? ErrorMessage = null, int? StatusCode = null);
 

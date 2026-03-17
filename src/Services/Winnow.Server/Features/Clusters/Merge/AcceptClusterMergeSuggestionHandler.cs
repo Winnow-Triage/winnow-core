@@ -10,7 +10,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Clusters.Merge;
 
 [RequirePermission("clusters:write")]
-public record AcceptClusterMergeSuggestionCommand(Guid OrgId, Guid Id, Guid ProjectId) : IRequest<AcceptClusterMergeSuggestionResult>, IOrgScopedRequest;
+public record AcceptClusterMergeSuggestionCommand(Guid CurrentOrganizationId, Guid Id, Guid ProjectId) : IRequest<AcceptClusterMergeSuggestionResult>, IOrgScopedRequest;
 
 public record AcceptClusterMergeSuggestionResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 

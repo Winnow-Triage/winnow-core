@@ -22,11 +22,11 @@ internal class ReportCreatedConsumer(
     public async Task Consume(ConsumeContext<ReportCreatedEvent> context)
     {
         logger.LogInformation("ReportCreatedConsumer: Consuming message for report {Id} (Organization: {Organization}, Project: {Project})",
-            context.Message.ReportId, context.Message.OrganizationId, context.Message.ProjectId);
+            context.Message.ReportId, context.Message.CurrentOrganizationId, context.Message.ProjectId);
 
         if (tenantContext is TenantContext concreteContext)
         {
-            concreteContext.TenantId = context.Message.OrganizationId.ToString();
+            concreteContext.TenantId = context.Message.CurrentOrganizationId.ToString();
         }
 
         // 1. Load Report

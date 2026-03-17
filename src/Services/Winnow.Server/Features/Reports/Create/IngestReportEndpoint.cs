@@ -57,7 +57,7 @@ internal class IngestReportValidator : Validator<IngestReportRequest>
 internal record ReportCreatedEvent
 {
     public Guid ReportId { get; init; }
-    public Guid OrganizationId { get; init; }
+    public Guid CurrentOrganizationId { get; init; }
     public Guid ProjectId { get; init; }
     public string Title { get; init; } = default!;
     public string Message { get; init; } = default!;
@@ -177,7 +177,7 @@ public sealed class IngestReportEndpoint(
         await publishEndpoint.Publish(new ReportCreatedEvent
         {
             ReportId = report.Id,
-            OrganizationId = currentOrgId,
+            CurrentOrganizationId = currentOrgId,
             ProjectId = projectId,
             Title = report.Title,
             Message = report.Message,

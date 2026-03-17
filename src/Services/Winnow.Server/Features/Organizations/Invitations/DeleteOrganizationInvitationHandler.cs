@@ -1,10 +1,13 @@
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Organizations.Invitations;
 
-public record DeleteOrganizationInvitationCommand(Guid OrganizationId, Guid InvitationId, string CurrentUserId) : IRequest<DeleteOrganizationInvitationResult>;
+[RequirePermission("members:manage")]
+public record DeleteOrganizationInvitationCommand(Guid CurrentOrganizationId, Guid InvitationId, string CurrentUserId) : IRequest<DeleteOrganizationInvitationResult>, IOrgScopedRequest;
 
 public record DeleteOrganizationInvitationResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -13,7 +16,7 @@ public class DeleteOrganizationInvitationHandler(WinnowDbContext db) : IRequestH
     public async Task<DeleteOrganizationInvitationResult> Handle(DeleteOrganizationInvitationCommand request, CancellationToken cancellationToken)
     {
         var isOwner = await db.OrganizationMembers
-            .AnyAsync(om => om.OrganizationId == request.OrganizationId && om.UserId == request.CurrentUserId && (om.Role.Name == "Owner" || om.Role.Name == "Admin"), cancellationToken);
+            .AnyAsync(om => om.OrganizationId == request.CurrentOrganizationId && om.UserId == request.CurrentUserId && (om.Role.Name == "Owner" || om.Role.Name == "Admin"), cancellationToken);
 
         if (!isOwner)
         {
@@ -21,7 +24,7 @@ public class DeleteOrganizationInvitationHandler(WinnowDbContext db) : IRequestH
         }
 
         var invitation = await db.OrganizationInvitations
-            .FirstOrDefaultAsync(oi => oi.Id == request.InvitationId && oi.OrganizationId == request.OrganizationId, cancellationToken);
+            .FirstOrDefaultAsync(oi => oi.Id == request.InvitationId && oi.OrganizationId == request.CurrentOrganizationId, cancellationToken);
 
         if (invitation == null)
         {

@@ -1,4 +1,5 @@
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Winnow.Integrations.Domain;
 using Winnow.Server.Domain.Integrations;
 using Winnow.Server.Features.Shared;
@@ -7,6 +8,7 @@ using Winnow.Server.Infrastructure.Persistence;
 
 namespace Winnow.Server.Features.Projects.Create;
 
+[RequirePermission("projects:manage")]
 public record CreateIntegrationCommand : IRequest<Integration>, IProjectScopedRequest
 {
     public Guid ProjectId { get; set; }

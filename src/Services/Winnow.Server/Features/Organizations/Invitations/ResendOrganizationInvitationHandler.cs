@@ -1,11 +1,14 @@
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Emails;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Organizations.Invitations;
 
-public record ResendOrganizationInvitationCommand(Guid OrganizationId, Guid InvitationId, string CurrentUserId) : IRequest<ResendOrganizationInvitationResult>;
+[RequirePermission("members:manage")]
+public record ResendOrganizationInvitationCommand(Guid CurrentOrganizationId, Guid InvitationId, string CurrentUserId) : IRequest<ResendOrganizationInvitationResult>, IOrgScopedRequest;
 
 public record ResendOrganizationInvitationResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -16,7 +19,7 @@ public class ResendOrganizationInvitationHandler(
     public async Task<ResendOrganizationInvitationResult> Handle(ResendOrganizationInvitationCommand request, CancellationToken cancellationToken)
     {
         var isOwner = await db.OrganizationMembers
-            .AnyAsync(om => om.OrganizationId == request.OrganizationId && om.UserId == request.CurrentUserId && (om.Role.Name == "Owner" || om.Role.Name == "Admin"), cancellationToken);
+            .AnyAsync(om => om.OrganizationId == request.CurrentOrganizationId && om.UserId == request.CurrentUserId && (om.Role.Name == "Owner" || om.Role.Name == "Admin"), cancellationToken);
 
         if (!isOwner)
         {
@@ -24,7 +27,7 @@ public class ResendOrganizationInvitationHandler(
         }
 
         var invitation = await db.OrganizationInvitations
-            .FirstOrDefaultAsync(oi => oi.Id == request.InvitationId && oi.OrganizationId == request.OrganizationId, cancellationToken);
+            .FirstOrDefaultAsync(oi => oi.Id == request.InvitationId && oi.OrganizationId == request.CurrentOrganizationId, cancellationToken);
 
         if (invitation == null)
         {
@@ -32,7 +35,7 @@ public class ResendOrganizationInvitationHandler(
         }
 
         var organizationName = await db.Organizations
-            .Where(o => o.Id == request.OrganizationId)
+            .Where(o => o.Id == request.CurrentOrganizationId)
             .Select(o => o.Name)
             .FirstOrDefaultAsync(cancellationToken) ?? "Organization";
 

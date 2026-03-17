@@ -1,14 +1,17 @@
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Stripe.BillingPortal;
 using Winnow.Server.Domain.Organizations.ValueObjects;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Billing.Create;
 
-public record CreateCustomerPortalSessionCommand(Guid OrganizationId, string? Action) : IRequest<CreateCustomerPortalSessionResult>;
+[RequirePermission("billing:manage")]
+public record CreateCustomerPortalSessionCommand(Guid CurrentOrganizationId, string? Action) : IRequest<CreateCustomerPortalSessionResult>, IOrgScopedRequest;
 
 public record CreateCustomerPortalSessionResult(bool IsSuccess, Uri? PortalUrl, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -20,7 +23,7 @@ public class CreateCustomerPortalSessionHandler(
     public async Task<CreateCustomerPortalSessionResult> Handle(CreateCustomerPortalSessionCommand request, CancellationToken cancellationToken)
     {
         var organization = await db.Organizations
-            .FirstOrDefaultAsync(o => o.Id == request.OrganizationId, cancellationToken);
+            .FirstOrDefaultAsync(o => o.Id == request.CurrentOrganizationId, cancellationToken);
 
         if (organization == null)
         {

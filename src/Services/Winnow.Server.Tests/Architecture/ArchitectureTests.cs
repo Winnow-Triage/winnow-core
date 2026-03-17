@@ -1196,4 +1196,123 @@ public class ArchitectureTests
         Assert.True(result.IsSuccessful,
             $"Domain events must be sealed to prevent polymorphic routing bugs. \nViolations:\n{string.Join("\n", result.FailingTypeNames ?? [])}");
     }
+
+    [Fact]
+    public void EveryEndpoint_ShouldUseMediatR()
+    {
+        // Rule: All endpoints in the Features namespace should use MediatR (IMediator) to handle requests
+        var assembly = typeof(Winnow.Server.Domain.Reports.Report).Assembly;
+
+        var endpointTypes = Types.InAssembly(assembly)
+            .That()
+            .ResideInNamespace(FeaturesNamespace)
+            .And()
+            .HaveNameEndingWith("Endpoint")
+            .And()
+            .AreNotAbstract()
+            .GetTypes();
+
+        var violations = new List<string>();
+
+        foreach (var endpointType in endpointTypes)
+        {
+            // Skip known exceptions
+            var typeName = endpointType.Name;
+            if (typeName.Contains("Health") ||
+                typeName == "StorageEndpoints" ||
+                typeName == "GenerateMockReportsEndpoint" ||
+                typeName == "IngestReportEndpoint" ||
+                typeName == "LogoutEndpoint" ||
+                typeName == "SwitchOrganizationEndpoint" ||
+                typeName == "SimulateTrafficEndpoint")
+            {
+                continue;
+            }
+
+            // Check if any constructor takes IMediator or ISender
+            var constructors = endpointType.GetConstructors();
+            bool usesMediatR = false;
+
+            foreach (var constructor in constructors)
+            {
+                var parameters = constructor.GetParameters();
+                if (parameters.Any(p => p.ParameterType.Name == "IMediator" || p.ParameterType.Name == "ISender"))
+                {
+                    usesMediatR = true;
+                    break;
+                }
+            }
+
+            if (!usesMediatR)
+            {
+                violations.Add($"{endpointType.FullName} does not appear to use MediatR. All endpoints should delegate to a MediatR handler.");
+            }
+        }
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void EveryMediatRRequest_ShouldHaveRequirePermissionAttribute()
+    {
+        // Rule: All MediatR requests (IRequest) should have the [RequirePermission] attribute
+        // to ensure we don't accidentally leave endpoints unprotected
+        var assembly = typeof(Winnow.Server.Domain.Reports.Report).Assembly;
+
+        var requestTypes = Types.InAssembly(assembly)
+            .That()
+            .ImplementInterface(typeof(MediatR.IBaseRequest))
+            .And()
+            .AreNotAbstract()
+            .And()
+            .AreNotInterfaces()
+            .GetTypes();
+
+        var violations = new List<string>();
+
+        foreach (var requestType in requestTypes)
+        {
+            // Skip known exceptions (auth, public endpoints, webhooks)
+            var typeName = requestType.Name;
+            var fullNamespace = requestType.Namespace ?? "";
+
+            if (fullNamespace.Contains(".Auth.") ||
+                fullNamespace.Contains(".Account.") ||
+                fullNamespace.Contains(".Admin.") ||
+                typeName.Contains("Login") ||
+                typeName.Contains("Register") ||
+                typeName.Contains("ForgotPassword") ||
+                typeName.Contains("ResetPassword") ||
+                typeName == "ContactRequest" ||
+                typeName == "SubmitContactFormCommand" ||
+                typeName == "ProcessStripeWebhookCommand" ||
+                typeName == "AcceptInvitationCommand" ||
+                typeName == "GetInvitationDetailsQuery" ||
+                typeName == "ListUserOrganizationsQuery" ||
+                typeName == "UpdateAssetStatusCommand")
+            {
+                continue;
+            }
+
+            // Check for [RequirePermission] attribute
+            var hasAttribute = requestType.GetCustomAttributes(true)
+                .Any(a => a.GetType().Name == "RequirePermissionAttribute");
+
+            if (!hasAttribute)
+            {
+                violations.Add($"{requestType.FullName} is missing [RequirePermission] attribute.");
+            }
+        }
+
+        if (violations.Count > 0)
+        {
+            foreach (var violation in violations)
+            {
+                System.Diagnostics.Debug.WriteLine(violation);
+                Console.WriteLine(violation);
+            }
+        }
+
+        Assert.Empty(violations);
+    }
 }

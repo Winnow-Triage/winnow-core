@@ -7,7 +7,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Organizations.UpdateMember;
 
 [RequirePermission("members:manage")]
-public record UpdateMemberCommand(Guid OrgId, string UserId, Guid RoleId) : IRequest<UpdateMemberResult>, IOrgScopedRequest;
+public record UpdateMemberCommand(Guid CurrentOrganizationId, string UserId, Guid RoleId) : IRequest<UpdateMemberResult>, IOrgScopedRequest;
 
 public record UpdateMemberResponse(string UserId, Guid RoleId);
 
@@ -19,7 +19,7 @@ public class UpdateMemberHandler(WinnowDbContext db) : IRequestHandler<UpdateMem
     {
         var member = await db.OrganizationMembers
             .Include(m => m.Role)
-            .FirstOrDefaultAsync(m => m.OrganizationId == request.OrgId && m.UserId == request.UserId, cancellationToken);
+            .FirstOrDefaultAsync(m => m.OrganizationId == request.CurrentOrganizationId && m.UserId == request.UserId, cancellationToken);
 
         if (member == null)
         {
@@ -31,7 +31,7 @@ public class UpdateMemberHandler(WinnowDbContext db) : IRequestHandler<UpdateMem
         if (member.Role?.Name == "Owner")
         {
             var otherOwners = await db.OrganizationMembers
-                .Where(m => m.OrganizationId == request.OrgId && m.UserId != request.UserId && m.Role.Name == "Owner" && !m.IsLocked)
+                .Where(m => m.OrganizationId == request.CurrentOrganizationId && m.UserId != request.UserId && m.Role.Name == "Owner" && !m.IsLocked)
                 .CountAsync(cancellationToken);
 
             if (otherOwners == 0)
@@ -41,7 +41,7 @@ public class UpdateMemberHandler(WinnowDbContext db) : IRequestHandler<UpdateMem
         }
 
         var newRole = await db.Roles.FirstOrDefaultAsync(r => r.Id == request.RoleId, cancellationToken);
-        if (newRole == null || (newRole.OrganizationId != null && newRole.OrganizationId != request.OrgId))
+        if (newRole == null || (newRole.OrganizationId != null && newRole.OrganizationId != request.CurrentOrganizationId))
         {
             return new UpdateMemberResult(false, null, "Invalid role.", 400);
         }

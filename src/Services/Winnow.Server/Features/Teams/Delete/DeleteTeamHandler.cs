@@ -8,7 +8,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Teams.Delete;
 
 [RequirePermission("teams:write")]
-public record DeleteTeamCommand(Guid OrgId, Guid Id) : IRequest<DeleteTeamResult>, IOrgScopedRequest;
+public record DeleteTeamCommand(Guid CurrentOrganizationId, Guid Id) : IRequest<DeleteTeamResult>, IOrgScopedRequest;
 
 public record DeleteTeamResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -17,7 +17,7 @@ public class DeleteTeamHandler(WinnowDbContext db) : IRequestHandler<DeleteTeamC
     public async Task<DeleteTeamResult> Handle(DeleteTeamCommand request, CancellationToken cancellationToken)
     {
         var team = await db.Teams
-            .FirstOrDefaultAsync(t => t.Id == request.Id && t.OrganizationId == request.OrgId, cancellationToken);
+            .FirstOrDefaultAsync(t => t.Id == request.Id && t.OrganizationId == request.CurrentOrganizationId, cancellationToken);
 
         if (team == null)
         {

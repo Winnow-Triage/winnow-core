@@ -186,7 +186,10 @@ public class WinnowTestApp : WebApplicationFactory<Program>, IAsyncLifetime
                 "reports:read", "reports:write", "reports:delete",
                 "clusters:read", "clusters:write", "clusters:delete",
                 "teams:manage", "billing:manage", "settings:manage",
-                "apikeys:manage", "integrations:manage", "auditlogs:read"
+                "apikeys:manage", "integrations:read", "integrations:manage", "auditlogs:read",
+                "projects:read", "projects:manage",
+                "organizations:read", "organizations:manage",
+                "members:read", "members:manage"
             };
 
             foreach (var name in permissions)
@@ -212,8 +215,16 @@ public class WinnowTestApp : WebApplicationFactory<Program>, IAsyncLifetime
         var memberRole = await db.Roles.FirstAsync(r => r.Name == "Member" && r.OrganizationId == null);
 
         var allPerms = await db.Permissions.ToListAsync();
-        var adminPermNames = new[] { "reports:read", "reports:write", "clusters:read", "clusters:write", "teams:manage", "settings:manage", "integrations:manage", "auditlogs:read" };
-        var memberPermNames = new[] { "clusters:read", "reports:read" };
+        var adminPermNames = new[]
+        {
+            "reports:read", "reports:write", "clusters:read", "clusters:write",
+            "teams:manage", "settings:manage", "integrations:read", "integrations:manage", "auditlogs:read",
+            "projects:read", "projects:manage", "organizations:read", "organizations:manage", "members:read", "members:manage"
+        };
+        var memberPermNames = new[]
+        {
+            "clusters:read", "reports:read", "projects:read", "organizations:read", "members:read", "integrations:read"
+        };
 
         foreach (var p in allPerms)
         {

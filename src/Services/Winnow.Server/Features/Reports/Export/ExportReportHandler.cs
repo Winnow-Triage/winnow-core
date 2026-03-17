@@ -10,7 +10,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Reports.Export;
 
 [RequirePermission("reports:write")]
-public record ExportReportCommand(Guid OrgId, Guid ReportId, Guid ProjectId, string UserId, Guid ConfigId) : IRequest<ExportReportResult>, IOrgScopedRequest;
+public record ExportReportCommand(Guid CurrentOrganizationId, Guid ReportId, Guid ProjectId, string UserId, Guid ConfigId) : IRequest<ExportReportResult>, IOrgScopedRequest;
 
 public record ExportReportResult(bool IsSuccess, ExportReportResponse? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 

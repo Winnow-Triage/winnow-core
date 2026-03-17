@@ -11,7 +11,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Reports.List;
 
 [RequirePermission("reports:read")]
-public record GetReviewQueueQuery(Guid OrgId, Guid ProjectId) : IRequest<List<ReviewItemDto>>, IOrgScopedRequest;
+public record GetReviewQueueQuery(Guid CurrentOrganizationId, Guid ProjectId) : IRequest<List<ReviewItemDto>>, IOrgScopedRequest;
 
 public class GetReviewQueueHandler(WinnowDbContext db) : IRequestHandler<GetReviewQueueQuery, List<ReviewItemDto>>
 {

@@ -32,7 +32,7 @@ public sealed class CloseClusterEndpoint(IMediator mediator) : ProjectScopedEndp
 
     public override async Task HandleAsync(CloseClusterRequest req, CancellationToken ct)
     {
-        var command = new CloseClusterCommand(req.Id, req.CurrentProjectId);
+        var command = new CloseClusterCommand(req.CurrentOrganizationId, req.Id, req.CurrentProjectId);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

@@ -83,7 +83,7 @@ public sealed class SimulateTrafficEndpoint(
                 Message = report.Message,
                 StackTrace = report.StackTrace,
                 CreatedAt = report.CreatedAt,
-                OrganizationId = orgId
+                CurrentOrganizationId = orgId
             });
         }
 

@@ -1,9 +1,12 @@
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Integrations.Delete;
 
-public record DeleteIntegrationConfigCommand(Guid Id) : IRequest<DeleteIntegrationConfigResult>;
+[RequirePermission("projects:manage")]
+public record DeleteIntegrationConfigCommand(Guid Id, Guid CurrentOrganizationId) : IRequest<DeleteIntegrationConfigResult>, IOrgScopedRequest;
 
 public record DeleteIntegrationConfigResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 

@@ -1,11 +1,14 @@
 using MediatR;
 using Winnow.Server.Services.Storage;
+using Winnow.Server.Infrastructure.Security.Authorization;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Storage.Get;
 
-public record GetUploadUrlQuery : IRequest<GetUploadUrlResult>
+[RequirePermission("reports:write")]
+public class GetUploadUrlQuery : IRequest<GetUploadUrlResult>, IOrgScopedRequest
 {
-    public Guid OrganizationId { get; init; }
+    public Guid CurrentOrganizationId { get; set; }
     public Guid ProjectId { get; init; }
     public string FileName { get; init; } = default!;
     public string ContentType { get; init; } = "application/octet-stream";
@@ -22,7 +25,7 @@ public class GetUploadUrlHandler(IStorageService storage) : IRequestHandler<GetU
     public async Task<GetUploadUrlResult> Handle(GetUploadUrlQuery request, CancellationToken cancellationToken)
     {
         var result = await storage.GenerateUploadUrlAsync(
-            request.OrganizationId, request.ProjectId, request.FileName, request.ContentType, cancellationToken);
+            request.CurrentOrganizationId, request.ProjectId, request.FileName, request.ContentType, cancellationToken);
 
         return new GetUploadUrlResult
         {

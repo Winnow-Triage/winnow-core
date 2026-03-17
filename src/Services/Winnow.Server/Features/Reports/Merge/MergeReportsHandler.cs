@@ -11,7 +11,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Reports.Merge;
 
 [RequirePermission("reports:write")]
-public record MergeReportsCommand(Guid OrgId, Guid TargetId, Guid ProjectId, List<Guid> SourceIds) : IRequest<MergeReportsResult>, IOrgScopedRequest;
+public record MergeReportsCommand(Guid CurrentOrganizationId, Guid TargetId, Guid ProjectId, List<Guid> SourceIds) : IRequest<MergeReportsResult>, IOrgScopedRequest;
 
 public record MergeReportsResult(bool IsSuccess, string? Message = null, string? ErrorMessage = null, int? StatusCode = null);
 

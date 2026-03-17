@@ -8,7 +8,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Clusters.Merge;
 
 [RequirePermission("clusters:write")]
-public record DismissClusterMergeSuggestionCommand(Guid OrgId, Guid Id, Guid ProjectId) : IRequest<DismissClusterMergeSuggestionResult>, IOrgScopedRequest;
+public record DismissClusterMergeSuggestionCommand(Guid CurrentOrganizationId, Guid Id, Guid ProjectId) : IRequest<DismissClusterMergeSuggestionResult>, IOrgScopedRequest;
 
 public record DismissClusterMergeSuggestionResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -29,7 +29,7 @@ public class DismissClusterMergeSuggestionHandler(WinnowDbContext db, INegativeM
             return new DismissClusterMergeSuggestionResult(false, "No pending merge suggestion for this cluster.", 400);
         }
 
-        negativeMatchCache.MarkAsMismatch(request.OrgId.ToString(), cluster.Id, cluster.SuggestedMergeClusterId.Value);
+        negativeMatchCache.MarkAsMismatch(request.CurrentOrganizationId.ToString(), cluster.Id, cluster.SuggestedMergeClusterId.Value);
 
         cluster.ClearMergeSuggestion();
 

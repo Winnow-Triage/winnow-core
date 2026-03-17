@@ -8,7 +8,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Teams.List;
 
 [RequirePermission("teams:read")]
-public record ListTeamsQuery(Guid OrgId) : IRequest<ListTeamsResult>, IOrgScopedRequest;
+public record ListTeamsQuery(Guid CurrentOrganizationId) : IRequest<ListTeamsResult>, IOrgScopedRequest;
 
 public record ListTeamsResult(bool IsSuccess, List<TeamResponse>? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -19,7 +19,7 @@ public class ListTeamsHandler(WinnowDbContext db) : IRequestHandler<ListTeamsQue
         var teams = await db.Teams
             .AsNoTracking()
             .AsSplitQuery()
-            .Where(t => t.OrganizationId == request.OrgId)
+            .Where(t => t.OrganizationId == request.CurrentOrganizationId)
             .OrderBy(t => t.Name)
             .Select(t => new TeamResponse
             {

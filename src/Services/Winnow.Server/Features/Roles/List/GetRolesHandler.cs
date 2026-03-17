@@ -7,7 +7,8 @@ using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Roles.List;
 
-public record GetRolesQuery(Guid OrgId) : IRequest<GetRolesResult>, IOrgScopedRequest;
+[RequirePermission("roles:manage")]
+public record GetRolesQuery(Guid CurrentOrganizationId) : IRequest<GetRolesResult>, IOrgScopedRequest;
 
 public record RoleDto(Guid Id, string Name, bool IsSystemRole, List<PermissionDto> Permissions);
 
@@ -23,7 +24,7 @@ public class GetRolesHandler(WinnowDbContext db) : IRequestHandler<GetRolesQuery
         var roles = await db.Roles
             .Include(r => r.Permissions)
                 .ThenInclude(rp => rp.Permission)
-            .Where(r => r.OrganizationId == null || r.OrganizationId == request.OrgId)
+            .Where(r => r.OrganizationId == null || r.OrganizationId == request.CurrentOrganizationId)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 

@@ -36,4 +36,4 @@ public class PaginatedSearchList<T>
 }
 
 [RequirePermission("reports:read")]
-public record SearchReportsQuery(Guid OrgId, Guid ProjectId, string SearchTerm, int PageNumber = 1, int PageSize = 20) : IRequest<PaginatedSearchList<ReportSearchDto>>, IOrgScopedRequest;
+public record SearchReportsQuery(Guid CurrentOrganizationId, Guid ProjectId, string SearchTerm, int PageNumber = 1, int PageSize = 20) : IRequest<PaginatedSearchList<ReportSearchDto>>, IOrgScopedRequest;

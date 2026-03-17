@@ -1,4 +1,5 @@
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
@@ -6,6 +7,7 @@ using Winnow.Server.Infrastructure.Security;
 
 namespace Winnow.Server.Features.Projects.RotateApiKey;
 
+[RequirePermission("projects:manage")]
 public record RotateApiKeyCommand : IRequest<RotateApiKeyResponse>, IOrganizationScopedRequest
 {
     public Guid ProjectId { get; set; }

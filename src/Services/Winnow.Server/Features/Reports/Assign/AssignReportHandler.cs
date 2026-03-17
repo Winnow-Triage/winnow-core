@@ -8,7 +8,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Reports.Assign;
 
 [RequirePermission("reports:write")]
-public record AssignReportCommand(Guid OrgId, Guid Id, Guid ProjectId, string? AssignedTo) : IRequest<AssignReportResult>, IOrgScopedRequest;
+public record AssignReportCommand(Guid CurrentOrganizationId, Guid Id, Guid ProjectId, string? AssignedTo) : IRequest<AssignReportResult>, IOrgScopedRequest;
 
 public record AssignReportResult(bool IsSuccess, string? Message = null, string? ErrorMessage = null, int? StatusCode = null);
 

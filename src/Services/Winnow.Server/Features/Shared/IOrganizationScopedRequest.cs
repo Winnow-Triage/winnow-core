@@ -1,8 +1,8 @@
 namespace Winnow.Server.Features.Shared;
 
-public interface IOrganizationScopedRequest
+public interface IOrganizationScopedRequest : IOrgScopedRequest
 {
-    Guid CurrentOrganizationId { get; set; }
+    new Guid CurrentOrganizationId { get; set; }
     string CurrentUserId { get; set; }
     HashSet<string> CurrentUserRoles { get; set; }
 }

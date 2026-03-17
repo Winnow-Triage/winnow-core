@@ -8,7 +8,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Clusters.Get;
 
 [RequirePermission("clusters:read")]
-public record GetClusterQuery(Guid OrgId, Guid Id, Guid ProjectId) : IRequest<GetClusterResult>, IOrgScopedRequest;
+public record GetClusterQuery(Guid CurrentOrganizationId, Guid Id, Guid ProjectId) : IRequest<GetClusterResult>, IOrgScopedRequest;
 
 public record GetClusterResult(bool IsSuccess, GetClusterResponse? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 

@@ -1,6 +1,3 @@
-using Winnow.Server.Features.Dashboard.Dtos;
-using Winnow.Server.Features.Auth.Auth;
-using Winnow.Server.Features.Auth.Login;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Identity;
@@ -9,8 +6,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Winnow.Server.Domain.Common;
 using Winnow.Server.Domain.Organizations;
 using Winnow.Server.Domain.Projects;
+using Winnow.Server.Domain.Security;
 using Winnow.Server.Features.Auth;
+using Winnow.Server.Features.Auth.Auth;
+using Winnow.Server.Features.Auth.Login;
 using Winnow.Server.Features.Dashboard;
+using Winnow.Server.Features.Dashboard.Dtos;
 using Winnow.Server.Infrastructure.Identity;
 using Winnow.Server.Infrastructure.Persistence;
 using Xunit;
@@ -18,18 +19,13 @@ using Xunit;
 namespace Winnow.Server.Tests.Integration;
 
 [Collection("PostgresCollection")]
-public class TenantAuthTests : IAsyncLifetime
+public class TenantAuthTests(PostgresFixture fixture) : IAsyncLifetime
 {
-    private readonly WinnowTestApp _app;
+    private readonly WinnowTestApp _app = new(fixture);
     private HttpClient _client = default!;
     private const string TestEmail = "auth-test@example.com";
     private const string TestPassword = "Password123!";
     private const string TestTenantId = "test-tenant";
-
-    public TenantAuthTests(PostgresFixture fixture)
-    {
-        _app = new WinnowTestApp(fixture);
-    }
 
     public async Task InitializeAsync()
     {
@@ -81,8 +77,17 @@ public class TenantAuthTests : IAsyncLifetime
             var adminRole = await db.Roles.FirstOrDefaultAsync(r => r.Name == "Admin" && r.OrganizationId == null);
             if (adminRole == null)
             {
-                adminRole = new Winnow.Server.Domain.Security.Role("Admin");
+                adminRole = new Role("Admin");
+                var reportsReadPermission = new Permission("reports:read");
+                var adminPermissions = new List<RolePermission>
+                {
+                    new(adminRole.Id, reportsReadPermission.Id),
+                };
+
                 db.Roles.Add(adminRole);
+                db.Permissions.Add(reportsReadPermission);
+                db.RolePermissions.AddRange(adminPermissions);
+
                 await db.SaveChangesAsync();
             }
 
@@ -124,7 +129,7 @@ public class TenantAuthTests : IAsyncLifetime
 
         var cookie = response.Headers.GetValues("Set-Cookie").FirstOrDefault(c => c.StartsWith("winnow_auth="));
         Assert.NotNull(cookie);
-        var token = cookie.Split(';')[0].Substring("winnow_auth=".Length);
+        var token = cookie.Split(';')[0]["winnow_auth=".Length..];
         Assert.NotEmpty(token);
 
         // Decode token to verify tenant_id claim
@@ -146,7 +151,7 @@ public class TenantAuthTests : IAsyncLifetime
         var authResult = await loginResponse.Content.ReadFromJsonAsync<AuthResult>();
 
         var cookie = loginResponse.Headers.GetValues("Set-Cookie").First(c => c.StartsWith("winnow_auth="));
-        var token = cookie.Split(';')[0].Substring("winnow_auth=".Length);
+        var token = cookie.Split(';')[0]["winnow_auth=".Length..];
 
         var projectId = authResult!.DefaultProjectId;
 

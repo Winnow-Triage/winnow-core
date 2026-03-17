@@ -6,7 +6,8 @@ using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Roles.GetPermissions;
 
-public record GetPermissionsQuery(Guid OrgId) : IRequest<GetPermissionsResult>, IOrgScopedRequest;
+[RequirePermission("roles:manage")]
+public record GetPermissionsQuery(Guid CurrentOrganizationId) : IRequest<GetPermissionsResult>, IOrgScopedRequest;
 
 public record PermissionDto(Guid Id, string Name, string? Description);
 

@@ -1,11 +1,14 @@
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Organizations.List;
 
-public record ListOrganizationMembersQuery(Guid OrganizationId) : IRequest<ListOrganizationMembersResult>;
+[RequirePermission("members:read")]
+public record ListOrganizationMembersQuery(Guid CurrentOrganizationId) : IRequest<ListOrganizationMembersResult>, IOrgScopedRequest;
 
 public record ListOrganizationMembersResult(bool IsSuccess, List<OrganizationDirectoryMemberDto>? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -14,7 +17,7 @@ public class ListOrganizationMembersHandler(WinnowDbContext db) : IRequestHandle
     public async Task<ListOrganizationMembersResult> Handle(ListOrganizationMembersQuery request, CancellationToken cancellationToken)
     {
         var members = await db.OrganizationMembers
-            .Where(om => om.OrganizationId == request.OrganizationId)
+            .Where(om => om.OrganizationId == request.CurrentOrganizationId)
             .Join(db.Users, om => om.UserId, u => u.Id, (om, u) => new OrganizationDirectoryMemberDto
             {
                 Id = Guid.Parse(om.UserId),
@@ -29,7 +32,7 @@ public class ListOrganizationMembersHandler(WinnowDbContext db) : IRequestHandle
             .ToListAsync(cancellationToken);
 
         var invitations = await db.OrganizationInvitations
-            .Where(oi => oi.OrganizationId == request.OrganizationId)
+            .Where(oi => oi.OrganizationId == request.CurrentOrganizationId)
             .Select(oi => new OrganizationDirectoryMemberDto
             {
                 Id = oi.Id,

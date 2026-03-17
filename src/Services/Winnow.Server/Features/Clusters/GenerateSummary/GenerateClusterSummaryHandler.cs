@@ -6,7 +6,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Clusters.GenerateSummary;
 
 [RequirePermission("clusters:write")]
-public record GenerateClusterSummaryCommand(Guid OrgId, Guid Id, Guid ProjectId) : IRequest<GenerateClusterSummaryResult>, IOrgScopedRequest;
+public record GenerateClusterSummaryCommand(Guid CurrentOrganizationId, Guid Id, Guid ProjectId) : IRequest<GenerateClusterSummaryResult>, IOrgScopedRequest;
 
 public record GenerateClusterSummaryResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 

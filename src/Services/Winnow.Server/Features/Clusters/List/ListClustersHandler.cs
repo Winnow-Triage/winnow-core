@@ -8,7 +8,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Clusters.List;
 
 [RequirePermission("clusters:read")]
-public record ListClustersQuery(Guid OrgId, Guid ProjectId, string Sort) : IRequest<ListClustersResult>, IOrgScopedRequest;
+public record ListClustersQuery(Guid CurrentOrganizationId, Guid ProjectId, string Sort) : IRequest<ListClustersResult>, IOrgScopedRequest;
 
 public record ListClustersResult(bool IsSuccess, List<ClusterDto>? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 

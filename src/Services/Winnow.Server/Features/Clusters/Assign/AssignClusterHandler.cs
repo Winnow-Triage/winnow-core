@@ -8,7 +8,7 @@ using Winnow.Server.Features.Shared;
 namespace Winnow.Server.Features.Clusters.Assign;
 
 [RequirePermission("clusters:write")]
-public record AssignClusterCommand(Guid OrgId, Guid Id, Guid ProjectId, string? AssignedTo) : IRequest<AssignClusterResult>, IOrgScopedRequest;
+public record AssignClusterCommand(Guid CurrentOrganizationId, Guid Id, Guid ProjectId, string? AssignedTo) : IRequest<AssignClusterResult>, IOrgScopedRequest;
 
 public record AssignClusterResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 

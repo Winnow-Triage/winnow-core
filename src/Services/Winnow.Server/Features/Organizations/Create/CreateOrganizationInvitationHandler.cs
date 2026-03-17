@@ -1,12 +1,15 @@
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Emails;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Organizations.Create;
 
-public record CreateOrganizationInvitationCommand(string UserId, Guid OrgId, string Email, Guid RoleId, List<Guid> TeamIds, List<Guid> ProjectIds) : IRequest<CreateOrganizationInvitationResult>;
+[RequirePermission("members:manage")]
+public record CreateOrganizationInvitationCommand(string UserId, Guid CurrentOrganizationId, string Email, Guid RoleId, List<Guid> TeamIds, List<Guid> ProjectIds) : IRequest<CreateOrganizationInvitationResult>, IOrgScopedRequest;
 
 public record CreateOrganizationInvitationResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -17,21 +20,21 @@ public class CreateOrganizationInvitationHandler(
     public async Task<CreateOrganizationInvitationResult> Handle(CreateOrganizationInvitationCommand request, CancellationToken cancellationToken)
     {
         var isOwner = await db.OrganizationMembers
-            .AnyAsync(om => om.OrganizationId == request.OrgId && om.UserId == request.UserId && (om.Role.Name == "Owner" || om.Role.Name == "Admin"), cancellationToken);
+            .AnyAsync(om => om.OrganizationId == request.CurrentOrganizationId && om.UserId == request.UserId && (om.Role.Name == "Owner" || om.Role.Name == "Admin"), cancellationToken);
 
         if (!isOwner)
         {
             return new CreateOrganizationInvitationResult(false, "Forbidden", 403);
         }
 
-        var org = await db.Organizations.FindAsync([request.OrgId], cancellationToken);
+        var org = await db.Organizations.FindAsync([request.CurrentOrganizationId], cancellationToken);
         if (org == null)
         {
             return new CreateOrganizationInvitationResult(false, "Organization not found", 404);
         }
 
         var isValidRole = await db.Roles
-            .AnyAsync(r => r.Id == request.RoleId && (r.OrganizationId == request.OrgId || r.OrganizationId == null), cancellationToken);
+            .AnyAsync(r => r.Id == request.RoleId && (r.OrganizationId == request.CurrentOrganizationId || r.OrganizationId == null), cancellationToken);
 
         if (!isValidRole)
         {
@@ -40,7 +43,7 @@ public class CreateOrganizationInvitationHandler(
 
         var token = Guid.NewGuid().ToString("N");
         var invitation = new Winnow.Server.Domain.Organizations.OrganizationInvitation(
-            request.OrgId,
+            request.CurrentOrganizationId,
             new Winnow.Server.Domain.Common.Email(request.Email),
             request.RoleId,
             token,

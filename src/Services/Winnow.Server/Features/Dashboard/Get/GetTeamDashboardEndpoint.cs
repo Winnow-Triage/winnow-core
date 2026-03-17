@@ -49,7 +49,7 @@ public sealed class GetTeamDashboardEndpoint(IMediator mediator) : Endpoint<GetT
             return;
         }
 
-        var query = new GetTeamDashboardQuery(organizationId, req.TeamId, userGuid);
+        var query = new GetTeamDashboardQuery(organizationId, req.TeamId, userId);
         var result = await mediator.Send(query, ct);
 
         if (!result.IsSuccess)

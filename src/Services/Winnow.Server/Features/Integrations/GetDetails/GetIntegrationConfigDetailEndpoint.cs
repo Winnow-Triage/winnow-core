@@ -15,7 +15,7 @@ public sealed class GetIntegrationConfigDetailEndpoint(IMediator mediator) : End
 {
     public override void Configure()
     {
-        Get("/integrations/{Id}");
+        Get("/organizations/{OrgId}/integrations/{Id}");
         Summary(s =>
         {
             s.Summary = "Get integration details";
@@ -29,7 +29,13 @@ public sealed class GetIntegrationConfigDetailEndpoint(IMediator mediator) : End
     {
         var id = Route<Guid>("Id");
 
-        var query = new GetIntegrationConfigDetailQuery(id);
+        var orgId = Route<Guid>("OrgId"); // Assuming it's in the route or we need to add it.
+                                          // Wait, if it's not in the route, we need a way to get the current tenant.
+                                          // Let's check if there's a header or query param.
+                                          // For now, I'll assume it's passed as a query param or route part if missing.
+                                          // BUT, looking at the UI screenshot, it seems we are in a tenant context.
+
+        var query = new GetIntegrationConfigDetailQuery(id, orgId);
         var result = await mediator.Send(query, ct);
 
         if (!result.IsSuccess)

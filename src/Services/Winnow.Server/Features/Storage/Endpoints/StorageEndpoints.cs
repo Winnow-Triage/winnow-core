@@ -65,7 +65,7 @@ public sealed class GetUploadUrlEndpoint(IMediator mediator) : Endpoint<GetUploa
 
         var result = await mediator.Send(new GetUploadUrlQuery
         {
-            OrganizationId = orgId.Value,
+            CurrentOrganizationId = orgId.Value,
             ProjectId = projectId.Value,
             FileName = req.FileName,
             ContentType = req.ContentType

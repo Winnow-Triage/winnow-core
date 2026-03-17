@@ -126,7 +126,7 @@ public sealed class GenerateMockReportsEndpoint(
                     Message = report.Message,
                     CreatedAt = report.CreatedAt,
                     ProjectId = req.CurrentProjectId,
-                    OrganizationId = Guid.TryParse(tenantId, out var orgId) ? orgId : throw new Exception("Invalid Tenant ID format")
+                    CurrentOrganizationId = Guid.TryParse(tenantId, out var orgId) ? orgId : throw new Exception("Invalid Tenant ID format")
                 }, ct);
             }
 

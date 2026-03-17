@@ -1,11 +1,13 @@
 using Winnow.Server.Features.Projects.Dtos;
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Winnow.Server.Features.Shared;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Infrastructure.Security;
 
 namespace Winnow.Server.Features.Projects.Create;
 
+[RequirePermission("projects:manage")]
 public record CreateProjectCommand : IRequest<ProjectDto>, IOrganizationScopedRequest
 {
     public string Name { get; set; } = default!;

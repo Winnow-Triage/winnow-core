@@ -1,11 +1,14 @@
 using Winnow.Server.Features.Organizations.Get;
 using MediatR;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Organizations.Update;
 
-public record UpdateOrganizationCommand(Guid OrganizationId, string Name) : IRequest<UpdateOrganizationResult>;
+[RequirePermission("settings:manage")]
+public record UpdateOrganizationCommand(Guid CurrentOrganizationId, string Name) : IRequest<UpdateOrganizationResult>, IOrgScopedRequest;
 
 public record UpdateOrganizationResult(bool IsSuccess, CurrentOrganizationResponse? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -14,7 +17,7 @@ public class UpdateOrganizationHandler(WinnowDbContext db) : IRequestHandler<Upd
     public async Task<UpdateOrganizationResult> Handle(UpdateOrganizationCommand request, CancellationToken cancellationToken)
     {
         var organization = await db.Organizations
-            .FirstOrDefaultAsync(o => o.Id == request.OrganizationId, cancellationToken);
+            .FirstOrDefaultAsync(o => o.Id == request.CurrentOrganizationId, cancellationToken);
 
         if (organization == null)
         {
