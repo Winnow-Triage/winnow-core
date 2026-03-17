@@ -141,7 +141,7 @@ public class GetOrganizationDetailsHandler(
             {
                 Id = m.Id,
                 UserId = m.UserId,
-                Role = m.Role,
+                Role = m.Role.Name,
                 JoinedAt = m.JoinedAt,
                 UserEmail = u.Email,
                 UserFullName = u.FullName

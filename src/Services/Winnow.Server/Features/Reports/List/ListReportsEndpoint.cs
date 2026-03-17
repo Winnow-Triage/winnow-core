@@ -53,7 +53,7 @@ public sealed class ListReportsEndpoint(IMediator mediator) : ProjectScopedEndpo
     {
         string sort = HttpContext.Request.Query["sort"].ToString();
 
-        var query = new ListReportsQuery(req.CurrentProjectId, sort);
+        var query = new ListReportsQuery(req.CurrentOrganizationId, req.CurrentProjectId, sort);
         var reports = await mediator.Send(query, ct);
 
         await Send.OkAsync(reports, ct);

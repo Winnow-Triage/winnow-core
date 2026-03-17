@@ -4,13 +4,9 @@ using MediatR;
 
 namespace Winnow.Server.Features.Clusters.Export;
 
-public class ExportClusterRequest
+public class ExportClusterRequest : Winnow.Server.Features.Shared.ProjectScopedRequest
 {
     public Guid ClusterId { get; set; }
-
-    [FromHeader("X-Project-ID")]
-    public Guid ProjectId { get; set; }
-
     public Guid ConfigId { get; set; }
 }
 
@@ -20,7 +16,7 @@ public class ExportClusterResponse
 }
 
 public sealed class ExportClusterEndpoint(IMediator mediator)
-    : Endpoint<ExportClusterRequest, ExportClusterResponse>
+    : Winnow.Server.Features.Shared.ProjectScopedEndpoint<ExportClusterRequest, ExportClusterResponse>
 {
     public override void Configure()
     {
@@ -35,14 +31,7 @@ public sealed class ExportClusterEndpoint(IMediator mediator)
 
     public override async Task HandleAsync(ExportClusterRequest req, CancellationToken ct)
     {
-        // 1. Validate ProjectId was actually provided
-        if (req.ProjectId == Guid.Empty)
-        {
-            ThrowError("Valid Project ID is required in X-Project-ID header", 400);
-            return;
-        }
-
-        var command = new ExportClusterCommand(req.ClusterId, req.ProjectId, req.ConfigId);
+        var command = new ExportClusterCommand(req.CurrentOrganizationId, req.ClusterId, req.CurrentProjectId, req.ConfigId);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

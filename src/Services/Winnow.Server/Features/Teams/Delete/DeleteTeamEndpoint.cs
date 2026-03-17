@@ -24,7 +24,7 @@ public sealed class DeleteTeamEndpoint(IMediator mediator) : OrganizationScopedE
 
     public override async Task HandleAsync(DeleteTeamRequest req, CancellationToken ct)
     {
-        var command = new DeleteTeamCommand(req.Id, req.CurrentOrganizationId);
+        var command = new DeleteTeamCommand(req.CurrentOrganizationId, req.Id);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

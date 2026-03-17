@@ -11,6 +11,7 @@ public class UserMeResponse
     public string FullName { get; set; } = string.Empty;
     public bool IsEmailVerified { get; set; }
     public List<string> Roles { get; set; } = [];
+    public List<string> Permissions { get; set; } = [];
     public Guid? ActiveOrganizationId { get; set; }
     public Guid? DefaultProjectId { get; set; }
 }
@@ -56,6 +57,7 @@ public sealed class GetMeEndpoint(IMediator mediator) : EndpointWithoutRequest<U
             FullName = result.FullName,
             IsEmailVerified = result.IsEmailVerified,
             Roles = result.Roles,
+            Permissions = result.Permissions,
             ActiveOrganizationId = result.ActiveOrganizationId,
             DefaultProjectId = result.DefaultProjectId
         }, ct);

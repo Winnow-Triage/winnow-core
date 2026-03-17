@@ -26,7 +26,7 @@ public sealed class AddTeamMemberEndpoint(IMediator mediator)
 
     public override async Task HandleAsync(AddTeamMemberRequest req, CancellationToken ct)
     {
-        var command = new AddTeamMemberCommand(req.TeamId, req.UserId);
+        var command = new AddTeamMemberCommand(req.CurrentOrganizationId, req.TeamId, req.UserId);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

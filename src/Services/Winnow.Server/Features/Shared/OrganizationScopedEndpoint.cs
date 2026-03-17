@@ -27,7 +27,7 @@ public abstract class OrganizationScopedEndpoint<TRequest, TResponse> : Endpoint
         // Fetch membership and roles
         var membership = await db.OrganizationMembers
             .AsNoTracking()
-            .Select(om => new { om.OrganizationId, om.UserId, om.Role })
+            .Select(om => new { om.OrganizationId, om.UserId, Role = om.Role.Name })
             .FirstOrDefaultAsync(om => om.OrganizationId == req.CurrentOrganizationId && om.UserId == req.CurrentUserId, ct);
 
         if (membership == null)
@@ -71,7 +71,7 @@ public abstract class OrganizationScopedEndpoint<TRequest> : Endpoint<TRequest>
         // Fetch membership and roles
         var membership = await db.OrganizationMembers
             .AsNoTracking()
-            .Select(om => new { om.OrganizationId, om.UserId, om.Role })
+            .Select(om => new { om.OrganizationId, om.UserId, Role = om.Role.Name })
             .FirstOrDefaultAsync(om => om.OrganizationId == req.CurrentOrganizationId && om.UserId == req.CurrentUserId, ct);
 
         if (membership == null)

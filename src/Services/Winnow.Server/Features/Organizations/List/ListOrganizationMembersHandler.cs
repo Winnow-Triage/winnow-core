@@ -20,7 +20,8 @@ public class ListOrganizationMembersHandler(WinnowDbContext db) : IRequestHandle
                 Id = Guid.Parse(om.UserId),
                 FullName = u.FullName,
                 Email = u.Email!,
-                GlobalRole = om.Role,
+                GlobalRole = om.Role.Name,
+                RoleId = om.RoleId,
                 Status = "Active",
                 JoinedAt = om.JoinedAt,
                 IsLocked = om.IsLocked
@@ -34,7 +35,8 @@ public class ListOrganizationMembersHandler(WinnowDbContext db) : IRequestHandle
                 Id = oi.Id,
                 FullName = null,
                 Email = oi.Email.Value,
-                GlobalRole = oi.Role,
+                GlobalRole = oi.Role.Name,
+                RoleId = oi.RoleId,
                 Status = "Pending",
                 JoinedAt = oi.CreatedAt
             })

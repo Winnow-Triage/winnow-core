@@ -45,6 +45,7 @@ import VerificationBanner from "./components/VerificationBanner";
 import { AuthProvider } from "./context/AuthContext";
 
 import { WinnowLogo } from "./components/WinnowLogo";
+import PermissionProtectedRoute from "./components/PermissionProtectedRoute";
 
 export default function App() {
   return (
@@ -142,7 +143,11 @@ export default function App() {
                           />
                           <Route
                             path="project-settings"
-                            element={<ProjectSettings />}
+                            element={
+                              <PermissionProtectedRoute permission="projects:manage">
+                                <ProjectSettings />
+                              </PermissionProtectedRoute>
+                            }
                           />
                           <Route path="setup" element={<ProjectSetup />} />
                         </Route>

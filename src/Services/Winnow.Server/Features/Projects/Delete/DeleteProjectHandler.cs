@@ -36,7 +36,7 @@ public class DeleteProjectHandler(
         var membership = await dbContext.OrganizationMembers
             .FirstOrDefaultAsync(om => om.OrganizationId == request.CurrentOrganizationId && om.UserId == request.CurrentUserId, ct);
 
-        var isAdmin = membership?.Role == "Admin" || request.HasAnyRole("Admin", "SuperAdmin");
+        var isAdmin = membership?.Role.Name == "Admin" || request.HasAnyRole("Admin", "SuperAdmin");
         var isOwner = project.OwnerId == request.CurrentUserId;
 
         if (!isAdmin && !isOwner)

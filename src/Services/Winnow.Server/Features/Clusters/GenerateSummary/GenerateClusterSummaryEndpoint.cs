@@ -28,7 +28,7 @@ public sealed class GenerateClusterSummaryEndpoint(IMediator mediator) : Project
 
     public override async Task HandleAsync(GenerateClusterSummaryRequest req, CancellationToken ct)
     {
-        var command = new GenerateClusterSummaryCommand(req.Id, req.CurrentProjectId);
+        var command = new GenerateClusterSummaryCommand(req.CurrentOrganizationId, req.Id, req.CurrentProjectId);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

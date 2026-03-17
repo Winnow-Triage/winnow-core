@@ -3,10 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Domain.Reports.ValueObjects;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
+using Winnow.Server.Infrastructure.Security.Authorization;
 
 namespace Winnow.Server.Features.Clusters.Merge;
 
-public record MergeClusterCommand(Guid Id, Guid ProjectId, List<Guid> SourceIds) : IRequest<MergeClusterResult>;
+[RequirePermission("clusters:write")]
+public record MergeClusterCommand(Guid OrgId, Guid Id, Guid ProjectId, List<Guid> SourceIds) : IRequest<MergeClusterResult>, IOrgScopedRequest;
 
 public record MergeClusterResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 

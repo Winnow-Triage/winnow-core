@@ -61,10 +61,20 @@ public class AddOrganizationMemberHandler(
         }
 
         // 4. Create Membership
+        var roleId = await dbContext.Roles
+            .Where(r => r.Name == request.Role && (r.OrganizationId == request.OrganizationId || r.OrganizationId == null))
+            .Select(r => r.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (roleId == Guid.Empty)
+        {
+            throw new ArgumentException("Invalid role specified.");
+        }
+
         var membership = new OrganizationMember(
             request.OrganizationId,
             request.TargetUserId,
-            request.Role);
+            roleId);
 
         dbContext.OrganizationMembers.Add(membership);
         await dbContext.SaveChangesAsync(cancellationToken);

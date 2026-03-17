@@ -1,6 +1,7 @@
 using MediatR;
 using System;
 using System.Collections.Generic;
+using Winnow.Server.Infrastructure.Security.Authorization;
 
 namespace Winnow.Server.Features.Reports.Search;
 
@@ -33,4 +34,5 @@ public class PaginatedSearchList<T>
     }
 }
 
-public record SearchReportsQuery(Guid ProjectId, string SearchTerm, int PageNumber = 1, int PageSize = 20) : IRequest<PaginatedSearchList<ReportSearchDto>>;
+[RequirePermission("reports:read")]
+public record SearchReportsQuery(Guid OrgId, Guid ProjectId, string SearchTerm, int PageNumber = 1, int PageSize = 20) : IRequest<PaginatedSearchList<ReportSearchDto>>, IOrgScopedRequest;

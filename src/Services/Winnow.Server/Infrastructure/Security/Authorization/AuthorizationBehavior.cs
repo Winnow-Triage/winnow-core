@@ -35,9 +35,9 @@ public class AuthorizationBehavior<TRequest, TResponse>(
         var orgId = orgScopedRequest.OrgId;
         var requiredPermissions = requirePermissionAttributes.Select(a => a.Permission).ToList();
 
-        var userPermissions = await dbContext.OrganizationUserRoles
-            .Where(our => our.OrganizationId == orgId && our.UserId == userId)
-            .SelectMany(our => our.Role.Permissions)
+        var userPermissions = await dbContext.OrganizationMembers
+            .Where(om => om.OrganizationId == orgId && om.UserId == userId && !om.IsLocked)
+            .SelectMany(om => om.Role.Permissions)
             .Select(rp => rp.Permission.Name)
             .ToListAsync(cancellationToken);
 

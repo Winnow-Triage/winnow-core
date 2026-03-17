@@ -14,6 +14,7 @@ interface User {
   fullName: string;
   isEmailVerified: boolean;
   roles: string[];
+  permissions?: string[];
   activeOrganizationId?: string;
   defaultProjectId?: string;
 }
@@ -52,6 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         fullName: data.fullName,
         isEmailVerified: data.isEmailVerified,
         roles: data.roles,
+        permissions: data.permissions || [],
         activeOrganizationId: data.activeOrganizationId,
         defaultProjectId: data.defaultProjectId,
       };
@@ -63,8 +65,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         // Initial check failed with 401, this is expected if not logged in
         setUser(null);
         localStorage.removeItem("user");
-      } else if (isAxiosError(err) && err.response?.status === 429) {
-        // Ignore 429s, keep current user if exists
+      } else if (isAxiosError(err) && (err.response?.status === 403 || err.response?.status === 429)) {
+        // Ignore 403/429s for the initial check to prevent wipe/redirect loops
+        // 403 usually means the org is suspended or user is restricted, but still "logged in"
       } else {
         console.error("Failed to fetch user:", err);
         setUser(null);
@@ -88,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       fullName: userData.fullName,
       isEmailVerified: userData.isEmailVerified,
       roles: userData.roles || [], // Login might not return roles if it only returns DTO
+      permissions: userData.permissions || [],
       activeOrganizationId: userData.activeOrganizationId,
       defaultProjectId: userData.defaultProjectId,
     };

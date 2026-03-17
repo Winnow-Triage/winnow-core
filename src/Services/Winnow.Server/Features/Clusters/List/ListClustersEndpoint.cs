@@ -43,7 +43,7 @@ public sealed class ListClustersEndpoint(IMediator mediator) : ProjectScopedEndp
         string sort = HttpContext.Request.Query["sort"].ToString();
         if (string.IsNullOrEmpty(sort)) sort = "criticality";
 
-        var query = new ListClustersQuery(req.CurrentProjectId, sort);
+        var query = new ListClustersQuery(req.CurrentOrganizationId, req.CurrentProjectId, sort);
         var result = await mediator.Send(query, ct);
 
         if (!result.IsSuccess)

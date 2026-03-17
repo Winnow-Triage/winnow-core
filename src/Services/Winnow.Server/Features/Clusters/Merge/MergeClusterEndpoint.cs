@@ -5,7 +5,7 @@ using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Clusters.Merge;
 
-public class MergeClusterRequest
+public class MergeClusterRequest : Winnow.Server.Features.Shared.ProjectScopedRequest
 {
     /// <summary>The target cluster ID that others will be merged INTO.</summary>
     public Guid Id { get; set; }
@@ -15,7 +15,7 @@ public class MergeClusterRequest
 }
 
 public sealed class MergeClusterEndpoint(IMediator mediator)
-    : Endpoint<MergeClusterRequest, ActionResponse>
+    : Winnow.Server.Features.Shared.ProjectScopedEndpoint<MergeClusterRequest, ActionResponse>
 {
     public override void Configure()
     {
@@ -30,18 +30,7 @@ public sealed class MergeClusterEndpoint(IMediator mediator)
 
     public override async Task HandleAsync(MergeClusterRequest req, CancellationToken ct)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) ThrowError("Unauthorized", 401);
-
-        Guid projectId = Guid.Empty;
-        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader) ||
-            !Guid.TryParse(projectIdHeader, out projectId))
-        {
-            ThrowError("Valid Project ID is required in X-Project-ID header", 400);
-            return; // unreachable but satisfies compiler
-        }
-
-        var command = new MergeClusterCommand(req.Id, projectId, req.SourceIds);
+        var command = new MergeClusterCommand(req.CurrentOrganizationId, req.Id, req.CurrentProjectId, req.SourceIds);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

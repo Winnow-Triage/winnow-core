@@ -11,23 +11,26 @@ public class Role : IAggregateRoot
     public Guid Id { get; private set; }
     public string Name { get; private set; }
 
+    public Guid? OrganizationId { get; private set; }
+
     private readonly List<RolePermission> _permissions = [];
     public IReadOnlyCollection<RolePermission> Permissions => _permissions.AsReadOnly();
 
-    private readonly List<OrganizationUserRole> _organizationUserRoles = [];
-    public IReadOnlyCollection<OrganizationUserRole> OrganizationUserRoles => _organizationUserRoles.AsReadOnly();
+    private readonly List<Winnow.Server.Domain.Organizations.OrganizationMember> _organizationMembers = [];
+    public IReadOnlyCollection<Winnow.Server.Domain.Organizations.OrganizationMember> OrganizationMembers => _organizationMembers.AsReadOnly();
 
     private Role()
     {
         Name = null!;
     }
 
-    public Role(string name)
+    public Role(string name, Guid? organizationId = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Role name is required.", nameof(name));
 
         Id = Guid.NewGuid();
         Name = name;
+        OrganizationId = organizationId;
     }
 }

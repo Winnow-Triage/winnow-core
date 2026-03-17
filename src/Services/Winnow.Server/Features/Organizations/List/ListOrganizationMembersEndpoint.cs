@@ -10,6 +10,7 @@ public class OrganizationDirectoryMemberDto
     public string Email { get; set; } = string.Empty;
     public string? FullName { get; set; }
     public string GlobalRole { get; set; } = string.Empty;
+    public Guid RoleId { get; set; }
     public string Status { get; set; } = string.Empty;
     public DateTime? JoinedAt { get; set; }
     public bool IsLocked { get; set; }

@@ -64,6 +64,27 @@ public class AdminSeeder(IServiceProvider serviceProvider, ILogger<AdminSeeder> 
             }
         }
 
+        // Ensure System Roles exist
+        var systemRoles = new[] { "Owner", "Admin", "Member" };
+        var ownerRoleId = Guid.Empty;
+        var adminRoleId = Guid.Empty;
+        var memberRoleId = Guid.Empty;
+
+        foreach (var roleName in systemRoles)
+        {
+            var role = await dbContext.Roles.FirstOrDefaultAsync(r => r.Name == roleName && r.OrganizationId == null, cancellationToken);
+            if (role == null)
+            {
+                role = new Domain.Security.Role(roleName, null);
+                dbContext.Roles.Add(role);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                logger.LogInformation("System role '{RoleName}' created.", roleName);
+            }
+            if (roleName == "Owner") ownerRoleId = role.Id;
+            else if (roleName == "Admin") adminRoleId = role.Id;
+            else if (roleName == "Member") memberRoleId = role.Id;
+        }
+
         // 3. Ensure 'Winnow Admin' organization exists
         var adminOrg = await dbContext.Organizations
             .IgnoreQueryFilters()
@@ -134,7 +155,7 @@ public class AdminSeeder(IServiceProvider serviceProvider, ILogger<AdminSeeder> 
                 var membership = new Winnow.Server.Domain.Organizations.OrganizationMember(
                     finalOrgId,
                     finalUserId,
-                    "owner");
+                    ownerRoleId);
 
                 dbContext.OrganizationMembers.Add(membership);
 

@@ -15,7 +15,8 @@ public class OrganizationMember : IAggregateRoot
     public Guid Id { get; private set; }
     public string UserId { get; private set; }
     public Guid OrganizationId { get; private set; }
-    public string Role { get; private set; }
+    public Guid RoleId { get; private set; }
+    public Winnow.Server.Domain.Security.Role Role { get; private set; } = null!;
     public DateTime JoinedAt { get; private set; }
     public bool IsLocked { get; private set; }
 
@@ -23,37 +24,36 @@ public class OrganizationMember : IAggregateRoot
     private OrganizationMember()
     {
         UserId = null!;
-        Role = null!;
     }
 
-    public OrganizationMember(Guid organizationId, string userId, string role = "Member")
+    public OrganizationMember(Guid organizationId, string userId, Guid roleId)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID is required.", nameof(organizationId));
         if (string.IsNullOrWhiteSpace(userId))
             throw new ArgumentException("User ID is required.", nameof(userId));
-        if (string.IsNullOrWhiteSpace(role))
-            throw new ArgumentException("Role is required.", nameof(role));
+        if (roleId == Guid.Empty)
+            throw new ArgumentException("Role is required.", nameof(roleId));
 
         Id = Guid.NewGuid();
         OrganizationId = organizationId;
         UserId = userId;
-        Role = role;
+        RoleId = roleId;
         JoinedAt = DateTime.UtcNow;
         IsLocked = false;
 
-        _domainEvents.Add(new OrganizationMemberJoinedEvent(Id, OrganizationId, UserId, Role));
+        _domainEvents.Add(new OrganizationMemberJoinedEvent(Id, OrganizationId, UserId, RoleId.ToString()));
     }
 
-    public void ChangeRole(string newRole)
+    public void ChangeRole(Guid newRoleId)
     {
-        if (string.IsNullOrWhiteSpace(newRole))
-            throw new ArgumentException("Role is required.", nameof(newRole));
-        if (Role == newRole) return;
+        if (newRoleId == Guid.Empty)
+            throw new ArgumentException("Role is required.", nameof(newRoleId));
+        if (RoleId == newRoleId) return;
 
-        var oldRole = Role;
-        Role = newRole;
-        _domainEvents.Add(new OrganizationMemberRoleChangedEvent(Id, OrganizationId, oldRole, newRole));
+        var oldRole = RoleId;
+        RoleId = newRoleId;
+        _domainEvents.Add(new OrganizationMemberRoleChangedEvent(Id, OrganizationId, oldRole.ToString(), newRoleId.ToString()));
     }
 
     public void Lock()
@@ -70,9 +70,6 @@ public class OrganizationMember : IAggregateRoot
         _domainEvents.Add(new OrganizationMemberUnlockedEvent(Id, OrganizationId));
     }
 
-    public bool IsAdmin()
-    {
-        return string.Equals(Role, "Admin", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(Role, "owner", StringComparison.OrdinalIgnoreCase);
-    }
+    // Role checking will now occur via the AuthorizeBehavior and RolePermission mappings.
+    // IsAdmin() is deprecated for RBAC.
 }

@@ -2,9 +2,12 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
 
+using Winnow.Server.Infrastructure.Security.Authorization;
+
 namespace Winnow.Server.Features.Teams.RemoveMember;
 
-public record RemoveTeamMemberCommand(Guid TeamId, string UserId, Guid CurrentOrganizationId) : IRequest<RemoveTeamMemberResult>;
+[RequirePermission("teams:write")]
+public record RemoveTeamMemberCommand(Guid OrgId, Guid TeamId, string UserId) : IRequest<RemoveTeamMemberResult>, IOrgScopedRequest;
 
 public record RemoveTeamMemberResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -16,7 +19,7 @@ public class RemoveTeamMemberHandler(WinnowDbContext db) : IRequestHandler<Remov
             .Join(db.Teams, tm => tm.TeamId, t => t.Id, (tm, t) => new { tm, t })
             .Where(x => x.tm.TeamId == request.TeamId &&
                         x.tm.UserId == request.UserId &&
-                        x.t.OrganizationId == request.CurrentOrganizationId)
+                        x.t.OrganizationId == request.OrgId)
             .Select(x => x.tm)
             .FirstOrDefaultAsync(cancellationToken);
 

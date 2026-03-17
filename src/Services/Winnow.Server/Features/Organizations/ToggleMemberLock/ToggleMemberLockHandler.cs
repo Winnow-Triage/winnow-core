@@ -13,7 +13,7 @@ public class ToggleMemberLockHandler(WinnowDbContext db) : IRequestHandler<Toggl
     public async Task<ToggleMemberLockResult> Handle(ToggleMemberLockCommand request, CancellationToken cancellationToken)
     {
         var isOwner = await db.OrganizationMembers
-            .AnyAsync(om => om.OrganizationId == request.OrganizationId && om.UserId == request.CurrentUserId && (om.Role == "owner" || om.Role == "Admin"), cancellationToken);
+            .AnyAsync(om => om.OrganizationId == request.OrganizationId && om.UserId == request.CurrentUserId && (om.Role.Name == "Owner" || om.Role.Name == "Admin"), cancellationToken);
 
         if (!isOwner)
         {

@@ -44,7 +44,7 @@ public class ImpersonateUserHandler(
         // 1. Resolve their primary organization
         var membership = await dbContext.OrganizationMembers
             .Where(om => om.UserId == targetUser.Id)
-            .OrderByDescending(om => om.Role == "owner")
+            .OrderByDescending(om => om.Role.Name == "Owner")
             .FirstOrDefaultAsync(cancellationToken);
 
         // 2. Build Claims

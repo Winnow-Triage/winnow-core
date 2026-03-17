@@ -30,7 +30,7 @@ public sealed class ClearClusterSummaryEndpoint(IMediator mediator) : ProjectSco
 
     public override async Task HandleAsync(ClearClusterSummaryRequest req, CancellationToken ct)
     {
-        var command = new ClearClusterSummaryCommand(req.Id, req.CurrentProjectId);
+        var command = new ClearClusterSummaryCommand(req.CurrentOrganizationId, req.Id, req.CurrentProjectId);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

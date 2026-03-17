@@ -242,7 +242,7 @@ public sealed class GetReportEndpoint(IMediator mediator) : ProjectScopedEndpoin
 
     public override async Task HandleAsync(GetReportRequest req, CancellationToken ct)
     {
-        var query = new GetReportQuery(req.Id, req.CurrentProjectId);
+        var query = new GetReportQuery(req.CurrentOrganizationId, req.Id, req.CurrentProjectId);
         var result = await mediator.Send(query, ct);
 
         if (!result.IsSuccess)

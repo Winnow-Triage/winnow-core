@@ -30,7 +30,7 @@ public sealed class SearchClustersEndpoint(IMediator mediator) : ProjectScopedEn
 
     public override async Task HandleAsync(SearchClustersRequest req, CancellationToken ct)
     {
-        var query = new SearchClustersQuery(req.CurrentProjectId, req.Q ?? string.Empty, req.Page, req.Size);
+        var query = new SearchClustersQuery(req.CurrentOrganizationId, req.CurrentProjectId, req.Q ?? string.Empty, req.Page, req.Size);
         var result = await _mediator.Send(query, ct);
 
         await Send.OkAsync(result, ct);

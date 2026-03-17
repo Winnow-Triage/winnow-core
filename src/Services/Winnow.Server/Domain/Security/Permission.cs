@@ -12,6 +12,7 @@ public class Permission : IAggregateRoot
 
     public Guid Id { get; private set; }
     public string Name { get; private set; }
+    public string? Description { get; private set; }
 
     private readonly List<RolePermission> _roles = [];
     public IReadOnlyCollection<RolePermission> Roles => _roles.AsReadOnly();
@@ -21,12 +22,13 @@ public class Permission : IAggregateRoot
         Name = null!;
     }
 
-    public Permission(string name)
+    public Permission(string name, string? description = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Permission name is required.", nameof(name));
 
         Id = Guid.NewGuid();
         Name = name;
+        Description = description;
     }
 }

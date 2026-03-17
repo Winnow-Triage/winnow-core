@@ -16,7 +16,8 @@ public class OrganizationInvitation : IAggregateRoot
     public Guid Id { get; private set; }
     public Guid OrganizationId { get; private set; }
     public Email Email { get; private set; }
-    public string Role { get; private set; }
+    public Guid RoleId { get; private set; }
+    public Winnow.Server.Domain.Security.Role Role { get; private set; } = null!;
     public string Token { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime ExpiresAt { get; private set; }
@@ -33,14 +34,13 @@ public class OrganizationInvitation : IAggregateRoot
     // Private EF constructor
     private OrganizationInvitation()
     {
-        Role = null!;
         Token = null!;
     }
 
     public OrganizationInvitation(
         Guid organizationId,
         Email email,
-        string role,
+        Guid roleId,
         string token,
         IEnumerable<Guid>? initialTeamIds = null,
         IEnumerable<Guid>? initialProjectIds = null,
@@ -48,15 +48,15 @@ public class OrganizationInvitation : IAggregateRoot
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID is required.", nameof(organizationId));
-        if (string.IsNullOrWhiteSpace(role))
-            throw new ArgumentException("Role is required.", nameof(role));
+        if (roleId == Guid.Empty)
+            throw new ArgumentException("Role is required.", nameof(roleId));
         if (string.IsNullOrWhiteSpace(token))
             throw new ArgumentException("Token is required.", nameof(token));
 
         Id = Guid.NewGuid();
         OrganizationId = organizationId;
         Email = email;
-        Role = role;
+        RoleId = roleId;
         Token = token;
         CreatedAt = DateTime.UtcNow;
         ExpiresAt = CreatedAt.AddHours(expiresAfterHours);

@@ -43,6 +43,7 @@ export default function Clusters() {
   const {
     data: clusters,
     isLoading,
+    error,
     refetch,
   } = useQuery<ClusterSearchDto[]>({
     queryKey: ["clusters", currentProject?.id, debouncedSearch],
@@ -57,6 +58,7 @@ export default function Clusters() {
     },
     staleTime: 30 * 1000,
     enabled: !!currentProject,
+    retry: 0,
   });
 
   const sortedClusters = [...(clusters || [])].sort((a, b) => {
@@ -99,6 +101,20 @@ export default function Clusters() {
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
     );
   };
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="text-xl font-bold">Access Denied</h3>
+        <p className="text-muted-foreground mt-2 max-w-md">
+          {(error as any).response?.data?.detail || 
+           (error as any).response?.data?.message || 
+           "You don't have permission to view clusters in this project."}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">

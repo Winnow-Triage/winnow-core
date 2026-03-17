@@ -2,6 +2,8 @@ using MediatR;
 using System;
 using System.Collections.Generic;
 
+using Winnow.Server.Infrastructure.Security.Authorization;
+
 namespace Winnow.Server.Features.Clusters.Search;
 
 public class ClusterSearchDto
@@ -34,4 +36,5 @@ public class PaginatedClusterSearchList<T>
     }
 }
 
-public record SearchClustersQuery(Guid ProjectId, string SearchTerm, int PageNumber = 1, int PageSize = 20) : IRequest<PaginatedClusterSearchList<ClusterSearchDto>>;
+[RequirePermission("clusters:read")]
+public record SearchClustersQuery(Guid OrgId, Guid ProjectId, string SearchTerm, int PageNumber = 1, int PageSize = 20) : IRequest<PaginatedClusterSearchList<ClusterSearchDto>>, IOrgScopedRequest;

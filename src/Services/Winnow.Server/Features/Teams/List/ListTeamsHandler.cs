@@ -2,9 +2,12 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
 
+using Winnow.Server.Infrastructure.Security.Authorization;
+
 namespace Winnow.Server.Features.Teams.List;
 
-public record ListTeamsQuery(Guid CurrentOrganizationId) : IRequest<ListTeamsResult>;
+[RequirePermission("teams:read")]
+public record ListTeamsQuery(Guid OrgId) : IRequest<ListTeamsResult>, IOrgScopedRequest;
 
 public record ListTeamsResult(bool IsSuccess, List<TeamResponse>? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -15,7 +18,7 @@ public class ListTeamsHandler(WinnowDbContext db) : IRequestHandler<ListTeamsQue
         var teams = await db.Teams
             .AsNoTracking()
             .AsSplitQuery()
-            .Where(t => t.OrganizationId == request.CurrentOrganizationId)
+            .Where(t => t.OrganizationId == request.OrgId)
             .OrderBy(t => t.Name)
             .Select(t => new TeamResponse
             {

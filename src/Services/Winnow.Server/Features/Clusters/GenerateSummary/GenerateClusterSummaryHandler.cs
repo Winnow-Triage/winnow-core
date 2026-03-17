@@ -1,8 +1,11 @@
 using MediatR;
 
+using Winnow.Server.Infrastructure.Security.Authorization;
+
 namespace Winnow.Server.Features.Clusters.GenerateSummary;
 
-public record GenerateClusterSummaryCommand(Guid Id, Guid ProjectId) : IRequest<GenerateClusterSummaryResult>;
+[RequirePermission("clusters:write")]
+public record GenerateClusterSummaryCommand(Guid OrgId, Guid Id, Guid ProjectId) : IRequest<GenerateClusterSummaryResult>, IOrgScopedRequest;
 
 public record GenerateClusterSummaryResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 

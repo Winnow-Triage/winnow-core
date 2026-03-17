@@ -33,7 +33,7 @@ public sealed class AcceptSuggestionEndpoint(IMediator mediator) : ProjectScoped
 
     public override async Task HandleAsync(AcceptSuggestionRequest req, CancellationToken ct)
     {
-        var command = new AcceptSuggestionCommand(req.Id, req.CurrentProjectId);
+        var command = new AcceptSuggestionCommand(req.CurrentOrganizationId, req.Id, req.CurrentProjectId);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

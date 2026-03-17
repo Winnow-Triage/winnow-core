@@ -4,10 +4,12 @@ using Winnow.Server.Domain.Common;
 using Winnow.Server.Domain.Reports.ValueObjects;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
+using Winnow.Server.Infrastructure.Security.Authorization;
 
 namespace Winnow.Server.Features.Clusters.Merge;
 
-public record AcceptClusterMergeSuggestionCommand(Guid Id, Guid ProjectId) : IRequest<AcceptClusterMergeSuggestionResult>;
+[RequirePermission("clusters:write")]
+public record AcceptClusterMergeSuggestionCommand(Guid OrgId, Guid Id, Guid ProjectId) : IRequest<AcceptClusterMergeSuggestionResult>, IOrgScopedRequest;
 
 public record AcceptClusterMergeSuggestionResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 

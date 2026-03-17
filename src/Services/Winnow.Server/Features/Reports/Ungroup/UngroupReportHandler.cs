@@ -4,9 +4,12 @@ using Winnow.Server.Domain.Reports.ValueObjects;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
 
+using Winnow.Server.Infrastructure.Security.Authorization;
+
 namespace Winnow.Server.Features.Reports.Ungroup;
 
-public record UngroupReportCommand(Guid Id, Guid ProjectId) : IRequest<UngroupReportResult>;
+[RequirePermission("reports:write")]
+public record UngroupReportCommand(Guid OrgId, Guid Id, Guid ProjectId) : IRequest<UngroupReportResult>, IOrgScopedRequest;
 
 public record UngroupReportResult(bool IsSuccess, string? Message = null, string? ErrorMessage = null, int? StatusCode = null);
 

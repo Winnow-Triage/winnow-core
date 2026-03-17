@@ -52,7 +52,7 @@ export default function AllReports() {
   }, [search]);
 
   // Query: Either all reports, or search results if there is a query
-  const { data: reports, isLoading } = useQuery<ReportSearchDto[]>({
+  const { data: reports, isLoading, error } = useQuery<ReportSearchDto[]>({
     queryKey: ["reports", currentProject?.id, debouncedSearch],
     queryFn: async () => {
       if (!debouncedSearch) {
@@ -64,6 +64,7 @@ export default function AllReports() {
       return data.items;
     },
     enabled: !!currentProject,
+    retry: 0,
   });
 
   const sortedReports = [...(reports || [])].sort((a, b) => {
@@ -112,6 +113,20 @@ export default function AllReports() {
       setIsMerging(false);
     }
   };
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="text-xl font-bold">Access Denied</h3>
+        <p className="text-muted-foreground mt-2 max-w-md">
+          {(error as any).response?.data?.detail || 
+           (error as any).response?.data?.message || 
+           "You don't have permission to view reports in this project."}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">

@@ -5,9 +5,12 @@ using Winnow.Server.Domain.Assets.ValueObjects;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Storage;
 
+using Winnow.Server.Infrastructure.Security.Authorization;
+
 namespace Winnow.Server.Features.Reports.Get;
 
-public record GetReportQuery(Guid ReportId, Guid ProjectId) : IRequest<GetReportResult>;
+[RequirePermission("reports:read")]
+public record GetReportQuery(Guid OrgId, Guid ReportId, Guid ProjectId) : IRequest<GetReportResult>, IOrgScopedRequest;
 
 public record GetReportResult(bool IsSuccess, GetReportResponse? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 

@@ -2,9 +2,12 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
 
+using Winnow.Server.Infrastructure.Security.Authorization;
+
 namespace Winnow.Server.Features.Reports.Assign;
 
-public record AssignReportCommand(Guid Id, Guid ProjectId, string? AssignedTo) : IRequest<AssignReportResult>;
+[RequirePermission("reports:write")]
+public record AssignReportCommand(Guid OrgId, Guid Id, Guid ProjectId, string? AssignedTo) : IRequest<AssignReportResult>, IOrgScopedRequest;
 
 public record AssignReportResult(bool IsSuccess, string? Message = null, string? ErrorMessage = null, int? StatusCode = null);
 

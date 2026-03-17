@@ -44,9 +44,12 @@ api.interceptors.response.use(
       }
     }
 
-    // Handle 403 Forbidden for Suspended Organizations
+    // Handle 403 Forbidden
     if (error.response?.status === 403) {
-      const errorMessage = error.response?.data?.message?.toLowerCase() || "";
+      const data = error.response?.data;
+      const detail = data?.detail || data?.message || "Access denied";
+      const errorMessage = detail.toLowerCase();
+      
       if (errorMessage.includes("suspended")) {
         // Clear session data to forcefully block further authenticated attempts under this tenant
         localStorage.removeItem("user");
@@ -55,6 +58,13 @@ api.interceptors.response.use(
         if (window.location.pathname !== "/suspended") {
           window.location.href = "/suspended";
         }
+      } else {
+        // Show a generic toast for other permission denials
+        import("sonner").then(({ toast }) => {
+           toast.error(detail, {
+             id: "permission-denied-" + error.config.url
+           });
+        });
       }
     }
     return Promise.reject(error);
@@ -145,10 +155,25 @@ export const addOrganizationMember = async (
 };
 
 export const removeOrganizationMember = async (
-  orgId: string,
+  organizationId: string,
   userId: string,
 ) => {
-  await api.delete(`/organizations/${orgId}/members/${userId}`);
+  const { data } = await api.delete(
+    `/organizations/${organizationId}/members/${userId}`,
+  );
+  return data;
+};
+
+export const updateMemberRole = async (
+  organizationId: string,
+  userId: string,
+  roleId: string,
+) => {
+  const { data } = await api.put(
+    `/organizations/${organizationId}/members/${userId}`,
+    { roleId },
+  );
+  return data;
 };
 
 export const adminRemoveOrganizationMember = async (

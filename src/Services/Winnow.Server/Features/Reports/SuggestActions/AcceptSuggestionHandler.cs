@@ -6,7 +6,10 @@ using Winnow.Server.Services.Ai;
 
 namespace Winnow.Server.Features.Reports.SuggestActions;
 
-public record AcceptSuggestionCommand(Guid Id, Guid ProjectId) : IRequest<AcceptSuggestionResult>;
+using Winnow.Server.Infrastructure.Security.Authorization;
+
+[RequirePermission("reports:write")]
+public record AcceptSuggestionCommand(Guid OrgId, Guid Id, Guid ProjectId) : IRequest<AcceptSuggestionResult>, IOrgScopedRequest;
 
 public record AcceptSuggestionResult(bool IsSuccess, string? Message = null, string? ErrorMessage = null, int? StatusCode = null);
 

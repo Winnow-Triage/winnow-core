@@ -2,9 +2,12 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
 
+using Winnow.Server.Infrastructure.Security.Authorization;
+
 namespace Winnow.Server.Features.Teams.Delete;
 
-public record DeleteTeamCommand(Guid Id, Guid CurrentOrganizationId) : IRequest<DeleteTeamResult>;
+[RequirePermission("teams:write")]
+public record DeleteTeamCommand(Guid OrgId, Guid Id) : IRequest<DeleteTeamResult>, IOrgScopedRequest;
 
 public record DeleteTeamResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -13,7 +16,7 @@ public class DeleteTeamHandler(WinnowDbContext db) : IRequestHandler<DeleteTeamC
     public async Task<DeleteTeamResult> Handle(DeleteTeamCommand request, CancellationToken cancellationToken)
     {
         var team = await db.Teams
-            .FirstOrDefaultAsync(t => t.Id == request.Id && t.OrganizationId == request.CurrentOrganizationId, cancellationToken);
+            .FirstOrDefaultAsync(t => t.Id == request.Id && t.OrganizationId == request.OrgId, cancellationToken);
 
         if (team == null)
         {

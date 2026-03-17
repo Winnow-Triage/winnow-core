@@ -3,9 +3,12 @@ using MediatR;
 using Winnow.Server.Domain.Teams;
 using Winnow.Server.Infrastructure.Persistence;
 
+using Winnow.Server.Infrastructure.Security.Authorization;
+
 namespace Winnow.Server.Features.Teams.Create;
 
-public record CreateTeamCommand(Guid CurrentOrganizationId, string Name) : IRequest<CreateTeamResult>;
+[RequirePermission("teams:write")]
+public record CreateTeamCommand(Guid OrgId, string Name) : IRequest<CreateTeamResult>, IOrgScopedRequest;
 
 public record CreateTeamResult(bool IsSuccess, TeamResponse? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -13,7 +16,7 @@ public class CreateTeamHandler(WinnowDbContext db) : IRequestHandler<CreateTeamC
 {
     public async Task<CreateTeamResult> Handle(CreateTeamCommand request, CancellationToken cancellationToken)
     {
-        var team = new Team(request.CurrentOrganizationId, request.Name);
+        var team = new Team(request.OrgId, request.Name);
 
         db.Teams.Add(team);
         await db.SaveChangesAsync(cancellationToken);

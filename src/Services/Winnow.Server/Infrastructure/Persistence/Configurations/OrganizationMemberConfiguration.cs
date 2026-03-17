@@ -21,10 +21,14 @@ public class OrganizationMemberConfiguration : IEntityTypeConfiguration<Organiza
             .HasForeignKey(om => om.OrganizationId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Map to ApplicationUser (Identity)
         builder.HasOne<ApplicationUser>()
             .WithMany(u => u.OrganizationMemberships)
             .HasForeignKey(om => om.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(om => om.Role)
+            .WithMany(r => r.OrganizationMembers)
+            .HasForeignKey(om => om.RoleId)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.Ignore(om => om.DomainEvents);

@@ -2,9 +2,12 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
 
+using Winnow.Server.Infrastructure.Security.Authorization;
+
 namespace Winnow.Server.Features.Clusters.List;
 
-public record ListClustersQuery(Guid ProjectId, string Sort) : IRequest<ListClustersResult>;
+[RequirePermission("clusters:read")]
+public record ListClustersQuery(Guid OrgId, Guid ProjectId, string Sort) : IRequest<ListClustersResult>, IOrgScopedRequest;
 
 public record ListClustersResult(bool IsSuccess, List<ClusterDto>? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 

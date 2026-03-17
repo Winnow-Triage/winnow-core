@@ -38,7 +38,7 @@ public sealed class SearchReportsEndpoint : ProjectScopedEndpoint<SearchReportsR
 
     public override async Task HandleAsync(SearchReportsRequest req, CancellationToken ct)
     {
-        var query = new SearchReportsQuery(req.CurrentProjectId, req.Q ?? string.Empty, req.Page, req.Size);
+        var query = new SearchReportsQuery(req.CurrentOrganizationId, req.CurrentProjectId, req.Q ?? string.Empty, req.Page, req.Size);
         var result = await _mediator.Send(query, ct);
         await Send.OkAsync(result, ct);
     }

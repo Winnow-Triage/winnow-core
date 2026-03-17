@@ -52,10 +52,16 @@ public class LoginHandler(
                 new Domain.Common.Email(user.Email!)
             );
 
+            var ownerRole = await dbContext.Roles.FirstOrDefaultAsync(r => r.Name == "Owner" && r.OrganizationId == null, cancellationToken);
+            if (ownerRole == null)
+            {
+                throw new InvalidOperationException("System configuration error: 'Owner' role not found.");
+            }
+
             var organizationMember = new Winnow.Server.Domain.Organizations.OrganizationMember(
                 organization.Id,
                 user.Id,
-                "owner");
+                ownerRole.Id);
 
             dbContext.Organizations.Add(organization);
             dbContext.OrganizationMembers.Add(organizationMember);

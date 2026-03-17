@@ -2,9 +2,12 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
 
+using Winnow.Server.Infrastructure.Security.Authorization;
+
 namespace Winnow.Server.Features.Teams.AddMember;
 
-public record AddTeamMemberCommand(Guid TeamId, string UserId) : IRequest<AddTeamMemberResult>;
+[RequirePermission("teams:write")]
+public record AddTeamMemberCommand(Guid OrgId, Guid TeamId, string UserId) : IRequest<AddTeamMemberResult>, IOrgScopedRequest;
 
 public record AddTeamMemberResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 

@@ -5,13 +5,13 @@ using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Clusters.Merge;
 
-public class DismissClusterMergeSuggestionRequest
+public class DismissClusterMergeSuggestionRequest : Winnow.Server.Features.Shared.ProjectScopedRequest
 {
     public Guid Id { get; set; }
 }
 
 public sealed class DismissClusterMergeSuggestionEndpoint(IMediator mediator)
-    : Endpoint<DismissClusterMergeSuggestionRequest, ActionResponse>
+    : Winnow.Server.Features.Shared.ProjectScopedEndpoint<DismissClusterMergeSuggestionRequest, ActionResponse>
 {
     public override void Configure()
     {
@@ -29,22 +29,7 @@ public sealed class DismissClusterMergeSuggestionEndpoint(IMediator mediator)
 
     public override async Task HandleAsync(DismissClusterMergeSuggestionRequest req, CancellationToken ct)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) ThrowError("Unauthorized", 401);
-
-        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader))
-        {
-            ThrowError("Project ID is required in X-Project-ID header", 400);
-        }
-
-        if (!Guid.TryParse(projectIdHeader, out var projectId))
-        {
-            ThrowError("Invalid Project ID format", 400);
-        }
-
-        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? "default";
-
-        var command = new DismissClusterMergeSuggestionCommand(req.Id, projectId, tenantId);
+        var command = new DismissClusterMergeSuggestionCommand(req.CurrentOrganizationId, req.Id, req.CurrentProjectId);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

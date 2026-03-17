@@ -4,13 +4,13 @@ using MediatR;
 
 namespace Winnow.Server.Features.Clusters.Assign;
 
-public class AssignClusterRequest
+public class AssignClusterRequest : Winnow.Server.Features.Shared.ProjectScopedRequest
 {
     public Guid Id { get; set; }
     public string? AssignedTo { get; set; }
 }
 
-public sealed class AssignClusterEndpoint(IMediator mediator) : Endpoint<AssignClusterRequest>
+public sealed class AssignClusterEndpoint(IMediator mediator) : Winnow.Server.Features.Shared.ProjectScopedEndpoint<AssignClusterRequest, EmptyResponse>
 {
     public override void Configure()
     {
@@ -25,17 +25,7 @@ public sealed class AssignClusterEndpoint(IMediator mediator) : Endpoint<AssignC
 
     public override async Task HandleAsync(AssignClusterRequest req, CancellationToken ct)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) ThrowError("Unauthorized", 401);
-
-        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader) ||
-            !Guid.TryParse(projectIdHeader, out var projectId))
-        {
-            ThrowError("Valid Project ID is required in X-Project-ID header", 400);
-            return;
-        }
-
-        var command = new AssignClusterCommand(req.Id, projectId, req.AssignedTo);
+        var command = new AssignClusterCommand(req.CurrentOrganizationId, req.Id, req.CurrentProjectId, req.AssignedTo);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)
@@ -49,6 +39,6 @@ public sealed class AssignClusterEndpoint(IMediator mediator) : Endpoint<AssignC
             return;
         }
 
-        await Send.NoContentAsync(ct);
+        await Send.OkAsync(new EmptyResponse(), ct);
     }
 }

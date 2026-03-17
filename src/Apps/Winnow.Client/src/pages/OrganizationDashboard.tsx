@@ -37,6 +37,7 @@ export default function OrganizationDashboard() {
     queryKey: ["orgDashboardMetrics"],
     queryFn: getOrganizationMetrics,
     refetchInterval: 30000,
+    retry: 0,
   });
 
   const { ref, dimensions } = useChartDimensions();
@@ -51,16 +52,14 @@ export default function OrganizationDashboard() {
 
   if (error) {
     return (
-      <div className="p-8">
-        <div className="bg-destructive/15 text-destructive p-4 rounded-md border border-destructive/20 flex gap-2 items-center">
-          <AlertCircle className="h-4 w-4" />
-          <div>
-            <p className="font-semibold">Error</p>
-            <p className="text-sm">
-              Failed to load organization metrics. {(error as Error).message}
-            </p>
-          </div>
-        </div>
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="text-xl font-bold">Access Denied</h3>
+        <p className="text-muted-foreground mt-2 max-w-md">
+          {(error as any).response?.data?.detail || 
+           (error as any).response?.data?.message || 
+           "You don't have permission to view organization metrics."}
+        </p>
       </div>
     );
   }

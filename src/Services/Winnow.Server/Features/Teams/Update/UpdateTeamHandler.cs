@@ -3,9 +3,12 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
 
+using Winnow.Server.Infrastructure.Security.Authorization;
+
 namespace Winnow.Server.Features.Teams.Update;
 
-public record UpdateTeamCommand(Guid Id, Guid CurrentOrganizationId, string Name) : IRequest<UpdateTeamResult>;
+[RequirePermission("teams:write")]
+public record UpdateTeamCommand(Guid OrgId, Guid Id, string Name) : IRequest<UpdateTeamResult>, IOrgScopedRequest;
 
 public record UpdateTeamResult(bool IsSuccess, TeamResponse? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -14,7 +17,7 @@ public class UpdateTeamHandler(WinnowDbContext db) : IRequestHandler<UpdateTeamC
     public async Task<UpdateTeamResult> Handle(UpdateTeamCommand request, CancellationToken cancellationToken)
     {
         var team = await db.Teams
-            .FirstOrDefaultAsync(t => t.Id == request.Id && t.OrganizationId == request.CurrentOrganizationId, cancellationToken);
+            .FirstOrDefaultAsync(t => t.Id == request.Id && t.OrganizationId == request.OrgId, cancellationToken);
 
         if (team == null)
         {

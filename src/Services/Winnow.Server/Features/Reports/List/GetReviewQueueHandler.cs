@@ -5,9 +5,12 @@ using Winnow.Server.Domain.Reports.ValueObjects;
 using Winnow.Server.Features.Reports.List;
 using Winnow.Server.Infrastructure.Persistence;
 
+using Winnow.Server.Infrastructure.Security.Authorization;
+
 namespace Winnow.Server.Features.Reports.List;
 
-public record GetReviewQueueQuery(Guid ProjectId) : IRequest<List<ReviewItemDto>>;
+[RequirePermission("reports:read")]
+public record GetReviewQueueQuery(Guid OrgId, Guid ProjectId) : IRequest<List<ReviewItemDto>>, IOrgScopedRequest;
 
 public class GetReviewQueueHandler(WinnowDbContext db) : IRequestHandler<GetReviewQueueQuery, List<ReviewItemDto>>
 {

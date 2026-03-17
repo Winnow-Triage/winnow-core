@@ -52,9 +52,10 @@ export default function TeamDashboard() {
       window.matchMedia("(prefers-color-scheme: dark)").matches);
 
   // Fetch teams for the selector
-  const { data: teams, isLoading: isLoadingTeams } = useQuery<Team[]>({
+  const { data: teams, isLoading: isLoadingTeams, error: teamsError } = useQuery<Team[]>({
     queryKey: ["myTeams"],
     queryFn: getMyTeams,
+    retry: 0, // Fail immediately on permission errors
   });
 
   // Automatically select the first team when teams load
@@ -74,12 +75,27 @@ export default function TeamDashboard() {
     queryFn: () => getTeamMetrics(selectedTeamId),
     enabled: selectedTeamId !== "", // Only run query if a team is selected
     refetchInterval: 30000,
+    retry: 0,
   });
 
   if (isLoadingTeams) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (teamsError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="text-xl font-bold">Access Denied</h3>
+        <p className="text-muted-foreground mt-2 max-w-md">
+          {(teamsError as any).response?.data?.detail || 
+           (teamsError as any).response?.data?.message || 
+           "You don't have permission to view teams in this organization."}
+        </p>
       </div>
     );
   }
@@ -131,9 +147,9 @@ export default function TeamDashboard() {
         <div className="bg-destructive/15 text-destructive p-4 rounded-md border border-destructive/20 flex gap-2 items-center">
           <AlertCircle className="h-4 w-4" />
           <div>
-            <p className="font-semibold">Error</p>
-            <p className="text-sm">
-              Failed to load team metrics. {(error as Error).message}
+            <p className="font-semibold text-sm">Access Denied</p>
+            <p className="text-xs opacity-90">
+              {(error as any).response?.data?.detail || (error as any).response?.data?.message || (error as Error).message}
             </p>
           </div>
         </div>

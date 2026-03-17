@@ -2,9 +2,12 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
 
+using Winnow.Server.Infrastructure.Security.Authorization;
+
 namespace Winnow.Server.Features.Clusters.Assign;
 
-public record AssignClusterCommand(Guid Id, Guid ProjectId, string? AssignedTo) : IRequest<AssignClusterResult>;
+[RequirePermission("clusters:write")]
+public record AssignClusterCommand(Guid OrgId, Guid Id, Guid ProjectId, string? AssignedTo) : IRequest<AssignClusterResult>, IOrgScopedRequest;
 
 public record AssignClusterResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 

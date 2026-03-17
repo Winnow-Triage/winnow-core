@@ -104,7 +104,6 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         modelBuilder.ApplyConfiguration(new Configurations.RoleConfiguration());
         modelBuilder.ApplyConfiguration(new Configurations.PermissionConfiguration());
         modelBuilder.ApplyConfiguration(new Configurations.RolePermissionConfiguration());
-        modelBuilder.ApplyConfiguration(new Configurations.OrganizationUserRoleConfiguration());
 
         var encryptedConverter = new EncryptedStringConverter(_encryptionKey);
         modelBuilder.ApplyConfiguration(new Configurations.IntegrationConfiguration(encryptedConverter));
@@ -133,5 +132,4 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
     public new DbSet<Domain.Security.Role> Roles { get; set; } = null!;
     public DbSet<Domain.Security.Permission> Permissions { get; set; } = null!;
     public DbSet<Domain.Security.RolePermission> RolePermissions { get; set; } = null!;
-    public DbSet<Domain.Security.OrganizationUserRole> OrganizationUserRoles { get; set; } = null!;
 }

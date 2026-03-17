@@ -32,7 +32,7 @@ public sealed class UpdateTeamEndpoint(IMediator mediator)
             ThrowError("Team name is required.");
         }
 
-        var command = new UpdateTeamCommand(req.Id, req.CurrentOrganizationId, req.Name);
+        var command = new UpdateTeamCommand(req.CurrentOrganizationId, req.Id, req.Name);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

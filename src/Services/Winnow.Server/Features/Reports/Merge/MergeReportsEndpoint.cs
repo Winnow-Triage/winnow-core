@@ -37,7 +37,7 @@ public sealed class MergeReportsEndpoint(IMediator mediator) : ProjectScopedEndp
 
     public override async Task HandleAsync(MergeReportsRequest req, CancellationToken ct)
     {
-        var command = new MergeReportsCommand(req.Id, req.CurrentProjectId, req.CurrentOrganizationId, req.SourceIds);
+        var command = new MergeReportsCommand(req.CurrentOrganizationId, req.Id, req.CurrentProjectId, req.SourceIds);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

@@ -26,7 +26,7 @@ public sealed class RemoveTeamMemberEndpoint(IMediator mediator)
 
     public override async Task HandleAsync(RemoveTeamMemberRequest req, CancellationToken ct)
     {
-        var command = new RemoveTeamMemberCommand(req.TeamId, req.UserId, req.CurrentOrganizationId);
+        var command = new RemoveTeamMemberCommand(req.CurrentOrganizationId, req.TeamId, req.UserId);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

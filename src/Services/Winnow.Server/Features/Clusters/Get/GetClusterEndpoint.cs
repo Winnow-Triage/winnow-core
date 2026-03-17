@@ -4,13 +4,9 @@ using MediatR;
 
 namespace Winnow.Server.Features.Clusters.Get;
 
-public class GetClusterRequest
+public class GetClusterRequest : Winnow.Server.Features.Shared.ProjectScopedRequest
 {
     public Guid Id { get; set; }
-
-    // FastEndpoints magic: Let it bind and validate the header automatically!
-    [FromHeader("X-Project-ID", IsRequired = true)]
-    public Guid ProjectId { get; set; }
 }
 
 public class GetClusterResponse
@@ -42,7 +38,7 @@ public class ClusterMemberDto
     public double? ConfidenceScore { get; set; }
 }
 
-public sealed class GetClusterEndpoint(IMediator mediator) : Endpoint<GetClusterRequest, GetClusterResponse>
+public sealed class GetClusterEndpoint(IMediator mediator) : Winnow.Server.Features.Shared.ProjectScopedEndpoint<GetClusterRequest, GetClusterResponse>
 {
     public override void Configure()
     {
@@ -52,7 +48,7 @@ public sealed class GetClusterEndpoint(IMediator mediator) : Endpoint<GetCluster
 
     public override async Task HandleAsync(GetClusterRequest req, CancellationToken ct)
     {
-        var query = new GetClusterQuery(req.Id, req.ProjectId);
+        var query = new GetClusterQuery(req.CurrentOrganizationId, req.Id, req.CurrentProjectId);
         var result = await mediator.Send(query, ct);
 
         if (!result.IsSuccess)

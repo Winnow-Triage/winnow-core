@@ -5,10 +5,12 @@ using Microsoft.Extensions.Logging;
 using Winnow.Server.Domain.Clusters.ValueObjects;
 using Winnow.Server.Infrastructure.Integrations;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Infrastructure.Security.Authorization;
 
 namespace Winnow.Server.Features.Clusters.Export;
 
-public record ExportClusterCommand(Guid ClusterId, Guid ProjectId, Guid ConfigId) : IRequest<ExportClusterResult>;
+[RequirePermission("clusters:write")]
+public record ExportClusterCommand(Guid OrgId, Guid ClusterId, Guid ProjectId, Guid ConfigId) : IRequest<ExportClusterResult>, IOrgScopedRequest;
 
 public record ExportClusterResult(bool IsSuccess, Uri? ExternalUrl, string? ErrorMessage = null, int? StatusCode = null);
 

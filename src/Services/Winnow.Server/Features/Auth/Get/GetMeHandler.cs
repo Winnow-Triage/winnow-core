@@ -15,6 +15,7 @@ public record GetMeResult(
     string FullName,
     bool IsEmailVerified,
     List<string> Roles,
+    List<string> Permissions,
     Guid? ActiveOrganizationId,
     Guid? DefaultProjectId);
 
@@ -27,7 +28,7 @@ public class GetMeHandler(
         var user = await userManager.FindByIdAsync(request.UserId);
         if (user == null)
         {
-            return new GetMeResult(false, "", "", "", false, [], null, null);
+            return new GetMeResult(false, "", "", "", false, [], [], null, null);
         }
 
         Guid? activeOrgId = null;
@@ -51,6 +52,16 @@ public class GetMeHandler(
             }
         }
 
+        List<string> permissions = [];
+        if (activeOrgId.HasValue)
+        {
+            permissions = await dbContext.OrganizationMembers
+                .Where(om => om.UserId == user.Id && om.OrganizationId == activeOrgId.Value && !om.IsLocked)
+                .SelectMany(om => om.Role!.Permissions)
+                .Select(rp => rp.Permission!.Name)
+                .ToListAsync(cancellationToken);
+        }
+
         var roles = await userManager.GetRolesAsync(user);
 
         return new GetMeResult(
@@ -60,6 +71,7 @@ public class GetMeHandler(
             user.FullName,
             user.EmailConfirmed,
             roles.ToList(),
+            permissions,
             activeOrgId,
             defaultProjectId
         );

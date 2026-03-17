@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Winnow.Server.Extensions;
+using Winnow.Server.Infrastructure.Security.Authorization;
 using Winnow.Server.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,6 +37,9 @@ catch (InvalidOperationException)
 builder.Services.AddWinnowServices(builder.Configuration);
 
 var app = builder.Build();
+
+// Configure global exception handling with custom middleware
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // Configure Winnow middleware pipeline
 await app.UseWinnowMiddleware();

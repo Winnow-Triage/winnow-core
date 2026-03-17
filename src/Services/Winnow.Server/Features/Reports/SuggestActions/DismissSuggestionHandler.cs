@@ -5,7 +5,10 @@ using Winnow.Server.Services.Ai;
 
 namespace Winnow.Server.Features.Reports.SuggestActions;
 
-public record DismissSuggestionCommand(Guid Id, Guid ProjectId, Guid OrganizationId) : IRequest<DismissSuggestionResult>;
+using Winnow.Server.Infrastructure.Security.Authorization;
+
+[RequirePermission("reports:write")]
+public record DismissSuggestionCommand(Guid Id, Guid ProjectId, Guid OrgId) : IRequest<DismissSuggestionResult>, IOrgScopedRequest;
 
 public record DismissSuggestionResult(bool IsSuccess, string? Message = null, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -27,7 +30,7 @@ public class DismissSuggestionHandler(WinnowDbContext db, INegativeMatchCache ne
         }
 
         // Record negative match between report and cluster
-        negativeMatchCache.MarkAsMismatch(request.OrganizationId.ToString(), report.Id, report.SuggestedClusterId.Value);
+        negativeMatchCache.MarkAsMismatch(request.OrgId.ToString(), report.Id, report.SuggestedClusterId.Value);
 
         // Clear suggestion
         report.ClearSuggestedCluster();

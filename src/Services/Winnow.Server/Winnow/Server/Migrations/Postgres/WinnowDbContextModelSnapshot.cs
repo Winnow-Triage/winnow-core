@@ -431,9 +431,8 @@ namespace Winnow.Server.Migrations.Postgres
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Token")
                         .IsRequired()
@@ -442,6 +441,8 @@ namespace Winnow.Server.Migrations.Postgres
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationId");
+
+                    b.HasIndex("RoleId");
 
                     b.HasIndex("Token")
                         .IsUnique();
@@ -464,15 +465,16 @@ namespace Winnow.Server.Migrations.Postgres
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("RoleId");
 
                     b.HasIndex("UserId");
 
@@ -639,31 +641,14 @@ namespace Winnow.Server.Migrations.Postgres
                     b.ToTable("Reports");
                 });
 
-            modelBuilder.Entity("Winnow.Server.Domain.Security.OrganizationUserRole", b =>
-                {
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("UserId")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("RoleId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("OrganizationId", "UserId", "RoleId");
-
-                    b.HasIndex("RoleId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("OrganizationUserRoles");
-                });
-
             modelBuilder.Entity("Winnow.Server.Domain.Security.Permission", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -689,9 +674,12 @@ namespace Winnow.Server.Migrations.Postgres
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("Name", "OrganizationId")
                         .IsUnique();
 
                     b.ToTable("Roles");
@@ -891,6 +879,14 @@ namespace Winnow.Server.Migrations.Postgres
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("Winnow.Server.Domain.Security.Role", "Role")
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("Winnow.Server.Domain.Organizations.OrganizationMember", b =>
@@ -901,11 +897,19 @@ namespace Winnow.Server.Migrations.Postgres
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Winnow.Server.Domain.Security.Role", "Role")
+                        .WithMany("OrganizationMembers")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Winnow.Server.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany("OrganizationMemberships")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("Winnow.Server.Domain.Projects.Project", b =>
@@ -934,31 +938,6 @@ namespace Winnow.Server.Migrations.Postgres
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("Winnow.Server.Domain.Security.OrganizationUserRole", b =>
-                {
-                    b.HasOne("Winnow.Server.Domain.Organizations.Organization", "Organization")
-                        .WithMany()
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Winnow.Server.Domain.Security.Role", "Role")
-                        .WithMany("OrganizationUserRoles")
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Winnow.Server.Infrastructure.Identity.ApplicationUser", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Organization");
-
-                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("Winnow.Server.Domain.Security.RolePermission", b =>
@@ -1018,7 +997,7 @@ namespace Winnow.Server.Migrations.Postgres
 
             modelBuilder.Entity("Winnow.Server.Domain.Security.Role", b =>
                 {
-                    b.Navigation("OrganizationUserRoles");
+                    b.Navigation("OrganizationMembers");
 
                     b.Navigation("Permissions");
                 });

@@ -49,7 +49,7 @@ public class AcceptInvitationHandler(
         var member = new Winnow.Server.Domain.Organizations.OrganizationMember(
             invitation.OrganizationId,
             user.Id,
-            invitation.Role);
+            invitation.RoleId);
 
         db.OrganizationMembers.Add(member);
 

@@ -2,10 +2,12 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
+using Winnow.Server.Infrastructure.Security.Authorization;
 
 namespace Winnow.Server.Features.Clusters.Merge;
 
-public record DismissClusterMergeSuggestionCommand(Guid Id, Guid ProjectId, string TenantId) : IRequest<DismissClusterMergeSuggestionResult>;
+[RequirePermission("clusters:write")]
+public record DismissClusterMergeSuggestionCommand(Guid OrgId, Guid Id, Guid ProjectId) : IRequest<DismissClusterMergeSuggestionResult>, IOrgScopedRequest;
 
 public record DismissClusterMergeSuggestionResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -26,7 +28,7 @@ public class DismissClusterMergeSuggestionHandler(WinnowDbContext db, INegativeM
             return new DismissClusterMergeSuggestionResult(false, "No pending merge suggestion for this cluster.", 400);
         }
 
-        negativeMatchCache.MarkAsMismatch(request.TenantId, cluster.Id, cluster.SuggestedMergeClusterId.Value);
+        negativeMatchCache.MarkAsMismatch(request.OrgId.ToString(), cluster.Id, cluster.SuggestedMergeClusterId.Value);
 
         cluster.ClearMergeSuggestion();
 

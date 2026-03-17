@@ -37,7 +37,7 @@ public sealed class AssignReportEndpoint(IMediator mediator) : ProjectScopedEndp
 
     public override async Task HandleAsync(AssignReportRequest req, CancellationToken ct)
     {
-        var command = new AssignReportCommand(req.Id, req.CurrentProjectId, req.AssignedTo);
+        var command = new AssignReportCommand(req.CurrentOrganizationId, req.Id, req.CurrentProjectId, req.AssignedTo);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

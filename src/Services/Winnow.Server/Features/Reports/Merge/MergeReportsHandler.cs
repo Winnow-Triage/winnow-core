@@ -5,9 +5,12 @@ using Winnow.Server.Domain.Reports.ValueObjects;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
 
+using Winnow.Server.Infrastructure.Security.Authorization;
+
 namespace Winnow.Server.Features.Reports.Merge;
 
-public record MergeReportsCommand(Guid TargetId, Guid ProjectId, Guid OrganizationId, List<Guid> SourceIds) : IRequest<MergeReportsResult>;
+[RequirePermission("reports:write")]
+public record MergeReportsCommand(Guid OrgId, Guid TargetId, Guid ProjectId, List<Guid> SourceIds) : IRequest<MergeReportsResult>, IOrgScopedRequest;
 
 public record MergeReportsResult(bool IsSuccess, string? Message = null, string? ErrorMessage = null, int? StatusCode = null);
 

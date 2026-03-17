@@ -8,7 +8,7 @@ public class CreateOrganizationInvitationRequest
 {
     public Guid OrgId { get; set; }
     public string Email { get; set; } = string.Empty;
-    public string Role { get; set; } = "Member";
+    public Guid RoleId { get; set; }
     public List<Guid> TeamIds { get; set; } = [];
     public List<Guid> ProjectIds { get; set; } = [];
 }
@@ -33,7 +33,7 @@ public sealed class CreateOrganizationInvitationEndpoint(
             return;
         }
 
-        var command = new CreateOrganizationInvitationCommand(userId, req.OrgId, req.Email, req.Role, req.TeamIds, req.ProjectIds);
+        var command = new CreateOrganizationInvitationCommand(userId, req.OrgId, req.Email, req.RoleId, req.TeamIds, req.ProjectIds);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

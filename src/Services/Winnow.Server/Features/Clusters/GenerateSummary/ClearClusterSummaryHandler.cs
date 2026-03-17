@@ -2,9 +2,12 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
 
+using Winnow.Server.Infrastructure.Security.Authorization;
+
 namespace Winnow.Server.Features.Clusters.GenerateSummary;
 
-public record ClearClusterSummaryCommand(Guid Id, Guid ProjectId) : IRequest<ClearClusterSummaryResult>;
+[RequirePermission("clusters:write")]
+public record ClearClusterSummaryCommand(Guid OrgId, Guid Id, Guid ProjectId) : IRequest<ClearClusterSummaryResult>, IOrgScopedRequest;
 
 public record ClearClusterSummaryResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 

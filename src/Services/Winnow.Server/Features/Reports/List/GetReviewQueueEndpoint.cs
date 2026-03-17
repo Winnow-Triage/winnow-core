@@ -40,7 +40,7 @@ public sealed class GetReviewQueueEndpoint(IMediator mediator) : ProjectScopedEn
 
     public override async Task HandleAsync(GetReviewQueueRequest req, CancellationToken ct)
     {
-        var query = new GetReviewQueueQuery(req.CurrentProjectId);
+        var query = new GetReviewQueueQuery(req.CurrentOrganizationId, req.CurrentProjectId);
         var result = await mediator.Send(query, ct);
 
         await Send.OkAsync(result, ct);

@@ -6,6 +6,7 @@ import {
   cancelInvitation,
   removeOrganizationMember,
   toggleMemberLock,
+  updateMemberRole,
 } from "@/lib/api";
 import {
   Card,
@@ -30,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { PermissionGate } from "@/components/PermissionGate";
 import { useProject } from "@/context/ProjectContext";
 import type { Project } from "@/context/ProjectContext";
 import {
@@ -39,7 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, UserPlus, MoreHorizontal, Settings2 } from "lucide-react";
+import { Users, UserPlus, MoreHorizontal, Settings2, Loader2, AlertCircle } from "lucide-react";
 import { PageTitle } from "@/components/ui/page-title";
 import {
   Sheet,
@@ -77,6 +79,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { RolesManager } from "@/components/settings/RolesManager";
 
 export default function Settings() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -92,6 +95,7 @@ export default function Settings() {
   const {
     data: organization,
     isLoading: isOrgLoading,
+    error: orgError,
     refetch,
   } = useQuery<{ id: string; name: string; subscriptionTier: string }>({
     queryKey: ["current-organization"],
@@ -99,6 +103,7 @@ export default function Settings() {
       const { data } = await api.get("/organizations/current");
       return data;
     },
+    retry: 0,
   });
 
   const { data: billingStatus, isLoading: isBillingLoading } = useQuery({
@@ -107,6 +112,7 @@ export default function Settings() {
       const { getBillingStatus } = await import("@/lib/api");
       return getBillingStatus();
     },
+    retry: 0,
   });
 
   const [orgName, setOrgName] = useState("");
@@ -229,6 +235,28 @@ export default function Settings() {
     }
   };
 
+  if (isOrgLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (orgError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="text-xl font-bold">Access Denied</h3>
+        <p className="text-muted-foreground mt-2 max-w-md">
+          {(orgError as any).response?.data?.detail || 
+           (orgError as any).response?.data?.message || 
+           "You don't have permission to view organization settings."}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl w-full mx-auto">
       <div className="flex flex-col gap-1 mb-8">
@@ -244,10 +272,13 @@ export default function Settings() {
         onValueChange={handleTabChange}
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-5 max-w-[700px]">
+        <TabsList className="grid w-full grid-cols-6 max-w-[800px]">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="teams">Teams</TabsTrigger>
+          <PermissionGate permission="roles:manage">
+            <TabsTrigger value="roles">Roles</TabsTrigger>
+          </PermissionGate>
           <TabsTrigger value="billing">Billing</TabsTrigger>
           <TabsTrigger value="ai">AI Models</TabsTrigger>
         </TabsList>
@@ -364,6 +395,12 @@ export default function Settings() {
         <TabsContent value="teams" className="mt-6 flex flex-col gap-6">
           <TeamsManager organizationId={organization?.id} />
         </TabsContent>
+
+        <PermissionGate permission="roles:manage">
+          <TabsContent value="roles" className="mt-6 flex flex-col gap-6">
+            <RolesManager organizationId={organization?.id} />
+          </TabsContent>
+        </PermissionGate>
 
         <TabsContent value="billing" className="mt-6 flex flex-col gap-6">
           {subscriptionTier !== "Free" && (
@@ -676,6 +713,7 @@ function TeamsManager({ organizationId }: { organizationId?: string }) {
   const {
     data: teams,
     isLoading,
+    error,
     refetch,
   } = useQuery<
     {
@@ -693,6 +731,7 @@ function TeamsManager({ organizationId }: { organizationId?: string }) {
       return data;
     },
     enabled: !!organizationId,
+    retry: 0,
   });
 
   const { data: orgMembers } = useQuery<
@@ -710,6 +749,7 @@ function TeamsManager({ organizationId }: { organizationId?: string }) {
       return data;
     },
     enabled: !!organizationId,
+    retry: 0,
   });
 
   const [newTeamName, setNewTeamName] = useState("");
@@ -786,7 +826,26 @@ function TeamsManager({ organizationId }: { organizationId?: string }) {
     }
   };
 
-  if (isLoading) return <div>Loading teams...</div>;
+  if (isLoading) {
+    return (
+      <div className="py-20 text-center text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 opacity-50" />
+        Loading teams...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center border rounded-lg bg-muted/20 border-dashed">
+        <AlertCircle className="h-8 w-8 text-destructive mb-2" />
+        <h4 className="font-semibold">Access Denied</h4>
+        <p className="text-sm text-muted-foreground">
+          {(error as any).response?.data?.detail || "You don't have permission to manage teams."}
+        </p>
+      </div>
+    );
+  }
 
   const selectedTeam = teams?.find((t) => t.id === selectedTeamId);
 
@@ -1026,11 +1085,6 @@ function TeamDetailsDrawer({
                                   {member.fullName}
                                 </span>
                                 {/* Example email placeholder since it's not in the team response currently */}
-                                <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">
-                                  {orgMembers.find(
-                                    (om) => om.id === member.userId,
-                                  )?.email || "n/a"}
-                                </span>
                               </div>
                             </div>
                           </TableCell>
@@ -1156,8 +1210,14 @@ function TeamDetailsDrawer({
   );
 }
 
+interface Role {
+  id: string;
+  name: string;
+  // Add other properties if known, e.g., description, permissions
+}
+
 function MembersManager({ organizationId }: { organizationId?: string }) {
-  const { data: teams } = useQuery<
+  const { data: teams, error: teamsError } = useQuery<
     { id: string; name: string; members: { userId: string }[] }[]
   >({
     queryKey: ["teams", organizationId],
@@ -1166,11 +1226,13 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
       return data;
     },
     enabled: !!organizationId,
+    retry: 0,
   });
 
   const {
-    data: orgMembers,
-    isLoading,
+    data: members,
+    isLoading: isMembersLoading,
+    error: membersError,
     refetch: refetchMembers,
   } = useQuery<
     {
@@ -1178,6 +1240,7 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
       fullName: string | null;
       email: string;
       globalRole: string;
+      roleId: string;
       status: string;
       isLocked: boolean;
       joinedAt?: string;
@@ -1189,7 +1252,34 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
       return data;
     },
     enabled: !!organizationId,
+    retry: 0,
   });
+
+  const { data: roles, isLoading: isRolesLoading, error: rolesError } = useQuery<Role[]>({
+    queryKey: ["org-roles", organizationId],
+    queryFn: async () => {
+      const { data } = await api.get(`/organizations/${organizationId}/roles`);
+      return data.roles;
+    },
+    enabled: !!organizationId,
+    retry: 0,
+  });
+
+  const handleUpdateRole = async (userId: string, targetRoleId: string) => {
+    if (!organizationId) return;
+    try {
+      await updateMemberRole(organizationId, userId, targetRoleId);
+      toast.success("Role updated");
+      await refetchMembers();
+    } catch (error: any) {
+      toast.error(
+        error.response?.data?.errors?.GeneralErrors?.[0] ||
+        error.response?.data?.errors?.generalErrors?.[0] ||
+        error.response?.data?.message || 
+        "Failed to update role"
+      );
+    }
+  };
 
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
@@ -1242,12 +1332,27 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
     }
   };
 
-  if (isLoading)
+  if (isMembersLoading || isRolesLoading) {
     return (
-      <div className="p-8 text-center text-muted-foreground">
+      <div className="py-20 text-center text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 opacity-50" />
         Loading members...
       </div>
     );
+  }
+
+  if (membersError || rolesError || teamsError) {
+    const error = membersError || rolesError || teamsError;
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center border rounded-lg bg-muted/20 border-dashed">
+        <AlertCircle className="h-8 w-8 text-destructive mb-2" />
+        <h4 className="font-semibold">Access Denied</h4>
+        <p className="text-sm text-muted-foreground">
+          {(error as any).response?.data?.detail || "You don't have permission to manage members or roles."}
+        </p>
+      </div>
+    );
+  }
 
   // Helper to get teams for a user
   const getUserTeams = (userId: string) => {
@@ -1288,7 +1393,7 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {orgMembers?.map((member) => {
+              {members?.map((member) => {
                 const userTeams = getUserTeams(member.id);
                 const isPending = member.status === "Pending";
 
@@ -1318,11 +1423,29 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm">
-                        {member.globalRole === "owner"
-                          ? "Org Owner"
-                          : member.globalRole}
-                      </span>
+                      {member.status === "Active" ? (
+                        <Select
+                          value={member.roleId}
+                          onValueChange={(val) => handleUpdateRole(member.id, val)}
+                        >
+                          <SelectTrigger className="h-8 max-w-[150px]">
+                            <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {roles?.map((role) => (
+                              <SelectItem key={role.id} value={role.id}>
+                                {role.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-sm">
+                          {member.globalRole === "owner"
+                            ? "Org Owner"
+                            : member.globalRole}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col">
@@ -1422,6 +1545,7 @@ function MembersManager({ organizationId }: { organizationId?: string }) {
           isOpen={isInviteModalOpen}
           onClose={() => setIsInviteModalOpen(false)}
           organizationId={organizationId}
+          roles={roles || []}
         />
       </CardContent>
     </Card>
@@ -1432,13 +1556,22 @@ function InviteMemberModal({
   isOpen,
   onClose,
   organizationId,
+  roles,
 }: {
   isOpen: boolean;
   onClose: () => void;
   organizationId?: string;
+  roles: Role[];
 }) {
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("Member");
+  const [roleId, setRoleId] = useState<string>("");
+
+  React.useEffect(() => {
+    if (isOpen && roles.length > 0 && !roleId) {
+      const memberRole = roles.find(r => r.name === "Member") || roles[0];
+      if (memberRole) setRoleId(memberRole.id);
+    }
+  }, [isOpen, roles, roleId]);
   const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const [isInviting, setIsInviting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -1450,6 +1583,7 @@ function InviteMemberModal({
       return data;
     },
     enabled: isOpen && !!organizationId,
+    retry: 0,
   });
 
   const filteredTeams =
@@ -1464,7 +1598,7 @@ function InviteMemberModal({
       await api.post(`/organizations/${organizationId}/invitations`, {
         orgId: organizationId,
         email: email.trim(),
-        role: role,
+        roleId: roleId,
         teamIds: selectedTeams,
       });
       toast.success(`Invite sent to ${email}`);
@@ -1509,14 +1643,14 @@ function InviteMemberModal({
             <Label className="text-sm font-semibold text-muted-foreground">
               Initial Role
             </Label>
-            <Select value={role} onValueChange={setRole}>
+            <Select value={roleId} onValueChange={setRoleId}>
               <SelectTrigger className="bg-muted/50 border-border">
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent className="bg-popover border-border">
-                <SelectItem value="Admin">Administrator</SelectItem>
-                <SelectItem value="Member">Member</SelectItem>
-                <SelectItem value="Viewer">Viewer</SelectItem>
+                {roles.map(r => (
+                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

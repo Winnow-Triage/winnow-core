@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Text;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Winnow.Server.Infrastructure.Identity;
@@ -44,6 +45,12 @@ public class RegisterHandler(
             throw new InvalidOperationException(result.Errors.First().Description);
         }
 
+        var ownerRole = await dbContext.Roles.FirstOrDefaultAsync(r => r.Name == "Owner" && r.OrganizationId == null, cancellationToken);
+        if (ownerRole == null)
+        {
+            throw new InvalidOperationException("System configuration error: 'Owner' role not found.");
+        }
+
         var organization = new Domain.Organizations.Organization(
             $"{request.FullName}'s Organization",
             new Domain.Common.Email(request.Email)
@@ -52,7 +59,7 @@ public class RegisterHandler(
         var organizationMember = new Winnow.Server.Domain.Organizations.OrganizationMember(
             organization.Id,
             user.Id,
-            "owner"
+            ownerRole.Id
         );
 
         dbContext.Organizations.Add(organization);

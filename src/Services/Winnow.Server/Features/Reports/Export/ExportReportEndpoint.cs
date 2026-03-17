@@ -7,7 +7,7 @@ namespace Winnow.Server.Features.Reports.Export;
 /// <summary>
 /// Request to export a report via an integration.
 /// </summary>
-public class ExportReportRequest
+public class ExportReportRequest : Winnow.Server.Features.Shared.ProjectScopedRequest
 {
     /// <summary>
     /// ID of the integration configuration to use.
@@ -26,7 +26,7 @@ public class ExportReportResponse
     public Uri ExternalUrl { get; set; } = default!;
 }
 
-public sealed class ExportReportEndpoint(IMediator mediator) : Endpoint<ExportReportRequest>
+public sealed class ExportReportEndpoint(IMediator mediator) : Winnow.Server.Features.Shared.ProjectScopedEndpoint<ExportReportRequest, ExportReportResponse>
 {
     public override void Configure()
     {
@@ -47,22 +47,15 @@ public sealed class ExportReportEndpoint(IMediator mediator) : Endpoint<ExportRe
     {
         // Get user ID from JWT
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) ThrowError("Unauthorized", 401);
-
-        // Get project ID from header
-        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader))
+        if (userId is null)
         {
-            ThrowError("Project ID is required in X-Project-ID header", 400);
-        }
-
-        if (!Guid.TryParse(projectIdHeader, out var projectId))
-        {
-            ThrowError("Invalid Project ID format", 400);
+            ThrowError("Unauthorized", 401);
+            return;
         }
 
         var reportId = Route<Guid>("Id");
 
-        var command = new ExportReportCommand(reportId, projectId, userId, req.ConfigId);
+        var command = new ExportReportCommand(req.CurrentOrganizationId, reportId, req.CurrentProjectId, userId!, req.ConfigId);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

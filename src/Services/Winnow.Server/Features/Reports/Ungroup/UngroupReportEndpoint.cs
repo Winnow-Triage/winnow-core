@@ -33,7 +33,7 @@ public sealed class UngroupReportEndpoint(IMediator mediator) : ProjectScopedEnd
 
     public override async Task HandleAsync(UngroupReportRequest req, CancellationToken ct)
     {
-        var command = new UngroupReportCommand(req.Id, req.CurrentProjectId);
+        var command = new UngroupReportCommand(req.CurrentOrganizationId, req.Id, req.CurrentProjectId);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

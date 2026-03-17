@@ -5,13 +5,13 @@ using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Clusters.Merge;
 
-public class AcceptClusterMergeSuggestionRequest
+public class AcceptClusterMergeSuggestionRequest : Winnow.Server.Features.Shared.ProjectScopedRequest
 {
     public Guid Id { get; set; }
 }
 
 public sealed class AcceptClusterMergeSuggestionEndpoint(IMediator mediator)
-    : Endpoint<AcceptClusterMergeSuggestionRequest, ActionResponse>
+    : Winnow.Server.Features.Shared.ProjectScopedEndpoint<AcceptClusterMergeSuggestionRequest, ActionResponse>
 {
     public override void Configure()
     {
@@ -29,20 +29,7 @@ public sealed class AcceptClusterMergeSuggestionEndpoint(IMediator mediator)
 
     public override async Task HandleAsync(AcceptClusterMergeSuggestionRequest req, CancellationToken ct)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) ThrowError("Unauthorized", 401);
-
-        if (!HttpContext.Request.Headers.TryGetValue("X-Project-ID", out var projectIdHeader))
-        {
-            ThrowError("Project ID is required in X-Project-ID header", 400);
-        }
-
-        if (!Guid.TryParse(projectIdHeader, out var projectId))
-        {
-            ThrowError("Invalid Project ID format", 400);
-        }
-
-        var command = new AcceptClusterMergeSuggestionCommand(req.Id, projectId);
+        var command = new AcceptClusterMergeSuggestionCommand(req.CurrentOrganizationId, req.Id, req.CurrentProjectId);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)

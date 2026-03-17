@@ -4,9 +4,12 @@ using Winnow.Server.Features.Reports.Export;
 using Winnow.Server.Infrastructure.Integrations;
 using Winnow.Server.Infrastructure.Persistence;
 
+using Winnow.Server.Infrastructure.Security.Authorization;
+
 namespace Winnow.Server.Features.Reports.Export;
 
-public record ExportReportCommand(Guid ReportId, Guid ProjectId, string UserId, Guid ConfigId) : IRequest<ExportReportResult>;
+[RequirePermission("reports:write")]
+public record ExportReportCommand(Guid OrgId, Guid ReportId, Guid ProjectId, string UserId, Guid ConfigId) : IRequest<ExportReportResult>, IOrgScopedRequest;
 
 public record ExportReportResult(bool IsSuccess, ExportReportResponse? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 
