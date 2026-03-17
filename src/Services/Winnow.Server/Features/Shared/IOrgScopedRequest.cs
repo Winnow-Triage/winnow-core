@@ -1,4 +1,4 @@
-namespace Winnow.Server.Infrastructure.Security.Authorization;
+namespace Winnow.Server.Features.Shared;
 
 public interface IOrgScopedRequest
 {

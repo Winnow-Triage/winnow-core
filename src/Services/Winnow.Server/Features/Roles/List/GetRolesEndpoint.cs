@@ -7,7 +7,7 @@ namespace Winnow.Server.Features.Roles.List;
 
 [HttpGet("/organizations/{OrganizationId}/roles")]
 [Authorize]
-public class GetRolesEndpoint(IMediator mediator) : Endpoint<GetRolesQuery, GetRolesResponse>
+public sealed class GetRolesEndpoint(IMediator mediator) : Endpoint<GetRolesQuery, GetRolesResponse>
 {
     public override async Task HandleAsync(GetRolesQuery req, CancellationToken ct)
     {

@@ -6,6 +6,7 @@ using Winnow.Server.Services.Ai;
 namespace Winnow.Server.Features.Reports.SuggestActions;
 
 using Winnow.Server.Infrastructure.Security.Authorization;
+using Winnow.Server.Features.Shared;
 
 [RequirePermission("reports:write")]
 public record DismissSuggestionCommand(Guid Id, Guid ProjectId, Guid OrgId) : IRequest<DismissSuggestionResult>, IOrgScopedRequest;

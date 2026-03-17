@@ -9,7 +9,7 @@ public record UpdateMemberRequest(Guid RoleId);
 
 [HttpPut("/organizations/{OrganizationId}/members/{UserId}")]
 [Authorize]
-public class UpdateMemberEndpoint(IMediator mediator) : Endpoint<UpdateMemberRequest, UpdateMemberResponse>
+public sealed class UpdateMemberEndpoint(IMediator mediator) : Endpoint<UpdateMemberRequest, UpdateMemberResponse>
 {
     public override async Task HandleAsync(UpdateMemberRequest req, CancellationToken ct)
     {

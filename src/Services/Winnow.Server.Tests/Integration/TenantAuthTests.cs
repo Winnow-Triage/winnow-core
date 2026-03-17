@@ -78,7 +78,15 @@ public class TenantAuthTests : IAsyncLifetime
 
         if (existingMember == null)
         {
-            var orgMember = new OrganizationMember(defaultOrganization.Id, user.Id, "admin");
+            var adminRole = await db.Roles.FirstOrDefaultAsync(r => r.Name == "Admin" && r.OrganizationId == null);
+            if (adminRole == null)
+            {
+                adminRole = new Winnow.Server.Domain.Security.Role("Admin");
+                db.Roles.Add(adminRole);
+                await db.SaveChangesAsync();
+            }
+
+            var orgMember = new OrganizationMember(defaultOrganization.Id, user.Id, adminRole.Id);
             db.OrganizationMembers.Add(orgMember);
         }
 

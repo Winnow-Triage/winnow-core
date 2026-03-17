@@ -5,6 +5,7 @@ using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Services.Ai;
 
 using Winnow.Server.Infrastructure.Security.Authorization;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Reports.Ungroup;
 

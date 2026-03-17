@@ -45,22 +45,27 @@ public class VisibilityTests : IAsyncLifetime
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
-        // 1. Setup Organization
+        // 1. Seed global roles and permissions
+        await _app.SeedDefaultDataAsync();
+
+        // 2. Setup Organization
         var org = new Organization("Visibility Org", new Email("admin@test.com"));
         _orgId = org.Id;
         db.Organizations.Add(org);
 
-        // 2. Setup Admin User
+        // 3. Setup Admin User
+        var adminRole = await db.Roles.FirstAsync(r => r.Name == "Admin" && r.OrganizationId == null);
         var adminUser = new ApplicationUser { UserName = "admin@test.com", Email = "admin@test.com", FullName = "Admin User" };
         await userManager.CreateAsync(adminUser, "Password123!");
-        db.OrganizationMembers.Add(new OrganizationMember(_orgId, adminUser.Id, "Admin"));
+        db.OrganizationMembers.Add(new OrganizationMember(_orgId, adminUser.Id, adminRole.Id));
 
-        // 3. Setup Member User
+        // 4. Setup Member User
+        var memberRole = await db.Roles.FirstAsync(r => r.Name == "Member" && r.OrganizationId == null);
         var memberUser = new ApplicationUser { UserName = "member@test.com", Email = "member@test.com", FullName = "Member User" };
         await userManager.CreateAsync(memberUser, "Password123!");
-        db.OrganizationMembers.Add(new OrganizationMember(_orgId, memberUser.Id, "Member"));
+        db.OrganizationMembers.Add(new OrganizationMember(_orgId, memberUser.Id, memberRole.Id));
 
-        // 4. Setup Team and Project (owned by Admin)
+        // 5. Setup Team and Project (owned by Admin)
         var team = new Winnow.Server.Domain.Teams.Team(_orgId, "Test Team");
         db.Teams.Add(team);
 
@@ -75,13 +80,13 @@ public class VisibilityTests : IAsyncLifetime
         project.ChangeTeam(team.Id);
         db.Projects.Add(project);
 
-        // 5. Add a Cluster to the Project
+        // 6. Add a Cluster to the Project
         var cluster = new Cluster(_projectId, _orgId, Guid.NewGuid());
         db.Clusters.Add(cluster);
 
         await db.SaveChangesAsync();
 
-        // 6. Get Tokens
+        // 7. Get Tokens
         _adminToken = await GetTokenAsync("admin@test.com", "Password123!");
         _memberToken = await GetTokenAsync("member@test.com", "Password123!");
     }

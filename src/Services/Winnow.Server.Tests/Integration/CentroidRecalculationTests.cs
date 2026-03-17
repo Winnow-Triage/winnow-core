@@ -1,6 +1,7 @@
 using Winnow.Server.Features.Auth.Login;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Winnow.Server.Domain.Clusters;
 using Winnow.Server.Domain.Clusters.ValueObjects;
@@ -39,9 +40,11 @@ public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetim
         using var scope = _app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        await db.Database.EnsureCreatedAsync();
 
-        // Setup Test Data
+        // 1. Seed global roles and permissions
+        await _app.SeedDefaultDataAsync();
+
+        // 2. Setup Test Data
         var organization = new Organization("Test Org", new Email("test@example.com"), SubscriptionPlan.Free);
         _organizationId = organization.Id;
         db.Organizations.Add(organization);
@@ -61,7 +64,9 @@ public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetim
             throw new Exception($"Failed to create test user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
         }
 
-        var orgMember = new OrganizationMember(_organizationId, userId, "owner");
+        var ownerRole = await db.Roles.FirstAsync(r => r.Name == "Owner" && r.OrganizationId == null);
+
+        var orgMember = new OrganizationMember(_organizationId, userId, ownerRole.Id);
         db.OrganizationMembers.Add(orgMember);
 
         var project = new Project(_organizationId, "Test Project", userId, "test-hash");

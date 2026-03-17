@@ -118,7 +118,15 @@ public class WinnowTestApp : WebApplicationFactory<Program>, IAsyncLifetime
         var organization = new Organization(name, contactEmail, plan);
         db.Organizations.Add(organization);
 
-        var organizationMember = new OrganizationMember(organization.Id, existingUser.Id, "owner");
+        var ownerRole = await db.Roles.FirstOrDefaultAsync(r => r.Name == "Owner" && r.OrganizationId == null);
+        if (ownerRole == null)
+        {
+            ownerRole = new Winnow.Server.Domain.Security.Role("Owner");
+            db.Roles.Add(ownerRole);
+            await db.SaveChangesAsync();
+        }
+
+        var organizationMember = new OrganizationMember(organization.Id, existingUser.Id, ownerRole.Id);
         db.OrganizationMembers.Add(organizationMember);
 
         var projectId = Guid.NewGuid();
@@ -161,6 +169,73 @@ public class WinnowTestApp : WebApplicationFactory<Program>, IAsyncLifetime
             await db.Database.ExecuteSqlRawAsync(sql);
 #pragma warning restore EF1002
         }
+    }
+
+    /// <summary>
+    /// Seeds default roles and permissions for testing.
+    /// </summary>
+    public async Task SeedDefaultDataAsync()
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
+
+        if (!await db.Permissions.AnyAsync())
+        {
+            var permissions = new[]
+            {
+                "reports:read", "reports:write", "reports:delete",
+                "clusters:read", "clusters:write", "clusters:delete",
+                "teams:manage", "billing:manage", "settings:manage",
+                "apikeys:manage", "integrations:manage", "auditlogs:read"
+            };
+
+            foreach (var name in permissions)
+            {
+                db.Permissions.Add(new Winnow.Server.Domain.Security.Permission(name));
+            }
+            await db.SaveChangesAsync();
+        }
+
+        // System Roles
+        var systemRoles = new[] { "Owner", "Admin", "Member" };
+        foreach (var roleName in systemRoles)
+        {
+            if (!await db.Roles.AnyAsync(r => r.Name == roleName && r.OrganizationId == null))
+            {
+                db.Roles.Add(new Winnow.Server.Domain.Security.Role(roleName));
+            }
+        }
+        await db.SaveChangesAsync();
+
+        var adminRole = await db.Roles.FirstAsync(r => r.Name == "Admin" && r.OrganizationId == null);
+        var ownerRole = await db.Roles.FirstAsync(r => r.Name == "Owner" && r.OrganizationId == null);
+        var memberRole = await db.Roles.FirstAsync(r => r.Name == "Member" && r.OrganizationId == null);
+
+        var allPerms = await db.Permissions.ToListAsync();
+        var adminPermNames = new[] { "reports:read", "reports:write", "clusters:read", "clusters:write", "teams:manage", "settings:manage", "integrations:manage", "auditlogs:read" };
+        var memberPermNames = new[] { "clusters:read", "reports:read" };
+
+        foreach (var p in allPerms)
+        {
+            // Owner gets everything
+            if (!await db.RolePermissions.AnyAsync(rp => rp.RoleId == ownerRole.Id && rp.PermissionId == p.Id))
+                db.RolePermissions.Add(new Winnow.Server.Domain.Security.RolePermission(ownerRole.Id, p.Id));
+
+            // Admin
+            if (adminPermNames.Contains(p.Name))
+            {
+                if (!await db.RolePermissions.AnyAsync(rp => rp.RoleId == adminRole.Id && rp.PermissionId == p.Id))
+                    db.RolePermissions.Add(new Winnow.Server.Domain.Security.RolePermission(adminRole.Id, p.Id));
+            }
+
+            // Member
+            if (memberPermNames.Contains(p.Name))
+            {
+                if (!await db.RolePermissions.AnyAsync(rp => rp.RoleId == memberRole.Id && rp.PermissionId == p.Id))
+                    db.RolePermissions.Add(new Winnow.Server.Domain.Security.RolePermission(memberRole.Id, p.Id));
+            }
+        }
+        await db.SaveChangesAsync();
     }
 
     private class TestTenantContext : Winnow.Server.Infrastructure.MultiTenancy.TenantContext

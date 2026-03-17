@@ -12,8 +12,8 @@ public abstract class ProjectScopedEndpoint<TRequest, TResponse> : OrganizationS
         // This populates req.OrganizationId and ensures the tenant context is valid.
         await base.OnBeforeHandleAsync(req, ct);
 
-        // Admins can see everything in the Org
-        if (req.HasAnyRole("Admin", "SuperAdmin")) return;
+        // Admins and Owners can see everything in the Org
+        if (req.HasAnyRole("Admin", "SuperAdmin", "Owner")) return;
 
         var db = Resolve<WinnowDbContext>();
 
@@ -40,6 +40,9 @@ public abstract class ProjectScopedEndpoint<TRequest> : OrganizationScopedEndpoi
     public override async Task OnBeforeHandleAsync(TRequest req, CancellationToken ct)
     {
         await base.OnBeforeHandleAsync(req, ct);
+
+        // Admins and Owners can see everything in the Org
+        if (req.HasAnyRole("Admin", "SuperAdmin", "Owner")) return;
 
         var db = Resolve<WinnowDbContext>();
         var userOwnsProject = await db.Projects

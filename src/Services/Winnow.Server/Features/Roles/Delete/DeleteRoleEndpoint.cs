@@ -7,7 +7,7 @@ namespace Winnow.Server.Features.Roles.Delete;
 
 [HttpDelete("/organizations/{OrganizationId}/roles/{RoleId}")]
 [Authorize]
-public class DeleteRoleEndpoint(IMediator mediator) : Endpoint<DeleteRoleCommand, DeleteRoleResult>
+public sealed class DeleteRoleEndpoint(IMediator mediator) : Endpoint<DeleteRoleCommand, DeleteRoleResult>
 {
     public override async Task HandleAsync(DeleteRoleCommand req, CancellationToken ct)
     {

@@ -9,7 +9,7 @@ public record CreateRoleRequest(string Name, List<Guid> PermissionIds);
 
 [HttpPost("/organizations/{OrganizationId}/roles")]
 [Authorize]
-public class CreateRoleEndpoint(IMediator mediator) : Endpoint<CreateRoleRequest, CreateRoleResponse>
+public sealed class CreateRoleEndpoint(IMediator mediator) : Endpoint<CreateRoleRequest, CreateRoleResponse>
 {
     public override async Task HandleAsync(CreateRoleRequest req, CancellationToken ct)
     {

@@ -7,7 +7,7 @@ namespace Winnow.Server.Features.Roles.GetPermissions;
 
 [HttpGet("/organizations/{OrganizationId}/permissions")]
 [Authorize]
-public class GetPermissionsEndpoint(IMediator mediator) : Endpoint<GetPermissionsQuery, GetPermissionsResponse>
+public sealed class GetPermissionsEndpoint(IMediator mediator) : Endpoint<GetPermissionsQuery, GetPermissionsResponse>
 {
     public override async Task HandleAsync(GetPermissionsQuery req, CancellationToken ct)
     {

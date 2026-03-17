@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 
 using Winnow.Server.Infrastructure.Security.Authorization;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Clusters.Search;
 

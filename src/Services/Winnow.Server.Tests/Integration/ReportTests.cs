@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Winnow.Server.Domain.Common;
@@ -97,11 +98,19 @@ public class ReportTests : IAsyncLifetime
         var organizationId = organization.Id;
         db.Organizations.Add(organization);
 
+        var ownerRole = await db.Roles.FirstOrDefaultAsync(r => r.Name == "Owner" && r.OrganizationId == null);
+        if (ownerRole == null)
+        {
+            ownerRole = new Winnow.Server.Domain.Security.Role("Owner");
+            db.Roles.Add(ownerRole);
+            await db.SaveChangesAsync();
+        }
+
         // Add user as member of organization
         var organizationMember = new OrganizationMember(
             organizationId,
             testUserId,
-            "owner");
+            ownerRole.Id);
         db.OrganizationMembers.Add(organizationMember);
 
         // Create the project with the hashed API key

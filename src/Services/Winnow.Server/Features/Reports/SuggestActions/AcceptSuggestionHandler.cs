@@ -7,6 +7,7 @@ using Winnow.Server.Services.Ai;
 namespace Winnow.Server.Features.Reports.SuggestActions;
 
 using Winnow.Server.Infrastructure.Security.Authorization;
+using Winnow.Server.Features.Shared;
 
 [RequirePermission("reports:write")]
 public record AcceptSuggestionCommand(Guid OrgId, Guid Id, Guid ProjectId) : IRequest<AcceptSuggestionResult>, IOrgScopedRequest;

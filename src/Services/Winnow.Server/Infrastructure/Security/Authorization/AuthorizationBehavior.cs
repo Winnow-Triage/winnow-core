@@ -3,6 +3,7 @@ using System.Security.Claims;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Infrastructure.Persistence;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Infrastructure.Security.Authorization;
 

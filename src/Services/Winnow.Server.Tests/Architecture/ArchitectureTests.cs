@@ -1143,7 +1143,14 @@ public class ArchitectureTests
             if (currentNamespace.EndsWith(".Organizations"))
             {
                 otherAggregateNamespaces = otherAggregateNamespaces
-                    .Where(n => !n.EndsWith(".Projects") && !n.EndsWith(".Teams"));
+                    .Where(n => !n.EndsWith(".Projects") && !n.EndsWith(".Teams") && !n.EndsWith(".Security"));
+            }
+
+            // SPECIAL EXEMPTION: Security (Roles) is closely linked with Organizations
+            if (currentNamespace.EndsWith(".Security"))
+            {
+                otherAggregateNamespaces = otherAggregateNamespaces
+                    .Where(n => !n.EndsWith(".Organizations"));
             }
 
             var otherNamespacesArray = otherAggregateNamespaces.ToArray();

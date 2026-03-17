@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Winnow.Server.Domain.Security;
 using Winnow.Server.Infrastructure.Persistence;
 using Winnow.Server.Infrastructure.Security.Authorization;
+using Winnow.Server.Features.Shared;
 
 namespace Winnow.Server.Features.Roles.Update;
 

@@ -63,10 +63,18 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
             throw new Exception($"Failed to create test user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
         }
 
+        var ownerRole = await db.Roles.FirstOrDefaultAsync(r => r.Name == "Owner" && r.OrganizationId == null);
+        if (ownerRole == null)
+        {
+            ownerRole = new Winnow.Server.Domain.Security.Role("Owner");
+            db.Roles.Add(ownerRole);
+            await db.SaveChangesAsync();
+        }
+
         var orgMember = new OrganizationMember(
             _organizationId,
             userId,
-            "owner");
+            ownerRole.Id);
         db.OrganizationMembers.Add(orgMember);
 
         _projectId = Guid.NewGuid();
