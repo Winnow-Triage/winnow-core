@@ -17,11 +17,11 @@ internal class ReportCreatedConsumer(
     ITenantContext tenantContext,
     Services.Ai.IDuplicateChecker duplicateChecker,
     IVectorCalculator vectorCalculator,
-    IClusterService clusterService) : IConsumer<ReportCreatedEvent>
+    IClusterService clusterService) : IConsumer<ReportSanitizedEvent>
 {
-    public async Task Consume(ConsumeContext<ReportCreatedEvent> context)
+    public async Task Consume(ConsumeContext<ReportSanitizedEvent> context)
     {
-        logger.LogInformation("ReportCreatedConsumer: Consuming message for report {Id} (Organization: {Organization}, Project: {Project})",
+        logger.LogInformation("ReportCreatedConsumer: Consuming sanitized report {Id} (Organization: {Organization}, Project: {Project})",
             context.Message.ReportId, context.Message.CurrentOrganizationId, context.Message.ProjectId);
 
         if (tenantContext is TenantContext concreteContext)

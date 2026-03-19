@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Winnow.Server.Domain.Common;
@@ -64,6 +65,14 @@ public class OrganizationConfiguration : IEntityTypeConfiguration<Organization>
             billing.Property(b => b.CustomerId).HasColumnName("StripeCustomerId");
             billing.Property(b => b.SubscriptionId).HasColumnName("StripeSubscriptionId");
         });
+
+        // Map Settings as a JSON column for flexibility
+        builder.Property(o => o.Settings)
+            .HasColumnType("jsonb")
+            .HasConversion(
+                v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null!),
+                v => JsonSerializer.Deserialize<OrganizationSettings>(v, (JsonSerializerOptions)null!)!
+            );
 
         // EF Core Navigation Properties - Mapped to internal collections
         builder.HasMany(o => o.OrganizationTeams)

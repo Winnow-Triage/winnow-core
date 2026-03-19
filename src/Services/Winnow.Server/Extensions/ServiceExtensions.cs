@@ -1,4 +1,5 @@
 using Amazon;
+using Amazon.Comprehend;
 using Amazon.Extensions.NETCore.Setup;
 using Amazon.SimpleEmail;
 using FastEndpoints;
@@ -18,6 +19,7 @@ using Winnow.Server.Domain.Teams;
 using Winnow.Server.Features.Clusters.GenerateSummary;
 using Winnow.Server.Features.Dashboard.IService;
 using Winnow.Server.Features.Dashboard.Service;
+using Winnow.Server.Infrastructure.Analysis;
 using Winnow.Server.Infrastructure.Billing;
 using Winnow.Server.Infrastructure.Configuration;
 using Winnow.Server.Infrastructure.HealthChecks;
@@ -103,14 +105,54 @@ internal static class ServiceExtensions
         services.AddHttpClient<LocalEmbeddingProvider>()
             .AddStandardResilienceHandler();
 
+        services.AddHttpClient<LocalPiiRedactionProvider>()
+            .AddStandardResilienceHandler();
+
         // Default fallback client
         services.AddHttpClient();
         services.AddMemoryCache();
 
-        // AI Services
-        services.AddScoped<ClusterSummaryOrchestrator>();
-        services.AddSingleton<IEmbeddingService, EmbeddingService>();
-        services.AddSingleton<IVectorCalculator, VectorCalculator>();
+        // LLM Configuration
+        var llmSettings = new LlmSettings();
+        config.GetSection("LlmSettings").Bind(llmSettings);
+        services.AddSingleton(llmSettings);
+
+        // Email Configuration
+        var emailSettings = new EmailSettings();
+        config.GetSection("EmailSettings").Bind(emailSettings);
+        services.AddSingleton(emailSettings);
+
+        // AWS Configuration (Shared)
+        if (llmSettings.ToxicityProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true ||
+            llmSettings.PiiRedactionProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true ||
+            emailSettings.Provider?.Equals("AwsSes", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            services.AddDefaultAWSOptions(config.GetAWSOptions());
+        }
+
+        if (llmSettings.ToxicityProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true ||
+            llmSettings.PiiRedactionProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            services.AddAWSService<IAmazonComprehend>();
+        }
+
+        // Toxicity Detection
+        services.AddSingleton<IToxicityDetectionProvider, LocalToxicityDetectionProvider>();
+        if (llmSettings.ToxicityProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            services.AddSingleton<IToxicityDetectionProvider, AwsComprehendToxicityDetectionProvider>();
+        }
+        services.AddSingleton<IToxicityDetectionService, ToxicityDetectionService>();
+
+        // PII Redaction
+        services.AddSingleton<LocalPiiRedactionProvider>();
+        services.AddSingleton<IPiiRedactionProvider>(sp => sp.GetRequiredService<LocalPiiRedactionProvider>());
+        if (llmSettings.PiiRedactionProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            services.AddSingleton<IPiiRedactionProvider, AwsComprehendPiiRedactionProvider>();
+        }
+        services.AddSingleton<IPiiRedactionService, PiiRedactionService>();
+
         services.AddHostedService<ClusterRefinementJob>();
         services.AddHostedService<CriticalMassSummaryJob>();
 
@@ -133,10 +175,10 @@ internal static class ServiceExtensions
         });
         services.AddSingleton<IStorageService, S3StorageService>();
 
-        // LLM Configuration
-        var llmSettings = new LlmSettings();
-        config.GetSection("LlmSettings").Bind(llmSettings);
-        services.AddSingleton(llmSettings);
+        // AI Services
+        services.AddScoped<ClusterSummaryOrchestrator>();
+        services.AddSingleton<IEmbeddingService, EmbeddingService>();
+        services.AddSingleton<IVectorCalculator, VectorCalculator>();
 
         // Semantic Kernel setup based on provider
         if (llmSettings.Provider == "Ollama")
@@ -186,14 +228,8 @@ internal static class ServiceExtensions
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<IClusterService, ClusterService>();
 
-        // Email Service
-        var emailSettings = new EmailSettings();
-        config.GetSection("EmailSettings").Bind(emailSettings);
-        services.AddSingleton(emailSettings);
-
         if (emailSettings.Provider == "AwsSes")
         {
-            services.AddDefaultAWSOptions(config.GetAWSOptions());
             services.AddAWSService<IAmazonSimpleEmailService>();
             services.AddScoped<IEmailService, AwsSesEmailService>();
         }
@@ -378,6 +414,7 @@ internal static class ServiceExtensions
         // MassTransit
         services.AddMassTransit(x =>
         {
+            x.AddConsumer<Winnow.Server.Features.Reports.Create.AnalyzeReportConsumer>();
             x.AddConsumer<Winnow.Server.Features.Reports.Create.ReportCreatedConsumer>();
             x.UsingInMemory((context, cfg) =>
             {

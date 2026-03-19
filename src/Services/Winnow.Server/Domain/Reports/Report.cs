@@ -52,6 +52,7 @@ public class Report : IAggregateRoot
     // Infrastructure/Metadata fields
     public string? Metadata { get; private set; }
     public string? Screenshot { get; private set; }
+    public bool IsToxic { get; private set; }
 
     // Private EF constructor
     private Report()
@@ -214,5 +215,45 @@ public class Report : IAggregateRoot
         }
 
         Embedding = embedding;
+    }
+
+    public void UpdateMessage(string sanitizedMessage)
+    {
+        if (string.IsNullOrWhiteSpace(sanitizedMessage))
+        {
+            throw new ArgumentException("Sanitized message cannot be empty.", nameof(sanitizedMessage));
+        }
+
+        Message = sanitizedMessage;
+    }
+
+    public void MarkAsToxic()
+    {
+        if (IsToxic) return;
+
+        IsToxic = true;
+        Status = ReportStatus.Dismissed;
+    }
+
+    public void MarkAsClean()
+    {
+        if (!IsToxic) return;
+
+        IsToxic = false;
+
+        if (Status == ReportStatus.Dismissed)
+        {
+            Status = ReportStatus.Open;
+        }
+    }
+
+    public void UpdateMetadata(string? jsonMetadata)
+    {
+        Metadata = jsonMetadata;
+    }
+
+    public void SetScreenshot(string screenshotKey)
+    {
+        Screenshot = screenshotKey;
     }
 }

@@ -1,4 +1,4 @@
-using MassTransit;
+using MediatR;
 using Winnow.Server.Domain.Reports;
 using Winnow.Server.Features.Reports.Create;
 using Winnow.Server.Features.Shared;
@@ -19,10 +19,7 @@ public class SimulateTrafficResponse
 }
 
 public sealed class SimulateTrafficEndpoint(
-    IPublishEndpoint publishEndpoint,
-    WinnowDbContext dbContext,
-    Services.Quota.IQuotaService quotaService,
-    Services.Ai.IEmbeddingService embeddingService) : ProjectScopedEndpoint<SimulateTrafficRequest, SimulateTrafficResponse>
+    IMediator mediator) : ProjectScopedEndpoint<SimulateTrafficRequest, SimulateTrafficResponse>
 {
     public override void Configure()
     {
@@ -44,60 +41,24 @@ public sealed class SimulateTrafficEndpoint(
         var templates = GetTemplates(req.Topic);
         var random = new Random();
 
-        var reportsToPublish = new List<ReportCreatedEvent>();
-
-        var (isOverage, isLocked) = await quotaService.GetIngestionQuotaStatusAsync(orgId, ct);
-        if (isLocked)
-        {
-            await quotaService.EnforceRetroactiveRansomAsync(orgId, ct);
-        }
-
         for (int i = 0; i < req.Count; i++)
         {
             var template = templates[random.Next(templates.Count)];
             var title = $"{template.Title} {random.Next(1000, 9999)}";
 
-            var textToEmbed = $"{title}\n{template.Description}";
-            var embeddingFloats = await embeddingService.GetEmbeddingAsync(textToEmbed);
-
-            var report = new Report(
-                req.CurrentProjectId,
+            var command = new CreateReportCommand(
                 orgId,
+                req.CurrentProjectId,
                 title,
-                template.Description,
-                null
+                template.Description
             );
 
-            report.SetEmbedding(embeddingFloats);
-
-            if (isOverage) report.MarkOverage();
-            if (isLocked) report.Lock();
-
-            dbContext.Reports.Add(report);
-
-            reportsToPublish.Add(new ReportCreatedEvent
-            {
-                ReportId = report.Id,
-                ProjectId = report.ProjectId,
-                Title = report.Title,
-                Message = report.Message,
-                StackTrace = report.StackTrace,
-                CreatedAt = report.CreatedAt,
-                CurrentOrganizationId = orgId
-            });
-        }
-
-        // Save all reports in a single transaction
-        await dbContext.SaveChangesAsync(ct);
-
-        foreach (var evt in reportsToPublish)
-        {
-            await publishEndpoint.Publish(evt, ct);
+            await mediator.Send(command, ct);
         }
 
         await Send.OkAsync(new SimulateTrafficResponse
         {
-            Message = $"Simulated {req.Count} reports for topic '{req.Topic}' in project {req.CurrentProjectId}.",
+            Message = $"Simulated {req.Count} reports for topic '{req.Topic}' in project {req.CurrentProjectId} via MediatR.",
             Count = req.Count
         }, ct);
     }

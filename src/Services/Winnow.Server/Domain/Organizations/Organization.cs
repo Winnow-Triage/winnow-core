@@ -48,6 +48,8 @@ public class Organization : IAggregateRoot
     public UsageQuota ReportQuota { get; private set; }
     public UsageQuota SummaryQuota { get; private set; }
 
+    public OrganizationSettings Settings { get; private set; } = null!;
+
     // <summary>
     // Private parameterless constructor specifically for Entity Framework Core.
     // The null! tells the compiler to ignore the nullability warning here.
@@ -75,6 +77,7 @@ public class Organization : IAggregateRoot
         CreatedAt = DateTime.UtcNow;
         ReportQuota = new UsageQuota(Plan.MonthlyReportLimit, Plan.MonthlyReportGraceLimit);
         SummaryQuota = new UsageQuota(Plan.MonthlySummaryLimit, Plan.MonthlySummaryGraceLimit);
+        Settings = OrganizationSettings.Create(Id);
 
         _domainEvents.Add(new OrganizationCreatedEvent(Id, Name, ContactEmail.Value));
     }

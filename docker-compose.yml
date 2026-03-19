@@ -36,6 +36,13 @@ services:
     volumes:
       - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack"
 
+  presidio-analyzer:
+    image: mcr.microsoft.com/presidio-analyzer:latest
+    ports:
+      - "5002:3000"
+    environment:
+      - PORT=3000
+
   # 3. The "Bouncer" (Virus & File Check)
   # bouncer:
   #   build:

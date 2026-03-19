@@ -13,6 +13,10 @@ public readonly record struct ReportStatus
         Category = category;
     }
 
+    // --- NEW: The "Quarantine" State ---
+    public static readonly ReportStatus Pending = new("Pending", StatusCategory.Pending);
+    public static readonly ReportStatus Quarantined = new("Quarantined", StatusCategory.Terminal);
+
     // Active States (Needs routing or is actively being routed)
     public static readonly ReportStatus Open = new("Open", StatusCategory.Active); // Fresh, raw report
     public static readonly ReportStatus Duplicate = new("Duplicate", StatusCategory.Active); // Assigned to a cluster, actively being triaged

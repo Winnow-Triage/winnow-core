@@ -2,6 +2,7 @@ using System.Text.Json;
 using FastEndpoints;
 using FluentValidation;
 using MassTransit;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
@@ -54,7 +55,7 @@ internal class IngestReportValidator : Validator<IngestReportRequest>
     }
 }
 
-internal record ReportCreatedEvent
+public record ReportCreatedEvent
 {
     public Guid ReportId { get; init; }
     public Guid CurrentOrganizationId { get; init; }
@@ -75,8 +76,7 @@ public record IngestReportResponse
 }
 
 public sealed class IngestReportEndpoint(
-    IPublishEndpoint publishEndpoint,
-    Services.Ai.IEmbeddingService embeddingService,
+    IMediator mediator,
     WinnowDbContext dbContext,
     ILogger<IngestReportEndpoint> logger) : Endpoint<IngestReportRequest, IngestReportResponse>
 {
@@ -118,74 +118,25 @@ public sealed class IngestReportEndpoint(
             }
         }
 
-        // Load the Aggregate that owns the rules
-        var organization = await dbContext.Organizations
-            .FirstOrDefaultAsync(o => o.Id == currentOrgId, ct);
-
-        if (organization == null)
+        if (currentOrgId == Guid.Empty)
         {
-            logger.LogWarning("Report ingestion failed. Organization {OrgId} not found.", currentOrgId);
-            await Send.NotFoundAsync(ct);
+            logger.LogWarning("Report ingestion failed. Organization not found in context or claims.");
+            await Send.UnauthorizedAsync(ct);
             return;
         }
 
-        // Generate Embedding
-        var textToEmbed = $"{req.Title}\n{req.Message}\n{req.StackTrace}";
-        var embeddingFloats = await embeddingService.GetEmbeddingAsync(textToEmbed);
-
-        // Generate Report ID upfront
-        var reportId = Guid.NewGuid();
-
-        // Asset record creation map
-        Domain.Assets.Asset? screenshotAsset = null;
-        if (!string.IsNullOrEmpty(req.ScreenshotKey))
-        {
-            var fileName = Path.GetFileName(req.ScreenshotKey);
-            screenshotAsset = new Domain.Assets.Asset(
-                currentOrgId,
-                projectId,
-                reportId,
-                string.IsNullOrEmpty(fileName) ? "screenshot.png" : fileName,
-                req.ScreenshotKey,
-                0,
-                "image/png"
-            );
-        }
-
-        var report = new Domain.Reports.Report(
-            projectId,
+        var command = new CreateReportCommand(
             currentOrgId,
+            projectId,
             req.Title,
             req.Message,
             req.StackTrace,
-            null,
-            embeddingFloats,
-            null,
-            isOverage: organization.ReportQuota.IsOverage(),
-            isLocked: organization.IsLocked
+            req.ScreenshotKey,
+            req.Metadata
         );
 
-        dbContext.Reports.Add(report);
+        var reportId = await mediator.Send(command, ct);
 
-        if (screenshotAsset != null)
-            dbContext.Assets.Add(screenshotAsset);
-
-        await dbContext.SaveChangesAsync(ct);
-
-        logger.LogInformation("IngestReportEndpoint: Publishing ReportCreatedEvent for report {Id} (Org: {OrgId})", report.Id, currentOrgId);
-
-        await publishEndpoint.Publish(new ReportCreatedEvent
-        {
-            ReportId = report.Id,
-            CurrentOrganizationId = currentOrgId,
-            ProjectId = projectId,
-            Title = report.Title,
-            Message = report.Message,
-            StackTrace = report.StackTrace,
-            CreatedAt = report.CreatedAt,
-            Metadata = report.Metadata != null ? JsonSerializer.Serialize(report.Metadata) : null
-        }, ct);
-
-        await Send.AcceptedAtAsync("GetReport", new { id = report.Id }, new IngestReportResponse { Id = report.Id }, false, ct);
+        await Send.AcceptedAtAsync("GetReport", new { id = reportId }, new IngestReportResponse { Id = reportId }, false, ct);
     }
 }

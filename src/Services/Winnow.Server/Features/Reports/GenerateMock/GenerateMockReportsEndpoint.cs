@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using FastEndpoints;
-using MassTransit;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.SemanticKernel;
@@ -32,9 +32,7 @@ public class GenerateMockReportsRequest : ProjectScopedRequest
 public sealed class GenerateMockReportsEndpoint(
     Kernel kernel,
     WinnowDbContext db,
-    IPublishEndpoint publishEndpoint,
-    Services.Ai.IEmbeddingService embeddingService,
-    Services.Quota.IQuotaService quotaService,
+    IMediator mediator,
     ILogger<GenerateMockReportsEndpoint> logger) : ProjectScopedEndpoint<GenerateMockReportsRequest>
 {
     private static readonly JsonSerializerOptions options = new()
@@ -89,48 +87,20 @@ public sealed class GenerateMockReportsEndpoint(
 
             var tenantContext = db.GetService<ITenantContext>();
             var currentOrgId = tenantContext.CurrentOrganizationId ?? Guid.Empty;
-            var tenantId = ((TenantContext)tenantContext).TenantId;
 
             foreach (var dt in mockReports)
             {
-                var quotaStatus = await quotaService.GetIngestionQuotaStatusAsync(currentOrgId, ct);
-                if (quotaStatus.isLocked)
-                {
-                    await quotaService.EnforceRetroactiveRansomAsync(currentOrgId, ct);
-                }
-
-                // Generate embedding for the mock report
-                var textToEmbed = $"{dt.Title}\n{dt.Message}";
-                var embeddingFloats = await embeddingService.GetEmbeddingAsync(textToEmbed);
-
-                var report = new Domain.Reports.Report(
-                    req.CurrentProjectId,
+                var command = new CreateReportCommand(
                     currentOrgId,
+                    req.CurrentProjectId,
                     dt.Title,
-                    dt.Message,
-                    null,
-                    null,
-                    embeddingFloats,
-                    null,
-                    quotaStatus.isOverage,
-                    quotaStatus.isLocked
+                    dt.Message
                 );
 
-                db.Reports.Add(report);
-                await db.SaveChangesAsync(ct);
-
-                await publishEndpoint.Publish(new ReportCreatedEvent
-                {
-                    ReportId = report.Id,
-                    Title = report.Title,
-                    Message = report.Message,
-                    CreatedAt = report.CreatedAt,
-                    ProjectId = req.CurrentProjectId,
-                    CurrentOrganizationId = Guid.TryParse(tenantId, out var orgId) ? orgId : throw new Exception("Invalid Tenant ID format")
-                }, ct);
+                await mediator.Send(command, ct);
             }
 
-            await Send.OkAsync(new { Message = $"Generated {mockReports.Count} reports with embeddings." }, ct);
+            await Send.OkAsync(new { Message = $"Generated {mockReports.Count} reports via MediatR pipeline." }, ct);
         }
         catch (Exception ex)
         {
