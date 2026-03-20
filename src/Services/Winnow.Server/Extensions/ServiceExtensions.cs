@@ -407,7 +407,8 @@ internal static class ServiceExtensions
                 policy.WithOrigins("https://app.winnowtriage.com", "http://localhost:5173", "http://localhost:5174")
                       .AllowAnyHeader()
                       .AllowAnyMethod()
-                      .AllowCredentials();
+                      .AllowCredentials()
+                      .SetPreflightMaxAge(TimeSpan.FromHours(2));
             });
         });
 
