@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
@@ -9,21 +8,14 @@ namespace Winnow.Server.Infrastructure.Analysis;
 /// <summary>
 /// PII redaction provider using Microsoft Presidio Analyzer.
 /// </summary>
-internal class LocalPiiRedactionProvider : IPiiRedactionProvider
+internal class LocalPiiRedactionProvider(
+    HttpClient httpClient,
+    IOptions<LlmSettings> settings,
+    ILogger<LocalPiiRedactionProvider> logger) : IPiiRedactionProvider
 {
-    private readonly HttpClient _httpClient;
-    private readonly LlmSettings _settings;
-    private readonly ILogger<LocalPiiRedactionProvider> _logger;
-
-    public LocalPiiRedactionProvider(
-        HttpClient httpClient,
-        IOptions<LlmSettings> settings,
-        ILogger<LocalPiiRedactionProvider> logger)
-    {
-        _httpClient = httpClient;
-        _settings = settings.Value;
-        _logger = logger;
-    }
+    private readonly HttpClient _httpClient = httpClient;
+    private readonly LlmSettings _settings = settings.Value;
+    private readonly ILogger<LocalPiiRedactionProvider> _logger = logger;
 
     public async Task<string> RedactPiiAsync(string text, CancellationToken cancellationToken = default)
     {
@@ -34,17 +26,17 @@ internal class LocalPiiRedactionProvider : IPiiRedactionProvider
 
         try
         {
-            var request = new PresidioAnalyzeRequest
+            var request = new PresidioAnalyzeBody
             {
                 Text = text,
                 Language = "en",
                 ScoreThreshold = 0.4f,
-                Entities = new List<string>
-                {
+                Entities =
+                [
                     "PERSON", "LOCATION", "EMAIL_ADDRESS", "PHONE_NUMBER",
                     "URL", "DATE_TIME", "CREDIT_CARD", "DOMAIN_NAME",
                     "IP_ADDRESS", "US_SSN", "US_BANK_NUMBER"
-                }
+                ]
             };
 
             _logger.LogInformation("LocalPiiRedactionProvider: Sending text to Presidio for analysis. (Length: {Length})", text.Length);
@@ -56,7 +48,7 @@ internal class LocalPiiRedactionProvider : IPiiRedactionProvider
 
             response.EnsureSuccessStatusCode();
 
-            var results = await response.Content.ReadFromJsonAsync<List<PresidioAnalyzeResult>>(cancellationToken: cancellationToken);
+            var results = await response.Content.ReadFromJsonAsync<List<PresidioAnalyzeItem>>(cancellationToken: cancellationToken);
 
             if (results == null || results.Count == 0)
             {
@@ -119,7 +111,7 @@ internal class LocalPiiRedactionProvider : IPiiRedactionProvider
         return settings?.PiiRedactionProvider?.Equals("Local", StringComparison.OrdinalIgnoreCase) == true;
     }
 
-    private class PresidioAnalyzeRequest
+    private class PresidioAnalyzeBody
     {
         [JsonPropertyName("text")]
         public string Text { get; set; } = string.Empty;
@@ -134,7 +126,7 @@ internal class LocalPiiRedactionProvider : IPiiRedactionProvider
         public float? ScoreThreshold { get; set; }
     }
 
-    private class PresidioAnalyzeResult
+    private class PresidioAnalyzeItem
     {
         [JsonPropertyName("start")]
         public int Start { get; set; }
