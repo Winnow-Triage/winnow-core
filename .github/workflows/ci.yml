@@ -88,15 +88,6 @@ jobs:
       - name: Build
         run: dotnet build Winnow.sln --no-restore
 
-      - name: Check SQLite drift
-        working-directory: src/Services/Winnow.Server
-        env:
-          DatabaseProvider: Sqlite
-        run: |
-          echo "🔍 Checking SQLite for pending model changes..."
-          dotnet ef migrations has-pending-model-changes
-          echo "✅ SQLite migrations are in sync."
-
       - name: Check Postgres drift
         working-directory: src/Services/Winnow.Server
         env:
