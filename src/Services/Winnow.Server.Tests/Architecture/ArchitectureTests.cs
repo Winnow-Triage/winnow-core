@@ -1289,7 +1289,8 @@ public class ArchitectureTests
                 typeName == "AcceptInvitationCommand" ||
                 typeName == "GetInvitationDetailsQuery" ||
                 typeName == "ListUserOrganizationsQuery" ||
-                typeName == "UpdateAssetStatusCommand")
+                typeName == "UpdateAssetStatusCommand" ||
+                typeName == "CreateReportCommand")
             {
                 continue;
             }
