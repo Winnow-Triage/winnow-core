@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to generate code coverage reports for Winnow.Server.Tests
+# Script to generate code coverage reports for Winnow.API.Tests
 # Generates coverage data and HTML reports for both unit and integration tests
 
 set -e  # Exit on any error
@@ -15,10 +15,10 @@ dotnet tool install -g dotnet-reportgenerator-globaltool 2>/dev/null || echo "Re
 
 # 2. Run tests with coverage collection
 echo "Running tests with coverage collection..."
-dotnet test src/Services/Winnow.Server.Tests \
+dotnet test src/Services/Winnow.API.Tests \
     --collect:"XPlat Code Coverage" \
     --results-directory ./coverage \
-    --settings:src/Services/Winnow.Server.Tests/coverlet.runsettings
+    --settings:src/Services/Winnow.API.Tests/coverlet.runsettings
 
 # 3. Generate HTML report
 echo "Generating HTML report..."

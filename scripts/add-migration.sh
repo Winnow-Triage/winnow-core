@@ -10,7 +10,7 @@
 # Example:
 #   ./scripts/add-migration.sh AddUserPreferences
 #
-# Both providers share the same assembly (Winnow.Server), so migration names
+# Both providers share the same assembly (Winnow.API), so migration names
 # are suffixed to avoid collisions:
 #   - SQLite:   <Name>         → Migrations/Sqlite
 #   - Postgres: <Name>Pg       → Migrations/Postgres/
@@ -29,7 +29,7 @@ MIGRATION_NAME="${1:?❌ Usage: $0 <MigrationName>}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-SERVER_DIR="$REPO_ROOT/src/Services/Winnow.Server"
+SERVER_DIR="$REPO_ROOT/src/Services/Winnow.API"
 
 echo "============================================"
 echo " Dual-Provider Migration: $MIGRATION_NAME"
@@ -43,7 +43,7 @@ echo "▶ Generating PostgreSQL migration..."
 
   DatabaseProvider=Postgres dotnet ef migrations add "${MIGRATION_NAME}Pg" \
     --output-dir Migrations/Postgres \
-    --namespace Winnow.Server.Migrations.Postgres
+    --namespace Winnow.API.Migrations.Postgres
 )
 echo "✅ PostgreSQL migration created."
 echo ""

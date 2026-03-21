@@ -4,6 +4,7 @@ services:
   # 1. The Database
   postgres:
     image: pgvector/pgvector:pg18
+    container_name: winnow-postgres
     environment:
       POSTGRES_USER: winnow
       POSTGRES_PASSWORD: localpassword
@@ -12,66 +13,186 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
+    networks:
+      - winnow-net
 
   mailpit:
     image: axllent/mailpit:latest
     container_name: winnow-mailpit
     restart: unless-stopped
     ports:
-      - "8025:8025" # The beautiful Web UI
-      - "1025:1025" # The SMTP port your C# app will send mail to
+      - "8025:8025"
+      - "1025:1025"
     environment:
       - MP_MAX_MESSAGES=500
+    networks:
+      - winnow-net
 
   # LocalStack for SQS
   localstack:
     image: localstack/localstack:latest
     container_name: winnow-localstack
     ports:
-      - "4566:4566"            # LocalStack Gateway
-      - "4510-4559:4510-4559"  # external services port range
+      - "4566:4566"
+      - "4510-4559:4510-4559"
     environment:
       - SERVICES=s3,sqs
       - DEBUG=1
     volumes:
       - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack"
+      - "./localstack-init.sh:/etc/localstack/init/ready.d/init.sh"
+    networks:
+      - winnow-net
 
   presidio-analyzer:
     image: mcr.microsoft.com/presidio-analyzer:latest
+    container_name: winnow-presidio
     ports:
       - "5002:3000"
     environment:
       - PORT=3000
+    networks:
+      - winnow-net
+
+  # RabbitMQ for MassTransit
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: winnow-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - winnow-net
 
   # 3. The "Bouncer" (Virus & File Check)
-  # bouncer:
-  #   build:
-  #     context: ./src/Services/Winnow.Bouncer # Folder containing the Go Dockerfile
-  #     dockerfile: Dockerfile
-  #   depends_on:
-  #     - localstack
-  #   environment:
-  #     AWS_ACCESS_KEY_ID: minioadmin
-  #     AWS_SECRET_ACCESS_KEY: minioadmin
-  #     S3_ENDPOINT: http://localstack:4566
-  #     S3_BUCKET: winnow-quarantine
+  bouncer:
+    build:
+      context: ../winnow-bouncer
+      dockerfile: Dockerfile
+    container_name: winnow-bouncer
+    network_mode: "host"
+    depends_on:
+      - localstack
+    environment:
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      S3_ENDPOINT: http://localhost:4566
+      S3_BUCKET: winnow-quarantine
 
-  # # 4. Your .NET API
-  # api:
-  #   build:
-  #     context: ./src/Services/Winnow.Server
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "5000:8080" # Maps localhost:5000 to container:8080
-  #   depends_on:
-  #     - postgres
-  #     - localstack
-  #   environment:
-  #     - ConnectionStrings__DefaultConnection=Host=postgres;Database=winnow_db;Username=winnow;Password=localpassword
-  #     - AWS_ACCESS_KEY_ID=minioadmin
-  #     - AWS_SECRET_ACCESS_KEY=minioadmin
-  #     - S3_ServiceURL=http://localstack:4566
-  #     - S3_ForcePathStyle=true
+  # 4. Your .NET API
+  api:
+    build:
+      context: .
+      dockerfile: src/Services/Winnow.API/Dockerfile
+    container_name: winnow-api
+    network_mode: "host"
+    depends_on:
+      - postgres
+      - localstack
+      - rabbitmq
+      - mailpit
+      - presidio-analyzer
+    environment:
+      - ASPNETCORE_HTTP_PORTS=5000
+      - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword
+      - S3Settings__Endpoint=http://localhost:4566
+      - LlmSettings__Provider=Ollama
+      - LlmSettings__Ollama__Endpoint=http://localhost:11434
+      - LlmSettings__Ollama__ModelId=llama3.2
+      - LlmSettings__Ollama__GatekeeperModelId=llama3.2
+      - LlmSettings__Presidio__AnalyzerEndpoint=http://localhost:5002
+      - EmailSettings__Smtp__Host=localhost
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - S3_ForcePathStyle=true
+      - RABBITMQ_HOST=localhost
+      - Encryption__MasterKey=NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg=
+
+  # 5. Sanitize Worker
+  sanitize:
+    build:
+      context: .
+      dockerfile: src/Services/Winnow.Sanitize/Dockerfile
+    container_name: winnow-sanitize
+    network_mode: "host"
+    depends_on:
+      - rabbitmq
+    environment:
+      - ASPNETCORE_HTTP_PORTS=5001
+      - RABBITMQ_HOST=localhost
+      - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword
+      - S3Settings__Endpoint=http://localhost:4566
+      - LlmSettings__Provider=Ollama
+      - LlmSettings__Ollama__Endpoint=http://localhost:11434
+      - LlmSettings__Ollama__ModelId=llama3.2
+      - LlmSettings__Ollama__GatekeeperModelId=llama3.2
+      - LlmSettings__Presidio__AnalyzerEndpoint=http://localhost:5002
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - Encryption__MasterKey=NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg=
+
+  # 6. Clustering Worker
+  clustering:
+    build:
+      context: .
+      dockerfile: src/Services/Winnow.Clustering/Dockerfile
+    container_name: winnow-clustering
+    network_mode: "host"
+    depends_on:
+      - rabbitmq
+    environment:
+      - ASPNETCORE_HTTP_PORTS=5003
+      - RABBITMQ_HOST=localhost
+      - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword
+      - S3Settings__Endpoint=http://localhost:4566
+      - LlmSettings__Provider=Ollama
+      - LlmSettings__Ollama__Endpoint=http://localhost:11434
+      - LlmSettings__Ollama__ModelId=llama3.2
+      - LlmSettings__Ollama__GatekeeperModelId=llama3.2
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - Encryption__MasterKey=NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg=
+
+  # 7. Summary Worker
+  summary:
+    build:
+      context: .
+      dockerfile: src/Services/Winnow.Summary/Dockerfile
+    container_name: winnow-summary
+    network_mode: "host"
+    depends_on:
+      - rabbitmq
+    environment:
+      - ASPNETCORE_HTTP_PORTS=5004
+      - RABBITMQ_HOST=localhost
+      - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword
+      - S3Settings__Endpoint=http://localhost:4566
+      - LlmSettings__Provider=Ollama
+      - LlmSettings__Ollama__Endpoint=http://localhost:11434
+      - LlmSettings__Ollama__ModelId=llama3.2
+      - LlmSettings__Ollama__GatekeeperModelId=llama3.2
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - Encryption__MasterKey=NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg=
+
+  # 8. React Client Frontend
+  client:
+    build:
+      context: ./src/Apps/Winnow.Client
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:5000
+    container_name: winnow-client
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+    networks:
+      - winnow-net
+
+networks:
+  winnow-net:
+    driver: bridge
 
 volumes:
   postgres_data:

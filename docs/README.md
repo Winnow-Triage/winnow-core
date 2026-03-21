@@ -14,7 +14,7 @@ Winnow is built to solve the "Noise Problem" in modern observability. By using A
 ## 🏗 Architectural Patterns
 
 ### 1. Vertical Slice Architecture
-Instead of traditional N-Tier layers, `Winnow.Server` is organized around **Features**. Each feature (e.g., `Reports.Create`) contains everything it needs to function—from endpoints to domain logic and data access.
+Instead of traditional N-Tier layers, `Winnow.API` is organized around **Features**. Each feature (e.g., `Reports.Create`) contains everything it needs to function—from endpoints to domain logic and data access.
 
 ### 2. REPR Pattern (Request-Endpoint-Response)
 We use [FastEndpoints](https://fastendpoints.com/) to implement the REPR pattern. Every API interaction is a single class (the Endpoint) that takes a Request DTO and returns a Response DTO.
@@ -28,7 +28,7 @@ Multi-tenancy is achieved through a "Shared Database, Isolated Data" approach.
 ```mermaid
 sequenceDiagram
     participant SDK as Winnow SDK
-    participant API as Winnow.Server (IngestEndpoint)
+    participant API as Winnow.API (IngestEndpoint)
     participant DB as Postgres/SQLite
     participant MQ as MassTransit (SQS)
     participant Worker as ReportCreatedConsumer

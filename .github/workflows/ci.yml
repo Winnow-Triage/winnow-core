@@ -89,7 +89,7 @@ jobs:
         run: dotnet build Winnow.sln --no-restore
 
       - name: Check Postgres drift
-        working-directory: src/Services/Winnow.Server
+        working-directory: src/Services/Winnow.API
         env:
           DatabaseProvider: Postgres
           ConnectionStrings__Postgres: "Host=localhost;Port=5432;Database=winnow_drift;Username=winnow;Password=winnow_test"
@@ -131,7 +131,7 @@ jobs:
         run: |
           echo "Building image..."
           # Note: Ensure the Dockerfile path matches your repository structure
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f src/Services/Winnow.Server/Dockerfile .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f src/Services/Winnow.API/Dockerfile .
           
           echo "Pushing commit hash tag..."
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG

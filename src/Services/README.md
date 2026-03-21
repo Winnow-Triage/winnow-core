@@ -4,7 +4,7 @@ The service layer contains the core backend components that power the Winnow pla
 
 ## 📂 Services Overview
 
-- [**Winnow.Server**](./Winnow.Server/README.md): The primary C# API and AI processing engine.
+- [**Winnow.API**](./Winnow.API/README.md): The primary C# API and AI processing engine.
 - [**Winnow.Bouncer**](./Winnow.Bouncer/README.md): A Go-based service for asset scanning and moderation.
 - [**Winnow.Integrations**](./Winnow.Integrations/README.md): Connectivity layer for third-party developer tools.
 

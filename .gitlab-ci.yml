@@ -50,7 +50,7 @@ drift-sqlite:
   script:
     - dotnet tool install --global dotnet-ef
     - export PATH="$PATH:$HOME/.dotnet/tools"
-    - cd src/Services/Winnow.Server
+    - cd src/Services/Winnow.API
     - echo "🔍 Checking SQLite for pending model changes..."
     - dotnet ef migrations has-pending-model-changes
     - echo "✅ SQLite migrations are in sync."
@@ -72,7 +72,7 @@ drift-postgres:
   script:
     - dotnet tool install --global dotnet-ef
     - export PATH="$PATH:$HOME/.dotnet/tools"
-    - cd src/Services/Winnow.Server
+    - cd src/Services/Winnow.API
     - echo "🔍 Checking Postgres for pending model changes..."
     - dotnet ef migrations has-pending-model-changes
     - echo "✅ Postgres migrations are in sync."

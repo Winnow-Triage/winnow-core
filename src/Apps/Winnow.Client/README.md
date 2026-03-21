@@ -33,7 +33,7 @@ For high-frequency or local data (e.g., report lists), we use a combination of l
 
 ### API Service Layer
 
-All communication with `Winnow.Server` is abstracted through a centralized API service in `src/services/api.ts`.
+All communication with `Winnow.API` is abstracted through a centralized API service in `src/services/api.ts`.
 
 - **JWT Middleware**: Automatically attaches the Bearer token to all requests.
 - **Error Interceptor**: Catches 401/403 errors and triggers the `logout` flow if the session is invalid.

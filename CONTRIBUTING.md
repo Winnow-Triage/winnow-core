@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Winnow! This guide outlines the s
 
 Winnow is a monorepo containing several interconnected services and applications:
 - `src/Apps/`: React-based frontend applications (`Winnow.Client`, `Winnow.Marketing`).
-- `src/Services/`: Backend services in C# (`Winnow.Server`) and Go (`Winnow.Bouncer`).
+- `src/Services/`: Backend services in C# (`Winnow.API`) and Go (`Winnow.Bouncer`).
 - `src/Sdks/`: Client-side libraries for .NET and JS/TS.
 
 ## 🛠 Prerequisites

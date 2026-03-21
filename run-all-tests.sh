@@ -35,7 +35,7 @@ OVERALL_SUCCESS=true
 # 1. BACKEND TESTS (.NET)
 # ====================
 print_status "BACKEND" "Running .NET server tests..."
-cd src/Services/Winnow.Server.Tests
+cd src/Services/Winnow.API.Tests
 
 if dotnet test --verbosity minimal --logger "console;verbosity=minimal"; then
     print_success "Backend tests passed"

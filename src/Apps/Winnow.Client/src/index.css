@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "../index.html";
+@source "./";
 
 @plugin "tailwindcss-animate";
 
