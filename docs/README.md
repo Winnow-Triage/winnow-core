@@ -13,37 +13,51 @@ Winnow is built to solve the "Noise Problem" in modern observability. By using A
 
 ## 🏗 Architectural Patterns
 
-### 1. Vertical Slice Architecture
-Instead of traditional N-Tier layers, `Winnow.API` is organized around **Features**. Each feature (e.g., `Reports.Create`) contains everything it needs to function—from endpoints to domain logic and data access.
+### 1. Vertical Slice & Microservices
+Each service is organized around **Vertical Slices**. While `Winnow.API` handles the public-facing features, specialized worker services handle background processing:
+- **Winnow.API**: Ingestion, Dashboard, and Identity.
+- **Winnow.Sanitize**: PII Redaction and Toxicity Detection.
+- **Winnow.Clustering**: Report grouping and vector matching.
+- **Winnow.Summary**: AI-driven cluster summarization.
+- **Winnow.Bouncer**: Assets/Media scanning (Go-based).
 
-### 2. REPR Pattern (Request-Endpoint-Response)
-We use [FastEndpoints](https://fastendpoints.com/) to implement the REPR pattern. Every API interaction is a single class (the Endpoint) that takes a Request DTO and returns a Response DTO.
+### 2. Event-Driven Asynchrony (MassTransit)
+We use a reactive, message-based architecture. No heavy AI processing happens in the request/response cycle.
 
-### 3. Native Multi-Tenancy
-Multi-tenancy is achieved through a "Shared Database, Isolated Data" approach.
-- **Tenant Context**: Determined per-request via API keys or session cookies.
-- **Query Filtering**: EF Core Global Query Filters ensure that no user can ever see data from another organization.
-
-### 4. Report Ingestion Workflow
 ```mermaid
 sequenceDiagram
     participant SDK as Winnow SDK
-    participant API as Winnow.API (IngestEndpoint)
-    participant DB as Postgres/SQLite
-    participant MQ as MassTransit (SQS)
-    participant Worker as ReportCreatedConsumer
+    participant API as Winnow.API
+    participant MQ as RabbitMQ (MassTransit)
+    participant SAN as Winnow.Sanitize
+    participant CLU as Winnow.Clustering
+    participant SUM as Winnow.Summary
+    participant DB as Postgres (pgvector)
 
-    SDK->>API: POST /reports (with API Key)
-    API->>API: Auth & Tenant Discovery
-    API->>API: Generate Embedding (ONNX)
-    API->>DB: Save Report & Embedding
+    SDK->>API: POST /reports
+    API->>DB: Save Raw Report
     API->>MQ: Publish ReportCreatedEvent
     API-->>SDK: 202 Accepted
-    MQ->>Worker: Consume Event
-    Worker->>DB: Vector Search (sqlite-vec)
-    Worker->>Worker: AI Clustering Logic
-    Worker->>DB: Update Cluster/Duplicate Status
+
+    MQ->>SAN: Consume ReportCreatedEvent
+    SAN->>SAN: Redact PII / Toxicity Check
+    SAN->>DB: Update Sanitized Report
+    SAN->>MQ: Publish ReportSanitizedEvent
+
+    MQ->>CLU: Consume ReportSanitizedEvent
+    CLU->>DB: Vector Search (pgvector)
+    CLU->>CLU: Assign/Create Cluster
+    CLU->>MQ: Publish GenerateClusterSummaryEvent (if threshold hit)
+
+    MQ->>SUM: Consume GenerateClusterSummaryEvent
+    SUM->>SUM: Generate AI Summary (LLM)
+    SUM->>DB: Update Cluster Summary
 ```
+
+### 3. Native Multi-Tenancy
+Multi-tenancy is enforced through a "Shared Database, Isolated Data" approach.
+- **Tenant Context**: Determined per-request via API keys or session cookies.
+- **Query Filtering**: EF Core Global Query Filters ensure that no user can ever see data from another organization.
 
 ## 🔐 Security & Multi-Tenancy Deep Dive
 
@@ -53,24 +67,23 @@ Isolation is enforced at the database level using EF Core Global Query Filters.
 // WinnowDbContext.cs
 modelBuilder.Entity<Report>().HasQueryFilter(r => r.OrganizationId == _tenantContext.OrgId);
 ```
-This ensures that even a `db.Reports.ToList()` call will only return reports for the current organization.
 
 ### API Key Authentication
-API Keys are linked to a specific `ProjectId` and `OrganizationId`. The `ApiKeyAuthenticationHandler` validates the key and populates the `ClaimsPrincipal` with these IDs, which are then used by the `TenantMiddleware` to set the request context.
+API Keys are linked to a specific `ProjectId` and `OrganizationId`. The `ApiKeyAuthenticationHandler` validates the key and populates the `ClaimsPrincipal` with these IDs.
 
 ## 🛠 Technology Stack Hub
 
 ### Backend Services
 - **Runtime**: .NET Core 10
-- **Persistence**: EF Core, PostgreSQL (Prod), SQLite (Local/CI)
-- **Messaging**: MassTransit, AWS SQS
-- **AI**: Semantic Kernel, ONNX Runtime
-- **Auth**: custom `Winnow.Bouncer` (Go)
+- **Persistence**: PostgreSQL with `pgvector` for semantic search.
+- **Messaging**: MassTransit with **RabbitMQ**.
+- **AI**: Semantic Kernel, ONNX Runtime (Local Embeddings).
+- **Media Scan**: `Winnow.Bouncer` (Go).
 
 ### Frontend Applications
 - **Library**: React 18+ (Vite)
-- **Styling**: Tailwind CSS
-- **Testing**: Vitest
+- **Styling**: Vanilla CSS (Premium Custom Design)
+- **State**: TanStack Query
 
 ## 📂 Navigation Map
 
