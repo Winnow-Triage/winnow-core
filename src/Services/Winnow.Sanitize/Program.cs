@@ -14,7 +14,7 @@ builder.Services.AddWinnowBaseInfrastructure(builder.Configuration);
 builder.Services.AddWinnowSanitizeInfrastructure(builder.Configuration);
 
 // Add MassTransit
-builder.Services.AddWinnowMassTransit(builder.Configuration, builder.Environment,
+builder.Services.AddWinnowMassTransit(builder.Configuration, builder.Environment, enableOutbox: true,
     configureBus: x =>
     {
         x.AddConsumer<AnalyzeReportConsumer>();

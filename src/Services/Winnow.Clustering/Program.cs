@@ -33,7 +33,7 @@ builder.Services.AddWinnowClusteringInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<Winnow.Clustering.Infrastructure.Scheduling.ClusterRefinementJob>();
 
 // Add MassTransit
-builder.Services.AddWinnowMassTransit(builder.Configuration, builder.Environment,
+builder.Services.AddWinnowMassTransit(builder.Configuration, builder.Environment, enableOutbox: true,
     configureBus: x =>
     {
         x.AddConsumer<ClusteringBatchConsumer>();

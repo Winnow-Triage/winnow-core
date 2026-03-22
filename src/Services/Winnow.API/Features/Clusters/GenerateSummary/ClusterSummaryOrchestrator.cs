@@ -38,8 +38,11 @@ public class ClusterSummaryOrchestrator(
         bool success = false;
         try
         {
-            // Execute the External Service
-            var result = await aiService.GenerateSummaryAsync(clusterReports, ct);
+            // Execute the External Service with a 15-second timeout
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(15));
+
+            var result = await aiService.GenerateSummaryAsync(clusterReports, cts.Token);
             if (!result.IsError)
             {
                 // Mutate the Aggregates

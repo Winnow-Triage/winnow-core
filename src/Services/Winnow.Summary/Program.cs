@@ -32,7 +32,7 @@ builder.Services.AddWinnowSummaryInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<Winnow.Summary.Infrastructure.Scheduling.CriticalMassSummaryJob>();
 
 // Add MassTransit
-builder.Services.AddWinnowMassTransit(builder.Configuration, builder.Environment,
+builder.Services.AddWinnowMassTransit(builder.Configuration, builder.Environment, enableOutbox: true,
     configureBus: x =>
     {
         x.AddConsumer<GenerateClusterSummaryConsumer>();
