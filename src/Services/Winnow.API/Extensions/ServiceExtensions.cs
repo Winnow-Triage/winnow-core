@@ -36,13 +36,15 @@ using Winnow.API.Services.Ai.Strategies;
 using Winnow.API.Services.Emails;
 using Winnow.API.Services.Storage;
 
+using Microsoft.Extensions.Hosting;
+
 namespace Winnow.API.Extensions;
 
 internal static class ServiceExtensions
 {
     private static readonly string[] HealthCheckReadyTags = ["ready"];
 
-    public static IServiceCollection AddWinnowServices(this IServiceCollection services, IConfiguration config)
+    public static IServiceCollection AddWinnowServices(this IServiceCollection services, IConfiguration config, IHostEnvironment hostEnv)
     {
         // Multi-tenancy
         services.AddScoped<ITenantContext, TenantContext>();
@@ -423,24 +425,7 @@ internal static class ServiceExtensions
         });
 
         // MassTransit
-        services.AddMassTransit(x =>
-        {
-            x.AddEntityFrameworkOutbox<WinnowDbContext>(o =>
-            {
-                o.UsePostgres();
-                o.UseBusOutbox();
-            });
-
-            x.UsingRabbitMq((context, cfg) =>
-            {
-                cfg.Host(Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "localhost", "/", h =>
-                {
-                    h.Username("guest");
-                    h.Password("guest");
-                });
-                cfg.ConfigureEndpoints(context);
-            });
-        });
+        services.AddWinnowMassTransit(config, hostEnv, enableOutbox: true);
 
         // MediatR — in-process domain event dispatcher
         // DomainEventInterceptor automatically dispatches events from all IAggregateRoot

@@ -33,30 +33,45 @@ builder.Services.AddWinnowClusteringInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<Winnow.Clustering.Infrastructure.Scheduling.ClusterRefinementJob>();
 
 // Add MassTransit
-builder.Services.AddMassTransit(x =>
-{
-    x.AddConsumer<ClusteringBatchConsumer>();
-    x.UsingRabbitMq((context, cfg) =>
+builder.Services.AddWinnowMassTransit(builder.Configuration, builder.Environment,
+    configureBus: x =>
     {
-        cfg.Host(Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "localhost", "/", h =>
+        x.AddConsumer<ClusteringBatchConsumer>();
+    },
+    configureFactory: (context, cfg) =>
+    {
+        if (cfg is IRabbitMqBusFactoryConfigurator rmq)
         {
-            h.Username("guest");
-            h.Password("guest");
-        });
-
-        cfg.ReceiveEndpoint("cluster-reports-queue", e =>
-        {
-            e.PrefetchCount = 100;
-            e.Batch<ReportSanitizedEvent>(b =>
+            rmq.ReceiveEndpoint("cluster-reports-queue", e =>
             {
-                b.MessageLimit = 50;
-                b.TimeLimit = TimeSpan.FromSeconds(3);
-            });
+                e.PrefetchCount = 100;
+                e.Batch<ReportSanitizedEvent>(b =>
+                {
+                    b.MessageLimit = 50;
+                    b.TimeLimit = TimeSpan.FromSeconds(3);
+                });
 
-            e.ConfigureConsumer<ClusteringBatchConsumer>(context);
-        });
+                e.ConfigureConsumer<ClusteringBatchConsumer>(context);
+            });
+        }
+        else
+        {
+            // For InMemory, we can still configure the same endpoint logic if we want, 
+            // but MassTransit InMemory usually handles it via ConfigureEndpoints if we don't need custom queue names.
+            // However, Batching REQUIRES explicit endpoint configuration in some versions.
+            cfg.ReceiveEndpoint("cluster-reports-queue", e =>
+            {
+                e.PrefetchCount = 100;
+                e.Batch<ReportSanitizedEvent>(b =>
+                {
+                    b.MessageLimit = 50;
+                    b.TimeLimit = TimeSpan.FromSeconds(3);
+                });
+
+                e.ConfigureConsumer<ClusteringBatchConsumer>(context);
+            });
+        }
     });
-});
 
 var app = builder.Build();
 

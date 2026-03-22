@@ -32,22 +32,17 @@ builder.Services.AddWinnowSummaryInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<Winnow.Summary.Infrastructure.Scheduling.CriticalMassSummaryJob>();
 
 // Add MassTransit
-builder.Services.AddMassTransit(x =>
-{
-    x.AddConsumer<GenerateClusterSummaryConsumer>();
-    x.UsingRabbitMq((context, cfg) =>
+builder.Services.AddWinnowMassTransit(builder.Configuration, builder.Environment,
+    configureBus: x =>
     {
-        cfg.Host(Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "localhost", "/", h =>
-        {
-            h.Username("guest");
-            h.Password("guest");
-        });
+        x.AddConsumer<GenerateClusterSummaryConsumer>();
+    },
+    configureFactory: (context, cfg) =>
+    {
         // Configure concurrent consumer execution
         cfg.PrefetchCount = 4;
         cfg.UseConcurrencyLimit(4);
-        cfg.ConfigureEndpoints(context);
     });
-});
 
 var app = builder.Build();
 

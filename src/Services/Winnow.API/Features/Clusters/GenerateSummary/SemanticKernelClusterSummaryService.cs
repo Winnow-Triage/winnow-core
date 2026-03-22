@@ -128,10 +128,10 @@ public class SemanticKernelClusterSummaryService(Kernel kernel, ILogger<Semantic
             try
             {
                 var type = usageObj.GetType();
-                var promptTokens = type.GetProperty("InputTokens")?.GetValue(usageObj) 
+                var promptTokens = type.GetProperty("InputTokens")?.GetValue(usageObj)
                                    ?? type.GetProperty("InputTokenCount")?.GetValue(usageObj)
                                    ?? type.GetProperty("PromptTokens")?.GetValue(usageObj) ?? 0;
-                var completionTokens = type.GetProperty("OutputTokens")?.GetValue(usageObj) 
+                var completionTokens = type.GetProperty("OutputTokens")?.GetValue(usageObj)
                                        ?? type.GetProperty("OutputTokenCount")?.GetValue(usageObj)
                                        ?? type.GetProperty("CompletionTokens")?.GetValue(usageObj) ?? 0;
 

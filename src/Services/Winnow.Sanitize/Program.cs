@@ -14,22 +14,17 @@ builder.Services.AddWinnowBaseInfrastructure(builder.Configuration);
 builder.Services.AddWinnowSanitizeInfrastructure(builder.Configuration);
 
 // Add MassTransit
-builder.Services.AddMassTransit(x =>
-{
-    x.AddConsumer<AnalyzeReportConsumer>();
-    x.UsingRabbitMq((context, cfg) =>
+builder.Services.AddWinnowMassTransit(builder.Configuration, builder.Environment,
+    configureBus: x =>
     {
-        cfg.Host(Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "localhost", "/", h =>
-        {
-            h.Username("guest");
-            h.Password("guest");
-        });
+        x.AddConsumer<AnalyzeReportConsumer>();
+    },
+    configureFactory: (context, cfg) =>
+    {
         // Configure concurrent consumer execution
         cfg.PrefetchCount = 16;
         cfg.UseConcurrencyLimit(16);
-        cfg.ConfigureEndpoints(context);
     });
-});
 
 var app = builder.Build();
 

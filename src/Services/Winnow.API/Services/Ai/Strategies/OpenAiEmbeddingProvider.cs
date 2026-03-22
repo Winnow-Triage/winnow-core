@@ -76,7 +76,7 @@ internal class OpenAiEmbeddingProvider : IEmbeddingProvider
                 throw new InvalidOperationException("OpenAiEmbeddingProvider: Received an invalid or empty response from OpenAI API.");
             }
 
-            var usage = embeddingResponse.Usage != null 
+            var usage = embeddingResponse.Usage != null
                 ? new AiUsageInfo(embeddingResponse.Usage.PromptTokens, 0, _modelId, "OpenAI")
                 : null;
 
@@ -117,7 +117,7 @@ internal class OpenAiEmbeddingProvider : IEmbeddingProvider
     {
         [System.Text.Json.Serialization.JsonPropertyName("prompt_tokens")]
         public int PromptTokens { get; set; }
-        
+
         [System.Text.Json.Serialization.JsonPropertyName("total_tokens")]
         public int TotalTokens { get; set; }
     }

@@ -41,7 +41,7 @@ catch (InvalidOperationException)
 }
 
 // Register all Winnow services
-builder.Services.AddWinnowServices(builder.Configuration);
+builder.Services.AddWinnowServices(builder.Configuration, builder.Environment);
 
 var app = builder.Build();
 
