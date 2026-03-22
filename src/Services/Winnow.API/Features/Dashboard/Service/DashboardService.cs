@@ -63,6 +63,14 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         var activeClusters = await clusterQuery
             .CountAsync(c => c.Status == ClusterStatus.Open, ct);
 
+        // A report is "Unique" if it is the one that initiated a cluster (oldest in its group)
+        // or if it hasn't been clustered yet. 
+        var unassignedReports = await baseQuery
+            .CountAsync(r => r.ClusterId == null, ct);
+
+        // Current unique issues = open clusters + solo (unclustered) reports.
+        var uniqueIssues = activeClusters + unassignedReports;
+
         // Use joins to match exactly what the review queue returns — only count suggestions
         // where the target cluster still exists (deleted clusters would inflate the count otherwise).
         var pendingReportReviews = await baseQuery
@@ -84,10 +92,10 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         var pendingReviews = pendingReportReviews + pendingClusterMerges;
 
         double noiseRatio = totalReports > 0
-            ? 1.0 - ((double)activeClusters / totalReports)
+            ? 1.0 - ((double)uniqueIssues / totalReports)
             : 0;
 
-        int hoursSaved = (int)((totalReports - activeClusters) * 5.0 / 60.0);
+        int hoursSaved = (int)((totalReports - uniqueIssues) * 5.0 / 60.0);
 
         var triageMetrics = new TriageMetricsDto(
             totalReports,
@@ -148,7 +156,16 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         var historyRaw = await baseQuery
             .AsNoTracking()
             .Where(r => r.CreatedAt >= yesterday)
-            .Select(r => new { r.CreatedAt, IsDuplicate = r.Status == ReportStatus.Dismissed })
+            .Select(r => new
+            {
+#pragma warning disable EF1001 // Internal EF Core API usage.
+                r.CreatedAt,
+                // A report is a duplicate if it's explicitly dismissed OR if it belongs to a cluster
+                // and there is another report in that same cluster that was created earlier.
+                IsDuplicate = r.Status == ReportStatus.Dismissed ||
+                              (r.ClusterId != null && db.Reports.Any(r2 => r2.ClusterId == r.ClusterId && r2.CreatedAt < r.CreatedAt))
+#pragma warning restore EF1001
+            })
             .ToListAsync(ct);
 
         var grouped = historyRaw
@@ -199,7 +216,9 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
                 g.Key.Year,
                 g.Key.Month,
                 ReportCount = g.Count(),
-                UniqueCount = g.Count(x => x.Status != ReportStatus.Dismissed)
+                // A report is "Unique" if it's NOT dismissed AND (it's unclustered OR it's the first in its cluster)
+                UniqueCount = g.Count(r => r.Status != ReportStatus.Dismissed &&
+                    (r.ClusterId == null || !db.Reports.Any(r2 => r2.ClusterId == r.ClusterId && r2.CreatedAt < r.CreatedAt)))
             })
             .ToListAsync(ct);
 
@@ -359,7 +378,14 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         var historyRaw = await db.Reports
             .AsNoTracking()
             .Where(r => projectIds.Contains(r.ProjectId) && r.CreatedAt >= yesterday)
-            .Select(r => new { r.CreatedAt, IsDuplicate = r.Status == ReportStatus.Dismissed })
+            .Select(r => new
+            {
+#pragma warning disable EF1001
+                r.CreatedAt,
+                IsDuplicate = r.Status == ReportStatus.Dismissed ||
+                              (r.ClusterId != null && db.Reports.Any(r2 => r2.ClusterId == r.ClusterId && r2.CreatedAt < r.CreatedAt))
+#pragma warning restore EF1001
+            })
             .ToListAsync(ct);
 
         var grouped = historyRaw
