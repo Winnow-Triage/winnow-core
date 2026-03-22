@@ -18,6 +18,16 @@ public class SearchReportsHandler : IRequestHandler<SearchReportsQuery, Paginate
 
     public async Task<PaginatedSearchList<ReportSearchDto>> Handle(SearchReportsQuery request, CancellationToken cancellationToken)
     {
+        var filters = new ReportSearchFilters(
+            request.Statuses,
+            request.ClusterId,
+            request.IsOverage,
+            request.IsLocked,
+            request.AssignedTo,
+            request.SortBy,
+            request.SortOrder
+        );
+
         // 1. Fast Path Guard Clause: If search string is empty or null, bypass search logic
         if (string.IsNullOrWhiteSpace(request.SearchTerm))
         {
@@ -25,6 +35,7 @@ public class SearchReportsHandler : IRequestHandler<SearchReportsQuery, Paginate
                 request.ProjectId,
                 request.PageNumber,
                 request.PageSize,
+                filters,
                 cancellationToken);
         }
 
@@ -38,6 +49,7 @@ public class SearchReportsHandler : IRequestHandler<SearchReportsQuery, Paginate
             searchVector,
             request.PageNumber,
             request.PageSize,
+            filters,
             cancellationToken);
     }
 }

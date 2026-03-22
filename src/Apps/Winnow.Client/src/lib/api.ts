@@ -529,9 +529,30 @@ export const searchReports = async (
   q: string,
   page: number = 1,
   size: number = 20,
+  statuses?: string[],
+  clusterId?: string,
+  isOverage?: boolean,
+  isLocked?: boolean,
+  assignedTo?: string,
+  sortBy: string = "CreatedAt",
+  sortOrder: string = "Desc"
 ): Promise<PaginatedSearchList<ReportSearchDto>> => {
   const response = await api.get("/reports/search", {
-    params: { q, page, size },
+    params: { 
+      q, 
+      page, 
+      size, 
+      statuses, 
+      clusterId, 
+      isOverage, 
+      isLocked, 
+      assignedTo, 
+      sortBy, 
+      sortOrder 
+    },
+    paramsSerializer: {
+      indexes: null // results in statuses=Open&statuses=Duplicate
+    }
   });
   return response.data;
 };

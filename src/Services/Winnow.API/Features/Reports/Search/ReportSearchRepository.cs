@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading;
@@ -18,12 +19,26 @@ public class ReportSearchRepository : IReportSearchRepository
         _dbContext = dbContext;
     }
 
-    public async Task<PaginatedSearchList<ReportSearchDto>> GetRecentlyUpdatedReportsAsync(Guid projectId, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<PaginatedSearchList<ReportSearchDto>> GetRecentlyUpdatedReportsAsync(
+        Guid projectId,
+        int pageNumber,
+        int pageSize,
+        ReportSearchFilters filters,
+        CancellationToken cancellationToken = default)
     {
         var take = pageSize;
         var skip = (pageNumber - 1) * pageSize;
 
-        const string sql = @"
+        var (whereClause, parameters) = BuildFilterClause(projectId, filters);
+        parameters.Add("Take", take);
+        parameters.Add("Skip", skip);
+
+        // Sorting
+        var allowedSortFields = new[] { "Title", "Status", "CreatedAt" };
+        var sortBy = allowedSortFields.Contains(filters.SortBy) ? $"\"{filters.SortBy}\"" : "\"CreatedAt\"";
+        var sortOrder = filters.SortOrder.Equals("Asc", StringComparison.OrdinalIgnoreCase) ? "ASC" : "DESC";
+
+        var sql = $@"
             SELECT
                 ""Id"", 
                 ""Title"", 
@@ -34,19 +49,26 @@ public class ReportSearchRepository : IReportSearchRepository
                 ""IsOverage"",
                 ""IsLocked""
             FROM ""Reports""
-            WHERE ""ProjectId"" = @ProjectId
-            ORDER BY ""CreatedAt"" DESC
+            WHERE {whereClause}
+            ORDER BY {sortBy} {sortOrder}
             LIMIT @Take OFFSET @Skip;";
 
-        const string countSql = @"SELECT COUNT(*) FROM ""Reports"" WHERE ""ProjectId"" = @ProjectId;";
+        var countSql = $@"SELECT COUNT(*) FROM ""Reports"" WHERE {whereClause};";
 
-        var items = await _dbContext.Database.GetDbConnection().QueryAsync<ReportSearchDto>(sql, new { ProjectId = projectId, Take = take, Skip = skip });
-        var totalCount = await _dbContext.Database.GetDbConnection().ExecuteScalarAsync<int>(countSql, new { ProjectId = projectId });
+        var items = await _dbContext.Database.GetDbConnection().QueryAsync<ReportSearchDto>(sql, parameters);
+        var totalCount = await _dbContext.Database.GetDbConnection().ExecuteScalarAsync<int>(countSql, parameters);
 
         return new PaginatedSearchList<ReportSearchDto>(items.AsList(), totalCount, pageNumber, pageSize);
     }
 
-    public async Task<PaginatedSearchList<ReportSearchDto>> HybridSearchReportsAsync(Guid projectId, string searchText, float[] searchVector, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<PaginatedSearchList<ReportSearchDto>> HybridSearchReportsAsync(
+        Guid projectId,
+        string searchText,
+        float[] searchVector,
+        int pageNumber,
+        int pageSize,
+        ReportSearchFilters filters,
+        CancellationToken cancellationToken = default)
     {
         var take = pageSize;
         var skip = (pageNumber - 1) * pageSize;
@@ -54,26 +76,45 @@ public class ReportSearchRepository : IReportSearchRepository
         // Ensure proper vector string format for pgvector, e.g., '[0.1, 0.2, ...]'
         var vectorString = "[" + string.Join(", ", searchVector) + "]";
 
-        // RRF (Reciprocal Rank Fusion) parameters
-        // K is typically set to 60 for RRF
-        const string sql = @"
-            WITH keyword_search AS(
-                SELECT
-                    ""Id"",
-                    ts_rank(to_tsvector('english', ""Title"" || ' ' || ""Message""), plainto_tsquery('english', @SearchText)) AS rank_score
-                FROM ""Reports""
-                WHERE ""ProjectId"" = @ProjectId
-                  AND to_tsvector('english', ""Title"" || ' ' || ""Message"") @@ plainto_tsquery('english', @SearchText)
-            ),
-            vector_search AS(
-                SELECT
-                    ""Id"", 
-                    1 - (""Embedding"" <=> @SearchVector::vector) AS vector_score
-                FROM ""Reports""
-                WHERE ""ProjectId"" = @ProjectId
-                ORDER BY ""Embedding"" <=> @SearchVector::vector
-                LIMIT 100
-            ),
+        var (whereClause, parameters) = BuildFilterClause(projectId, filters);
+        parameters.Add("SearchText", searchText);
+        parameters.Add("SearchVector", vectorString);
+        parameters.Add("Take", take);
+        parameters.Add("Skip", skip);
+
+        // Sorting
+        var allowedSortFields = new[] { "Title", "Status", "CreatedAt" };
+        string orderByClause;
+        if (allowedSortFields.Contains(filters.SortBy))
+        {
+            var sortOrder = filters.SortOrder.Equals("Asc", StringComparison.OrdinalIgnoreCase) ? "ASC" : "DESC";
+            orderByClause = $"ORDER BY r.\"{filters.SortBy}\" {sortOrder}";
+        }
+        else
+        {
+            orderByClause = "ORDER BY rrf.relevance_score DESC";
+        }
+
+        const string keywordSql = @"
+            SELECT
+                ""Id"",
+                ts_rank(to_tsvector('english', ""Title"" || ' ' || ""Message""), plainto_tsquery('english', @SearchText)) AS rank_score
+            FROM ""Reports""
+            WHERE {0}
+              AND to_tsvector('english', ""Title"" || ' ' || ""Message"") @@ plainto_tsquery('english', @SearchText)";
+
+        const string vectorSql = @"
+            SELECT
+                ""Id"", 
+                1 - (""Embedding"" <=> @SearchVector::vector) AS vector_score
+            FROM ""Reports""
+            WHERE {0}
+            ORDER BY ""Embedding"" <=> @SearchVector::vector
+            LIMIT 100";
+
+        var sql = $@"
+            WITH keyword_search AS({string.Format(keywordSql, whereClause)}),
+            vector_search AS ({string.Format(vectorSql, whereClause)}),
             rrf AS(
                 SELECT
                     COALESCE(k.""Id"", v.""Id"") AS report_id,
@@ -94,19 +135,60 @@ public class ReportSearchRepository : IReportSearchRepository
                 rrf.relevance_score AS RelevanceScore
             FROM rrf
             JOIN ""Reports"" r ON rrf.report_id = r.""Id""
-            ORDER BY rrf.relevance_score DESC
+            {orderByClause}
             LIMIT @Take OFFSET @Skip;";
 
-        var items = await _dbContext.Database.GetDbConnection().QueryAsync<ReportSearchDto>(sql, new
-        {
-            ProjectId = projectId,
-            SearchText = searchText,
-            SearchVector = vectorString,
-            Take = take,
-            Skip = skip
-        });
+        var countSql = $@"
+            SELECT COUNT(*) 
+            FROM ""Reports"" 
+            WHERE {whereClause} 
+            AND (
+                to_tsvector('english', ""Title"" || ' ' || ""Message"") @@ plainto_tsquery('english', @SearchText)
+                OR ""Id"" IN (SELECT ""Id"" FROM ({string.Format(vectorSql, whereClause)}) v)
+            );";
 
-        // For simplicity in search, total count might just be the retrieved items depending on requirements
-        return new PaginatedSearchList<ReportSearchDto>(items.AsList(), items.Count(), pageNumber, pageSize);
+        var items = await _dbContext.Database.GetDbConnection().QueryAsync<ReportSearchDto>(sql, parameters);
+        var totalCount = await _dbContext.Database.GetDbConnection().ExecuteScalarAsync<int>(countSql, parameters);
+
+        return new PaginatedSearchList<ReportSearchDto>(items.AsList(), totalCount, pageNumber, pageSize);
+    }
+
+    private (string WhereClause, DynamicParameters Parameters) BuildFilterClause(Guid projectId, ReportSearchFilters filters)
+    {
+        var conditions = new List<string> { "\"ProjectId\" = @ProjectId" };
+        var parameters = new DynamicParameters();
+        parameters.Add("ProjectId", projectId);
+
+        if (filters.Statuses != null && filters.Statuses.Length > 0)
+        {
+            conditions.Add("\"Status\" = ANY(@Statuses)");
+            parameters.Add("Statuses", filters.Statuses);
+        }
+
+        if (filters.ClusterId.HasValue)
+        {
+            conditions.Add("\"ClusterId\" = @ClusterId");
+            parameters.Add("ClusterId", filters.ClusterId.Value);
+        }
+
+        if (filters.IsOverage.HasValue)
+        {
+            conditions.Add("\"IsOverage\" = @IsOverage");
+            parameters.Add("IsOverage", filters.IsOverage.Value);
+        }
+
+        if (filters.IsLocked.HasValue)
+        {
+            conditions.Add("\"IsLocked\" = @IsLocked");
+            parameters.Add("IsLocked", filters.IsLocked.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filters.AssignedTo))
+        {
+            conditions.Add("\"AssignedTo\" = @AssignedTo");
+            parameters.Add("AssignedTo", filters.AssignedTo);
+        }
+
+        return (string.Join(" AND ", conditions), parameters);
     }
 }
