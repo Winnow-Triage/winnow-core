@@ -228,22 +228,6 @@ export default function DebugConsole() {
             )}
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>System Status</CardTitle>
-            <CardDescription>Real-time metrics (Placeholder)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm text-muted-foreground">
-              Active Consumers: 1<br />
-              Queue Depth: 0<br />
-              AI Model: Loaded (all-MiniLM-L6-v2)
-              <br />
-              Vector DB: Connected
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
