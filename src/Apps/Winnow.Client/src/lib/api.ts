@@ -1,4 +1,5 @@
 import axios from "axios";
+import { toast } from "sonner";
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5294",
@@ -60,10 +61,8 @@ api.interceptors.response.use(
         }
       } else {
         // Show a generic toast for other permission denials
-        import("sonner").then(({ toast }) => {
-           toast.error(detail, {
-             id: "permission-denied-" + error.config.url
-           });
+        toast.error(detail, {
+          id: "permission-denied-" + error.config.url,
         });
       }
     }

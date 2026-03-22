@@ -15,6 +15,35 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (
+              id.includes("@radix-ui") ||
+              id.includes("lucide-react") ||
+              id.includes("cmdk") ||
+              id.includes("recharts")
+            ) {
+              return "vendor-ui";
+            }
+            if (
+              id.includes("react") ||
+              id.includes("react-dom") ||
+              id.includes("react-router-dom") ||
+              id.includes("axios") ||
+              id.includes("@tanstack")
+            ) {
+              return "vendor-core";
+            }
+            return "vendor";
+          }
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: "happy-dom",
