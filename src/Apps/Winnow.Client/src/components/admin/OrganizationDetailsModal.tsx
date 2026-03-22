@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { formatTimeAgo } from "@/lib/utils";
-import { AlertCircle, Building2, Ticket, CheckCircle2 } from "lucide-react";
+import { AlertCircle, Building2, Ticket, CheckCircle2, Cpu } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip } from "recharts";
 import { Progress } from "@/components/ui/progress";
 import { useChartDimensions } from "@/hooks/use-chart-dimensions";
@@ -236,6 +236,49 @@ export function OrganizationDetailsModal({
                         {details.quota.aiSummaryLimit !== null &&
                           `${Math.min(100, Math.round((details.quota.currentMonthAiSummaries / details.quota.aiSummaryLimit) * 100))}% of AI limit used.`}
                       </span>
+                    </div>
+
+                    {/* AI Token Consumption */}
+                    <div className="mt-4 pt-4 border-t border-red-900/20">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-semibold text-red-400">AI Token Consumption</h4>
+                        <div className="flex gap-4 text-xs">
+                          <div className="text-right">
+                            <div className="text-[10px] text-muted-foreground uppercase opacity-70">Input</div>
+                            <div className="font-mono text-foreground font-medium">{details.quota.monthlyInputTokens.toLocaleString()}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[10px] text-muted-foreground uppercase opacity-70">Output</div>
+                            <div className="font-mono text-foreground font-medium">{details.quota.monthlyOutputTokens.toLocaleString()}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {details.quota.aiUsageBreakdown && details.quota.aiUsageBreakdown.length > 0 ? (
+                        <div className="space-y-2">
+                          {details.quota.aiUsageBreakdown.map((usage: any, idx: number) => (
+                            <div key={idx} className="bg-red-950/20 p-2.5 rounded-lg border border-red-900/20 flex items-center justify-between shadow-sm">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-7 h-7 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                                  <Cpu className="w-3.5 h-3.5 text-blue-400" />
+                                </div>
+                                <div>
+                                  <div className="text-xs font-semibold text-foreground/90">{usage.model}</div>
+                                  <div className="text-[9px] text-muted-foreground uppercase tracking-widest leading-none mt-0.5">{usage.provider}</div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-xs font-mono font-bold text-foreground">{(usage.inputTokens + usage.outputTokens).toLocaleString()} <span className="text-[9px] font-normal text-muted-foreground opacity-70">tokens</span></div>
+                                <div className="text-[9px] text-muted-foreground font-medium">{usage.callCount} calls</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-muted-foreground italic text-center py-4 bg-red-950/10 rounded-lg border border-dashed border-red-900/30">
+                          No AI token consumption recorded for this period.
+                        </div>
+                      )}
                     </div>
                   </div>
 

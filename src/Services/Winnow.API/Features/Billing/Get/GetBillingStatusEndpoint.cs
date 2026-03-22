@@ -1,6 +1,7 @@
 using FastEndpoints;
 using MediatR;
 using Winnow.API.Infrastructure.MultiTenancy;
+using Winnow.API.Features.Shared;
 
 namespace Winnow.API.Features.Billing.Get;
 
@@ -12,6 +13,11 @@ public class BillingStatusResponse
     public int? MonthlySummaryLimit { get; init; }
     public int CurrentMonthSummaries { get; init; }
     public bool HasActiveSubscription { get; init; }
+
+    // AI Usage Metrics
+    public int MonthlyInputTokens { get; init; }
+    public int MonthlyOutputTokens { get; init; }
+    public List<AiUsageSummary> AiUsageBreakdown { get; init; } = new();
 }
 
 public sealed class GetBillingStatusEndpoint(IMediator mediator, ITenantContext tenantContext) : EndpointWithoutRequest<BillingStatusResponse>

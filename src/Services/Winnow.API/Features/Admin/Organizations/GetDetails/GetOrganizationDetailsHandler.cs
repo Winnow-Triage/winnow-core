@@ -4,6 +4,7 @@ using Winnow.API.Domain.Organizations;
 using Winnow.API.Domain.Projects;
 using Winnow.API.Domain.Teams;
 using Winnow.API.Infrastructure.Persistence;
+using Winnow.API.Features.Shared;
 
 namespace Winnow.API.Features.Admin.Organizations.GetDetails;
 
@@ -105,6 +106,21 @@ public class GetOrganizationDetailsHandler(
 
         int? aiSummaryLimit = effectiveAiLimit == -1 ? null : effectiveAiLimit;
 
+        var aiUsage = await dbContext.AiUsages
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(u => u.OrganizationId == request.Id && u.CreatedAt >= startOfMonth)
+            .GroupBy(u => new { u.ModelId, u.Provider })
+            .Select(g => new AiUsageSummary
+            {
+                Model = g.Key.ModelId,
+                Provider = g.Key.Provider,
+                InputTokens = g.Sum(u => u.PromptTokens),
+                OutputTokens = g.Sum(u => u.CompletionTokens),
+                CallCount = g.Count()
+            })
+            .ToListAsync(cancellationToken);
+
         var quotaStatus = new QuotaStatus
         {
             BaseLimit = baseLimit,
@@ -113,7 +129,10 @@ public class GetOrganizationDetailsHandler(
             IsOverage = baseLimit != int.MaxValue && totalMonthlyReports >= baseLimit,
             IsLocked = graceLimit != int.MaxValue && totalMonthlyReports >= graceLimit,
             AiSummaryLimit = aiSummaryLimit,
-            CurrentMonthAiSummaries = organization.SummaryQuota.Consumed
+            CurrentMonthAiSummaries = organization.SummaryQuota.Consumed,
+            MonthlyInputTokens = aiUsage.Sum(x => x.InputTokens),
+            MonthlyOutputTokens = aiUsage.Sum(x => x.OutputTokens),
+            AiUsageBreakdown = aiUsage
         };
 
         // Use Project Repository

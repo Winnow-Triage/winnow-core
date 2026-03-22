@@ -116,6 +116,14 @@ export const updateOrganizationSubscription = async (
   return response.data;
 };
 
+export interface AiUsageSummary {
+  model: string;
+  provider: string;
+  inputTokens: number;
+  outputTokens: number;
+  callCount: number;
+}
+
 export interface BillingStatusResponse {
   subscriptionTier: string;
   reportsUsedThisMonth: number;
@@ -123,6 +131,9 @@ export interface BillingStatusResponse {
   monthlySummaryLimit: number | null;
   currentMonthSummaries: number;
   hasActiveSubscription: boolean;
+  monthlyInputTokens: number;
+  monthlyOutputTokens: number;
+  aiUsageBreakdown: AiUsageSummary[];
 }
 
 export const getBillingStatus = async (): Promise<BillingStatusResponse> => {
@@ -304,6 +315,9 @@ export interface QuotaStatus {
   isLocked: boolean;
   aiSummaryLimit: number | null;
   currentMonthAiSummaries: number;
+  monthlyInputTokens: number;
+  monthlyOutputTokens: number;
+  aiUsageBreakdown: AiUsageSummary[];
 }
 
 export interface ProjectQuotaSummary {

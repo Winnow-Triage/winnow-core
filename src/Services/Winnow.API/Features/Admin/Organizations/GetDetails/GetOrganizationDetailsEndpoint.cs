@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Winnow.API.Features.Shared;
 
 namespace Winnow.API.Features.Admin.Organizations.GetDetails;
 
@@ -53,6 +54,11 @@ public class QuotaStatus
     public bool IsLocked { get; set; }
     public int? AiSummaryLimit { get; set; }
     public int CurrentMonthAiSummaries { get; set; }
+
+    // AI Usage Metrics
+    public int MonthlyInputTokens { get; set; }
+    public int MonthlyOutputTokens { get; set; }
+    public List<AiUsageSummary> AiUsageBreakdown { get; set; } = new();
 }
 
 public class ProjectQuotaSummary

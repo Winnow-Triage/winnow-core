@@ -41,7 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, UserPlus, MoreHorizontal, Settings2, Loader2, AlertCircle } from "lucide-react";
+import { Users, UserPlus, MoreHorizontal, Settings2, Loader2, AlertCircle, Cpu } from "lucide-react";
 import { PageTitle } from "@/components/ui/page-title";
 import {
   Sheet,
@@ -280,7 +280,7 @@ export default function Settings() {
             <TabsTrigger value="roles">Roles</TabsTrigger>
           </PermissionGate>
           <TabsTrigger value="billing">Billing</TabsTrigger>
-          <TabsTrigger value="ai">AI Models</TabsTrigger>
+          <TabsTrigger value="ai">AI Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="mt-6 flex flex-col gap-6">
@@ -678,7 +678,7 @@ export default function Settings() {
           </div>
         </TabsContent>
 
-        <TabsContent value="ai" className="mt-6">
+        <TabsContent value="ai" className="mt-6 flex flex-col gap-6">
           <Card>
             <CardHeader>
               <CardTitle>AI Configuration</CardTitle>
@@ -693,6 +693,58 @@ export default function Settings() {
               </p>
             </CardContent>
           </Card>
+
+          {!isBillingLoading && billingStatus && (
+            <Card>
+              <CardHeader>
+                <CardTitle>AI Token Consumption</CardTitle>
+                <CardDescription>
+                  Detailed breakdown of your monthly AI resource usage by model.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-tight">Monthly Totals</h4>
+                  <div className="flex gap-4">
+                    <div className="text-right">
+                      <div className="text-xs text-muted-foreground uppercase">Input</div>
+                      <div className="text-sm font-medium">{billingStatus.monthlyInputTokens.toLocaleString()}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-muted-foreground uppercase">Output</div>
+                      <div className="text-sm font-medium">{billingStatus.monthlyOutputTokens.toLocaleString()}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {billingStatus.aiUsageBreakdown.length > 0 ? (
+                  <div className="space-y-2">
+                    {billingStatus.aiUsageBreakdown.map((usage, idx) => (
+                      <div key={idx} className="bg-muted/30 p-3 rounded-xl border border-border/50 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
+                            <Cpu className="w-4 h-4 text-blue-500" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium">{usage.model}</div>
+                            <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{usage.provider}</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-semibold">{(usage.inputTokens + usage.outputTokens).toLocaleString()} <span className="text-[10px] font-normal text-muted-foreground">tokens</span></div>
+                          <div className="text-[10px] text-muted-foreground">{usage.callCount} calls</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground italic text-center py-4 bg-muted/20 rounded-xl border border-dashed text-foreground/50">
+                    No AI token consumption recorded this month.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </div>
