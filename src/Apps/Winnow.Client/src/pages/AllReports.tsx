@@ -1,5 +1,5 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, searchReports, type ReportSearchDto } from "@/lib/api";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { api, searchReports } from "@/lib/api";
 import { useProject } from "@/context/ProjectContext";
 import {
   Table,
@@ -9,12 +9,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
-import { AlertCircle, ShieldAlert, Merge, RefreshCw } from "lucide-react";
+import { AlertCircle, ShieldAlert, Merge, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { PageTitle } from "@/components/ui/page-title";
 
 interface Report {
@@ -31,6 +38,8 @@ interface Report {
 
 export default function AllReports() {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [sortConfig, setSortConfig] = useState<{
     key: keyof Report;
     direction: "asc" | "desc";
@@ -47,25 +56,25 @@ export default function AllReports() {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(search);
+      setPage(1); // Reset to first page on new search
     }, 500);
     return () => clearTimeout(handler);
   }, [search]);
 
   // Query: Either all reports, or search results if there is a query
-  const { data: reports, isLoading, error } = useQuery<ReportSearchDto[]>({
-    queryKey: ["reports", currentProject?.id, debouncedSearch],
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["reports", currentProject?.id, debouncedSearch, page, pageSize],
     queryFn: async () => {
-      if (!debouncedSearch) {
-        // Fallback to initial "show all" logic utilizing the search API without a specific term
-        const data = await searchReports("");
-        return data.items;
-      }
-      const data = await searchReports(debouncedSearch);
-      return data.items;
+      return await searchReports(debouncedSearch || "", page, pageSize);
     },
     enabled: !!currentProject,
     retry: 0,
+    placeholderData: keepPreviousData,
   });
+
+  const reports = data?.items || [];
+  const totalCount = data?.totalCount || 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   const sortedReports = [...(reports || [])].sort((a, b) => {
     if (!sortConfig) return 0;
@@ -299,6 +308,55 @@ export default function AllReports() {
             )}
           </TableBody>
         </Table>
+      </div>
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-muted-foreground whitespace-nowrap">
+            Showing {reports.length} of {totalCount} reports
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground whitespace-nowrap">Page size:</span>
+            <Select
+              value={pageSize.toString()}
+              onValueChange={(val) => {
+                setPageSize(parseInt(val));
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="h-8 w-[70px]">
+                <SelectValue placeholder={pageSize.toString()} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1 || isLoading}
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Previous
+          </Button>
+          <div className="text-sm font-medium">
+            Page {page} of {Math.max(1, totalPages)}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages || isLoading}
+          >
+            Next
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
       </div>
     </div>
   );
