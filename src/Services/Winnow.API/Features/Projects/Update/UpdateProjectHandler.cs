@@ -11,6 +11,7 @@ public record UpdateProjectCommand : IRequest<UpdateProjectResponse>, IProjectSc
 {
     public string Name { get; set; } = string.Empty;
     public Guid? TeamId { get; set; }
+    public Guid ProjectId { get; set; }
     public Guid CurrentProjectId { get; set; }
     public Guid CurrentOrganizationId { get; set; }
     public string CurrentUserId { get; set; } = string.Empty;
@@ -22,7 +23,7 @@ public class UpdateProjectHandler(WinnowDbContext dbContext) : IRequestHandler<U
     public async Task<UpdateProjectResponse> Handle(UpdateProjectCommand request, CancellationToken ct)
     {
         var project = await dbContext.Projects
-            .FirstOrDefaultAsync(p => p.Id == request.CurrentProjectId && p.OwnerId == request.CurrentUserId && p.OrganizationId == request.CurrentOrganizationId, ct);
+            .FirstOrDefaultAsync(p => p.Id == request.ProjectId && p.OrganizationId == request.CurrentOrganizationId, ct);
 
         if (project == null)
         {

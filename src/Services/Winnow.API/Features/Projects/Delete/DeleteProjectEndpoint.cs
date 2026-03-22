@@ -26,6 +26,7 @@ public sealed class DeleteProjectEndpoint(IMediator mediator)
     {
         var command = new DeleteProjectCommand
         {
+            ProjectId = req.ProjectId,
             CurrentProjectId = req.CurrentProjectId,
             CurrentOrganizationId = req.CurrentOrganizationId,
             CurrentUserId = req.CurrentUserId,

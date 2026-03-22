@@ -52,7 +52,7 @@ public sealed class UpdateProjectEndpoint(IMediator mediator) : ProjectScopedEnd
         {
             Name = req.Name,
             TeamId = req.TeamId,
-            CurrentProjectId = req.CurrentProjectId,
+            ProjectId = req.ProjectId, // Use ProjectId from route
             CurrentOrganizationId = req.CurrentOrganizationId,
             CurrentUserId = req.CurrentUserId,
             CurrentUserRoles = req.CurrentUserRoles

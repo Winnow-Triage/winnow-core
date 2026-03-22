@@ -6,7 +6,6 @@ namespace Winnow.API.Features.Projects.Create;
 
 public class CreateIntegrationRequest : ProjectScopedRequest
 {
-    public Guid ProjectId { get; set; }
 
     public Guid? Id { get; set; }
 
@@ -22,7 +21,7 @@ public sealed class CreateIntegrationEndpoint(IMediator mediator)
 {
     public override void Configure()
     {
-        Post("/integrations");
+        Post("/projects/{ProjectId}/integrations");
         Summary(s =>
         {
             s.Summary = "Create project integration";

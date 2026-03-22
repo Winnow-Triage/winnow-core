@@ -17,10 +17,18 @@ public abstract class ProjectScopedEndpoint<TRequest, TResponse> : OrganizationS
 
         var db = Resolve<WinnowDbContext>();
 
+        // Prioritize the project ID from the route if it's provided (e.g. for management operations)
+        var targetProjectId = req.ProjectId != Guid.Empty ? req.ProjectId : req.CurrentProjectId;
+
+        if (targetProjectId == Guid.Empty)
+        {
+            ThrowError("Project ID is required.", 400);
+        }
+
         // Check if user is the owner, a direct member, or a member of the assigned team
         var hasAccess = await db.Projects
             .AsNoTracking()
-            .Where(p => p.Id == req.CurrentProjectId && p.OrganizationId == req.CurrentOrganizationId)
+            .Where(p => p.Id == targetProjectId && p.OrganizationId == req.CurrentOrganizationId)
             .AnyAsync(p =>
                 p.OwnerId == req.CurrentUserId ||
                 db.ProjectMembers.Any(pm => pm.ProjectId == p.Id && pm.UserId == req.CurrentUserId) ||
@@ -45,10 +53,19 @@ public abstract class ProjectScopedEndpoint<TRequest> : OrganizationScopedEndpoi
         if (req.HasAnyRole("Admin", "SuperAdmin", "Owner")) return;
 
         var db = Resolve<WinnowDbContext>();
+
+        // Prioritize the project ID from the route
+        var targetProjectId = req.ProjectId != Guid.Empty ? req.ProjectId : req.CurrentProjectId;
+
+        if (targetProjectId == Guid.Empty)
+        {
+            ThrowError("Project ID is required.", 400);
+        }
+
         var userOwnsProject = await db.Projects
             .AsNoTracking()
             .AnyAsync(p =>
-                p.Id == req.CurrentProjectId &&
+                p.Id == targetProjectId &&
                 p.OrganizationId == req.CurrentOrganizationId &&
                 p.OwnerId == req.CurrentUserId, ct);
 

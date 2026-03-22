@@ -12,6 +12,7 @@ namespace Winnow.API.Features.Projects.Delete;
 [RequirePermission("projects:manage")]
 public record DeleteProjectCommand : IRequest, IProjectScopedRequest
 {
+    public Guid ProjectId { get; set; }
     public Guid CurrentProjectId { get; set; }
     public Guid CurrentOrganizationId { get; set; }
     public string CurrentUserId { get; set; } = string.Empty;
@@ -27,7 +28,7 @@ public class DeleteProjectHandler(
     public async Task Handle(DeleteProjectCommand request, CancellationToken ct)
     {
         var project = await dbContext.Projects
-            .FirstOrDefaultAsync(p => p.Id == request.CurrentProjectId && p.OrganizationId == request.CurrentOrganizationId, ct);
+            .FirstOrDefaultAsync(p => p.Id == request.ProjectId && p.OrganizationId == request.CurrentOrganizationId, ct);
 
         if (project == null)
         {
@@ -35,10 +36,7 @@ public class DeleteProjectHandler(
         }
 
         // Check if user is the project owner OR an admin in the organization
-        var membership = await dbContext.OrganizationMembers
-            .FirstOrDefaultAsync(om => om.OrganizationId == request.CurrentOrganizationId && om.UserId == request.CurrentUserId, ct);
-
-        var isAdmin = membership?.Role.Name == "Admin" || request.HasAnyRole("Admin", "SuperAdmin");
+        var isAdmin = request.HasAnyRole("Admin", "SuperAdmin", "Owner");
         var isOwner = project.OwnerId == request.CurrentUserId;
 
         if (!isAdmin && !isOwner)
@@ -47,17 +45,17 @@ public class DeleteProjectHandler(
         }
 
         // Clean up S3 assets for this project
-        var projectPrefix = $"organizations/{request.CurrentOrganizationId}/projects/{request.CurrentProjectId}/";
+        var projectPrefix = $"organizations/{request.CurrentOrganizationId}/projects/{request.ProjectId}/";
         await TryDeletePrefixAsync(s3Settings.QuarantineBucket, projectPrefix, ct);
         await TryDeletePrefixAsync(s3Settings.CleanBucket, projectPrefix, ct);
 
         // Manual cascade to satisfy Restrict constraints
-        logger.LogInformation("Cleaning up relations for project {ProjectId}", request.CurrentProjectId);
+        logger.LogInformation("Cleaning up relations for project {ProjectId}", request.ProjectId);
 
-        await dbContext.Assets.Where(a => a.ProjectId == request.CurrentProjectId).ExecuteDeleteAsync(ct);
-        await dbContext.Reports.Where(r => r.ProjectId == request.CurrentProjectId).ExecuteDeleteAsync(ct);
-        await dbContext.Integrations.Where(i => i.ProjectId == request.CurrentProjectId).ExecuteDeleteAsync(ct);
-        await dbContext.ProjectMembers.Where(pm => pm.ProjectId == request.CurrentProjectId).ExecuteDeleteAsync(ct);
+        await dbContext.Assets.Where(a => a.ProjectId == request.ProjectId).ExecuteDeleteAsync(ct);
+        await dbContext.Reports.Where(r => r.ProjectId == request.ProjectId).ExecuteDeleteAsync(ct);
+        await dbContext.Integrations.Where(i => i.ProjectId == request.ProjectId).ExecuteDeleteAsync(ct);
+        await dbContext.ProjectMembers.Where(pm => pm.ProjectId == request.ProjectId).ExecuteDeleteAsync(ct);
 
         dbContext.Projects.Remove(project);
         await dbContext.SaveChangesAsync(ct);

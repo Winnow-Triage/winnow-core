@@ -3,10 +3,7 @@ using Winnow.API.Features.Shared;
 
 namespace Winnow.API.Features.Projects.List;
 
-public class ListProjectIntegrationsRequest : ProjectScopedRequest
-{
-    public Guid ProjectId { get; set; }
-}
+public class ListProjectIntegrationsRequest : ProjectScopedRequest { }
 
 public record ProjectIntegrationDto(Guid Id, string Provider, string Name, bool IsActive);
 
@@ -15,7 +12,7 @@ public sealed class ListProjectIntegrationsEndpoint(IMediator mediator)
 {
     public override void Configure()
     {
-        Get("/integrations");
+        Get("/projects/{ProjectId}/integrations");
         Summary(s =>
         {
             s.Summary = "List project integrations";

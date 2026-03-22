@@ -26,7 +26,7 @@ public class ListTeamsHandler(WinnowDbContext db) : IRequestHandler<ListTeamsQue
                 Id = t.Id,
                 Name = t.Name,
                 CreatedAt = t.CreatedAt,
-                ProjectCount = t.Projects.Count,
+                ProjectCount = db.Projects.Count(p => p.TeamId == t.Id),
                 Members = db.TeamMembers
                     .Where(tm => tm.TeamId == t.Id)
                     .Join(db.Users, tm => tm.UserId, u => u.Id, (tm, u) => new TeamMemberSummary
