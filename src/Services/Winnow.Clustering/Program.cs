@@ -1,4 +1,5 @@
 using MassTransit;
+using Winnow.Contracts;
 using Winnow.Clustering;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,7 +35,7 @@ builder.Services.AddHostedService<Winnow.Clustering.Infrastructure.Scheduling.Cl
 // Add MassTransit
 builder.Services.AddMassTransit(x =>
 {
-    x.AddConsumer<ReportCreatedConsumer>();
+    x.AddConsumer<ClusteringBatchConsumer>();
     x.UsingRabbitMq((context, cfg) =>
     {
         cfg.Host(Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "localhost", "/", h =>
@@ -42,10 +43,18 @@ builder.Services.AddMassTransit(x =>
             h.Username("guest");
             h.Password("guest");
         });
-        // Configure concurrent consumer execution
-        cfg.PrefetchCount = 4;
-        cfg.UseConcurrencyLimit(4);
-        cfg.ConfigureEndpoints(context);
+
+        cfg.ReceiveEndpoint("cluster-reports-queue", e =>
+        {
+            e.PrefetchCount = 100;
+            e.Batch<ReportSanitizedEvent>(b =>
+            {
+                b.MessageLimit = 50;
+                b.TimeLimit = TimeSpan.FromSeconds(3);
+            });
+
+            e.ConfigureConsumer<ClusteringBatchConsumer>(context);
+        });
     });
 });
 
