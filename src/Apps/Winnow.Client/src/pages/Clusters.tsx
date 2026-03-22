@@ -1,5 +1,5 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, searchClusters, type ClusterSearchDto } from "@/lib/api";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { api, searchClusters, type PaginatedSearchList, type ClusterSearchDto } from "@/lib/api";
 import { useProject } from "@/context/ProjectContext";
 import {
   Table,
@@ -9,21 +9,61 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
-import { Merge, RefreshCw, AlertCircle, ShieldAlert } from "lucide-react";
+import { 
+  Merge, 
+  RefreshCw, 
+  AlertCircle, 
+  ShieldAlert,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  ListFilter,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  X
+} from "lucide-react";
 import { PageTitle } from "@/components/ui/page-title";
 
-
+const CLUSTER_STATUSES = ["Open", "Exported", "Dismissed", "Merged"];
 
 export default function Clusters() {
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"size" | "criticality" | "newest">(
-    "criticality",
-  );
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  // Filtering state
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [isOverage, setIsOverage] = useState<boolean | undefined>(undefined);
+  const [isLocked, setIsLocked] = useState<boolean | undefined>(undefined);
+
+  const [sortConfig, setSortConfig] = useState<{
+    key: "title" | "status" | "createdAt" | "criticalityScore" | "reportCount" | "relevanceScore";
+    direction: "asc" | "desc";
+  }>({ key: "criticalityScore", direction: "desc" });
+
+  const [lastNonSearchSort, setLastNonSearchSort] = useState(sortConfig);
+
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isMerging, setIsMerging] = useState(false);
   const queryClient = useQueryClient();
@@ -36,47 +76,98 @@ export default function Clusters() {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(search);
+      setPage(1);
     }, 500);
     return () => clearTimeout(handler);
   }, [search]);
 
+  // Auto-sort by relevance when searching
+  useEffect(() => {
+    if (debouncedSearch) {
+      setSortConfig({ key: "relevanceScore", direction: "desc" });
+    } else {
+      setSortConfig(lastNonSearchSort);
+    }
+  }, [debouncedSearch, lastNonSearchSort]);
+
   const {
-    data: clusters,
+    data,
     isLoading,
+    isPlaceholderData,
     error,
-    refetch,
-  } = useQuery<ClusterSearchDto[]>({
-    queryKey: ["clusters", currentProject?.id, debouncedSearch],
+  } = useQuery<PaginatedSearchList<ClusterSearchDto>>({
+    queryKey: [
+      "clusters", 
+      currentProject?.id, 
+      debouncedSearch, 
+      page, 
+      pageSize, 
+      selectedStatuses,
+      isOverage,
+      isLocked,
+      sortConfig
+    ],
     queryFn: async () => {
-      if (!debouncedSearch) {
-        const { data } = await api.get(`/clusters?sort=${sortBy}`);
-        // Map backend Cluster to ClusterSearchDto to conform to type
-        return data; 
-      }
-      const data = await searchClusters(debouncedSearch, 1, 50);
-      return data.items;
+      // Map frontend sort keys to backend fields
+      const sortByMap: Record<string, string> = {
+        title: "title",
+        status: "status",
+        createdAt: "createdAt",
+        criticalityScore: "criticalityScore",
+        reportCount: "reportCount",
+        relevanceScore: "relevanceScore"
+      };
+
+      return await searchClusters(
+        debouncedSearch || "",
+        page,
+        pageSize,
+        selectedStatuses.length > 0 ? selectedStatuses : undefined,
+        isOverage,
+        isLocked,
+        sortByMap[sortConfig.key] || "createdAt",
+        sortConfig.direction === "asc" ? "Asc" : "Desc"
+      );
     },
     staleTime: 30 * 1000,
     enabled: !!currentProject,
     retry: 0,
+    placeholderData: keepPreviousData,
   });
 
-  const sortedClusters = [...(clusters || [])].sort((a, b) => {
-    if (debouncedSearch) {
-      // If actively searching, maintain the backend relevance order (which is default index order)
-      return 0;
+  const clusters = data?.items || [];
+  const totalCount = data?.totalCount || 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  const handleSort = (key: typeof sortConfig.key) => {
+    const newConfig: { key: typeof sortConfig.key; direction: "asc" | "desc" } = {
+      key,
+      direction: sortConfig.key === key && sortConfig.direction === "desc" ? "asc" : "desc",
+    };
+    
+    setSortConfig(newConfig);
+    
+    // Only capture as manual preference if not currently searching
+    if (!search) {
+      setLastNonSearchSort(newConfig);
     }
-    if (sortBy === "size") {
-      return (b.reportCount || 0) - (a.reportCount || 0);
-    }
-    if (sortBy === "criticality") {
-      return (b.criticalityScore || 0) - (a.criticalityScore || 0);
-    }
-    if (sortBy === "newest") {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    }
-    return 0;
-  });
+    
+    setPage(1);
+  };
+
+  const toggleStatus = (status: string) => {
+    setSelectedStatuses((prev) =>
+      prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]
+    );
+    setPage(1);
+  };
+
+  const clearFilters = () => {
+    setSelectedStatuses([]);
+    setIsOverage(undefined);
+    setIsLocked(undefined);
+    setPage(1);
+  };
 
   const handleMerge = async () => {
     if (selectedIds.length < 2) return;
@@ -86,7 +177,6 @@ export default function Clusters() {
       const [targetId, ...sourceIds] = selectedIds;
       await api.post(`/clusters/${targetId}/merge`, { sourceIds });
       await queryClient.invalidateQueries({ queryKey: ["clusters"] });
-      await refetch();
       setSelectedIds([]);
     } catch (e) {
       console.error("Failed to merge clusters", e);
@@ -99,6 +189,15 @@ export default function Clusters() {
   const toggleSelection = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+    );
+  };
+
+  const SortIcon = ({ column }: { column: typeof sortConfig.key }) => {
+    if (sortConfig.key !== column) return <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />;
+    return sortConfig.direction === "asc" ? (
+      <ArrowUp className="ml-2 h-4 w-4 text-primary" />
+    ) : (
+      <ArrowDown className="ml-2 h-4 w-4 text-primary" />
     );
   };
 
@@ -116,6 +215,8 @@ export default function Clusters() {
     );
   }
 
+  const hasActiveFilters = selectedStatuses.length > 0 || isOverage !== undefined || isLocked !== undefined;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -125,81 +226,213 @@ export default function Clusters() {
             Aggregated alerts for rapid triaging and response.
           </p>
         </div>
-        <div className="flex items-center gap-4 justify-end">
-          {selectedIds.length >= 2 && (
-            <Button
-              variant="default"
-              size="sm"
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 h-10 px-4"
-              onClick={handleMerge}
-              disabled={isMerging}
-            >
-              {isMerging ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Merge className="h-4 w-4" />
+        <div className="flex flex-col items-end gap-3">
+          <div className="flex items-center gap-3 w-full justify-end">
+            {selectedIds.length >= 2 && (
+              <Button
+                variant="default"
+                size="sm"
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 h-10 px-4 whitespace-nowrap"
+                onClick={handleMerge}
+                disabled={isMerging}
+              >
+                {isMerging ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Merge className="h-4 w-4" />
+                )}
+                Merge {selectedIds.length} Clusters
+              </Button>
+            )}
+            <div className="flex-1 md:min-w-[300px] relative">
+              <Input
+                placeholder="Search clusters..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-10 pr-10"
+              />
+              {isLoading && (
+                <div className="absolute right-3 top-3">
+                  <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
               )}
-              Merge {selectedIds.length} Clusters
-            </Button>
+            </div>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="h-10 flex items-center gap-2">
+                  <ListFilter className="h-4 w-4" />
+                  Filters
+                  {hasActiveFilters && (
+                    <Badge variant="secondary" className="ml-1 px-1 h-5 min-w-[20px] justify-center">
+                      {(selectedStatuses.length + (isOverage !== undefined ? 1 : 0) + (isLocked !== undefined ? 1 : 0))}
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[200px]">
+                <DropdownMenuLabel>Status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {CLUSTER_STATUSES.map((status) => (
+                  <DropdownMenuCheckboxItem
+                    key={status}
+                    checked={selectedStatuses.includes(status)}
+                    onCheckedChange={() => toggleStatus(status)}
+                  >
+                    {status}
+                  </DropdownMenuCheckboxItem>
+                ))}
+                
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Flags</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={isOverage === true}
+                  onCheckedChange={(checked) => setIsOverage(checked ? true : undefined)}
+                >
+                  Overage only
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={isLocked === true}
+                  onCheckedChange={(checked) => setIsLocked(checked ? true : undefined)}
+                >
+                  Locked only
+                </DropdownMenuCheckboxItem>
+                
+                {hasActiveFilters && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-start text-xs h-8 text-destructive hover:text-destructive"
+                      onClick={clearFilters}
+                    >
+                      <X className="h-3 w-3 mr-2" />
+                      Clear all filters
+                    </Button>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          
+          {hasActiveFilters && (
+            <div className="flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-top-1 justify-end">
+              {selectedStatuses.map(s => (
+                <Badge key={s} variant="secondary" className="flex items-center gap-1 py-1 pr-1">
+                  {s}
+                  <X 
+                    className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                    onClick={() => toggleStatus(s)} 
+                  />
+                </Badge>
+              ))}
+              {isOverage && (
+                <Badge variant="secondary" className="flex items-center gap-1 py-1 pr-1">
+                  Overage
+                  <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => setIsOverage(undefined)} />
+                </Badge>
+              )}
+              {isLocked && (
+                <Badge variant="secondary" className="flex items-center gap-1 py-1 pr-1">
+                  Locked
+                  <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => setIsLocked(undefined)} />
+                </Badge>
+              )}
+            </div>
           )}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground whitespace-nowrap">
-              Sort by:
-            </span>
-            <select
-              className="bg-background border rounded px-2 py-1 h-10 text-sm outline-none focus:ring-1 focus:ring-ring"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-            >
-              <option value="size">Cluster Size</option>
-              <option value="criticality">Criticality</option>
-              <option value="newest">Newest</option>
-            </select>
-          </div>
-          <div className="min-w-[200px]">
-            <Input
-              placeholder="Search clusters..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-10"
-            />
-          </div>
         </div>
       </div>
 
-      <div className="border rounded-md">
+      <div className="border rounded-md overflow-hidden bg-card shadow-sm">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="hover:bg-transparent border-b">
               <TableHead className="w-[40px]"></TableHead>
-              <TableHead>Cluster Title</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Criticality</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="text-right">Related Reports</TableHead>
-              {debouncedSearch && <TableHead>Relevance</TableHead>}
+              <TableHead
+                className="cursor-pointer hover:bg-muted/50 transition-colors py-3"
+                onClick={() => handleSort("title")}
+              >
+                <div className="flex items-center">
+                  Cluster Title <SortIcon column="title" />
+                </div>
+              </TableHead>
+              <TableHead
+                className="cursor-pointer hover:bg-muted/50 transition-colors py-3"
+                onClick={() => handleSort("status")}
+              >
+                <div className="flex items-center">
+                  Status <SortIcon column="status" />
+                </div>
+              </TableHead>
+              <TableHead
+                className="cursor-pointer hover:bg-muted/50 transition-colors py-3"
+                onClick={() => handleSort("criticalityScore")}
+              >
+                <div className="flex items-center">
+                  Criticality <SortIcon column="criticalityScore" />
+                </div>
+              </TableHead>
+              <TableHead
+                className="cursor-pointer hover:bg-muted/50 transition-colors py-3"
+                onClick={() => handleSort("createdAt")}
+              >
+                <div className="flex items-center">
+                  Created <SortIcon column="createdAt" />
+                </div>
+              </TableHead>
+              <TableHead
+                className="cursor-pointer hover:bg-muted/50 transition-colors py-3 text-right"
+                onClick={() => handleSort("reportCount")}
+              >
+                <div className="flex items-center justify-end">
+                  Reports <SortIcon column="reportCount" />
+                </div>
+              </TableHead>
+              <TableHead
+                className="cursor-pointer hover:bg-muted/50 transition-colors py-3"
+                onClick={() => handleSort("relevanceScore")}
+              >
+                <div className="flex items-center">
+                  Relevance <SortIcon column="relevanceScore" />
+                </div>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
+            {isLoading && !isPlaceholderData ? (
               <TableRow>
-                <TableCell colSpan={debouncedSearch ? 7 : 6} className="h-24 text-center">
-                  Loading...
+                <TableCell colSpan={7} className="h-64 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <p className="text-muted-foreground font-medium">Loading clusters...</p>
+                  </div>
                 </TableCell>
               </TableRow>
-            ) : sortedClusters.length === 0 ? (
+            ) : clusters.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={debouncedSearch ? 7 : 6} className="h-24 text-center">
-                  No clusters found.
+                <TableCell colSpan={7} className="h-64 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <Filter className="h-8 w-8 text-muted-foreground opacity-50" />
+                    <h3 className="font-semibold text-lg">No clusters found</h3>
+                    <p className="text-muted-foreground text-sm max-w-xs mx-auto">
+                      Try adjusting your search filters to find what you're looking for.
+                    </p>
+                    {hasActiveFilters && (
+                      <Button variant="outline" size="sm" onClick={clearFilters} className="mt-2">
+                        Reset all filters
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
-              sortedClusters.map((cluster) => {
+              clusters.map((cluster) => {
                 const isSelected = selectedIds.includes(cluster.id);
                 return (
                   <TableRow
                     key={cluster.id}
-                    className="cursor-pointer"
+                    className="cursor-pointer transition-colors hover:bg-muted/50"
                     data-state={isSelected ? "selected" : undefined}
                     onClick={() => toggleSelection(cluster.id)}
                   >
@@ -212,7 +445,7 @@ export default function Clusters() {
                         onClick={(e) => e.stopPropagation()}
                       />
                     </TableCell>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium max-w-[400px]">
                       <div className="flex items-center gap-2">
                         {cluster.isLocked && (
                           <ShieldAlert className="h-4 w-4 text-red-500 shrink-0" />
@@ -234,7 +467,9 @@ export default function Clusters() {
                     <TableCell>
                       <Badge
                         variant={
-                          cluster.status === "Closed" ? "success" : "neutral"
+                          cluster.status === "Exported" || cluster.status === "Dismissed" || cluster.status === "Merged"
+                            ? "success"
+                            : "neutral"
                         }
                         className="rounded-full"
                       >
@@ -260,8 +495,12 @@ export default function Clusters() {
                         </span>
                       )}
                     </TableCell>
-                    <TableCell>
-                      {new Date(cluster.createdAt).toLocaleDateString()}
+                    <TableCell className="text-muted-foreground text-sm">
+                      {new Date(cluster.createdAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
                     </TableCell>
                     <TableCell className="text-right">
                       <Badge
@@ -272,34 +511,84 @@ export default function Clusters() {
                         {cluster.reportCount}
                       </Badge>
                     </TableCell>
-                    {debouncedSearch && (
-                      <TableCell>
-                        {cluster.relevanceScore !== undefined &&
-                        cluster.relevanceScore !== null ? (
-                          <div className="flex items-center gap-2">
-                            <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
-                              <div
-                                className={`h-full ${cluster.relevanceScore > 0.05 ? "bg-green-500" : cluster.relevanceScore > 0.02 ? "bg-yellow-500" : "bg-blue-500"}`}
-                                style={{
-                                  width: `${Math.min(cluster.relevanceScore * 1000, 100)}%`,
-                                }}
-                              />
-                            </div>
-                            <span className="text-xs text-muted-foreground mr-1">
-                              {(cluster.relevanceScore * 1000).toFixed(0)}
-                            </span>
+                    <TableCell>
+                      {cluster.relevanceScore !== undefined &&
+                      cluster.relevanceScore !== null ? (
+                        <div className="flex items-center gap-3">
+                          <div className="w-16 h-1.5 bg-secondary rounded-full overflow-hidden shrink-0">
+                            <div
+                              className={`h-full transition-all duration-500 ${cluster.relevanceScore > 0.05 ? "bg-green-500" : cluster.relevanceScore > 0.02 ? "bg-yellow-500" : "bg-blue-400"}`}
+                              style={{
+                                width: `${Math.min(cluster.relevanceScore * 1000, 100)}%`,
+                              }}
+                            />
                           </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                    )}
+                          <span className="text-xs font-medium text-muted-foreground w-6 text-right">
+                            {(cluster.relevanceScore * 1000).toFixed(0)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground opacity-40">-</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 );
               })
             )}
           </TableBody>
         </Table>
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-2 border-t mt-auto">
+        <div className="flex items-center gap-6">
+          <div className="text-sm text-muted-foreground whitespace-nowrap font-medium">
+            Total results: <span className="text-foreground">{totalCount.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground whitespace-nowrap">Page size:</span>
+            <Select
+              value={pageSize.toString()}
+              onValueChange={(val) => {
+                setPageSize(parseInt(val));
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="h-8 w-[70px] bg-background">
+                <SelectValue placeholder={pageSize.toString()} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex items-center space-x-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 px-4"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1 || isLoading}
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Previous
+          </Button>
+          <div className="text-sm font-semibold min-w-[100px] text-center">
+            {page} <span className="text-muted-foreground font-normal mx-1">of</span> {Math.max(1, totalPages)}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 px-4"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages || isLoading}
+          >
+            Next
+            <ChevronRight className="h-4 w-4 ml-2" />
+          </Button>
+        </div>
       </div>
     </div>
   );

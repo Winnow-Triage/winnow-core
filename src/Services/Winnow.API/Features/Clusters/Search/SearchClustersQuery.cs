@@ -38,4 +38,14 @@ public class PaginatedClusterSearchList<T>
 }
 
 [RequirePermission("clusters:read")]
-public record SearchClustersQuery(Guid CurrentOrganizationId, Guid ProjectId, string SearchTerm, int PageNumber = 1, int PageSize = 20) : IRequest<PaginatedClusterSearchList<ClusterSearchDto>>, IOrgScopedRequest;
+public record SearchClustersQuery(
+    Guid CurrentOrganizationId,
+    Guid ProjectId,
+    string SearchTerm,
+    string[]? Statuses = null,
+    bool? IsOverage = null,
+    bool? IsLocked = null,
+    string SortBy = "relevanceScore",
+    string SortOrder = "Desc",
+    int PageNumber = 1,
+    int PageSize = 20) : IRequest<PaginatedClusterSearchList<ClusterSearchDto>>, IOrgScopedRequest;

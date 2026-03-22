@@ -18,10 +18,19 @@ public class SearchClustersHandler : IRequestHandler<SearchClustersQuery, Pagina
 
     public async Task<PaginatedClusterSearchList<ClusterSearchDto>> Handle(SearchClustersQuery request, CancellationToken cancellationToken)
     {
+        var filters = new ClusterSearchFilters(
+            request.Statuses,
+            request.IsOverage,
+            request.IsLocked,
+            request.SortBy,
+            request.SortOrder
+        );
+
         if (string.IsNullOrWhiteSpace(request.SearchTerm))
         {
             return await _clusterSearchRepository.GetRecentClustersAsync(
                 request.ProjectId,
+                filters,
                 request.PageNumber,
                 request.PageSize,
                 cancellationToken);
@@ -33,6 +42,7 @@ public class SearchClustersHandler : IRequestHandler<SearchClustersQuery, Pagina
             request.ProjectId,
             request.SearchTerm,
             searchVector,
+            filters,
             request.PageNumber,
             request.PageSize,
             cancellationToken);

@@ -574,9 +574,26 @@ export const searchClusters = async (
   q: string,
   page: number = 1,
   size: number = 20,
+  statuses?: string[],
+  isOverage?: boolean,
+  isLocked?: boolean,
+  sortBy: string = "relevanceScore",
+  sortOrder: string = "Desc"
 ): Promise<PaginatedSearchList<ClusterSearchDto>> => {
   const response = await api.get("/clusters/search", {
-    params: { q, page, size },
+    params: { 
+      q, 
+      page, 
+      size, 
+      statuses, 
+      isOverage, 
+      isLocked, 
+      sortBy, 
+      sortOrder 
+    },
+    paramsSerializer: {
+      indexes: null
+    }
   });
   return response.data;
 };

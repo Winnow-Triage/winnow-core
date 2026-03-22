@@ -6,6 +6,11 @@ namespace Winnow.API.Features.Clusters.Search;
 public class SearchClustersRequest : ProjectScopedRequest
 {
     public string? Q { get; set; }
+    public string[]? Statuses { get; set; }
+    public bool? IsOverage { get; set; }
+    public bool? IsLocked { get; set; }
+    public string SortBy { get; set; } = "relevanceScore";
+    public string SortOrder { get; set; } = "Desc";
     public int Page { get; set; } = 1;
     public int Size { get; set; } = 20;
 }
@@ -30,7 +35,18 @@ public sealed class SearchClustersEndpoint(IMediator mediator) : ProjectScopedEn
 
     public override async Task HandleAsync(SearchClustersRequest req, CancellationToken ct)
     {
-        var query = new SearchClustersQuery(req.CurrentOrganizationId, req.CurrentProjectId, req.Q ?? string.Empty, req.Page, req.Size);
+        var query = new SearchClustersQuery(
+            req.CurrentOrganizationId,
+            req.CurrentProjectId,
+            req.Q ?? string.Empty,
+            req.Statuses,
+            req.IsOverage,
+            req.IsLocked,
+            req.SortBy,
+            req.SortOrder,
+            req.Page,
+            req.Size);
+
         var result = await _mediator.Send(query, ct);
 
         await Send.OkAsync(result, ct);
