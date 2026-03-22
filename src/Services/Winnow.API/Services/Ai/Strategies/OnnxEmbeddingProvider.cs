@@ -155,12 +155,16 @@ internal class OnnxEmbeddingProvider : IEmbeddingProvider, IDisposable
 
     public bool CanHandle(LlmSettings settings)
     {
-        // ONNX provider is always available as a fallback, but we prefer it when no specific provider is configured
-        // or when the provider is set to "Placeholder" or "Onnx"
-        return string.IsNullOrEmpty(settings?.EmbeddingProvider) ||
-               settings.EmbeddingProvider.Equals("Placeholder", StringComparison.OrdinalIgnoreCase) ||
-               settings.EmbeddingProvider.Equals("Onnx", StringComparison.OrdinalIgnoreCase) ||
-               (File.Exists(_modelPath) && _session != null && _tokenizer != null);
+        // Only handle if the model files are present on disk.
+        // In CI, where files are missing, this returns false, allowing the Placeholder provider to take over.
+        // In unit tests, we can provide dummy files to test this logic without needing a real ONNX runtime load.
+        bool hasModelFiles = File.Exists(_modelPath) && File.Exists(Path.Combine(_modelDir, "vocab.txt"));
+        if (!hasModelFiles) return false;
+
+        bool isExplicit = settings?.EmbeddingProvider?.Equals("Onnx", StringComparison.OrdinalIgnoreCase) ?? false;
+        bool isDefault = string.IsNullOrEmpty(settings?.EmbeddingProvider);
+
+        return isExplicit || isDefault;
     }
 
 

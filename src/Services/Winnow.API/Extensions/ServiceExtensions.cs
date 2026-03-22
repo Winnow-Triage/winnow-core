@@ -189,6 +189,7 @@ internal static class ServiceExtensions
         {
             // Allowed to fail if ONNX runtime is completely missing
         }
+        services.AddSingleton<IEmbeddingProvider, PlaceholderEmbeddingProvider>();
 
         services.AddSingleton<IVectorCalculator, VectorCalculator>();
 

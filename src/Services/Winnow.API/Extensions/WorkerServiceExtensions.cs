@@ -141,12 +141,17 @@ public static class WorkerServiceExtensions
         services.AddWinnowKernel(config);
 
         // Register embedding providers as Singleton so ONNX models stay in memory
-        services.Scan(scan => scan
-            .FromAssemblyOf<IEmbeddingProvider>()
-            .AddClasses(classes => classes.AssignableTo<IEmbeddingProvider>())
-            .As<IEmbeddingProvider>()
-            .WithSingletonLifetime()
-        );
+        services.AddSingleton<IEmbeddingProvider, OpenAiEmbeddingProvider>();
+        services.AddSingleton<IEmbeddingProvider, LocalEmbeddingProvider>();
+        try
+        {
+            services.AddSingleton<IEmbeddingProvider, OnnxEmbeddingProvider>();
+        }
+        catch (TypeInitializationException)
+        {
+            // Allowed to fail if ONNX runtime is completely missing
+        }
+        services.AddSingleton<IEmbeddingProvider, PlaceholderEmbeddingProvider>();
 
         // Register typed HTTP clients for embedding providers with resilience handlers
         services.AddHttpClient<OpenAiEmbeddingProvider>()

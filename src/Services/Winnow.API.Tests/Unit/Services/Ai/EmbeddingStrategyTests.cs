@@ -23,6 +23,14 @@ public class OnnxEmbeddingProviderTests
         _hostEnvMock.Setup(x => x.ContentRootPath).Returns(_testContentRootPath);
     }
 
+    private void CreateDummyModelFiles()
+    {
+        var aiModelDir = Path.Combine(_testContentRootPath, "AiModel");
+        Directory.CreateDirectory(aiModelDir);
+        File.WriteAllText(Path.Combine(aiModelDir, "model.onnx"), "dummy");
+        File.WriteAllText(Path.Combine(aiModelDir, "vocab.txt"), "dummy");
+    }
+
     [Fact]
     public void Constructor_WhenNoModelFilesExist_InitializesWithoutSession()
     {
@@ -85,24 +93,42 @@ public class OnnxEmbeddingProviderTests
         var provider = new OnnxEmbeddingProvider(_loggerMock.Object, _hostEnvMock.Object);
         var text = "Test text for embedding";
 
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(() => provider.GetEmbeddingAsync(text));
+        // Act
+        var exception = await Record.ExceptionAsync(() => provider.GetEmbeddingAsync(text));
+
+        // Assert
+        Assert.NotNull(exception);
+        Assert.IsType<InvalidOperationException>(exception);
+        Assert.Contains("BERT model or tokenizer is not loaded", exception.Message);
     }
 
     [Fact]
-    public void CanHandle_WithEmptyOrNullProvider_ReturnsTrue()
+    public void CanHandle_WithEmptyOrNullProvider_WhenModelExists_ReturnsTrue()
     {
         // Arrange
+        CreateDummyModelFiles();
         var provider = new OnnxEmbeddingProvider(_loggerMock.Object, _hostEnvMock.Object);
 
-        var nullSettings = new LlmSettings { Provider = null! };
-        var emptySettings = new LlmSettings { Provider = "" };
-        var placeholderSettings = new LlmSettings { Provider = "Placeholder" };
+        var nullSettings = new LlmSettings { EmbeddingProvider = null! };
+        var emptySettings = new LlmSettings { EmbeddingProvider = "" };
 
         // Act & Assert
         Assert.True(provider.CanHandle(nullSettings));
         Assert.True(provider.CanHandle(emptySettings));
-        Assert.True(provider.CanHandle(placeholderSettings));
+    }
+
+    [Fact]
+    public void CanHandle_WhenModelMissing_ReturnsFalseRegardlessOfSettings()
+    {
+        // Arrange - No model files created
+        var provider = new OnnxEmbeddingProvider(_loggerMock.Object, _hostEnvMock.Object);
+        var settings = new LlmSettings { EmbeddingProvider = "Onnx" };
+
+        // Act
+        var result = provider.CanHandle(settings);
+
+        // Assert
+        Assert.False(result);
     }
 
     [Fact]
@@ -120,17 +146,18 @@ public class OnnxEmbeddingProviderTests
     }
 
     [Fact]
-    public void CanHandle_WithPlaceholderProvider_ReturnsTrue()
+    public void CanHandle_WhenPlaceholderRequested_ReturnsFalse()
     {
         // Arrange
+        CreateDummyModelFiles();
         var provider = new OnnxEmbeddingProvider(_loggerMock.Object, _hostEnvMock.Object);
-        var settings = new LlmSettings { Provider = "Placeholder" };
+        var settings = new LlmSettings { EmbeddingProvider = "Placeholder" };
 
         // Act
         var result = provider.CanHandle(settings);
 
         // Assert
-        Assert.True(result);
+        Assert.False(result);
     }
 
     [Fact]
