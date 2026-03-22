@@ -104,3 +104,8 @@ coverage/
 coverage-report/
 AUDIT_REPORT.md
 SaaS_MVP_REMAINING_TASKS.md
+
+# ========================
+# 9. Docker
+# ========================
+volume/
