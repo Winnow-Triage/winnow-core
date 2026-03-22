@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Pgvector;
+using MassTransit;
 using Winnow.API.Infrastructure.Identity;
 using Winnow.API.Infrastructure.MultiTenancy;
 using Winnow.API.Infrastructure.Security;
@@ -107,6 +108,11 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
 
         var encryptedConverter = new EncryptedStringConverter(_encryptionKey);
         modelBuilder.ApplyConfiguration(new Configurations.IntegrationConfiguration(encryptedConverter));
+
+        // MassTransit Outbox tables
+        modelBuilder.AddInboxStateEntity();
+        modelBuilder.AddOutboxMessageEntity();
+        modelBuilder.AddOutboxStateEntity();
 
         // Note: Global query filters for tenant isolation are applied at runtime
         // via the ITenantContext service, not at model creation time.

@@ -30,6 +30,7 @@ public class Cluster : IAggregateRoot
     public int? CriticalityScore { get; private set; }
     public string? CriticalityReasoning { get; private set; }
     public DateTime? LastSummarizedAt { get; private set; }
+    public DateTime? SummarizationStartedAt { get; private set; }
     public bool IsSummarizing { get; private set; }
 
     // The centroid is computed externally by IVectorCalculator and stored here
@@ -133,8 +134,17 @@ public class Cluster : IAggregateRoot
         LastSummarizedAt = null;
     }
 
-    public void StartSummarizing() => IsSummarizing = true;
-    public void FinishSummarizing() => IsSummarizing = false;
+    public void StartSummarizing()
+    {
+        IsSummarizing = true;
+        SummarizationStartedAt = DateTime.UtcNow;
+    }
+
+    public void FinishSummarizing()
+    {
+        IsSummarizing = false;
+        SummarizationStartedAt = null;
+    }
 
     // ──────────────────────────────────────────────────────────────
     // Merge suggestion

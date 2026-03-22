@@ -25,13 +25,14 @@ public class GenerateClusterSummaryHandler(IPublishEndpoint publishEndpoint, Win
         }
 
         cluster.StartSummarizing();
-        await db.SaveChangesAsync(cancellationToken);
 
         await publishEndpoint.Publish(new GenerateClusterSummaryEvent(
             request.Id,
             request.CurrentOrganizationId,
             request.ProjectId
         ), cancellationToken);
+
+        await db.SaveChangesAsync(cancellationToken);
 
         return new GenerateClusterSummaryResult(true);
     }

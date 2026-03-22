@@ -425,6 +425,12 @@ internal static class ServiceExtensions
         // MassTransit
         services.AddMassTransit(x =>
         {
+            x.AddEntityFrameworkOutbox<WinnowDbContext>(o =>
+            {
+                o.UsePostgres();
+                o.UseBusOutbox();
+            });
+
             x.UsingRabbitMq((context, cfg) =>
             {
                 cfg.Host(Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "localhost", "/", h =>

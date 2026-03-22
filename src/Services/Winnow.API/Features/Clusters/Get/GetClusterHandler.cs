@@ -72,7 +72,7 @@ public class GetClusterHandler(WinnowDbContext db) : IRequestHandler<GetClusterQ
             LastSeen = stats?.LastSeen,
             Velocity1h = stats?.Velocity1h ?? 0,
             Velocity24h = stats?.Velocity24h ?? 0,
-            IsSummarizing = cluster.IsSummarizing,
+            IsSummarizing = cluster.IsSummarizing && (cluster.SummarizationStartedAt == null || cluster.SummarizationStartedAt > DateTime.UtcNow.AddMinutes(-10)),
             Reports = reports
         };
 

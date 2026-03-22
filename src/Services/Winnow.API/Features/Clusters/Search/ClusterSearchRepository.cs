@@ -47,7 +47,7 @@ public class ClusterSearchRepository(WinnowDbContext dbContext) : IClusterSearch
                 c.""Status"",
                 c.""CreatedAt"",
                 c.""CriticalityScore"",
-                c.""IsSummarizing"",
+                (c.""IsSummarizing"" = TRUE AND (c.""SummarizationStartedAt"" IS NULL OR c.""SummarizationStartedAt"" > NOW() - INTERVAL '10 minutes')) AS IsSummarizing,
                 (SELECT COUNT(*) FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"") AS ReportCount,
                 EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsLocked"" = TRUE) AS IsLocked,
                 EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsOverage"" = TRUE) AS IsOverage
@@ -100,10 +100,16 @@ public class ClusterSearchRepository(WinnowDbContext dbContext) : IClusterSearch
         const string keywordSql = @"
             SELECT
                 ""Id"",
-                ROW_NUMBER() OVER(ORDER BY ts_rank(to_tsvector('english', COALESCE(""Title"", '') || ' ' || COALESCE(""Summary"", '')), websearch_to_tsquery('english', @SearchText)) DESC) AS rank
+                ROW_NUMBER() OVER(ORDER BY (
+                    ts_rank(to_tsvector('english', COALESCE(""Title"", '') || ' ' || COALESCE(""Summary"", '')), websearch_to_tsquery('english', @SearchText)) * 1.0 +
+                    ts_rank(to_tsvector('english', COALESCE(""Title"", '') || ' ' || COALESCE(""Summary"", '')), phraseto_tsquery('english', @SearchText)) * 2.0
+                ) DESC) AS rank
             FROM ""Clusters"" c
             WHERE {0}
-              AND to_tsvector('english', COALESCE(""Title"", '') || ' ' || COALESCE(""Summary"", '')) @@ websearch_to_tsquery('english', @SearchText)";
+              AND (
+                to_tsvector('english', COALESCE(""Title"", '') || ' ' || COALESCE(""Summary"", '')) @@ websearch_to_tsquery('english', @SearchText) OR
+                to_tsvector('english', COALESCE(""Title"", '') || ' ' || COALESCE(""Summary"", '')) @@ phraseto_tsquery('english', @SearchText)
+              )";
 
         const string vectorSql = @"
             SELECT
@@ -130,7 +136,7 @@ public class ClusterSearchRepository(WinnowDbContext dbContext) : IClusterSearch
                 c.""Status"",
                 c.""CreatedAt"",
                 c.""CriticalityScore"",
-                c.""IsSummarizing"",
+                (c.""IsSummarizing"" = TRUE AND (c.""SummarizationStartedAt"" IS NULL OR c.""SummarizationStartedAt"" > NOW() - INTERVAL '10 minutes')) AS IsSummarizing,
                 (SELECT COUNT(*) FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"") AS ReportCount,
                 EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsLocked"" = TRUE) AS IsLocked,
                 EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsOverage"" = TRUE) AS IsOverage,
