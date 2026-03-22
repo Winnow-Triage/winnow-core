@@ -51,6 +51,7 @@ interface ClusterDetailData {
   summary?: string;
   criticalityScore?: number;
   criticalityReasoning?: string;
+  isSummarizing: boolean;
   status: string;
   createdAt: string;
   reportCount: number;
@@ -66,7 +67,7 @@ export default function ClusterDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [isGeneratingSummaryLocal, setIsGeneratingSummaryLocal] = useState(false);
   const [isClearingSummary, setIsClearingSummary] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
@@ -75,6 +76,11 @@ export default function ClusterDetail() {
     description: string;
     action: () => Promise<void>;
   }>({ isOpen: false, title: "", description: "", action: async () => { } });
+
+  const { data: billingStatus } = useQuery({
+    queryKey: ["billing-status"],
+    queryFn: () => api.get("/billing/status").then((r) => r.data),
+  });
 
   const {
     data: cluster,
@@ -87,7 +93,10 @@ export default function ClusterDetail() {
       return data;
     },
     enabled: !!id,
+    refetchInterval: (query) => (query.state.data?.isSummarizing ? 3000 : false),
   });
+
+  const isGeneratingSummary = isGeneratingSummaryLocal || cluster?.isSummarizing;
 
   if (isLoading)
     return (
@@ -111,7 +120,13 @@ export default function ClusterDetail() {
     );
 
   const handleGenerateSummary = async () => {
-    setIsGeneratingSummary(true);
+    // Check tier allowance before attempting
+    if (billingStatus?.subscriptionTier === "Free") {
+      setIsUpgradeModalOpen(true);
+      return;
+    }
+
+    setIsGeneratingSummaryLocal(true);
     try {
       await api.post(`/clusters/${cluster.id}/generate-summary`, {});
       await queryClient.invalidateQueries({ queryKey: ["cluster", id] });
@@ -124,7 +139,7 @@ export default function ClusterDetail() {
         toast.error("Failed to generate summary");
       }
     } finally {
-      setIsGeneratingSummary(false);
+      setIsGeneratingSummaryLocal(false);
     }
   };
 

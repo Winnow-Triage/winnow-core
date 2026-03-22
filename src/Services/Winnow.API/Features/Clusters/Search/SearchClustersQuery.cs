@@ -18,6 +18,7 @@ public class ClusterSearchDto
     public int ReportCount { get; set; }
     public bool IsLocked { get; set; }
     public bool IsOverage { get; set; }
+    public bool IsSummarizing { get; set; }
     public double? RelevanceScore { get; set; }
 }
 

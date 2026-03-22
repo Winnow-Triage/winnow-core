@@ -25,6 +25,7 @@ public class GetClusterResponse
     public string? AssignedTo { get; set; }
     public int Velocity1h { get; set; }
     public int Velocity24h { get; set; }
+    public bool IsSummarizing { get; set; }
     public List<ClusterMemberDto> Reports { get; set; } = [];
 }
 

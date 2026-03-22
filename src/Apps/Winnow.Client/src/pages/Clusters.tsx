@@ -133,6 +133,8 @@ export default function Clusters() {
     enabled: !!currentProject,
     retry: 0,
     placeholderData: keepPreviousData,
+    refetchInterval: (query) => 
+      query.state.data?.items?.some(c => c.isSummarizing) ? 3000 : false,
   });
 
   const clusters = data?.items || [];
@@ -462,6 +464,11 @@ export default function Clusters() {
                             ? "Locked Cluster (Limit Exceeded)"
                             : cluster.title || "Untitled Cluster"}
                         </Link>
+                        {cluster.isSummarizing && (
+                          <Badge variant="outline" className="ml-1 animate-pulse bg-purple-500/10 text-purple-500 border-purple-500/20 text-[10px] h-5 py-0">
+                            Summarizing...
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>

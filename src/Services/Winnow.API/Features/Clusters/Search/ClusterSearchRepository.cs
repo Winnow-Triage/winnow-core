@@ -47,6 +47,7 @@ public class ClusterSearchRepository(WinnowDbContext dbContext) : IClusterSearch
                 c.""Status"",
                 c.""CreatedAt"",
                 c.""CriticalityScore"",
+                c.""IsSummarizing"",
                 (SELECT COUNT(*) FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"") AS ReportCount,
                 EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsLocked"" = TRUE) AS IsLocked,
                 EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsOverage"" = TRUE) AS IsOverage
@@ -129,6 +130,7 @@ public class ClusterSearchRepository(WinnowDbContext dbContext) : IClusterSearch
                 c.""Status"",
                 c.""CreatedAt"",
                 c.""CriticalityScore"",
+                c.""IsSummarizing"",
                 (SELECT COUNT(*) FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"") AS ReportCount,
                 EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsLocked"" = TRUE) AS IsLocked,
                 EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsOverage"" = TRUE) AS IsOverage,

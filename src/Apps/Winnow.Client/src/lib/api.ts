@@ -567,6 +567,7 @@ export interface ClusterSearchDto {
   reportCount: number;
   isLocked: boolean;
   isOverage: boolean;
+  isSummarizing: boolean;
   relevanceScore?: number;
 }
 

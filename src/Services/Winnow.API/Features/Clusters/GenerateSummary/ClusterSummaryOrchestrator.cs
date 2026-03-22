@@ -21,6 +21,9 @@ public class ClusterSummaryOrchestrator(
         if (!organization.CanGenerateAiSummary())
         {
             logger.LogWarning("Organization {OrgId} hit AI summary limit.", organization.Id);
+            // Even if it failed due to limit, we should clear the summarizing flag
+            cluster.FinishSummarizing();
+            await db.SaveChangesAsync(ct);
             return false;
         }
 
@@ -32,18 +35,25 @@ public class ClusterSummaryOrchestrator(
             .Take(20)
             .ToListAsync(ct);
 
-        // Execute the External Service
-        var result = await aiService.GenerateSummaryAsync(clusterReports, ct);
-        if (result.IsError) return false;
+        bool success = false;
+        try
+        {
+            // Execute the External Service
+            var result = await aiService.GenerateSummaryAsync(clusterReports, ct);
+            if (!result.IsError)
+            {
+                // Mutate the Aggregates
+                cluster.SetSummary(result.Title, result.Summary, result.CriticalityScore ?? 5, result.CriticalityReasoning ?? string.Empty);
+                organization.RecordAiSummaryUsage();
+                success = true;
+            }
+        }
+        finally
+        {
+            cluster.FinishSummarizing();
+            await db.SaveChangesAsync(ct);
+        }
 
-        // Mutate the Aggregates
-        cluster.SetSummary(result.Title, result.Summary, result.CriticalityScore ?? 5, result.CriticalityReasoning ?? string.Empty);
-
-        organization.RecordAiSummaryUsage();
-
-        // Atomic Commit
-        await db.SaveChangesAsync(ct);
-
-        return true;
+        return success;
     }
 }
