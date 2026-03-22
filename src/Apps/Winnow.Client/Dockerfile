@@ -14,6 +14,7 @@ COPY . .
 # Accept build arguments to bake into the static React bundle
 ARG VITE_API_URL
 ENV VITE_API_URL=${VITE_API_URL:-http://localhost:5000}
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 RUN npm run build
 

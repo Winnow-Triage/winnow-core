@@ -62,14 +62,22 @@ public static class WorkerServiceExtensions
             cfg.RegisterServicesFromAssembly(typeof(WinnowDbContext).Assembly);
         });
 
-        services.AddDbContext<WinnowDbContext>((sp, options) =>
+        // Register NpgsqlDataSource as a Singleton to ensure connection pooling works correctly
+        // and to prevent leaks caused by creating new DataSources inside shared scoped delegates.
+        services.AddSingleton<NpgsqlDataSource>(sp =>
         {
-            var tenantCtx = sp.GetRequiredService<ITenantContext>();
-            var connStr = tenantCtx.ConnectionString;
+            var config = sp.GetRequiredService<IConfiguration>();
+            var connStr = config.GetConnectionString("Postgres")
+                ?? throw new InvalidOperationException("Postgres connection string missing.");
 
             var dataSourceBuilder = new NpgsqlDataSourceBuilder(connStr);
             dataSourceBuilder.UseVector();
-            var dataSource = dataSourceBuilder.Build();
+            return dataSourceBuilder.Build();
+        });
+
+        services.AddDbContext<WinnowDbContext>((sp, options) =>
+        {
+            var dataSource = sp.GetRequiredService<NpgsqlDataSource>();
 
             options.UseNpgsql(dataSource,
                 npgsql =>

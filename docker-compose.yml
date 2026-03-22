@@ -94,7 +94,7 @@ services:
       - presidio-analyzer
     environment:
       - ASPNETCORE_HTTP_PORTS=5000
-      - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword
+      - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword;Maximum Pool Size=4;Minimum Pool Size=0
       - S3Settings__Endpoint=http://localhost:4566
       - LlmSettings__Provider=Ollama
       - LlmSettings__Ollama__Endpoint=http://localhost:11434
@@ -120,7 +120,7 @@ services:
     environment:
       - ASPNETCORE_HTTP_PORTS=5001
       - RABBITMQ_HOST=localhost
-      - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword
+      - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword;Maximum Pool Size=4;Minimum Pool Size=0
       - S3Settings__Endpoint=http://localhost:4566
       - LlmSettings__Provider=Ollama
       - LlmSettings__Ollama__Endpoint=http://localhost:11434
@@ -143,7 +143,7 @@ services:
     environment:
       - ASPNETCORE_HTTP_PORTS=5003
       - RABBITMQ_HOST=localhost
-      - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword
+      - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword;Maximum Pool Size=4;Minimum Pool Size=0
       - S3Settings__Endpoint=http://localhost:4566
       - LlmSettings__Provider=Ollama
       - LlmSettings__Ollama__Endpoint=http://localhost:11434
@@ -165,7 +165,7 @@ services:
     environment:
       - ASPNETCORE_HTTP_PORTS=5004
       - RABBITMQ_HOST=localhost
-      - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword
+      - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword;Maximum Pool Size=4;Minimum Pool Size=0
       - S3Settings__Endpoint=http://localhost:4566
       - LlmSettings__Provider=Ollama
       - LlmSettings__Ollama__Endpoint=http://localhost:11434

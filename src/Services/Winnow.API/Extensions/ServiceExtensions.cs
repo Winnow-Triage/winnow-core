@@ -1,3 +1,4 @@
+using Npgsql;
 using Amazon;
 using Amazon.Comprehend;
 using Amazon.Extensions.NETCore.Setup;
@@ -251,10 +252,22 @@ internal static class ServiceExtensions
             services.AddScoped<IEmailService, SmtpEmailService>();
         }
 
+        // Register NpgsqlDataSource as a Singleton to ensure connection pooling works correctly
+        services.AddSingleton<NpgsqlDataSource>(sp =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+            var connStr = config.GetConnectionString("Postgres")
+                ?? throw new InvalidOperationException("Postgres connection string missing.");
+
+            var dataSourceBuilder = new NpgsqlDataSourceBuilder(connStr);
+            dataSourceBuilder.UseVector();
+            return dataSourceBuilder.Build();
+        });
+
         services.AddDbContext<WinnowDbContext>((sp, options) =>
         {
-            var tenantCtx = sp.GetRequiredService<ITenantContext>();
-            options.UseNpgsql(tenantCtx.ConnectionString,
+            var dataSource = sp.GetRequiredService<NpgsqlDataSource>();
+            options.UseNpgsql(dataSource,
                 npgsql =>
                 {
                     npgsql.UseVector();
