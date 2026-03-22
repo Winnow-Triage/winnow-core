@@ -98,18 +98,17 @@ public class ReportSearchRepository : IReportSearchRepository
         const string keywordSql = @"
             SELECT
                 ""Id"",
-                ts_rank(to_tsvector('english', ""Title"" || ' ' || ""Message""), plainto_tsquery('english', @SearchText)) AS rank_score
+                ROW_NUMBER() OVER(ORDER BY ts_rank(to_tsvector('english', ""Title"" || ' ' || ""Message""), websearch_to_tsquery('english', @SearchText)) DESC) AS rank
             FROM ""Reports""
             WHERE {0}
-              AND to_tsvector('english', ""Title"" || ' ' || ""Message"") @@ plainto_tsquery('english', @SearchText)";
+              AND to_tsvector('english', ""Title"" || ' ' || ""Message"") @@ websearch_to_tsquery('english', @SearchText)";
 
         const string vectorSql = @"
             SELECT
                 ""Id"", 
-                1 - (""Embedding"" <=> @SearchVector::vector) AS vector_score
+                ROW_NUMBER() OVER(ORDER BY ""Embedding"" <=> @SearchVector::vector ASC) AS rank
             FROM ""Reports""
             WHERE {0}
-            ORDER BY ""Embedding"" <=> @SearchVector::vector
             LIMIT 100";
 
         var sql = $@"
@@ -118,8 +117,7 @@ public class ReportSearchRepository : IReportSearchRepository
             rrf AS(
                 SELECT
                     COALESCE(k.""Id"", v.""Id"") AS report_id,
-                    COALESCE(1.0 / (60 + ROW_NUMBER() OVER(ORDER BY k.rank_score DESC)), 0) +
-                    COALESCE(1.0 / (60 + ROW_NUMBER() OVER(ORDER BY v.vector_score DESC)), 0) AS relevance_score
+                    (COALESCE(3.0 / (60 + k.rank), 0) + COALESCE(4.0 / (60 + v.rank), 0)) AS relevance_score
                 FROM keyword_search k
                 FULL OUTER JOIN vector_search v ON k.""Id"" = v.""Id""
             )
