@@ -152,12 +152,26 @@ internal sealed class ClusterRefinementJob(
                 logger.LogInformation("Janitor [Project: {ProjectId}]: Generating missing embedding for report {Id}",
                     projectId, report.Id);
                 var text = $"{report.Title}\n{report.Message}\n{report.StackTrace}";
-                var embeddingFloats = await embeddingService.GetEmbeddingAsync(text);
+                var embeddingResult = await embeddingService.GetEmbeddingAsync(text);
+                var embeddingFloats = embeddingResult.Vector;
+
+                // Log auditing info
+                if (embeddingResult.Usage != null)
+                {
+                    db.AiUsages.Add(new Winnow.API.Domain.Ai.AiUsage(
+                        report.OrganizationId,
+                        "JanitorEmbeddingGeneration",
+                        embeddingResult.Usage.Provider,
+                        embeddingResult.Usage.ModelId,
+                        embeddingResult.Usage.PromptTokens,
+                        embeddingResult.Usage.CompletionTokens
+                    ));
+                }
 
                 // Use direct SQL for the update to ensure it's saved even if other changes fail
                 await db.Database.ExecuteSqlRawAsync(
                     "UPDATE \"Reports\" SET \"Embedding\" = {0} WHERE \"Id\" = {1} AND \"ProjectId\" = {2}",
-                    [embeddingFloats, report.Id, projectId], ct);
+                    new object[] { embeddingFloats, report.Id, projectId }, ct);
 
                 report.SetEmbedding(embeddingFloats);
             }

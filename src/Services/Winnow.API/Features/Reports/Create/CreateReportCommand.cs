@@ -7,6 +7,7 @@ using Winnow.API.Domain.Reports;
 using Winnow.API.Infrastructure.Persistence;
 using Winnow.API.Services.Ai;
 using Winnow.API.Services.Quota;
+using Winnow.API.Domain.Ai;
 
 namespace Winnow.API.Features.Reports.Create;
 
@@ -41,7 +42,21 @@ public class CreateReportHandler(
         {
             textToEmbed += $"\n{request.StackTrace}";
         }
-        var embeddingFloats = await embeddingService.GetEmbeddingAsync(textToEmbed);
+        var embeddingResult = await embeddingService.GetEmbeddingAsync(textToEmbed);
+        var embeddingFloats = embeddingResult.Vector;
+
+        // Log Usage for auditing
+        if (embeddingResult.Usage != null)
+        {
+            dbContext.AiUsages.Add(new Domain.Ai.AiUsage(
+                request.OrganizationId,
+                "EmbeddingGeneration",
+                embeddingResult.Usage.Provider,
+                embeddingResult.Usage.ModelId,
+                embeddingResult.Usage.PromptTokens,
+                embeddingResult.Usage.CompletionTokens
+            ));
+        }
 
         // 3. Create Report entity
         var report = new Report(

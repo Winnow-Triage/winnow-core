@@ -1,3 +1,4 @@
+using Winnow.API.Domain.Ai;
 using Winnow.API.Domain.Clusters;
 using Winnow.API.Domain.Reports;
 
@@ -13,7 +14,7 @@ public class PlaceholderSummaryService : IClusterSummaryService
         var count = reports.Count();
         if (count == 0)
         {
-            return new ClusterSummaryResult("Empty Cluster", "🤖 (Placeholder) No reports provided for summary generation.", null, null);
+            return new ClusterSummaryResult("Empty Cluster", "🤖 (Placeholder) No reports provided for summary generation.", null, null, null);
         }
 
         var messages = reports.Take(3).Select(t => t.Message);
@@ -21,6 +22,7 @@ public class PlaceholderSummaryService : IClusterSummaryService
         var suffix = count > 3 ? $" and {count - 3} more..." : "";
 
         var summary = $"🤖 (Placeholder) This cluster contains {count} reports, including: {joinedMessages}{suffix}. \n\nIt appears to be related to a recurring issue. \n\nRecommended action: Investigate the root cause in the logs.";
-        return new ClusterSummaryResult("🤖 (Placeholder) Recurring Issue", summary, 5, "Placeholder reasoning: Randomly assigned medium criticality.");
+        var usage = new AiUsageInfo(50, 150, "placeholder-model", "Placeholder");
+        return new ClusterSummaryResult("🤖 (Placeholder) Recurring Issue", summary, 5, "Placeholder reasoning: Randomly assigned medium criticality.", Usage: usage);
     }
 }

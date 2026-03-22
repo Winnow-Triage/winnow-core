@@ -5,7 +5,7 @@ namespace Winnow.API.Services.Ai;
 
 public interface IEmbeddingService
 {
-    Task<float[]> GetEmbeddingAsync(string text);
+    Task<Strategies.EmbeddingResult> GetEmbeddingAsync(string text);
 }
 
 public class EmbeddingService : IEmbeddingService
@@ -25,7 +25,7 @@ public class EmbeddingService : IEmbeddingService
         _logger.LogInformation("EmbeddingService: Initialized with {ProviderCount} providers", providers.Count());
     }
 
-    public async Task<float[]> GetEmbeddingAsync(string text)
+    public async Task<EmbeddingResult> GetEmbeddingAsync(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
         {

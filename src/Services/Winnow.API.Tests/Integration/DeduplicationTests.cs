@@ -12,6 +12,7 @@ using Winnow.API.Features.Reports.Create;
 using Winnow.API.Infrastructure.Identity;
 using Winnow.API.Infrastructure.Persistence;
 using Winnow.API.Services.Ai;
+using Winnow.API.Services.Ai.Strategies;
 using Winnow.API.Services.Storage;
 using Xunit;
 
@@ -37,7 +38,7 @@ public class DeduplicationTests : IAsyncLifetime
         var sameVector = Enumerable.Range(0, 384).Select(_ => 0.5f).ToArray();
         _embeddingServiceMock
             .Setup(x => x.GetEmbeddingAsync(It.IsAny<string>()))
-            .ReturnsAsync(sameVector);
+            .ReturnsAsync(new EmbeddingResult(sameVector));
 
         _storageServiceMock
             .Setup(x => x.UploadFileAsync(
@@ -202,7 +203,7 @@ public class DeduplicationTests : IAsyncLifetime
                 // Create a unique vector for each call
                 if (vectorCounter < 384) vector[vectorCounter] = 1.0f;
                 vectorCounter++;
-                return vector;
+                return new EmbeddingResult(vector);
             });
 
         // Act: POST Report A

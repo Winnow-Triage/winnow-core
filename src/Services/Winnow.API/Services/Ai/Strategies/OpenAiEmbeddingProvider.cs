@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Winnow.API.Domain.Ai;
 using Winnow.API.Infrastructure.Configuration;
 
 namespace Winnow.API.Services.Ai.Strategies;
@@ -40,7 +41,7 @@ internal class OpenAiEmbeddingProvider : IEmbeddingProvider
         }
     }
 
-    public async Task<float[]> GetEmbeddingAsync(string text)
+    public async Task<EmbeddingResult> GetEmbeddingAsync(string text)
     {
         if (_httpClient == null || string.IsNullOrEmpty(_apiKey) || string.IsNullOrEmpty(_modelId))
         {
@@ -75,8 +76,11 @@ internal class OpenAiEmbeddingProvider : IEmbeddingProvider
                 throw new InvalidOperationException("OpenAiEmbeddingProvider: Received an invalid or empty response from OpenAI API.");
             }
 
-            // OpenAI embeddings are typically normalized
-            return embeddingResponse.Data[0].Embedding!; // Use null-forgiving operator since we checked above
+            var usage = embeddingResponse.Usage != null 
+                ? new AiUsageInfo(embeddingResponse.Usage.PromptTokens, 0, _modelId, "OpenAI")
+                : null;
+
+            return new EmbeddingResult(embeddingResponse.Data[0].Embedding!, usage);
         }
         catch (Exception ex) when (ex is not InvalidOperationException && ex is not HttpRequestException)
         {
@@ -102,7 +106,20 @@ internal class OpenAiEmbeddingProvider : IEmbeddingProvider
     /// </summary>
     private class OpenAiEmbeddingResponse
     {
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
         public List<OpenAiEmbeddingData>? Data { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("usage")]
+        public OpenAiUsage? Usage { get; set; }
+    }
+
+    private class OpenAiUsage
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("prompt_tokens")]
+        public int PromptTokens { get; set; }
+        
+        [System.Text.Json.Serialization.JsonPropertyName("total_tokens")]
+        public int TotalTokens { get; set; }
     }
 
     /// <summary>
@@ -110,6 +127,7 @@ internal class OpenAiEmbeddingProvider : IEmbeddingProvider
     /// </summary>
     private class OpenAiEmbeddingData
     {
+        [System.Text.Json.Serialization.JsonPropertyName("embedding")]
         public float[]? Embedding { get; set; }
     }
 }

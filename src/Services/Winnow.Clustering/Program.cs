@@ -83,7 +83,7 @@ var app = builder.Build();
     // Quick test — generate an embedding and check if it's deterministic
     var e1 = await embeddingService.GetEmbeddingAsync("test diagnostic");
     var e2 = await embeddingService.GetEmbeddingAsync("test diagnostic");
-    var same = e1.SequenceEqual(e2);
+    var same = e1.Vector.SequenceEqual(e2.Vector);
     startupLogger.LogWarning("  Same text → same embedding? {Same} (should be True for ONNX, False for Mock)", same);
     startupLogger.LogWarning("=== END ONNX DIAGNOSTICS ===");
 }

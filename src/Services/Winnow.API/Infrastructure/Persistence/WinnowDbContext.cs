@@ -6,6 +6,7 @@ using MassTransit;
 using Winnow.API.Infrastructure.Identity;
 using Winnow.API.Infrastructure.MultiTenancy;
 using Winnow.API.Infrastructure.Security;
+using Winnow.API.Domain.Ai;
 
 namespace Winnow.API.Infrastructure.Persistence;
 
@@ -100,6 +101,7 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         modelBuilder.ApplyConfiguration(new Configurations.TeamMemberConfiguration());
         modelBuilder.ApplyConfiguration(new Configurations.ProjectMemberConfiguration());
         modelBuilder.ApplyConfiguration(new Configurations.OrganizationInvitationConfiguration());
+        modelBuilder.ApplyConfiguration(new Configurations.AiUsageConfiguration());
 
         // RBAC
         modelBuilder.ApplyConfiguration(new Configurations.RoleConfiguration());
@@ -133,6 +135,7 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
     public DbSet<Domain.Projects.Project> Projects { get; set; } = null!;
     public DbSet<Domain.Projects.ProjectMember> ProjectMembers { get; set; } = null!;
     public DbSet<Domain.Organizations.OrganizationInvitation> OrganizationInvitations { get; set; } = null!;
+    public DbSet<Domain.Ai.AiUsage> AiUsages { get; set; } = null!;
 
     // RBAC
     public new DbSet<Domain.Security.Role> Roles { get; set; } = null!;

@@ -68,8 +68,20 @@ public sealed class ClusteringBatchConsumer(
                     if (report.Embedding == null)
                     {
                         var text = $"{report.Title}\n{report.Message}\n{report.StackTrace}";
-                        var embedding = await embeddingService.GetEmbeddingAsync(text);
-                        report.SetEmbedding(embedding);
+                        var embeddingResult = await embeddingService.GetEmbeddingAsync(text);
+                        report.SetEmbedding(embeddingResult.Vector);
+
+                        if (embeddingResult.Usage != null)
+                        {
+                            dbContext.AiUsages.Add(new Winnow.API.Domain.Ai.AiUsage(
+                                report.OrganizationId,
+                                "BatchEmbeddingGeneration",
+                                embeddingResult.Usage.Provider,
+                                embeddingResult.Usage.ModelId,
+                                embeddingResult.Usage.PromptTokens,
+                                embeddingResult.Usage.CompletionTokens
+                            ));
+                        }
                     }
 
                     if (report.Embedding != null && report.Status != ReportStatus.Dismissed)

@@ -1,6 +1,9 @@
+using Winnow.API.Domain.Ai;
 using Winnow.API.Infrastructure.Configuration;
 
 namespace Winnow.API.Services.Ai.Strategies;
+
+public record EmbeddingResult(float[] Vector, AiUsageInfo? Usage = null);
 
 /// <summary>
 /// Interface for embedding providers.
@@ -11,8 +14,8 @@ public interface IEmbeddingProvider
     /// Generates an embedding vector for the given text.
     /// </summary>
     /// <param name="text">The text to embed.</param>
-    /// <returns>A 384-dimensional float array representing the embedding.</returns>
-    Task<float[]> GetEmbeddingAsync(string text);
+    /// <returns>An EmbeddingResult containing the vector and optional usage info.</returns>
+    Task<EmbeddingResult> GetEmbeddingAsync(string text);
 
     /// <summary>
     /// Determines if this provider can handle the given LLM settings.

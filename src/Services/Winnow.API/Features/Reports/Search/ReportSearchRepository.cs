@@ -98,10 +98,16 @@ public class ReportSearchRepository : IReportSearchRepository
         const string keywordSql = @"
             SELECT
                 ""Id"",
-                ROW_NUMBER() OVER(ORDER BY ts_rank(to_tsvector('english', ""Title"" || ' ' || ""Message""), websearch_to_tsquery('english', @SearchText)) DESC) AS rank
+                ROW_NUMBER() OVER(ORDER BY (
+                    ts_rank(to_tsvector('english', ""Title"" || ' ' || ""Message""), websearch_to_tsquery('english', @SearchText)) * 1.0 +
+                    ts_rank(to_tsvector('english', ""Title"" || ' ' || ""Message""), phraseto_tsquery('english', @SearchText)) * 2.0
+                ) DESC) AS rank
             FROM ""Reports""
             WHERE {0}
-              AND to_tsvector('english', ""Title"" || ' ' || ""Message"") @@ websearch_to_tsquery('english', @SearchText)";
+              AND (
+                to_tsvector('english', ""Title"" || ' ' || ""Message"") @@ websearch_to_tsquery('english', @SearchText) OR
+                to_tsvector('english', ""Title"" || ' ' || ""Message"") @@ phraseto_tsquery('english', @SearchText)
+              )";
 
         const string vectorSql = @"
             SELECT

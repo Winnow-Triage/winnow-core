@@ -64,22 +64,22 @@ public class EmbeddingServiceTests
         var expectedEmbedding = new float[384];
         var random = new Random();
         for (int i = 0; i < expectedEmbedding.Length; i++) expectedEmbedding[i] = (float)random.NextDouble();
-
+ 
         // First provider cannot handle settings
         _providerMocks[0].Setup(p => p.CanHandle(_settings)).Returns(false);
-
+ 
         // Second provider can handle settings
         _providerMocks[1].Setup(p => p.CanHandle(_settings)).Returns(true);
-        _providerMocks[1].Setup(p => p.GetEmbeddingAsync(text)).ReturnsAsync(expectedEmbedding);
-
+        _providerMocks[1].Setup(p => p.GetEmbeddingAsync(text)).ReturnsAsync(new EmbeddingResult(expectedEmbedding));
+ 
         // Third provider can also handle but should not be selected
         _providerMocks[2].Setup(p => p.CanHandle(_settings)).Returns(true);
-
+ 
         // Act
         var result = await _embeddingService.GetEmbeddingAsync(text);
-
+ 
         // Assert
-        Assert.Equal(expectedEmbedding, result);
+        Assert.Equal(expectedEmbedding, result.Vector);
         _providerMocks[0].Verify(p => p.CanHandle(_settings), Times.Once);
         _providerMocks[1].Verify(p => p.CanHandle(_settings), Times.Once);
         _providerMocks[1].Verify(p => p.GetEmbeddingAsync(text), Times.Once);
@@ -137,15 +137,15 @@ public class EmbeddingServiceTests
         var expectedEmbedding = new float[384];
         var random = new Random();
         for (int i = 0; i < expectedEmbedding.Length; i++) expectedEmbedding[i] = (float)random.NextDouble();
-
+ 
         _providerMocks[0].Setup(p => p.CanHandle(_settings)).Returns(true);
-        _providerMocks[0].Setup(p => p.GetEmbeddingAsync(text)).ReturnsAsync(expectedEmbedding);
-
+        _providerMocks[0].Setup(p => p.GetEmbeddingAsync(text)).ReturnsAsync(new EmbeddingResult(expectedEmbedding));
+ 
         // Act
         var result = await _embeddingService.GetEmbeddingAsync(text);
-
+ 
         // Assert
-        Assert.Equal(expectedEmbedding, result);
+        Assert.Equal(expectedEmbedding, result.Vector);
         _loggerMock.Verify(
             x => x.Log(
                 LogLevel.Debug,
@@ -163,18 +163,18 @@ public class EmbeddingServiceTests
         // Arrange
         var text = "test";
         var expectedEmbedding = new float[384];
-
+ 
         // Setup providers
         _providerMocks[0].Setup(p => p.CanHandle(_settings)).Returns(false);
         _providerMocks[1].Setup(p => p.CanHandle(_settings)).Returns(true);
-        _providerMocks[1].Setup(p => p.GetEmbeddingAsync(text)).ReturnsAsync(expectedEmbedding);
+        _providerMocks[1].Setup(p => p.GetEmbeddingAsync(text)).ReturnsAsync(new EmbeddingResult(expectedEmbedding));
         _providerMocks[2].Setup(p => p.CanHandle(_settings)).Returns(true); // This should not be selected
-
+ 
         // Act
         var result = await _embeddingService.GetEmbeddingAsync(text);
-
+ 
         // Assert
-        Assert.Equal(expectedEmbedding, result);
+        Assert.Equal(expectedEmbedding, result.Vector);
         _providerMocks[0].Verify(p => p.CanHandle(_settings), Times.Once);
         _providerMocks[1].Verify(p => p.CanHandle(_settings), Times.Once);
         _providerMocks[2].Verify(p => p.CanHandle(_settings), Times.Never);

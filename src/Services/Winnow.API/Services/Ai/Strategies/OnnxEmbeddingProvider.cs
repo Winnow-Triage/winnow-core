@@ -71,7 +71,7 @@ internal class OnnxEmbeddingProvider : IEmbeddingProvider, IDisposable
         }
     }
 
-    public Task<float[]> GetEmbeddingAsync(string text)
+    public Task<EmbeddingResult> GetEmbeddingAsync(string text)
     {
         if (_session == null || _tokenizer == null)
         {
@@ -143,7 +143,7 @@ internal class OnnxEmbeddingProvider : IEmbeddingProvider, IDisposable
                     for (int i = 0; i < hiddenSize; i++) pooled[i] /= norm;
                 }
 
-                return pooled;
+                return new EmbeddingResult(pooled, null);
             }
             catch (Exception ex)
             {

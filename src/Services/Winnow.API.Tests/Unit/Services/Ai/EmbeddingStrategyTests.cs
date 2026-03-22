@@ -300,7 +300,7 @@ public class LocalEmbeddingProviderTests
         Assert.NotNull(result);
         // The provider normalizes the embedding before returning it
         // So magnitude should be ~1 (normalized)
-        float magnitudeSquared = result.Sum(x => x * x);
+        float magnitudeSquared = result.Vector.Sum(x => x * x);
         Assert.InRange(magnitudeSquared, 0.99f, 1.01f);
     }
 
@@ -588,7 +588,7 @@ public class OpenAiEmbeddingProviderTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal(mockEmbedding, result);
+        Assert.Equal(mockEmbedding, result.Vector);
     }
 
     [Fact]

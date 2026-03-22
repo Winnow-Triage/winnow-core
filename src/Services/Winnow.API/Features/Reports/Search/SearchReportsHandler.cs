@@ -40,7 +40,7 @@ public class SearchReportsHandler : IRequestHandler<SearchReportsQuery, Paginate
         }
 
         // 2. Vector Generation: Convert the search query into a vector representation
-        float[] searchVector = await _embeddingService.GetEmbeddingAsync(request.SearchTerm);
+        float[] searchVector = (await _embeddingService.GetEmbeddingAsync(request.SearchTerm)).Vector;
 
         // 3 & 4. Hybrid Database Query with PostgreSQL returning RRF sorted results
         return await _reportSearchRepository.HybridSearchReportsAsync(

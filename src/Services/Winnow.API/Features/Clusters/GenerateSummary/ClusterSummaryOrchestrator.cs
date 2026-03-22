@@ -45,6 +45,20 @@ public class ClusterSummaryOrchestrator(
                 // Mutate the Aggregates
                 cluster.SetSummary(result.Title, result.Summary, result.CriticalityScore ?? 5, result.CriticalityReasoning ?? string.Empty);
                 organization.RecordAiSummaryUsage();
+
+                // Log Usage for auditing
+                if (result.Usage != null)
+                {
+                    db.AiUsages.Add(new Domain.Ai.AiUsage(
+                        cluster.OrganizationId,
+                        "ClusterSummary",
+                        result.Usage.Provider,
+                        result.Usage.ModelId,
+                        result.Usage.PromptTokens,
+                        result.Usage.CompletionTokens
+                    ));
+                }
+
                 success = true;
             }
         }

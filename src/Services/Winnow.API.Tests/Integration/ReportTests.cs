@@ -11,6 +11,7 @@ using Winnow.API.Features.Reports.Create;
 using Winnow.API.Infrastructure.Identity;
 using Winnow.API.Infrastructure.Persistence;
 using Winnow.API.Services.Ai;
+using Winnow.API.Services.Ai.Strategies;
 using Winnow.API.Services.Storage;
 using Xunit;
 
@@ -35,7 +36,7 @@ public class ReportTests : IAsyncLifetime
         // Configure mocks
         _embeddingServiceMock
             .Setup(x => x.GetEmbeddingAsync(It.IsAny<string>()))
-            .ReturnsAsync(() => [.. Enumerable.Range(0, 384).Select(i => (float)i / 384)]);
+            .ReturnsAsync(() => new EmbeddingResult(Enumerable.Range(0, 384).Select(i => (float)i / 384).ToArray()));
 
         _storageServiceMock
             .Setup(x => x.UploadFileAsync(

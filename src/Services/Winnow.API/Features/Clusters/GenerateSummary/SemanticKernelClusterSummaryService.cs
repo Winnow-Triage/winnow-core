@@ -3,6 +3,7 @@ using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Winnow.API.Domain.Reports;
+using Winnow.API.Domain.Ai;
 
 namespace Winnow.API.Features.Clusters.GenerateSummary;
 
@@ -103,18 +104,45 @@ public class SemanticKernelClusterSummaryService(Kernel kernel, ILogger<Semantic
                     parsed.Title ?? "Untitled Cluster",
                     parsed.Summary ?? "Failed to parse summary field from AI response.",
                     parsed.CriticalityScore,
-                    parsed.CriticalityReasoning);
+                    parsed.CriticalityReasoning,
+                    Usage: GetUsage(result.Metadata));
             }
             catch (System.Text.Json.JsonException jex)
             {
                 logger.LogError(jex, "Failed to parse AI summary JSON. Raw content: {Content}", content);
-                return new ClusterSummaryResult("Analysis Parsing Failed", content, null, null);
+                return new ClusterSummaryResult("Analysis Parsing Failed", content, null, null, Usage: GetUsage(result.Metadata));
             }
         }
         catch (Exception ex)
         {
             return new ClusterSummaryResult("Generation Failed", $"Failed to generate summary. Error: {ex.Message}", null, null, IsError: true);
         }
+    }
+
+    private AiUsageInfo? GetUsage(IReadOnlyDictionary<string, object?>? metadata)
+    {
+        if (metadata == null) return null;
+
+        if (metadata.TryGetValue("Usage", out var usageObj) && usageObj != null)
+        {
+            try
+            {
+                var type = usageObj.GetType();
+                var promptTokens = type.GetProperty("InputTokens")?.GetValue(usageObj) 
+                                   ?? type.GetProperty("InputTokenCount")?.GetValue(usageObj)
+                                   ?? type.GetProperty("PromptTokens")?.GetValue(usageObj) ?? 0;
+                var completionTokens = type.GetProperty("OutputTokens")?.GetValue(usageObj) 
+                                       ?? type.GetProperty("OutputTokenCount")?.GetValue(usageObj)
+                                       ?? type.GetProperty("CompletionTokens")?.GetValue(usageObj) ?? 0;
+
+                var modelId = metadata.TryGetValue("ModelId", out var m) ? m?.ToString() : null;
+
+                return new AiUsageInfo((int)promptTokens, (int)completionTokens, modelId ?? "unknown", "OpenAI");
+            }
+            catch { return null; }
+        }
+
+        return null;
     }
 
     private sealed record JsonResult(string Title, string Summary, int? CriticalityScore, string? CriticalityReasoning);

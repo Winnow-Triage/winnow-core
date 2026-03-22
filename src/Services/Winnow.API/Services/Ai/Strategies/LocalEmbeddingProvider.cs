@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Winnow.API.Features.Clusters.GenerateSummary;
 using Winnow.API.Infrastructure.Configuration;
 
 namespace Winnow.API.Services.Ai.Strategies;
@@ -34,7 +35,7 @@ internal class LocalEmbeddingProvider : IEmbeddingProvider
         }
     }
 
-    public async Task<float[]> GetEmbeddingAsync(string text)
+    public async Task<EmbeddingResult> GetEmbeddingAsync(string text)
     {
         if (_httpClient == null || string.IsNullOrEmpty(_endpoint) || string.IsNullOrEmpty(_modelId))
         {
@@ -83,7 +84,7 @@ internal class LocalEmbeddingProvider : IEmbeddingProvider
                 for (int i = 0; i < embedding.Length; i++) embedding[i] /= norm;
             }
 
-            return embedding;
+            return new EmbeddingResult(embedding, null);
         }
         catch (Exception ex)
         {

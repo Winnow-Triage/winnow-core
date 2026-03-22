@@ -36,7 +36,7 @@ public class SearchClustersHandler : IRequestHandler<SearchClustersQuery, Pagina
                 cancellationToken);
         }
 
-        float[] searchVector = await _embeddingService.GetEmbeddingAsync(request.SearchTerm);
+        float[] searchVector = (await _embeddingService.GetEmbeddingAsync(request.SearchTerm)).Vector;
 
         return await _clusterSearchRepository.HybridSearchClustersAsync(
             request.ProjectId,
