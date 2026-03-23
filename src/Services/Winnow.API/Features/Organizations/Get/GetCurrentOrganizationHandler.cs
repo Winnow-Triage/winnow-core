@@ -29,7 +29,34 @@ public class GetCurrentOrganizationHandler(WinnowDbContext db) : IRequestHandler
             Id = organization.Id,
             Name = organization.Name,
             SubscriptionTier = organization.Plan.Name ?? "Free",
-            CreatedAt = organization.CreatedAt
+            CreatedAt = organization.CreatedAt,
+            ToxicityFilterEnabled = organization.Settings.ToxicityFilterEnabled,
+            ToxicityLimits = new ToxicityThresholdsDto
+            {
+                Profanity = organization.Settings.ToxicityLimits.Profanity,
+                HateSpeech = organization.Settings.ToxicityLimits.HateSpeech,
+                Violence = organization.Settings.ToxicityLimits.Violence,
+                Insult = organization.Settings.ToxicityLimits.Insult,
+                Harassment = organization.Settings.ToxicityLimits.Harassment,
+                Sexual = organization.Settings.ToxicityLimits.Sexual,
+                Graphic = organization.Settings.ToxicityLimits.Graphic,
+                Overall = organization.Settings.ToxicityLimits.Overall
+            },
+            AIConfig = new AIConfigurationDto
+            {
+                Tokenizer = organization.Settings.AIConfig.Tokenizer,
+                SummaryAgent = organization.Settings.AIConfig.SummaryAgent,
+                CustomProviders = organization.Settings.AIConfig.AllCustomProviders
+                    .Select(p => new CustomAIProviderDto
+                    {
+                        Name = p.Name,
+                        Type = p.Type,
+                        ProviderId = p.ProviderId,
+                        Provider = p.Provider,
+                        ApiKey = p.ApiKey,
+                        ModelId = p.ModelId
+                    }).ToList()
+            }
         };
 
         return new GetCurrentOrganizationResult(true, data);

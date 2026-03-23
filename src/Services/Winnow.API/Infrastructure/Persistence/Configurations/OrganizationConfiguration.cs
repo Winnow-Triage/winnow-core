@@ -67,11 +67,20 @@ public class OrganizationConfiguration : IEntityTypeConfiguration<Organization>
         });
 
         // Map Settings as a JSON column for flexibility
+        var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
+        var settingsComparer = new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<OrganizationSettings>(
+            (c1, c2) => JsonSerializer.Serialize(c1, jsonOptions) == JsonSerializer.Serialize(c2, jsonOptions),
+            c => c == null ? 0 : JsonSerializer.Serialize(c, jsonOptions).GetHashCode(),
+            c => JsonSerializer.Deserialize<OrganizationSettings>(JsonSerializer.Serialize(c, jsonOptions), jsonOptions)!
+        );
+
         builder.Property(o => o.Settings)
             .HasColumnType("jsonb")
             .HasConversion(
-                v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null!),
-                v => JsonSerializer.Deserialize<OrganizationSettings>(v, (JsonSerializerOptions)null!)!
+                v => JsonSerializer.Serialize(v, jsonOptions),
+                v => JsonSerializer.Deserialize<OrganizationSettings>(v, jsonOptions)!,
+                settingsComparer
             );
 
         // EF Core Navigation Properties - Mapped to internal collections

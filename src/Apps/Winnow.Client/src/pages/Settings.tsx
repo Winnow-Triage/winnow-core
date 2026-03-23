@@ -41,7 +41,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, UserPlus, MoreHorizontal, Settings2, Loader2, AlertCircle, Cpu } from "lucide-react";
+import {
+  Users,
+  UserPlus,
+  MoreHorizontal,
+  Settings2,
+  Loader2,
+  AlertCircle,
+  Cpu,
+  ShieldAlert,
+  Skull,
+  MessageSquareQuote,
+  Flame,
+  UserCheck,
+  Eye,
+  Activity,
+  EyeOff,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { PageTitle } from "@/components/ui/page-title";
 import {
   Sheet,
@@ -79,6 +97,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RolesManager } from "@/components/settings/RolesManager";
 
 export default function Settings() {
@@ -97,7 +116,34 @@ export default function Settings() {
     isLoading: isOrgLoading,
     error: orgError,
     refetch,
-  } = useQuery<{ id: string; name: string; subscriptionTier: string }>({
+  } = useQuery<{
+    id: string;
+    name: string;
+    subscriptionTier: string;
+    toxicityFilterEnabled: boolean;
+    toxicityLimits: {
+      profanity: number;
+      hateSpeech: number;
+      violence: number;
+      insult: number;
+      harassment: number;
+      sexual: number;
+      graphic: number;
+      overall: number;
+    };
+    aiConfig: {
+      tokenizer: string;
+      summaryAgent: string;
+      customProviders: {
+        name: string;
+        type: string;
+        providerId: string;
+        provider: string;
+        apiKey: string;
+        modelId: string;
+      }[];
+    };
+  }>({
     queryKey: ["current-organization"],
     queryFn: async () => {
       const { data } = await api.get("/organizations/current");
@@ -121,19 +167,112 @@ export default function Settings() {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const navigate = useNavigate();
 
-  // Sync input with fetched org name
+  // Toxicity Settings State
+  const [toxicityEnabled, setToxicityEnabled] = useState(true);
+  const [toxicityThresholds, setToxicityThresholds] = useState({
+    profanity: 0.8,
+    hateSpeech: 0.1,
+    violence: 0.1,
+    insult: 0.1,
+    harassment: 0.1,
+    sexual: 0.1,
+    graphic: 0.1,
+    overall: 0.1,
+  });
+
+  // Winnow AI Config State
+  const [tokenizerId, setTokenizerId] = useState("Default");
+  const [summaryId, setSummaryId] = useState("Default");
+  const [customProviders, setCustomProviders] = useState<{ name: string; type: string; providerId: string; provider: string; apiKey: string; modelId: string }[]>([]);
+
+  // Add Provider Modal State
+  const [isAddProviderOpen, setIsAddProviderOpen] = useState(false);
+  const [newProviderName, setNewProviderName] = useState("");
+  const [newProviderType, setNewProviderType] = useState<"Tokenizer" | "SummaryAgent">("Tokenizer");
+  const [newProviderId, setNewProviderId] = useState("");
+  const [newProviderLlm, setNewProviderLlm] = useState("OpenAI");
+  const [newProviderApiKey, setNewProviderApiKey] = useState("");
+  const [newProviderModelId, setNewProviderModelId] = useState("");
+  const [showNewProviderApiKey, setShowNewProviderApiKey] = useState(false);
+
+  // Sync input with fetched org name and settings
   React.useEffect(() => {
     if (organization) {
       setOrgName(organization.name);
+      setToxicityEnabled(organization.toxicityFilterEnabled);
+      if (organization.toxicityLimits) {
+        setToxicityThresholds(organization.toxicityLimits);
+      }
+      if (organization.aiConfig) {
+        setTokenizerId(organization.aiConfig.tokenizer);
+        setSummaryId(organization.aiConfig.summaryAgent);
+        setCustomProviders(organization.aiConfig.customProviders || []);
+      }
     }
   }, [organization]);
 
+  const handleSaveAISettings = async () => {
+    setIsSavingOrg(true);
+    try {
+      await api.put("/organizations/current", {
+        name: orgName.trim(), // Keep existing name
+        aiConfig: {
+          tokenizer: tokenizerId,
+          summaryAgent: summaryId,
+          customProviders,
+        },
+      });
+      await refetch();
+      toast.success("AI configuration updated successfully");
+    } catch (error) {
+      console.error("Failed to update AI configuration:", error);
+      toast.error("Failed to update AI configuration");
+    } finally {
+      setIsSavingOrg(false);
+    }
+  };
+
+  const handleAddProvider = () => {
+    if (!newProviderName || !newProviderId) return;
+
+    const newProvider = {
+      name: newProviderName,
+      type: newProviderType,
+      providerId: newProviderId,
+      provider: newProviderLlm,
+      apiKey: newProviderApiKey,
+      modelId: newProviderModelId,
+    };
+
+    setCustomProviders((prev) => [...prev, newProvider]);
+    setIsAddProviderOpen(false);
+    setNewProviderName("");
+    setNewProviderId("");
+    setNewProviderApiKey("");
+    setNewProviderModelId("");
+    toast.success(`${newProviderType} provider added to local configuration. Click Save to persist.`);
+  };
+
+  const handleRemoveProvider = (providerId: string) => {
+    setCustomProviders((prev) => prev.filter((p) => p.providerId !== providerId));
+    if (tokenizerId === providerId) setTokenizerId("Default");
+    if (summaryId === providerId) setSummaryId("Default");
+  };
+
   const handleSaveOrganization = async () => {
-    if (!orgName.trim() || orgName.trim() === organization?.name) return;
+    const hasOrgNameChanged = orgName.trim() !== organization?.name;
+    const hasToxicityEnabledChanged = toxicityEnabled !== organization?.toxicityFilterEnabled;
+    const hasToxicityLimitsChanged = JSON.stringify(toxicityThresholds) !== JSON.stringify(organization?.toxicityLimits);
+
+    if (!orgName.trim() || (!hasOrgNameChanged && !hasToxicityEnabledChanged && !hasToxicityLimitsChanged)) return;
 
     setIsSavingOrg(true);
     try {
-      await api.put("/organizations/current", { name: orgName.trim() });
+      await api.put("/organizations/current", {
+        name: orgName.trim(),
+        toxicityFilterEnabled: toxicityEnabled,
+        toxicityLimits: toxicityThresholds,
+      });
       await refetch();
       toast.success("Organization updated successfully");
     } catch (error) {
@@ -272,8 +411,9 @@ export default function Settings() {
         onValueChange={handleTabChange}
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-6 max-w-[800px]">
+        <TabsList className="grid w-full grid-cols-7 max-w-[900px]">
           <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="tox">Toxicity</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="teams">Teams</TabsTrigger>
           <PermissionGate permission="roles:manage">
@@ -308,8 +448,9 @@ export default function Settings() {
                 disabled={
                   isSavingOrg ||
                   isOrgLoading ||
-                  !orgName.trim() ||
-                  orgName.trim() === organization?.name
+                  (orgName.trim() === organization?.name &&
+                    toxicityEnabled === organization?.toxicityFilterEnabled &&
+                    JSON.stringify(toxicityThresholds) === JSON.stringify(organization?.toxicityLimits))
                 }
               >
                 {isSavingOrg ? "Saving..." : "Save Changes"}
@@ -385,6 +526,86 @@ export default function Settings() {
                 </Dialog>
               </div>
             </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="tox" className="mt-6 flex flex-col gap-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Toxicity Filtering</CardTitle>
+                  <CardDescription>
+                    Configure automated content moderation for all incoming reports.
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-xl border border-border/50">
+                  <Checkbox
+                    id="tox-enabled"
+                    checked={toxicityEnabled}
+                    onCheckedChange={(checked) => setToxicityEnabled(checked as boolean)}
+                  />
+                  <Label htmlFor="tox-enabled" className="text-xs font-semibold uppercase tracking-wider cursor-pointer">
+                    {toxicityEnabled ? "Active" : "Disabled"}
+                  </Label>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className={`space-y-6 transition-opacity duration-300 ${toxicityEnabled ? "opacity-100" : "opacity-40 pointer-events-none"}`}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {[
+                  { id: "profanity", label: "Profanity", icon: MessageSquareQuote, color: "text-blue-500" },
+                  { id: "hateSpeech", label: "Hate Speech", icon: Skull, color: "text-red-500" },
+                  { id: "violence", label: "Violence", icon: Flame, color: "text-orange-500" },
+                  { id: "insult", label: "Insult", icon: UserCheck, color: "text-purple-500" },
+                  { id: "harassment", label: "Harassment", icon: ShieldAlert, color: "text-amber-500" },
+                  { id: "sexual", label: "Sexual Content", icon: Eye, color: "text-pink-500" },
+                  { id: "graphic", label: "Graphic Content", icon: Skull, color: "text-zinc-500" },
+                  { id: "overall", label: "Overall Toxicity", icon: Activity, color: "text-emerald-500" },
+                ].map((item) => (
+                  <div key={item.id} className="space-y-3 p-4 rounded-2xl bg-muted/30 border border-border/40">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <item.icon className={`w-4 h-4 ${item.color}`} />
+                        <Label className="font-semibold">{item.label}</Label>
+                      </div>
+                      <span className="text-xs font-mono bg-background px-2 py-0.5 rounded border border-border/50">
+                        {Math.round((toxicityThresholds as any)[item.id] * 100)}%
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={(toxicityThresholds as any)[item.id]}
+                      onChange={(e) => setToxicityThresholds({
+                        ...toxicityThresholds,
+                        [item.id]: parseFloat(e.target.value)
+                      })}
+                      className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                    <div className="flex justify-between text-[10px] text-muted-foreground uppercase tracking-widest px-0.5">
+                      <span>Strict</span>
+                      <span>Sensitive</span>
+                      <span>Relaxed</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+            <CardFooter className="flex items-center justify-end p-4 px-6 border-t bg-muted/50 rounded-b-3xl">
+              <Button
+                onClick={handleSaveOrganization}
+                disabled={
+                  isSavingOrg ||
+                  (toxicityEnabled === organization?.toxicityFilterEnabled &&
+                    JSON.stringify(toxicityThresholds) === JSON.stringify(organization?.toxicityLimits))
+                }
+              >
+                {isSavingOrg ? "Saving..." : "Save Toxicity Settings"}
+              </Button>
+            </CardFooter>
           </Card>
         </TabsContent>
 
@@ -683,15 +904,212 @@ export default function Settings() {
             <CardHeader>
               <CardTitle>AI Configuration</CardTitle>
               <CardDescription>
-                Configure LLM providers and models.
+                Configure optimized Winnow AI services or define your own custom providers.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                AI settings are currently managed via appsettings.json on the
-                server.
-              </p>
+            <CardContent className="space-y-6">
+
+              <div className="pt-6 border-t mt-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                      <Cpu className="w-4 h-4 text-blue-500" />
+                      Winnow-Provided AI Services
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      Configure your intelligent triage services. Winnow provides optimized defaults.
+                    </p>
+                  </div>
+                  <Dialog open={isAddProviderOpen} onOpenChange={setIsAddProviderOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 gap-2">
+                        <Plus className="w-3.5 h-3.5" />
+                        Add Custom Provider
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Add Custom AI Provider</DialogTitle>
+                        <DialogDescription>
+                          Define a custom LLM or Tokenizer service to use within your organization.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="name">Display Name</Label>
+                          <Input
+                            id="name"
+                            placeholder="e.g. My Custom Llama"
+                            value={newProviderName}
+                            onChange={(e) => setNewProviderName(e.target.value)}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="type">Type</Label>
+                          <Select
+                            value={newProviderType}
+                            onValueChange={(val: any) => setNewProviderType(val)}
+                          >
+                            <SelectTrigger id="type">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Tokenizer">Tokenizer Service</SelectItem>
+                              <SelectItem value="SummaryAgent">Summary Agent</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="providerId">Internal ID / Slug</Label>
+                          <Input
+                            id="providerId"
+                            placeholder="e.g. custom-llama-1"
+                            value={newProviderId}
+                            onChange={(e) => setNewProviderId(e.target.value)}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="llm">Provider</Label>
+                          <Select
+                            value={newProviderLlm}
+                            onValueChange={setNewProviderLlm}
+                          >
+                            <SelectTrigger id="llm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="OpenAI">OpenAI</SelectItem>
+                              <SelectItem value="Anthropic">Anthropic</SelectItem>
+                              <SelectItem value="Ollama">Ollama (Local)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="newApiKey">API Key</Label>
+                          <div className="relative">
+                            <Input
+                              id="newApiKey"
+                              type={showNewProviderApiKey ? "text" : "password"}
+                              placeholder="sk-..."
+                              value={newProviderApiKey}
+                              onChange={(e) => setNewProviderApiKey(e.target.value)}
+                              className="pr-10"
+                            />
+                            <button
+                              type="button"
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                              onClick={() => setShowNewProviderApiKey(!showNewProviderApiKey)}
+                            >
+                              {showNewProviderApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="newModelId">Model ID</Label>
+                          <Input
+                            id="newModelId"
+                            placeholder="e.g. gpt-4o or hf.co/llama3"
+                            value={newProviderModelId}
+                            onChange={(e) => setNewProviderModelId(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" onClick={handleAddProvider}>
+                          Add Provider
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="p-4 rounded-2xl bg-muted/30 border border-border/40 space-y-4">
+                    <Label className="font-semibold block mb-2">Tokenizer Service</Label>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">Active Provider</Label>
+                      <Select value={tokenizerId} onValueChange={setTokenizerId}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Default">Winnow Default (Optimized)</SelectItem>
+                          {customProviders
+                            .filter((p) => p.type === "Tokenizer")
+                            .map((p) => (
+                              <SelectItem key={p.providerId} value={p.providerId}>
+                                {p.name} ({p.providerId})
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-muted/30 border border-border/40 space-y-4">
+                    <Label className="font-semibold block mb-2">Summary Agent</Label>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">Active Agent</Label>
+                      <Select value={summaryId} onValueChange={setSummaryId}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Default">Winnow Default Agent</SelectItem>
+                          {customProviders
+                            .filter((p) => p.type === "SummaryAgent")
+                            .map((p) => (
+                              <SelectItem key={p.providerId} value={p.providerId}>
+                                {p.name} ({p.providerId})
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {customProviders.length > 0 && (
+                  <div className="mt-6 space-y-3">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Custom Providers List</Label>
+                    <div className="space-y-2">
+                      {customProviders.map((p) => (
+                        <div key={p.providerId} className="flex items-center justify-between p-2 px-4 rounded-xl bg-muted/20 border border-border/40 text-sm">
+                          <div className="flex items-center gap-3">
+                            <span className="font-medium">{p.name}</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                              {p.type}
+                            </span>
+                            <code className="text-[10px] text-muted-foreground">{p.providerId}</code>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleRemoveProvider(p.providerId)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
+            <CardFooter className="flex items-center justify-end p-4 px-6 border-t bg-muted/50 rounded-b-3xl">
+              <Button
+                onClick={handleSaveAISettings}
+                disabled={
+                  isSavingOrg ||
+                  (tokenizerId === organization?.aiConfig?.tokenizer &&
+                    summaryId === organization?.aiConfig?.summaryAgent &&
+                    JSON.stringify(customProviders) === JSON.stringify(organization?.aiConfig?.customProviders))
+                }
+              >
+                {isSavingOrg ? "Saving..." : "Save AI Settings"}
+              </Button>
+            </CardFooter>
           </Card>
 
           {!isBillingLoading && billingStatus && (

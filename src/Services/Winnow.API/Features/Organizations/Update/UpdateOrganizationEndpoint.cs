@@ -8,6 +8,9 @@ namespace Winnow.API.Features.Organizations.Update;
 public class UpdateOrganizationRequest
 {
     public string Name { get; set; } = string.Empty;
+    public bool? ToxicityFilterEnabled { get; set; }
+    public ToxicityThresholdsDto? ToxicityLimits { get; set; }
+    public AIConfigurationDto? AIConfig { get; set; }
 }
 
 public sealed class UpdateOrganizationEndpoint(
@@ -43,7 +46,12 @@ public sealed class UpdateOrganizationEndpoint(
             return;
         }
 
-        var command = new UpdateOrganizationCommand(tenantContext.CurrentOrganizationId.Value, req.Name);
+        var command = new UpdateOrganizationCommand(
+            tenantContext.CurrentOrganizationId.Value,
+            req.Name,
+            req.ToxicityFilterEnabled,
+            req.ToxicityLimits,
+            req.AIConfig);
         var result = await mediator.Send(command, ct);
 
         if (!result.IsSuccess)
