@@ -56,9 +56,9 @@ export default function OrganizationDashboard() {
         <AlertCircle className="h-12 w-12 text-destructive mb-4" />
         <h3 className="text-xl font-bold">Access Denied</h3>
         <p className="text-muted-foreground mt-2 max-w-md">
-          {(error as any).response?.data?.detail || 
-           (error as any).response?.data?.message || 
-           "You don't have permission to view organization metrics."}
+          {(error as any).response?.data?.detail ||
+            (error as any).response?.data?.message ||
+            "You don't have permission to view organization metrics."}
         </p>
       </div>
     );
@@ -154,7 +154,7 @@ export default function OrganizationDashboard() {
                           fontSize: "12px",
                         }}
                         itemStyle={{ color: "hsl(var(--foreground))" }}
-                        formatter={(value: any, name?: string) => [
+                        formatter={(value: any, name: any) => [
                           value?.toLocaleString() || "0",
                           name || "",
                         ]}
