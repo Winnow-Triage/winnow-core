@@ -537,6 +537,9 @@ export default function Settings() {
                   <CardTitle>Toxicity Filtering</CardTitle>
                   <CardDescription>
                     Configure automated content moderation for all incoming reports.
+                    <span className="block mt-1 text-[10px] text-muted-foreground italic">
+                      Note: A higher percentage allows more content through, while a lower percentage results in more aggressive blocking.
+                    </span>
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-xl border border-border/50">
@@ -586,9 +589,9 @@ export default function Settings() {
                       className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
                     />
                     <div className="flex justify-between text-[10px] text-muted-foreground uppercase tracking-widest px-0.5">
-                      <span>Strict</span>
+                      <span>Strict (Block)</span>
                       <span>Sensitive</span>
-                      <span>Relaxed</span>
+                      <span>Relaxed (Allow)</span>
                     </div>
                   </div>
                 ))}
