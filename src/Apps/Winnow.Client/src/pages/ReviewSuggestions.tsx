@@ -218,12 +218,12 @@ export default function ReviewSuggestions() {
 
         {/* Action Bar */}
         <div className="shrink-0 pt-6 pb-2 pb-safe">
-          <div className="bg-card/50 backdrop-blur-md border border-border/50 shadow-lg rounded-2xl p-4 flex items-center justify-between gap-4">
-            <div className="hidden sm:block text-sm text-muted-foreground">
+          <div className="relative bg-card/50 backdrop-blur-md border border-border/50 shadow-lg rounded-2xl p-4 flex items-center justify-center gap-4 min-h-[80px]">
+            <div className="absolute left-6 hidden sm:block text-sm text-muted-foreground whitespace-nowrap">
               Item {currentIndex + 1} of {queue.length}
             </div>
 
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="flex items-center justify-center gap-3 w-full sm:w-auto">
               <Button
                 variant="outline"
                 size="lg"
