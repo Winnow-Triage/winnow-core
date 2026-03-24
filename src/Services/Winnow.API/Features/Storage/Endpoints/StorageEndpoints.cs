@@ -12,6 +12,7 @@ public class GetUploadUrlRequest
     public Guid? ProjectId { get; set; }
     public string FileName { get; set; } = default!;
     public string ContentType { get; set; } = "application/octet-stream";
+    public long? FileSizeBytes { get; set; }
 }
 
 public class GetUploadUrlRequestValidator : Validator<GetUploadUrlRequest>
@@ -68,7 +69,8 @@ public sealed class GetUploadUrlEndpoint(IMediator mediator) : Endpoint<GetUploa
             CurrentOrganizationId = orgId.Value,
             ProjectId = projectId.Value,
             FileName = req.FileName,
-            ContentType = req.ContentType
+            ContentType = req.ContentType,
+            FileSizeBytes = req.FileSizeBytes
         }, ct);
 
         await Send.OkAsync(new GetUploadUrlResponse

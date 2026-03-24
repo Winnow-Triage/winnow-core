@@ -5,13 +5,13 @@ using Winnow.API.Features.Shared;
 
 namespace Winnow.API.Features.Storage.Get;
 
-[RequirePermission("reports:write")]
 public class GetUploadUrlQuery : IRequest<GetUploadUrlResult>, IOrgScopedRequest
 {
     public Guid CurrentOrganizationId { get; set; }
     public Guid ProjectId { get; init; }
     public string FileName { get; init; } = default!;
     public string ContentType { get; init; } = "application/octet-stream";
+    public long? FileSizeBytes { get; init; }
 }
 
 public record GetUploadUrlResult
@@ -25,7 +25,7 @@ public class GetUploadUrlHandler(IStorageService storage) : IRequestHandler<GetU
     public async Task<GetUploadUrlResult> Handle(GetUploadUrlQuery request, CancellationToken cancellationToken)
     {
         var result = await storage.GenerateUploadUrlAsync(
-            request.CurrentOrganizationId, request.ProjectId, request.FileName, request.ContentType, cancellationToken);
+            request.CurrentOrganizationId, request.ProjectId, request.FileName, request.ContentType, request.FileSizeBytes, cancellationToken);
 
         return new GetUploadUrlResult
         {

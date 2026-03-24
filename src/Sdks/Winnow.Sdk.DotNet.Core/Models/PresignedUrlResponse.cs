@@ -7,6 +7,6 @@ public class PresignedUrlResponse
     [JsonPropertyName("uploadUrl")]
     public string UploadUrl { get; set; }
 
-    [JsonPropertyName("fileKey")]
-    public string FileKey { get; set; }
+    [JsonPropertyName("objectKey")]
+    public string ObjectKey { get; set; }
 }

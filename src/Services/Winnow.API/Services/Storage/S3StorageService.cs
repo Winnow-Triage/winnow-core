@@ -26,8 +26,13 @@ public class S3StorageService(IAmazonS3 s3, S3Settings settings) : IStorageServi
     }
 
     public Task<PresignedUploadResult> GenerateUploadUrlAsync(
-        Guid orgId, Guid projectId, string fileName, string contentType, CancellationToken ct = default)
+        Guid orgId, Guid projectId, string fileName, string contentType, long? fileSizeBytes = null, CancellationToken ct = default)
     {
+        // 1. The Hard Stop
+        const long maxBytes = 100 * 1024 * 1024; // 100 MB
+        if (fileSizeBytes > maxBytes)
+            throw new ArgumentException($"File size {fileSizeBytes} exceeds the maximum limit of 100MB.", nameof(fileSizeBytes));
+
         // Sanitize the filename to prevent path traversal
         var safeFileName = Path.GetFileName(fileName);
         if (string.IsNullOrWhiteSpace(safeFileName))
@@ -44,6 +49,13 @@ public class S3StorageService(IAmazonS3 s3, S3Settings settings) : IStorageServi
             Expires = DateTime.UtcNow.Add(UploadUrlExpiry),
             ContentType = contentType
         };
+
+        // 2. The Cryptographic Lock
+        // S3 will reject the upload if the client tries to change this header.
+        if (fileSizeBytes.HasValue)
+        {
+            request.Headers["Content-Length"] = fileSizeBytes.Value.ToString();
+        }
 
         var url = _s3.GetPreSignedURL(request);
         return Task.FromResult(new PresignedUploadResult(FixPresignedUrlScheme(url), objectKey));

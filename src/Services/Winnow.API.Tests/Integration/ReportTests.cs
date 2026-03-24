@@ -8,6 +8,7 @@ using Winnow.API.Domain.Organizations;
 using Winnow.API.Domain.Organizations.ValueObjects;
 using Winnow.API.Domain.Projects;
 using Winnow.API.Features.Reports.Create;
+using Winnow.API.Features.Storage.Endpoints;
 using Winnow.API.Infrastructure.Identity;
 using Winnow.API.Infrastructure.Persistence;
 using Winnow.API.Services.Ai;
@@ -223,5 +224,60 @@ public class ReportTests : IAsyncLifetime
 
         // Assert
         Assert.Equal(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+    [Fact]
+    public async Task Presign_ValidRequest_ReturnsUploadUrl()
+    {
+        // Arrange
+        var request = new GetUploadUrlRequest
+        {
+            FileName = "test.png",
+            ContentType = "image/png",
+            FileSizeBytes = 1024
+        };
+
+        _storageServiceMock
+            .Setup(x => x.GenerateUploadUrlAsync(
+                It.IsAny<Guid>(), It.IsAny<Guid>(), "test.png", "image/png", 1024, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PresignedUploadResult(new Uri("http://localhost/upload"), "test-key"));
+
+        _client.DefaultRequestHeaders.Add("X-Winnow-Key", _apiKey);
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/storage/upload-url", request);
+
+        // Assert
+        Assert.True(response.IsSuccessStatusCode, $"Expected success but got {response.StatusCode}");
+        var result = await response.Content.ReadFromJsonAsync<GetUploadUrlResponse>();
+        Assert.NotNull(result);
+        Assert.Equal("http://localhost/upload", result.UploadUrl.ToString());
+        Assert.Equal("test-key", result.ObjectKey);
+    }
+
+    [Fact]
+    public async Task Presign_FileTooLarge_ReturnsBadRequest()
+    {
+        // Arrange
+        var request = new GetUploadUrlRequest
+        {
+            FileName = "huge.png",
+            ContentType = "image/png",
+            FileSizeBytes = 200 * 1024 * 1024 // 200MB
+        };
+
+        _storageServiceMock
+            .Setup(x => x.GenerateUploadUrlAsync(
+                It.IsAny<Guid>(), It.IsAny<Guid>(), "huge.png", "image/png", It.Is<long?>(s => s > 100 * 1024 * 1024), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ArgumentException("File exceeds the maximum limit of 100MB."));
+
+        _client.DefaultRequestHeaders.Add("X-Winnow-Key", _apiKey);
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/storage/upload-url", request);
+
+        // Assert
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("exceeds the maximum limit of 100MB", body);
     }
 }

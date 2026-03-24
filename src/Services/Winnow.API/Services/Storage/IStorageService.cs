@@ -7,7 +7,7 @@ public interface IStorageService
     /// Path is enforced: organizations/{orgId}/projects/{projectId}/{fileName}
     /// </summary>
     Task<PresignedUploadResult> GenerateUploadUrlAsync(
-        Guid orgId, Guid projectId, string fileName, string contentType, CancellationToken ct = default);
+        Guid orgId, Guid projectId, string fileName, string contentType, long? fileSizeBytes = null, CancellationToken ct = default);
 
     /// <summary>
     /// Generates a presigned GET URL for downloading a processed file from the clean bucket.

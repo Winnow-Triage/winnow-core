@@ -68,11 +68,12 @@ public class WinnowSdkClient : IDisposable
             // Step 1: Pre-sign request for screenshot if bytes are provided
             if (screenshotBytes != null && screenshotBytes.Length > 0)
             {
-                var presignUrl = $"{_config.BaseUrl.TrimEnd('/')}/api/reports/presign";
+                var presignUrl = $"{_config.BaseUrl.TrimEnd('/')}/api/storage/upload-url";
                 
                 var presignReqObj = new { 
                     fileName = $"screenshot_{Guid.NewGuid():N}.png", 
-                    contentType = "image/png" 
+                    contentType = "image/png",
+                    fileSizeBytes = screenshotBytes.Length
                 };
                 
                 using var presignReqMessage = new HttpRequestMessage(HttpMethod.Post, presignUrl);
@@ -89,7 +90,7 @@ public class WinnowSdkClient : IDisposable
                     var responseBody = await presignResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
                     var presignData = JsonSerializer.Deserialize<PresignedUrlResponse>(responseBody, _jsonOptions);
 
-                    if (presignData != null && !string.IsNullOrWhiteSpace(presignData.UploadUrl) && !string.IsNullOrWhiteSpace(presignData.FileKey))
+                    if (presignData != null && !string.IsNullOrWhiteSpace(presignData.UploadUrl) && !string.IsNullOrWhiteSpace(presignData.ObjectKey))
                     {
                         // Step 2: Upload the actual screenshot using PUT to the presigned URL
                         using var uploadReqMessage = new HttpRequestMessage(HttpMethod.Put, presignData.UploadUrl);
@@ -102,8 +103,8 @@ public class WinnowSdkClient : IDisposable
 
                         if (uploadResponse.IsSuccessStatusCode)
                         {
-                            // Step 3: Attach the returned fileKey
-                            payload.ScreenshotKey = presignData.FileKey;
+                            // Step 3: Attach the returned objectKey
+                            payload.ScreenshotKey = presignData.ObjectKey;
                         }
                         else
                         {
