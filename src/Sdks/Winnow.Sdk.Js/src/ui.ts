@@ -495,7 +495,8 @@ export function initUI(config: WinnowConfig) {
                     headers: presignHeaders,
                     body: JSON.stringify({
                         fileName: fileName,
-                        contentType: blob.type
+                        contentType: blob.type,
+                        fileSizeBytes: blob.size
                     })
                 });
 
