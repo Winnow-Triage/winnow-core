@@ -70,6 +70,12 @@ services:
       context: ../winnow-bouncer
       dockerfile: Dockerfile
     container_name: winnow-bouncer
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+    security_opt:
+      - no-new-privileges:true
     network_mode: "host"
     depends_on:
       - localstack
@@ -78,6 +84,23 @@ services:
       AWS_SECRET_ACCESS_KEY: minioadmin
       S3_ENDPOINT: http://localhost:4566
       S3_BUCKET: winnow-quarantine
+    volumes:
+      - clamav_defs:/var/lib/clamav
+
+  # 3b. ClamAV Definition Updater
+  clamav-updater:
+    build:
+      context: ../winnow-bouncer/deploy/def-updater
+      dockerfile: Dockerfile.updater
+    container_name: winnow-clamav-updater
+    depends_on:
+      - localstack
+    environment:
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_ENDPOINT_URL=http://winnow-localstack:4566
+    networks:
+      - winnow-net
 
   # 4. Your .NET API
   api:
@@ -196,3 +219,4 @@ networks:
 
 volumes:
   postgres_data:
+  clamav_defs:
