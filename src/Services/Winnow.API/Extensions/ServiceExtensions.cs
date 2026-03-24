@@ -158,6 +158,7 @@ internal static class ServiceExtensions
 
         services.AddHostedService<AdminSeeder>();
         services.AddHostedService<InvitationCleanupJob>();
+        services.AddHostedService<DatabaseSweeper>();
 
         // Storage (S3/MinIO)
         var s3Settings = new S3Settings();

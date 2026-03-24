@@ -72,7 +72,11 @@ public class WinnowTestApp : WebApplicationFactory<WinnowDbContext>, IAsyncLifet
             foreach (var d in descriptors) services.Remove(d);
 
             // Remove hosted services to prevent background interference
-            var hostedServices = services.Where(d => d.ServiceType == typeof(Microsoft.Extensions.Hosting.IHostedService)).ToList();
+            // We remove both the IHostedService registration and any direct registrations of BackgroundServices
+            var hostedServices = services.Where(d =>
+                d.ServiceType == typeof(Microsoft.Extensions.Hosting.IHostedService) ||
+                (d.ImplementationType != null && d.ImplementationType.IsAssignableTo(typeof(Microsoft.Extensions.Hosting.IHostedService)))).ToList();
+
             foreach (var s in hostedServices) services.Remove(s);
 
             var connString = _connectionString ?? Environment.GetEnvironmentVariable("POSTGRES_CONNECTION_STRING")

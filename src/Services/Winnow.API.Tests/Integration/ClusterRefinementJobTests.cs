@@ -2,6 +2,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Winnow.API.Domain.Ai;
+using Winnow.API.Domain.Services;
+using Winnow.API.Services.Ai;
+using Winnow.API.Services.Ai.Strategies;
+using Winnow.Clustering.Infrastructure.Scheduling;
 using Winnow.API.Domain.Clusters;
 using Winnow.API.Domain.Clusters.ValueObjects;
 using Winnow.API.Domain.Common;
@@ -10,11 +15,8 @@ using Winnow.API.Domain.Organizations.ValueObjects;
 using Winnow.API.Domain.Projects;
 using Winnow.API.Domain.Reports;
 using Winnow.API.Domain.Reports.ValueObjects;
-using Winnow.API.Domain.Services;
 using Winnow.API.Infrastructure.Identity;
 using Winnow.API.Infrastructure.Persistence;
-using Winnow.API.Services.Ai;
-using Winnow.Clustering.Infrastructure.Scheduling;
 using Xunit;
 using Moq;
 using MassTransit;
@@ -23,11 +25,28 @@ using Winnow.Contracts;
 namespace Winnow.API.Tests.Integration;
 
 [Collection("PostgresCollection")]
-public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
+public class ClusterRefinementJobTests : IAsyncLifetime
 {
-    private readonly WinnowTestApp _app = new(fixture);
+    private readonly WinnowTestApp _app;
+    private readonly Mock<IEmbeddingService> _embeddingServiceMock;
     private Guid _projectId;
     private Guid _organizationId;
+
+    public ClusterRefinementJobTests(PostgresFixture fixture)
+    {
+        _embeddingServiceMock = new Mock<IEmbeddingService>();
+        _embeddingServiceMock
+            .Setup(x => x.GetEmbeddingAsync(It.IsAny<string>()))
+            .ReturnsAsync(() => new EmbeddingResult(MakeVector(0.5f), new AiUsageInfo(0, 0, "mock", "MockProvider")));
+
+        _app = new WinnowTestApp(fixture, services =>
+        {
+            // Replace IEmbeddingService with mock
+            var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IEmbeddingService));
+            if (descriptor != null) services.Remove(descriptor);
+            services.AddSingleton(_embeddingServiceMock.Object);
+        });
+    }
 
     /// <summary>Creates a 384-dimensional vector with the first elements set, rest zero.</summary>
     private static float[] MakeVector(params float[] seed)
@@ -448,10 +467,11 @@ public class ClusterRefinementJobTests(PostgresFixture fixture) : IAsyncLifetime
         await job.StartAsync(cts.Token);
 
         // Yield to let the background task start and run its loop
-        await Task.Delay(2000);
+        await Task.Delay(10000);
 
-        // Cancel to break the loop Delay
-        await cts.CancelAsync();
+        // Give it a bit more time to complete its current loop if it started
+        using var stopCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await job.StopAsync(stopCts.Token);
 
         try
         {

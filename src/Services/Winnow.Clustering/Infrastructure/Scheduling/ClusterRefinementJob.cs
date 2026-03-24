@@ -168,12 +168,9 @@ internal sealed class ClusterRefinementJob(
                     ));
                 }
 
-                // Use direct SQL for the update to ensure it's saved even if other changes fail
-                await db.Database.ExecuteSqlRawAsync(
-                    "UPDATE \"Reports\" SET \"Embedding\" = {0} WHERE \"Id\" = {1} AND \"ProjectId\" = {2}",
-                    new object[] { embeddingFloats, report.Id, projectId }, ct);
-
+                // Update using EF tracking instead of raw SQL to ensure converters are used
                 report.SetEmbedding(embeddingFloats);
+                await db.SaveChangesAsync(ct);
             }
             catch (OperationCanceledException)
             {
