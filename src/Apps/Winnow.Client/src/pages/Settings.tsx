@@ -16,6 +16,7 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -186,13 +187,21 @@ export default function Settings() {
   const [customProviders, setCustomProviders] = useState<{ name: string; type: string; providerId: string; provider: string; apiKey: string; modelId: string }[]>([]);
 
   // Add Provider Modal State
+  // @ts-ignore - Reserved for V1.1
   const [isAddProviderOpen, setIsAddProviderOpen] = useState(false);
+  // @ts-ignore - Reserved for V1.1
   const [newProviderName, setNewProviderName] = useState("");
+  // @ts-ignore - Reserved for V1.1
   const [newProviderType, setNewProviderType] = useState<"Tokenizer" | "SummaryAgent">("Tokenizer");
+  // @ts-ignore - Reserved for V1.1
   const [newProviderId, setNewProviderId] = useState("");
+  // @ts-ignore - Reserved for V1.1
   const [newProviderLlm, setNewProviderLlm] = useState("OpenAI");
+  // @ts-ignore - Reserved for V1.1
   const [newProviderApiKey, setNewProviderApiKey] = useState("");
+  // @ts-ignore - Reserved for V1.1
   const [newProviderModelId, setNewProviderModelId] = useState("");
+  // @ts-ignore - Reserved for V1.1
   const [showNewProviderApiKey, setShowNewProviderApiKey] = useState(false);
 
   // Sync input with fetched org name and settings
@@ -534,7 +543,10 @@ export default function Settings() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Toxicity Filtering</CardTitle>
+                  <div className="flex items-center gap-2 mb-1">
+                    <CardTitle>Toxicity Filtering</CardTitle>
+                    <Badge variant="outline" className="text-[10px] h-5 px-2 bg-blue-500/10 text-blue-500 border-blue-500/20 uppercase tracking-tighter">Coming Soon</Badge>
+                  </div>
                   <CardDescription>
                     Configure automated content moderation for all incoming reports.
                     <span className="block mt-1 text-[10px] text-muted-foreground italic">
@@ -542,19 +554,26 @@ export default function Settings() {
                     </span>
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-xl border border-border/50">
+                <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-xl border border-border/50 opacity-50">
                   <Checkbox
                     id="tox-enabled"
+                    disabled
                     checked={toxicityEnabled}
                     onCheckedChange={(checked) => setToxicityEnabled(checked as boolean)}
                   />
-                  <Label htmlFor="tox-enabled" className="text-xs font-semibold uppercase tracking-wider cursor-pointer">
+                  <Label htmlFor="tox-enabled" className="text-xs font-semibold uppercase tracking-wider cursor-not-allowed">
                     {toxicityEnabled ? "Active" : "Disabled"}
                   </Label>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className={`space-y-6 transition-opacity duration-300 ${toxicityEnabled ? "opacity-100" : "opacity-40 pointer-events-none"}`}>
+            <CardContent className="relative space-y-6 transition-opacity duration-300 opacity-40 pointer-events-none blur-[2px]">
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/5 rounded-3xl backdrop-blur-[1px]">
+                <div className="bg-background/80 border border-white/10 px-4 py-2 rounded-2xl shadow-2xl flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-blue-500" />
+                  <span className="text-xs font-bold text-blue-500 uppercase tracking-widest">Available in V1.1</span>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[
                   { id: "profanity", label: "Profanity", icon: MessageSquareQuote, color: "text-blue-500" },
@@ -600,13 +619,9 @@ export default function Settings() {
             <CardFooter className="flex items-center justify-end p-4 px-6 border-t bg-muted/50 rounded-b-3xl">
               <Button
                 onClick={handleSaveOrganization}
-                disabled={
-                  isSavingOrg ||
-                  (toxicityEnabled === organization?.toxicityFilterEnabled &&
-                    JSON.stringify(toxicityThresholds) === JSON.stringify(organization?.toxicityLimits))
-                }
+                disabled
               >
-                {isSavingOrg ? "Saving..." : "Save Toxicity Settings"}
+                Save Toxicity Settings
               </Button>
             </CardFooter>
           </Card>
@@ -923,11 +938,12 @@ export default function Settings() {
                       Configure your intelligent triage services. Winnow provides optimized defaults.
                     </p>
                   </div>
-                  <Dialog open={isAddProviderOpen} onOpenChange={setIsAddProviderOpen}>
+                  <Dialog open={false} onOpenChange={setIsAddProviderOpen}>
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-8 gap-2">
+                      <Button variant="outline" size="sm" className="h-8 gap-2 opacity-50 cursor-not-allowed">
                         <Plus className="w-3.5 h-3.5" />
                         Add Custom Provider
+                        <Badge variant="outline" className="text-[8px] h-4 px-1 ml-1 bg-blue-500/10 text-blue-500 border-blue-500/20">SOON</Badge>
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[425px]">
@@ -1073,7 +1089,7 @@ export default function Settings() {
                 </div>
 
                 {customProviders.length > 0 && (
-                  <div className="mt-6 space-y-3">
+                  <div className="mt-6 space-y-3 opacity-50 blur-[1px] pointer-events-none">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Custom Providers List</Label>
                     <div className="space-y-2">
                       {customProviders.map((p) => (
