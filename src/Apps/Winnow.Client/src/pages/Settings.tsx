@@ -567,53 +567,59 @@ export default function Settings() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="relative space-y-6 transition-opacity duration-300 opacity-40 pointer-events-none blur-[2px]">
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/5 rounded-3xl backdrop-blur-[1px]">
-                <div className="bg-background/80 border border-white/10 px-4 py-2 rounded-2xl shadow-2xl flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4 text-blue-500" />
-                  <span className="text-xs font-bold text-blue-500 uppercase tracking-widest">Available in V1.1</span>
+            <CardContent className="relative p-6">
+              <div className="space-y-6 transition-opacity duration-300 opacity-40 pointer-events-none blur-[2px]">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {[
+                    { id: "profanity", label: "Profanity", icon: MessageSquareQuote, color: "text-blue-500" },
+                    { id: "hateSpeech", label: "Hate Speech", icon: Skull, color: "text-red-500" },
+                    { id: "violence", label: "Violence", icon: Flame, color: "text-orange-500" },
+                    { id: "insult", label: "Insult", icon: UserCheck, color: "text-purple-500" },
+                    { id: "harassment", label: "Harassment", icon: ShieldAlert, color: "text-amber-500" },
+                    { id: "sexual", label: "Sexual Content", icon: Eye, color: "text-pink-500" },
+                    { id: "graphic", label: "Graphic Content", icon: Skull, color: "text-zinc-500" },
+                    { id: "overall", label: "Overall Toxicity", icon: Activity, color: "text-emerald-500" },
+                  ].map((item) => (
+                    <div key={item.id} className="space-y-3 p-4 rounded-2xl bg-muted/30 border border-border/40">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <item.icon className={`w-4 h-4 ${item.color}`} />
+                          <Label className="font-semibold">{item.label}</Label>
+                        </div>
+                        <span className="text-xs font-mono bg-background px-2 py-0.5 rounded border border-border/50">
+                          {Math.round((toxicityThresholds as any)[item.id] * 100)}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        disabled
+                        value={(toxicityThresholds as any)[item.id]}
+                        className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-not-allowed accent-blue-500/50"
+                      />
+                      <div className="flex justify-between text-[8px] uppercase tracking-tighter font-bold text-muted-foreground/60">
+                        <span>Strict (Block)</span>
+                        <span>Sensitive</span>
+                        <span>Relaxed (Allow)</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {[
-                  { id: "profanity", label: "Profanity", icon: MessageSquareQuote, color: "text-blue-500" },
-                  { id: "hateSpeech", label: "Hate Speech", icon: Skull, color: "text-red-500" },
-                  { id: "violence", label: "Violence", icon: Flame, color: "text-orange-500" },
-                  { id: "insult", label: "Insult", icon: UserCheck, color: "text-purple-500" },
-                  { id: "harassment", label: "Harassment", icon: ShieldAlert, color: "text-amber-500" },
-                  { id: "sexual", label: "Sexual Content", icon: Eye, color: "text-pink-500" },
-                  { id: "graphic", label: "Graphic Content", icon: Skull, color: "text-zinc-500" },
-                  { id: "overall", label: "Overall Toxicity", icon: Activity, color: "text-emerald-500" },
-                ].map((item) => (
-                  <div key={item.id} className="space-y-3 p-4 rounded-2xl bg-muted/30 border border-border/40">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <item.icon className={`w-4 h-4 ${item.color}`} />
-                        <Label className="font-semibold">{item.label}</Label>
-                      </div>
-                      <span className="text-xs font-mono bg-background px-2 py-0.5 rounded border border-border/50">
-                        {Math.round((toxicityThresholds as any)[item.id] * 100)}%
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={(toxicityThresholds as any)[item.id]}
-                      onChange={(e) => setToxicityThresholds({
-                        ...toxicityThresholds,
-                        [item.id]: parseFloat(e.target.value)
-                      })}
-                      className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                    />
-                    <div className="flex justify-between text-[10px] text-muted-foreground uppercase tracking-widest px-0.5">
-                      <span>Strict (Block)</span>
-                      <span>Sensitive</span>
-                      <span>Relaxed (Allow)</span>
-                    </div>
+              
+              {/* Coming Soon Overlay - Outside the blur container */}
+              <div className="absolute inset-0 z-20 flex items-center justify-center p-6">
+                <div className="bg-background/95 backdrop-blur-sm border border-indigo-500/20 px-5 py-2.5 rounded-2xl shadow-2xl flex items-center gap-3 animate-in zoom-in-95 duration-300">
+                  <div className="bg-indigo-500/10 p-1.5 rounded-lg border border-indigo-500/20">
+                    <ShieldAlert className="w-4 h-4 text-indigo-500" />
                   </div>
-                ))}
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest leading-tight">Coming Soon</span>
+                    <span className="text-xs font-semibold text-foreground/80 lowercase italic">Available in V1.1</span>
+                  </div>
+                </div>
               </div>
             </CardContent>
             <CardFooter className="flex items-center justify-end p-4 px-6 border-t bg-muted/50 rounded-b-3xl">
