@@ -29,6 +29,7 @@ const AcceptInvitationPage = lazy(() => import("./pages/AcceptInvitationPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const VerifyEmailPage = lazy(() => import("./pages/VerifyEmailPage"));
+const DemoBanner = lazy(() => import("@/components/DemoBanner"));
 
 // Admin Pages
 import AdminLayout from "./components/admin/AdminLayout";
@@ -100,73 +101,82 @@ export default function App() {
               path="/*"
               element={
                 <ProtectedRoute>
-                  <VerificationBanner />
-                  <SidebarProvider>
-                    <AppSidebar />
-                    <SidebarInset>
-                      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-                        <SidebarTrigger className="-ml-1" />
-                        <div className="w-[1px] h-4 bg-border mx-2" />
-                        <WinnowLogo size={24} />
-                        <div className="ml-auto flex items-center gap-2">
-                          <AboutDialog />
-                          <ModeToggle />
-                          <UserNav />
-                        </div>
-                      </header>
-                      <div className="flex flex-1 flex-col gap-4 p-4">
-                        <Routes>
-                          <Route path="/" element={<Layout />}>
-                            <Route
-                              index
-                              element={<Navigate to="/dashboard" replace />}
-                            />
-                            <Route
-                              path="/dashboard"
-                              element={<ClusterDashboard />}
-                            />
-                            <Route
-                              path="/org-dashboard"
-                              element={<OrganizationDashboard />}
-                            />
-                            <Route
-                              path="/team-dashboard"
-                              element={<TeamDashboard />}
-                            />
-                            <Route
-                              path="/triage/review"
-                              element={<ReviewSuggestions />}
-                            />
-                            <Route path="reports" element={<AllReports />} />
-                            <Route
-                              path="reports/:id"
-                              element={<ReportDetail />}
-                            />
-                            <Route path="clusters" element={<Clusters />} />
-                            <Route
-                              path="clusters/:id"
-                              element={<ClusterDetail />}
-                            />
-                            <Route path="debug" element={<DebugConsole />} />
-                            <Route path="settings" element={<Settings />} />
-                            <Route
-                              path="settings/user"
-                              element={<UserSettings />}
-                            />
-                            <Route
-                              path="project-settings"
-                              element={
-                                <PermissionProtectedRoute permission="projects:manage">
-                                  <ProjectSettings />
-                                </PermissionProtectedRoute>
-                              }
-                            />
-                            <Route path="setup" element={<ProjectSetup />} />
-                          </Route>
-                        </Routes>
-                      </div>
-                    </SidebarInset>
-                  </SidebarProvider>
+                  <div className="flex flex-col h-screen overflow-hidden">
+                    {import.meta.env.VITE_DEMO_MODE === "true" && (
+                      <Suspense fallback={null}>
+                        <DemoBanner />
+                      </Suspense>
+                    )}
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                      <VerificationBanner />
+                      <SidebarProvider>
+                        <AppSidebar />
+                        <SidebarInset>
+                          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+                            <SidebarTrigger className="-ml-1" />
+                            <div className="w-[1px] h-4 bg-border mx-2" />
+                            <WinnowLogo size={24} />
+                            <div className="ml-auto flex items-center gap-2">
+                              <AboutDialog />
+                              <ModeToggle />
+                              <UserNav />
+                            </div>
+                          </header>
+                          <div className="flex flex-1 flex-col gap-4 p-4 overflow-auto">
+                            <Routes>
+                              <Route path="/" element={<Layout />}>
+                                <Route
+                                  index
+                                  element={<Navigate to="/dashboard" replace />}
+                                />
+                                <Route
+                                  path="/dashboard"
+                                  element={<ClusterDashboard />}
+                                />
+                                <Route
+                                  path="/org-dashboard"
+                                  element={<OrganizationDashboard />}
+                                />
+                                <Route
+                                  path="/team-dashboard"
+                                  element={<TeamDashboard />}
+                                />
+                                <Route
+                                  path="/triage/review"
+                                  element={<ReviewSuggestions />}
+                                />
+                                <Route path="reports" element={<AllReports />} />
+                                <Route
+                                  path="reports/:id"
+                                  element={<ReportDetail />}
+                                />
+                                <Route path="clusters" element={<Clusters />} />
+                                <Route
+                                  path="clusters/:id"
+                                  element={<ClusterDetail />}
+                                />
+                                <Route path="debug" element={<DebugConsole />} />
+                                <Route path="settings" element={<Settings />} />
+                                <Route
+                                  path="settings/user"
+                                  element={<UserSettings />}
+                                />
+                                <Route
+                                  path="project-settings"
+                                  element={
+                                    <PermissionProtectedRoute permission="projects:manage">
+                                      <ProjectSettings />
+                                    </PermissionProtectedRoute>
+                                  }
+                                />
+                                <Route path="setup" element={<ProjectSetup />} />
+                              </Route>
+                            </Routes>
+                          </div>
+                        </SidebarInset>
+                      </SidebarProvider>
+                    </div>
+                  </div>
                 </ProtectedRoute>
               }
             />

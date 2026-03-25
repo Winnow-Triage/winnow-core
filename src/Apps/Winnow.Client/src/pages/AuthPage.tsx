@@ -23,6 +23,30 @@ export default function AuthPage() {
   const [authPayload, setAuthPayload] = useState<any>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    if (import.meta.env.VITE_DEMO_MODE === "true" && !isSignUp) {
+      setEmail("demo@winnowtriage.com");
+      setPassword("demo");
+    }
+  }, [isSignUp]);
+
+  const handleDemoLogin = async () => {
+    setIsLoading(true);
+    try {
+      // Direct call to login with demo credentials
+      const response = await api.post("/auth/login", {
+        email: "demo@winnowtriage.com",
+        password: "demo"
+      });
+      login(response.data);
+      window.location.href = "/dashboard";
+    } catch (err: any) {
+      setError("Demo login failed.");
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     setIsSignUp(location.pathname === "/signup");
@@ -34,7 +58,6 @@ export default function AuthPage() {
     setError(null);
 
     // Note: Inputs in the form need 'name' attributes for FormData to work
-    const email = (document.getElementById("email") as HTMLInputElement).value;
     const nameInput = document.getElementById("name") as HTMLInputElement;
     const fullName = nameInput ? nameInput.value : "";
 
@@ -266,6 +289,8 @@ export default function AuthPage() {
                     type="email"
                     placeholder="name@example.com"
                     required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -319,6 +344,28 @@ export default function AuthPage() {
                       ? "Get Started"
                       : "Sign In"}
                 </Button>
+
+                {import.meta.env.VITE_DEMO_MODE === "true" && !isSignUp && (
+                  <div className="relative py-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-muted" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground">
+                        Or explore with one click
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full mt-4 h-11 border-indigo-500/30 hover:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+                      onClick={handleDemoLogin}
+                      disabled={isLoading}
+                    >
+                      Quick Demo Login
+                    </Button>
+                  </div>
+                )}
               </>
             )}
           </form>

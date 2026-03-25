@@ -6,6 +6,16 @@ export const api = axios.create({
   withCredentials: true,
 });
 
+// --- Demo Mode "Truman Show" Interceptor ---
+// This block ensures that when VITE_DEMO_MODE is true, all API requests
+// are intercepted and return realistic mock data. Dynamic import ensures
+// that this code and the large mock data are tree-shaken from production.
+if (import.meta.env.VITE_DEMO_MODE === "true") {
+  import("./api.mocks").then(({ setupMocks }) => {
+    setupMocks(api);
+  });
+}
+
 // Add authentication interceptor
 // Add authentication interceptor
 api.interceptors.request.use((config) => {
