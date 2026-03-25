@@ -29,7 +29,13 @@ export const setupMocks = (api: AxiosInstance) => {
       }
 
       // Special handling for auth mutations to ensure the demo session can be simulated
-      if (url.includes("/auth/login") || url.includes("/auth/register") || url.includes("/auth/logout") || url.includes("/auth/switch")) {
+      // Robust check for various URL formats (absolute vs relative)
+      const isAuthUrl = url.includes("/auth/login") || 
+                        url.includes("/auth/register") || 
+                        url.includes("/auth/logout") || 
+                        url.includes("/auth/switch");
+
+      if (isAuthUrl) {
         mockData = MOCK_USER_DTO;
       }
 
@@ -126,7 +132,7 @@ export const setupMocks = (api: AxiosInstance) => {
 const MOCK_USER_DTO = {
   id: "demo-user-123",
   userId: "demo-user-123",
-  email: "demo@winnow.app",
+  email: "demo@winnowtriage.com",
   fullName: "Truman Burbank",
   isEmailVerified: true,
   roles: ["admin", "owner"],
@@ -176,6 +182,30 @@ const MOCK_BILLING = {
   ],
 };
 
+function generateVolumeHistory() {
+  const history = [];
+  const now = new Date();
+  for (let i = 24; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 60 * 60 * 1000);
+    const hour = d.getHours();
+    let unique = Math.floor(Math.random() * 40) + 10;
+    let duplicates = Math.floor(Math.random() * 120) + 40;
+    if (hour >= 1 && hour <= 6) {
+      if (Math.random() > 0.4) { unique = 0; duplicates = 0; }
+      else { unique = Math.floor(Math.random() * 5); duplicates = Math.floor(Math.random() * 10); }
+    }
+    if (hour >= 10 && hour <= 16) { unique += 30; duplicates += 60; }
+    history.push({
+      timestamp: d.toISOString(),
+      newUniqueCount: unique,
+      duplicateCount: duplicates,
+    });
+  }
+  return history;
+}
+
+const MOCK_VOLUME_HISTORY = generateVolumeHistory();
+
 const MOCK_DASHBOARD_METRICS = {
   triage: {
     totalReports: 12450,
@@ -189,13 +219,7 @@ const MOCK_DASHBOARD_METRICS = {
     { clusterId: "c-2", title: "Database Timeouts", status: "High", reportCount: 1240, velocity: 45, isHot: false },
     { clusterId: "c-3", title: "Memory Management Issues", status: "Medium", reportCount: 215, velocity: 12, isHot: false },
   ],
-  volumeHistory: [
-    { timestamp: "2024-03-21T00:00:00Z", newUniqueCount: 45, duplicateCount: 110 },
-    { timestamp: "2024-03-22T00:00:00Z", newUniqueCount: 38, duplicateCount: 140 },
-    { timestamp: "2024-03-23T00:00:00Z", newUniqueCount: 52, duplicateCount: 125 },
-    { timestamp: "2024-03-24T00:00:00Z", newUniqueCount: 61, duplicateCount: 155 },
-    { timestamp: "2024-03-25T00:00:00Z", newUniqueCount: 48, duplicateCount: 130 },
-  ],
+  volumeHistory: MOCK_VOLUME_HISTORY,
   quota: {
     totalUsage: 12450,
     baseLimit: 50000,

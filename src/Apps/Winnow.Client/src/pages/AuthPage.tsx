@@ -38,10 +38,11 @@ export default function AuthPage() {
       // Direct call to login with demo credentials
       const response = await api.post("/auth/login", {
         email: "demo@winnowtriage.com",
-        password: "demo"
+        password: "demo",
+        organizationId: "demo-org-alpha",
       });
       login(response.data);
-      window.location.href = "/dashboard";
+      navigate("/");
     } catch (err: any) {
       setError("Demo login failed.");
       setIsLoading(false);
@@ -334,7 +335,7 @@ export default function AuthPage() {
 
                 <Button
                   className={`w-full text-md h-11 ${isSignUp ? "bg-blue-600 hover:bg-blue-700 text-white" : ""}`}
-                  variant={isSignUp ? "default" : "default"} // Keeping default (dark) for Login, overriding class for SignUp
+                  variant="default"
                   type="submit"
                   disabled={isLoading}
                 >
@@ -344,31 +345,32 @@ export default function AuthPage() {
                       ? "Get Started"
                       : "Sign In"}
                 </Button>
-
-                {import.meta.env.VITE_DEMO_MODE === "true" && !isSignUp && (
-                  <div className="relative py-4">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t border-muted" />
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-card px-2 text-muted-foreground">
-                        Or explore with one click
-                      </span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full mt-4 h-11 border-indigo-500/30 hover:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
-                      onClick={handleDemoLogin}
-                      disabled={isLoading}
-                    >
-                      Quick Demo Login
-                    </Button>
-                  </div>
-                )}
               </>
             )}
           </form>
+
+          {import.meta.env.VITE_DEMO_MODE === "true" && !isSignUp && (
+            <div className="mt-8 flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-muted-foreground/20" />
+                </div>
+                <div className="relative flex justify-center text-[10px] uppercase tracking-widest text-muted-foreground">
+                  <span className="bg-background px-4 font-semibold">Demo Shortcut</span>
+                </div>
+              </div>
+              <Button
+                id="quick-demo-login"
+                type="button"
+                variant="secondary"
+                className="w-full h-11 border-2 border-indigo-500/20 hover:border-indigo-500/50 hover:bg-indigo-500/5 text-indigo-600 dark:text-indigo-400 font-bold shadow-sm transition-all"
+                onClick={handleDemoLogin}
+                disabled={isLoading}
+              >
+                {isLoading ? "Entering Sandbox..." : "Quick Demo Login →"}
+              </Button>
+            </div>
+          )}
 
           <div className="text-center text-sm">
             <button
