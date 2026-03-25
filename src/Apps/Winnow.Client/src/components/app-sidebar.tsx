@@ -70,7 +70,10 @@ const items = [
     url: "/settings",
     icon: Settings,
   },
-];
+].filter(item => {
+  if (item.url === "/debug") return import.meta.env.VITE_DEBUG_MODE === "true";
+  return true;
+});
 
 export function AppSidebar() {
   const location = useLocation();

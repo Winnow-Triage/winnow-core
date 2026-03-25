@@ -13,7 +13,9 @@ import Layout from "./components/Layout";
 const ClusterDashboard = lazy(() => import("@/pages/ClusterDashboard"));
 const ReviewSuggestions = lazy(() => import("@/pages/ReviewSuggestions"));
 const ReportDetail = lazy(() => import("@/pages/ReportDetail"));
-const DebugConsole = lazy(() => import("./pages/DebugConsole"));
+const DebugConsole = import.meta.env.VITE_DEBUG_MODE === "true"
+  ? lazy(() => import("./pages/DebugConsole"))
+  : () => null;
 const AllReports = lazy(() => import("./pages/AllReports"));
 const Clusters = lazy(() => import("./pages/Clusters"));
 const Settings = lazy(() => import("./pages/Settings"));
@@ -155,7 +157,9 @@ export default function App() {
                                   path="clusters/:id"
                                   element={<ClusterDetail />}
                                 />
-                                <Route path="debug" element={<DebugConsole />} />
+                                {import.meta.env.VITE_DEBUG_MODE === "true" && (
+                                  <Route path="debug" element={<DebugConsole />} />
+                                )}
                                 <Route path="settings" element={<Settings />} />
                                 <Route
                                   path="settings/user"
