@@ -98,14 +98,50 @@ jobs:
           dotnet ef migrations has-pending-model-changes
           echo "✅ Postgres migrations are in sync."
 
-  # ── Job 3: Build & Push Docker Image to ECR ──────────────────────────────
-  deploy:
-    name: Build and Push to AWS ECR
+  # ── Job 3: Security & License Scanning ──────────
+  security:
+    name: Source Security & License Scan
     runs-on: ubuntu-latest
-    needs: [test, drift-detection]
-    if: github.ref == 'refs/heads/main' # Only push images from main
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore .NET Packages
+        run: dotnet restore Winnow.sln -p:RestorePackagesWithLockFile=true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install JS Dependencies
+        run: |
+          npm ci --prefix src/Apps/Winnow.Client
+          npm ci --prefix src/Sdks/Winnow.Sdk.Js
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+          scanners: 'vuln,secret,license'
+
+  # ── Job 4: Build & Push Docker Image to ECR ──────────────────────────────
+  deploy:
+    name: Build, Scan and Push to AWS ECR
+    runs-on: ubuntu-latest
+    needs: [test, drift-detection, security]
+    if: github.ref == 'refs/heads/main'
     
-    # REQUIRED for AWS OIDC authentication (No static keys!)
     permissions:
       id-token: write
       contents: read
@@ -123,19 +159,29 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag, and push image to Amazon ECR
+      - name: Build Core API Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: winnow-core
+          IMAGE_TAG: ${{ github.sha }}
+        run: docker build -t $ECR_REGISTRY/winnow-core:$IMAGE_TAG -f src/Services/Winnow.API/Dockerfile .
+
+      # ── THE SECURITY GATE (Trivy) ──
+      - name: Run Trivy Vulnerability & License Scanner on Core API
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ steps.login-ecr.outputs.registry }}/winnow-core:${{ github.sha }}'
+          format: 'table'
+          exit-code: '1' # Fails the build if critical vulns or bad licenses are found
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+          scanners: 'vuln,secret,license'
+
+      - name: Push Core API Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          echo "Building image..."
-          # Note: Ensure the Dockerfile path matches your repository structure
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f src/Services/Winnow.API/Dockerfile .
-          
-          echo "Pushing commit hash tag..."
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          
-          echo "Pushing latest tag..."
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/winnow-core:$IMAGE_TAG
+          docker tag $ECR_REGISTRY/winnow-core:$IMAGE_TAG $ECR_REGISTRY/winnow-core:latest
+          docker push $ECR_REGISTRY/winnow-core:latest
