@@ -27,11 +27,25 @@ public class EmailHealthCheck : IHealthCheck
             ["FromAddress"] = _emailSettings.FromAddress
         };
 
+        if (string.IsNullOrEmpty(_emailSettings.Provider) ||
+            _emailSettings.Provider.Equals("None", StringComparison.OrdinalIgnoreCase) ||
+            _emailSettings.Provider.Equals("Placeholder", StringComparison.OrdinalIgnoreCase))
+        {
+            data["Note"] = "No email provider configured — email features are disabled";
+            return HealthCheckResult.Healthy("Not configured", data);
+        }
+
         if (_emailSettings.Provider == "AwsSes")
         {
             data["Region"] = _emailSettings.AwsSes.Region;
             data["Note"] = "Reachability monitored via AWS CloudWatch";
             return HealthCheckResult.Healthy("AWS SES configured", data);
+        }
+
+        if (_emailSettings.Provider != "Smtp" && _emailSettings.Provider != "SmtpClient")
+        {
+            data["Note"] = $"Unknown provider '{_emailSettings.Provider}' — defaulting to Healthy";
+            return HealthCheckResult.Healthy("Unknown provider", data);
         }
 
         // SMTP — attempt a TCP connect to confirm the mail server is reachable

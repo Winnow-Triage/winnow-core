@@ -118,10 +118,10 @@ public static class WorkerServiceExtensions
         var llmSettings = new LlmSettings();
         config.GetSection("LlmSettings").Bind(llmSettings);
 
+        services.AddKernel();
+
         if (llmSettings.Provider == "Ollama" && !string.IsNullOrEmpty(llmSettings.Ollama?.Endpoint))
         {
-            services.AddKernel();
-
             // Default model
             services.AddOllamaChatCompletion(
                 modelId: llmSettings.Ollama.ModelId,
@@ -135,7 +135,6 @@ public static class WorkerServiceExtensions
         }
         else if (llmSettings.Provider == "OpenAI")
         {
-            services.AddKernel();
             services.AddOpenAIChatCompletion(
                 modelId: llmSettings.OpenAI.ModelId,
                 apiKey: llmSettings.OpenAI.ApiKey);
@@ -147,6 +146,9 @@ public static class WorkerServiceExtensions
     public static IServiceCollection AddWinnowClusteringInfrastructure(this IServiceCollection services, IConfiguration config)
     {
         services.AddWinnowKernel(config);
+
+        var llmSettings = new LlmSettings();
+        config.GetSection("LlmSettings").Bind(llmSettings);
 
         // Register embedding providers as Singleton so ONNX models stay in memory
         services.AddSingleton<IEmbeddingProvider, OpenAiEmbeddingProvider>();
@@ -170,7 +172,14 @@ public static class WorkerServiceExtensions
 
         services.AddSingleton<IEmbeddingService, EmbeddingService>();
         services.AddSingleton<IVectorCalculator, VectorCalculator>();
-        services.AddScoped<IDuplicateChecker, OllamaDuplicateChecker>();
+        if (llmSettings.Provider == "Ollama")
+        {
+            services.AddScoped<IDuplicateChecker, OllamaDuplicateChecker>();
+        }
+        else
+        {
+            services.AddScoped<IDuplicateChecker, PlaceholderDuplicateChecker>();
+        }
         services.AddSingleton<INegativeMatchCache, NegativeMatchCache>();
         services.AddScoped<IClusterService, ClusterService>();
         return services;

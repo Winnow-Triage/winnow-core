@@ -184,9 +184,9 @@ function ProjectSwitcher() {
     <div className="flex items-center gap-1 w-full">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <div className="flex w-full items-center gap-2 cursor-pointer transition-colors hover:bg-muted/50 p-2 rounded-md">
-            <div className="flex flex-col items-start text-sm truncate">
-              <span className="font-semibold">
+          <div data-testid="project-switcher" className="flex w-full items-center gap-2 cursor-pointer transition-colors hover:bg-muted/50 p-2 rounded-md min-w-0">
+            <div className="flex flex-col items-start text-sm truncate min-w-0 flex-1">
+              <span className="font-semibold truncate w-full">
                 {currentProject?.name || "Select Project"}
               </span>
             </div>

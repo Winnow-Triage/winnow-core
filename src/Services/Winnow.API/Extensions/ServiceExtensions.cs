@@ -196,9 +196,10 @@ internal static class ServiceExtensions
         services.AddSingleton<IVectorCalculator, VectorCalculator>();
 
         // Semantic Kernel setup based on provider
+        services.AddKernel();
+
         if (llmSettings.Provider == "Ollama")
         {
-            services.AddKernel();
             services.AddOllamaChatCompletion(
                 modelId: llmSettings.Ollama.ModelId,
                 endpoint: new Uri(llmSettings.Ollama.Endpoint));
@@ -213,7 +214,6 @@ internal static class ServiceExtensions
         }
         else if (llmSettings.Provider == "OpenAI")
         {
-            services.AddKernel();
             services.AddOpenAIChatCompletion(
                 modelId: llmSettings.OpenAI.ModelId,
                 apiKey: llmSettings.OpenAI.ApiKey);
@@ -235,8 +235,15 @@ internal static class ServiceExtensions
         services.AddScoped<Winnow.API.Features.Reports.Search.IReportSearchRepository, Winnow.API.Features.Reports.Search.ReportSearchRepository>();
         services.AddScoped<Winnow.API.Features.Clusters.Search.IClusterSearchRepository, Winnow.API.Features.Clusters.Search.ClusterSearchRepository>();
 
-        // Always register the duplicate checker (It handles fail-safe internally)
-        services.AddScoped<IDuplicateChecker, OllamaDuplicateChecker>();
+        // Register the duplicate checker based on provider
+        if (llmSettings.Provider == "Ollama")
+        {
+            services.AddScoped<IDuplicateChecker, OllamaDuplicateChecker>();
+        }
+        else
+        {
+            services.AddScoped<IDuplicateChecker, PlaceholderDuplicateChecker>();
+        }
         services.AddSingleton<INegativeMatchCache, NegativeMatchCache>();
 
         // Dashboard service

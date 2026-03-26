@@ -2,7 +2,7 @@ import axios from "axios";
 import { toast } from "sonner";
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5294",
+  baseURL: import.meta.env.VITE_API_URL || undefined,
   withCredentials: true,
 });
 

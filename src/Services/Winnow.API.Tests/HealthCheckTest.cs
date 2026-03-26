@@ -1,4 +1,5 @@
 using Xunit;
+using System.Threading.Tasks;
 
 namespace Winnow.API.Tests;
 
@@ -7,36 +8,46 @@ public class HealthCheckTest
     [Fact]
     public void Server_ShouldHaveBasicInfrastructure()
     {
-        // This is a basic health check to ensure the test runner works
-        // and that the test project can reference the server assembly
-
-        // Simple assertion to verify test infrastructure
         Assert.True(true, "Test runner should be working");
-
-        // We could add more sophisticated checks here later:
-        // - Verify DI container can be built
-        // - Verify database connections
-        // - Verify endpoints are registered
     }
 
     [Fact]
     public void TestProject_ShouldCompileAndRun()
     {
-        // This test ensures the test project itself compiles
-        // and can reference the server project
-
-        // Verify that the test project is properly configured
         var testAssembly = typeof(HealthCheckTest).Assembly;
         Assert.NotNull(testAssembly);
-
-        // Check that we're in the correct namespace
         Assert.Equal("Winnow.API.Tests", typeof(HealthCheckTest).Namespace);
     }
 
     [Fact]
-    public void XUnit_ShouldBeWorking()
+    public async Task EmailHealthCheck_ShouldBeHealthy_WhenProviderIsNone()
     {
-        // Simple XUnit assertion to verify the test framework works
-        Assert.Equal(1 + 1, 2);
+        // Arrange
+        var settings = new Winnow.API.Infrastructure.Configuration.EmailSettings { Provider = "None" };
+        var check = new Winnow.API.Infrastructure.HealthChecks.EmailHealthCheck(settings);
+
+        // Act
+        var result = await check.CheckHealthAsync(new Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckContext());
+
+        // Assert
+        Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, result.Status);
+        Assert.Equal("Not configured", result.Description);
+        Assert.True(result.Data.ContainsKey("Note"));
+    }
+
+    [Fact]
+    public async Task LlmHealthCheck_ShouldBeHealthy_WhenProviderIsNone()
+    {
+        // Arrange
+        var settings = new Winnow.API.Infrastructure.Configuration.LlmSettings { Provider = "None" };
+        var check = new Winnow.API.Infrastructure.HealthChecks.LlmHealthCheck(null!, settings);
+
+        // Act
+        var result = await check.CheckHealthAsync(new Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckContext());
+
+        // Assert
+        Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, result.Status);
+        Assert.Equal("Not configured", result.Description);
+        Assert.True(result.Data.ContainsKey("Note"));
     }
 }

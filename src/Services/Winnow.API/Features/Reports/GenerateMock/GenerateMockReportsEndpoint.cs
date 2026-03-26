@@ -4,6 +4,7 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 
 using Winnow.API.Features.Reports.Create;
@@ -69,6 +70,15 @@ public sealed class GenerateMockReportsEndpoint(
               { "title": "Example Issue", "message": "Example Issue"}
             ]
             """;
+
+        // Check if any chat completion service is available in the kernel
+        var chatService = kernel.Services.GetService<Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService>();
+        if (chatService == null)
+        {
+            logger.LogWarning("GenerateMockReportsEndpoint called but no chat completion service is registered (Provider: {Provider})", "None");
+            await Send.ResponseAsync(new { Error = "Mock report generation requires an active AI provider (Ollama or OpenAI). Current provider is 'None'." }, StatusCodes.Status400BadRequest, cancellation: ct);
+            return;
+        }
 
         var result = await kernel.InvokePromptAsync(prompt, cancellationToken: ct);
         var json = result.ToString();

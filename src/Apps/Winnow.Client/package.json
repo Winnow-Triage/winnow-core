@@ -11,6 +11,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:full": "playwright test --project=full-stack",
+    "test:e2e:demo": "playwright test --project=demo-mode",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -56,6 +59,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/vite": "^4.2.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

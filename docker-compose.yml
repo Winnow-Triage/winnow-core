@@ -74,8 +74,6 @@ services:
     tmpfs:
       - /tmp
       - /run
-    security_opt:
-      - no-new-privileges:true
     network_mode: "host"
     depends_on:
       - localstack
