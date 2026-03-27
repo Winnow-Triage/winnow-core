@@ -31,13 +31,13 @@ public sealed class HealthEndpoint : EndpointWithoutRequest
             check => check.Tags.Contains("ready"),
             ct);
 
-        if (report.Status == HealthStatus.Healthy)
+        if (report.Status == HealthStatus.Unhealthy)
         {
-            await Send.OkAsync("Healthy", cancellation: ct);
+            await Send.ResponseAsync("Unhealthy", StatusCodes.Status503ServiceUnavailable, cancellation: ct);
         }
         else
         {
-            await Send.ResponseAsync("Unhealthy", StatusCodes.Status503ServiceUnavailable, cancellation: ct);
+            await Send.OkAsync(report.Status == HealthStatus.Healthy ? "Healthy" : "Degraded", cancellation: ct);
         }
     }
 }

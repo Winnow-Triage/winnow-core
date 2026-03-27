@@ -15,20 +15,24 @@ export default defineConfig({
     },
   },
   server: {
-    proxy: {
-      "/auth": "http://localhost:5294",
-      "/admin": "http://localhost:5294",
-      "/billing": "http://localhost:5294",
-      "/health": "http://localhost:5294",
-      "/reports": "http://localhost:5294",
-      "/clusters": "http://localhost:5294",
-      "/dashboard": "http://localhost:5294",
-      "/teams": "http://localhost:5294",
-      "/projects": "http://localhost:5294",
-      "/account": "http://localhost:5294",
-      "/organizations": "http://localhost:5294",
-      "/storage": "http://localhost:5294",
-    },
+    proxy: Object.fromEntries(
+      ["/auth", "/admin", "/billing", "/health", "/reports", "/clusters",
+       "/dashboard", "/teams", "/projects", "/account", "/organizations", "/storage"
+      ].map((route) => [
+        route,
+        {
+          target: "http://localhost:5294",
+          // Let browser page navigations (Accept: text/html) fall through to
+          // Vite's SPA fallback so index.html is served instead of proxying
+          // to the API backend.
+          bypass(req: import("http").IncomingMessage) {
+            if (req.headers.accept?.includes("text/html")) {
+              return "/index.html";
+            }
+          },
+        },
+      ])
+    ),
   },
   test: {
     globals: true,

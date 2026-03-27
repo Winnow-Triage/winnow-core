@@ -24,13 +24,14 @@ public sealed class HealthReadyEndpoint(HealthCheckService healthCheckService) :
             check => check.Tags.Contains("ready"),
             ct);
 
-        if (report.Status == HealthStatus.Healthy)
+        if (report.Status == HealthStatus.Unhealthy)
         {
-            await Send.OkAsync("Healthy", cancellation: ct);
+            await Send.ResponseAsync("Unhealthy", StatusCodes.Status503ServiceUnavailable, cancellation: ct);
         }
         else
         {
-            await Send.ResponseAsync("Unhealthy", StatusCodes.Status503ServiceUnavailable, cancellation: ct);
+            // Both Healthy and Degraded are acceptable for readiness
+            await Send.OkAsync(report.Status == HealthStatus.Healthy ? "Healthy" : "Degraded", cancellation: ct);
         }
     }
 }

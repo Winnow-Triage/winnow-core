@@ -156,6 +156,7 @@ jobs:
       - name: Start Winnow API
         env:
           ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_URLS: "http://localhost:5294"
           ConnectionStrings__Postgres: "Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword"
           S3Settings__Endpoint: "http://localhost:4566"
           RABBITMQ_HOST: "localhost"
@@ -164,8 +165,16 @@ jobs:
           EmailSettings__Provider: "None"
         run: |
           dotnet run --project src/Services/Winnow.API/Winnow.API.csproj --configuration Release --no-build &
-          echo "Waiting for API to start..."
-          npx wait-on http://localhost:5294/health/ready -t 60000
+          echo "Waiting for API to start on port 5294..."
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:5294/health/live > /dev/null 2>&1; then
+              echo "✅ API is ready!"
+              break
+            fi
+            echo "  Attempt $i/60 — not ready yet, retrying in 2s..."
+            sleep 2
+          done
+          curl -sf http://localhost:5294/health/live || (echo "❌ API failed to start" && exit 1)
 
       - name: Install JS Dependencies
         run: npm ci
