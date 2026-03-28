@@ -39,8 +39,7 @@ dist-ssr/
 # ========================
 # 3. Go
 # ========================
-*/bin/
-*/dist/
+# bin/ and dist/ already covered by patterns above
 
 # ========================
 # 4. Databases (CRITICAL)
@@ -97,3 +96,16 @@ Thumbs.db
 # ========================
 appsettings.Development.json
 appsettings.Local.json
+
+# ========================
+# 8. Code Coverage Reports
+# ========================
+coverage/
+coverage-report/
+AUDIT_REPORT.md
+SaaS_MVP_REMAINING_TASKS.md
+
+# ========================
+# 9. Docker
+# ========================
+volume/

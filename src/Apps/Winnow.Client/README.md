@@ -1,73 +1,69 @@
-# React + TypeScript + Vite
+# Winnow Client Technical Architecture
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+`Winnow.Client` is a high-performance, developer-centric dashboard designed for real-time observability.
 
-Currently, two official plugins are available:
+## 🏗 Component Architecture
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+We follow a modular component structure designed for reusability and clarity.
 
-## React Compiler
+### 1. Structural Components
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Located in `src/components/`, these provide the "Bones" of the application:
 
-## Expanding the ESLint configuration
+- **Layouts**: `SidebarLayout`, `DashboardLayout`, and `AuthLayout` manage the primary application shell.
+- **UI Atomicity**: Custom UI components styled with Tailwind CSS ensure consistency.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 2. Feature-Based Logic
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Components are grouped by feature area (e.g., `src/features/reports/`). Each feature includes its own hooks, sub-components, and API service calls.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## 🌓 State Management Strategy
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 1. Global Infrastructure (Context API)
+
+- **AuthContext**: Manages the authentication lifecycle.
+  - _Flow_: `login` -> `AuthService` -> JWT Save -> `useAuth` hook updates state -> App re-renders with authenticated view.
+- **ProjectContext**: Holds the currently active project state, allowing for seamless context switching between monitored applications.
+
+### 2. Ephemeral Feature State
+
+For high-frequency or local data (e.g., report lists), we use a combination of local `useState` and custom hooks (e.g., `useReports`). This keeps the global state clean and ensures data is only fetched when needed.
+
+## 📡 Backend Integration Flow
+
+### API Service Layer
+
+All communication with `Winnow.API` is abstracted through a centralized API service in `src/services/api.ts`.
+
+- **JWT Middleware**: Automatically attaches the Bearer token to all requests.
+- **Error Interceptor**: Catches 401/403 errors and triggers the `logout` flow if the session is invalid.
+
+### UI Logic: Paywalls & Access Control
+
+Paywalls are handled dynamically via the `RequireSubscriptionTierFilter.cs` on the backend, while the frontend UI reflects this by disabling specific features or showing "Pro only" badges based on the `PlanTier` claim in the `AuthContext`.
+
+## 🎨 Styling Standards
+
+### Tailwind CSS & Branding
+
+We use a strictly defined Tailwind theme for all colors, fonts, and spacing. Custom design tokens are defined in `tailwind.config.js`.
+
+### User Experience
+
+- **Optimistic UI**: Simple actions (like closing a report) update the UI immediately before the server confirms.
+- **Framer Motion**: Subtle transitions for sidebar navigation and modal entries to provide a premium feel.
+
+## 🛠 Development Workflow
+
+```bash
+# Install dependencies
+npm install
+
+# Start Vite development server
+npm run dev
+
+# Run unit and integration tests via Vitest
+npm test
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Vite's HMR is configured to provide sub-millisecond updates during development, ensuring a fast feedback loop.

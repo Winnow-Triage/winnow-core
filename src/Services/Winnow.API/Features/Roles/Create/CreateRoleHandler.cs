@@ -1,0 +1,52 @@
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Winnow.API.Domain.Security;
+using Winnow.API.Infrastructure.Persistence;
+using Winnow.API.Infrastructure.Security.Authorization;
+using Winnow.API.Features.Shared;
+
+namespace Winnow.API.Features.Roles.Create;
+
+[RequirePermission("roles:manage")]
+public record CreateRoleCommand(Guid CurrentOrganizationId, string Name, List<Guid> PermissionIds) : IRequest<CreateRoleResult>, IOrgScopedRequest;
+
+public record CreateRoleResponse(Guid Id, string Name);
+
+public record CreateRoleResult(bool IsSuccess, CreateRoleResponse? Data = null, string? ErrorMessage = null, int? StatusCode = null);
+
+public class CreateRoleHandler(WinnowDbContext db) : IRequestHandler<CreateRoleCommand, CreateRoleResult>
+{
+    public async Task<CreateRoleResult> Handle(CreateRoleCommand request, CancellationToken cancellationToken)
+    {
+        var existingRole = await db.Roles
+            .AnyAsync(r => r.Name == request.Name && r.OrganizationId == request.CurrentOrganizationId, cancellationToken);
+
+        if (existingRole)
+        {
+            return new CreateRoleResult(false, null, "Role with this name already exists in the organization", 400);
+        }
+
+        // Verify the given permission IDs exist
+        var validPermissionsCount = await db.Permissions
+            .Where(p => request.PermissionIds.Contains(p.Id))
+            .CountAsync(cancellationToken);
+
+        if (validPermissionsCount != request.PermissionIds.Count)
+        {
+            return new CreateRoleResult(false, null, "One or more invalid permission IDs provided", 400);
+        }
+
+        var role = new Role(request.Name, request.CurrentOrganizationId);
+
+        db.Roles.Add(role);
+
+        foreach (var permissionId in request.PermissionIds)
+        {
+            db.RolePermissions.Add(new RolePermission(role.Id, permissionId));
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return new CreateRoleResult(true, new CreateRoleResponse(role.Id, role.Name));
+    }
+}

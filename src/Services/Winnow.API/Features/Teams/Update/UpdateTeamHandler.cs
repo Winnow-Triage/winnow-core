@@ -1,0 +1,55 @@
+using Winnow.API.Features.Teams.List;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Winnow.API.Infrastructure.Persistence;
+
+using Winnow.API.Infrastructure.Security.Authorization;
+using Winnow.API.Features.Shared;
+
+namespace Winnow.API.Features.Teams.Update;
+
+[RequirePermission("teams:write")]
+public record UpdateTeamCommand(Guid CurrentOrganizationId, Guid Id, string Name) : IRequest<UpdateTeamResult>, IOrgScopedRequest;
+
+public record UpdateTeamResult(bool IsSuccess, TeamResponse? Data = null, string? ErrorMessage = null, int? StatusCode = null);
+
+public class UpdateTeamHandler(WinnowDbContext db) : IRequestHandler<UpdateTeamCommand, UpdateTeamResult>
+{
+    public async Task<UpdateTeamResult> Handle(UpdateTeamCommand request, CancellationToken cancellationToken)
+    {
+        var team = await db.Teams
+            .FirstOrDefaultAsync(t => t.Id == request.Id && t.OrganizationId == request.CurrentOrganizationId, cancellationToken);
+
+        if (team == null)
+        {
+            return new UpdateTeamResult(false, null, "Team not found", 404);
+        }
+
+        team.Rename(request.Name.Trim());
+        await db.SaveChangesAsync(cancellationToken);
+
+        var data = new TeamResponse
+        {
+            Id = team.Id,
+            Name = team.Name,
+            CreatedAt = team.CreatedAt,
+            ProjectCount = await db.Projects.CountAsync(p => p.TeamId == team.Id, cancellationToken),
+            Members = await db.TeamMembers
+                .Where(tm => tm.TeamId == team.Id)
+                .Join(db.Users, tm => tm.UserId, u => u.Id, (tm, u) => new TeamMemberSummary
+                {
+                    UserId = tm.UserId,
+                    FullName = u.FullName
+                }).ToListAsync(cancellationToken),
+            Projects = await db.Projects
+                .Where(p => p.TeamId == team.Id)
+                .Select(p => new TeamProjectSummary
+                {
+                    Id = p.Id,
+                    Name = p.Name
+                }).ToListAsync(cancellationToken)
+        };
+
+        return new UpdateTeamResult(true, data);
+    }
+}

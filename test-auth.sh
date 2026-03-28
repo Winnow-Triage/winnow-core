@@ -1,10 +1,18 @@
 #!/bin/bash
 
-# Configuration
-API_URL="http://localhost:5294"
-EMAIL="testuser@example.com"
-PASSWORD="Start123!"
-FULLNAME="Test User"
+# Configuration - use environment variables for secrets
+API_URL="${WINNOW_API_URL:-http://localhost:5294}"
+EMAIL="${WINNOW_TEST_EMAIL:-testuser@example.com}"
+PASSWORD="${WINNOW_TEST_PASSWORD:-}"
+FULLNAME="${WINNOW_TEST_FULLNAME:-Test User}"
+
+# Exit if required password is not set
+if [ -z "$PASSWORD" ]; then
+    echo "ERROR: WINNOW_TEST_PASSWORD environment variable is not set."
+    echo "Please set WINNOW_TEST_PASSWORD before running this script."
+    echo "Example: export WINNOW_TEST_PASSWORD='YourSecurePassword123!'"
+    exit 1
+fi
 
 echo "1. Registering User..."
 REGISTER_RESPONSE=$(curl -s -X POST "$API_URL/auth/register" \

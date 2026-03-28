@@ -1,29 +1,34 @@
-import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import React, { useEffect } from "react";
 import { ProjectProvider } from "../context/ProjectContext";
+import { useAuth } from "../context/AuthContext";
 
 interface ProtectedRouteProps {
-    children: React.ReactNode;
+  children: React.ReactNode;
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-    const navigate = useNavigate();
-    const token = localStorage.getItem("authToken");
+  const { isAuthenticated, isLoading, isInitialLoading } = useAuth();
+  const navigate = useNavigate();
 
-    useEffect(() => {
-        if (!token) {
-            navigate("/login");
-        }
-    }, [token, navigate]);
-
-    if (!token) {
-        return null; // Or a loading spinner
+  useEffect(() => {
+    if (!isInitialLoading && !isLoading && !isAuthenticated) {
+      navigate("/login");
     }
+  }, [isInitialLoading, isLoading, isAuthenticated, navigate]);
 
-    // Wrap authenticated routes with ProjectProvider so the context is available
+  if (isInitialLoading || isLoading) {
     return (
-        <ProjectProvider>
-            {children}
-        </ProjectProvider>
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
     );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  // Wrap authenticated routes with ProjectProvider so the context is available
+  return <ProjectProvider>{children}</ProjectProvider>;
 }
