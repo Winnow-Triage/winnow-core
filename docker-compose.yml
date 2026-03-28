@@ -136,6 +136,7 @@ services:
       - presidio-analyzer
     environment:
       - ASPNETCORE_HTTP_PORTS=5000
+      - ASPNETCORE_hostBuilder_reloadConfigOnChange=false
       - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword;Maximum Pool Size=4;Minimum Pool Size=0
       - S3Settings__Endpoint=http://localhost:4566
       - LlmSettings__Provider=Ollama
@@ -162,6 +163,7 @@ services:
       - rabbitmq
     environment:
       - ASPNETCORE_HTTP_PORTS=5001
+      - ASPNETCORE_hostBuilder_reloadConfigOnChange=false
       - RABBITMQ_HOST=localhost
       - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword;Maximum Pool Size=4;Minimum Pool Size=0
       - S3Settings__Endpoint=http://localhost:4566
@@ -186,6 +188,7 @@ services:
       - rabbitmq
     environment:
       - ASPNETCORE_HTTP_PORTS=5003
+      - ASPNETCORE_hostBuilder_reloadConfigOnChange=false
       - RABBITMQ_HOST=localhost
       - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword;Maximum Pool Size=4;Minimum Pool Size=0
       - S3Settings__Endpoint=http://localhost:4566
@@ -209,6 +212,7 @@ services:
       - rabbitmq
     environment:
       - ASPNETCORE_HTTP_PORTS=5004
+      - ASPNETCORE_hostBuilder_reloadConfigOnChange=false
       - RABBITMQ_HOST=localhost
       - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword;Maximum Pool Size=4;Minimum Pool Size=0
       - S3Settings__Endpoint=http://localhost:4566
