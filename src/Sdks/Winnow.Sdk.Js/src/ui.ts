@@ -9,6 +9,34 @@ export interface WinnowConfig {
     onBeforeSend?: (reportPayload: any) => any | null;
 }
 
+async function generatePoW(apiKey: string, method: string, path: string): Promise<{ nonce: string; timestamp: string }> {
+    const targetPrefix = "0000"; // Difficulty 4
+    const encoder = new TextEncoder();
+    
+    const getUuid = () => {
+        if (typeof crypto.randomUUID === 'function') {
+            return crypto.randomUUID().replace(/-/g, '');
+        }
+        return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    };
+
+    while (true) {
+        const timestamp = new Date().toISOString();
+        const nonce = getUuid();
+        
+        const data = `${apiKey || ""}${method.toUpperCase()}${path.toLowerCase()}${timestamp}${nonce}`;
+        const dataBuffer = encoder.encode(data);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+        
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        
+        if (hashHex.startsWith(targetPrefix)) {
+            return { nonce, timestamp };
+        }
+    }
+}
+
 export function initUI(config: WinnowConfig) {
     const shadowHost = document.createElement('div');
     shadowHost.id = 'winnow-sdk-host';
@@ -572,6 +600,11 @@ export function initUI(config: WinnowConfig) {
             if (config.tenantId) {
                 headers['X-Tenant-Id'] = config.tenantId;
             }
+
+            // Generate and attach Proof-of-Work headers
+            const pow = await generatePoW(config.apiKey, 'POST', '/api/reports');
+            headers['X-Winnow-PoW-Nonce'] = pow.nonce;
+            headers['X-Winnow-PoW-Timestamp'] = pow.timestamp;
 
             const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/reports`, {
                 method: 'POST',

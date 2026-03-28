@@ -2,6 +2,6 @@ namespace Winnow.API.Services.Ai;
 
 public interface INegativeMatchCache
 {
-    bool IsKnownMismatch(string tenantId, Guid reportA, Guid reportB);
-    void MarkAsMismatch(string tenantId, Guid reportA, Guid reportB);
+    Task<bool> IsKnownMismatchAsync(string tenantId, Guid reportA, Guid reportB);
+    Task MarkAsMismatchAsync(string tenantId, Guid reportA, Guid reportB);
 }

@@ -394,7 +394,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
 
         // Mock negative cache to return true for this pair
         var negativeCache = scope.ServiceProvider.GetRequiredService<INegativeMatchCache>();
-        negativeCache.MarkAsMismatch("default", report.Id, repReport.Id);
+        await negativeCache.MarkAsMismatchAsync("default", report.Id, repReport.Id);
 
         var job = CreateJob(scope);
         await job.ProcessProjectAsync(db, _projectId,
