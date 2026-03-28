@@ -37,18 +37,31 @@ services:
       - winnow-net
 
   # LocalStack for SQS
-  localstack:
-    image: localstack/localstack:latest
-    container_name: winnow-localstack
+  ministack:
+    image: nahuelnucera/ministack:latest
+    container_name: winnow-ministack
     ports:
       - "4566:4566"
-      - "4510-4559:4510-4559"
     environment:
+      - S3_PERSIST=0
       - SERVICES=s3,sqs
-      - DEBUG=1
-    volumes:
-      - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack"
-      - "./localstack-init.sh:/etc/localstack/init/ready.d/init.sh"
+    networks:
+      - winnow-net
+
+  ministack-setup:
+    image: amazon/aws-cli:latest
+    container_name: winnow-ministack-setup
+    depends_on:
+      - ministack
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+    command: >
+      sh -c "sleep 5 && 
+      aws --endpoint-url=http://winnow-ministack:4566 s3 mb s3://winnow-quarantine &&
+      aws --endpoint-url=http://winnow-ministack:4566 s3 mb s3://winnow-clean &&
+      aws --endpoint-url=http://winnow-ministack:4566 s3 mb s3://winnow-security-defs"
     networks:
       - winnow-net
 
@@ -84,7 +97,7 @@ services:
       - /run
     network_mode: "host"
     depends_on:
-      - localstack
+      - ministack
     environment:
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
@@ -100,11 +113,11 @@ services:
       dockerfile: Dockerfile.updater
     container_name: winnow-clamav-updater
     depends_on:
-      - localstack
+      - ministack
     environment:
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
-      - AWS_ENDPOINT_URL=http://winnow-localstack:4566
+      - AWS_ENDPOINT_URL=http://winnow-ministack:4566
     networks:
       - winnow-net
 
@@ -117,7 +130,7 @@ services:
     network_mode: "host"
     depends_on:
       - postgres
-      - localstack
+      - ministack
       - rabbitmq
       - mailpit
       - presidio-analyzer
