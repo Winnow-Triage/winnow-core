@@ -14,6 +14,8 @@
     "test:e2e": "playwright test",
     "test:e2e:full": "playwright test --project=full-stack",
     "test:e2e:demo": "playwright test --project=demo-mode",
+    "screenshots": "playwright test --project=screenshots",
+    "screenshots:sync": "./scripts/sync-marketing-assets.sh",
     "prepare": "husky"
   },
   "lint-staged": {

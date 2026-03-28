@@ -44,6 +44,16 @@ export default defineConfig({
         baseURL: 'http://localhost:5174',
       },
     },
+    {
+      name: 'screenshots',
+      testDir: './tests/screenshots',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: 'http://localhost:5174',
+        viewport: { width: 1920, height: 1080 },
+        deviceScaleFactor: 2,
+      },
+    },
   ],
 
   /* Run your local dev server before starting the tests */
