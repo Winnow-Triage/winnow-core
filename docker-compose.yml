@@ -51,19 +51,15 @@ services:
   ministack-setup:
     image: amazon/aws-cli:latest
     container_name: winnow-ministack-setup
+    network_mode: "host"
     depends_on:
       - ministack
     environment:
-      - AWS_ACCESS_KEY_ID=test
-      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
       - AWS_DEFAULT_REGION=us-east-1
-    command: >
-      sh -c "sleep 5 && 
-      aws --endpoint-url=http://winnow-ministack:4566 s3 mb s3://winnow-quarantine &&
-      aws --endpoint-url=http://winnow-ministack:4566 s3 mb s3://winnow-clean &&
-      aws --endpoint-url=http://winnow-ministack:4566 s3 mb s3://winnow-security-defs"
-    networks:
-      - winnow-net
+    entrypoint: ""
+    command: /bin/sh -c "until aws --endpoint-url=http://localhost:4566 s3 ls > /dev/null 2>&1; do echo 'Waiting for S3 backend to boot...'; sleep 3; done && aws --endpoint-url=http://localhost:4566 s3 mb s3://winnow-quarantine || true && aws --endpoint-url=http://localhost:4566 s3 mb s3://winnow-clean || true && aws --endpoint-url=http://localhost:4566 s3 mb s3://winnow-security-defs || true"
 
   presidio-analyzer:
     image: mcr.microsoft.com/presidio-analyzer:latest
@@ -91,20 +87,25 @@ services:
       context: ../winnow-bouncer
       dockerfile: Dockerfile
     container_name: winnow-bouncer
-    read_only: true
+    network_mode: "host"
     tmpfs:
       - /tmp
       - /run
-    network_mode: "host"
     depends_on:
       - ministack
+      - ministack-setup
+    command: /bin/sh -c "echo 'Waiting 10s for S3...' && sleep 10 && ./bouncer"
     environment:
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
       S3_ENDPOINT: http://localhost:4566
-      S3_BUCKET: winnow-quarantine
+      S3_BUCKET_QUARANTINE: winnow-quarantine
+      S3_BUCKET_CLEAN: winnow-clean
+      S3_BUCKET_DEFS: winnow-security-defs
+      S3_FORCE_PATH_STYLE: "true"
+      CALLBACK_URL: http://localhost:5000/assets/status
     volumes:
-      - clamav_defs:/var/lib/clamav
+      - clamav_defs:/var/lib/clamav:U
 
   # 3b. ClamAV Definition Updater
   clamav-updater:
@@ -112,14 +113,18 @@ services:
       context: ../winnow-bouncer/deploy/def-updater
       dockerfile: Dockerfile.updater
     container_name: winnow-clamav-updater
+    network_mode: "host"
     depends_on:
       - ministack
+      - ministack-setup
+    command: /bin/sh -c "echo 'Waiting 10s for S3...' && sleep 10 && ./sync.sh"
     environment:
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
-      - AWS_ENDPOINT_URL=http://winnow-ministack:4566
-    networks:
-      - winnow-net
+      - AWS_ENDPOINT_URL=http://localhost:4566
+      - S3_FORCE_PATH_STYLE=true
+    volumes:
+      - clamav_defs:/var/lib/clamav:U
 
   # 4. Your .NET API
   api:
@@ -134,6 +139,7 @@ services:
       - rabbitmq
       - mailpit
       - presidio-analyzer
+      - ministack-setup
     environment:
       - ASPNETCORE_HTTP_PORTS=5000
       - ASPNETCORE_hostBuilder_reloadConfigOnChange=false
@@ -235,8 +241,6 @@ services:
     container_name: winnow-client
     ports:
       - "5173:80"
-    depends_on:
-      - api
     networks:
       - winnow-net
 
