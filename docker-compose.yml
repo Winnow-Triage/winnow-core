@@ -16,6 +16,14 @@ services:
     networks:
       - winnow-net
 
+  redis:
+    image: redis:alpine
+    container_name: winnow-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - winnow-net
+
   mailpit:
     image: axllent/mailpit:latest
     container_name: winnow-mailpit
@@ -128,6 +136,7 @@ services:
       - S3_ForcePathStyle=true
       - RABBITMQ_HOST=localhost
       - Encryption__MasterKey=NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg=
+      - ConnectionStrings__Redis=localhost:6379
 
   # 5. Sanitize Worker
   sanitize:
@@ -151,6 +160,7 @@ services:
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
       - Encryption__MasterKey=NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg=
+      - ConnectionStrings__Redis=localhost:6379
 
   # 6. Clustering Worker
   clustering:
@@ -173,6 +183,7 @@ services:
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
       - Encryption__MasterKey=NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg=
+      - ConnectionStrings__Redis=localhost:6379
 
   # 7. Summary Worker
   summary:
@@ -195,6 +206,7 @@ services:
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
       - Encryption__MasterKey=NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg=
+      - ConnectionStrings__Redis=localhost:6379
 
   # 8. React Client Frontend
   client:
