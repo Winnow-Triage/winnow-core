@@ -6,14 +6,15 @@ export const api = axios.create({
   withCredentials: true,
 });
 
-// --- Demo Mode "Truman Show" Interceptor ---
-// This block ensures that when VITE_DEMO_MODE is true, all API requests
-// are intercepted and return realistic mock data. Dynamic import ensures
-// that this code and the large mock data are tree-shaken from production.
+// --- Demo Mode "Truman Show" Mock Initialization ---
+// We use a conditional check on the VITE_DEMO_MODE constant.
+// Vite will automatically tree-shake this entire block and the large
+// api.mocks.ts dependency from the production bundle when VITE_DEMO_MODE is false.
 if (import.meta.env.VITE_DEMO_MODE === "true") {
-  import("./api.mocks").then(({ setupMocks }) => {
-    setupMocks(api);
-  });
+  // We use a relative import here.
+  // Note: Even though this is a static import, Vite handles constant-folding.
+  const { setupMocks } = await import("./api.mocks");
+  setupMocks(api);
 }
 
 // Add authentication interceptor

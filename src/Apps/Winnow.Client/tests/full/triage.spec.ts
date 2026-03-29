@@ -25,9 +25,9 @@ test.describe('Triage Flow & Data Ingestion', () => {
     expect(apiKey).toBeTruthy();
 
     // 4. Ingest via API.
-    //    The .NET API runs on port 5000 (docker-compose: ASPNETCORE_HTTP_PORTS=5000, host networking).
-    //    When running locally via `dotnet run`, it uses port 5294 (launchSettings.json).
-    //    We try port 5000 first (containerized), then fallback to 5294 (local dev).
+    const { generateProofOfWork } = await import('../helpers/pow');
+    const pow = generateProofOfWork(apiKey!.trim(), 'POST', '/reports');
+
     const apiContext = await request.newContext();
     const reportTitle = `E2E Error: ${Date.now()}`;
     const payload = {
@@ -37,6 +37,8 @@ test.describe('Triage Flow & Data Ingestion', () => {
     };
     const headers = {
       'X-Winnow-Key': apiKey!.trim(),
+      'X-Winnow-PoW-Nonce': pow.nonce,
+      'X-Winnow-PoW-Timestamp': pow.timestamp,
       'Content-Type': 'application/json'
     };
 
@@ -47,10 +49,23 @@ test.describe('Triage Flow & Data Ingestion', () => {
 
     // Fallback to local dev port if containerized port is unavailable
     if (!response || !response.ok()) {
+      console.log(`Initial request to 5000 returned ${response ? response.status() : 'null'}. Regenerating PoW and falling back to 5294.`);
+      const fallbackPow = generateProofOfWork(apiKey!.trim(), 'POST', '/reports');
+      const fallbackHeaders = {
+        'X-Winnow-Key': apiKey!.trim(),
+        'X-Winnow-PoW-Nonce': fallbackPow.nonce,
+        'X-Winnow-PoW-Timestamp': fallbackPow.timestamp,
+        'Content-Type': 'application/json'
+      };
       response = await apiContext.post('http://localhost:5294/reports', {
-        headers,
+        headers: fallbackHeaders,
         data: payload
       });
+    }
+    
+    if (!response.ok()) {
+        console.error('API Error Status:', response.status());
+        console.error('API Error Body:', await response.text());
     }
     
     expect(response.ok()).toBeTruthy();
