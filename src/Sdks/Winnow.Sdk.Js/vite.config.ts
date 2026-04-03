@@ -4,15 +4,23 @@ import { resolve } from 'path'
 export default defineConfig({
     build: {
         lib: {
-            // Could also be a dictionary or array of multiple entry points
-            entry: resolve(__dirname, 'src/main.ts'),
+            entry: {
+                winnow: resolve(__dirname, 'src/main.ts'),
+                core: resolve(__dirname, 'src/core.ts'),
+                ui: resolve(__dirname, 'src/ui.ts'),
+                'react/index': resolve(__dirname, 'src/react/index.tsx')
+            },
             name: 'Winnow',
-            // the proper extensions will be added
-            fileName: 'winnow',
-            formats: ['iife']
+            formats: ['es', 'cjs']
         },
-    },
-    define: {
-        'process.env': {} // Fallback for some libs if needed, usually not with vanilla
+        rollupOptions: {
+            external: ['react', 'react-dom'],
+            output: {
+                globals: {
+                    react: 'React',
+                    'react-dom': 'ReactDOM'
+                }
+            }
+        }
     }
 })
