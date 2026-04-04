@@ -19,17 +19,12 @@ namespace Winnow.API.Tests;
 /// WebApplicationFactory for Winnow.API integration tests.
 /// Uses a shared PostgreSQL Testcontainer from PostgresFixture.
 /// </summary>
-public class WinnowTestApp : WebApplicationFactory<WinnowDbContext>, IAsyncLifetime
+public class WinnowTestApp(PostgresFixture fixture, Action<IServiceCollection>? configureTestServices = null, bool enablePoW = false) : WebApplicationFactory<WinnowDbContext>, IAsyncLifetime
 {
+    private readonly bool _enablePoW = enablePoW;
+    private readonly Action<IServiceCollection>? _configureTestServices = configureTestServices;
+    private readonly string _connectionString = fixture.ConnectionString;
     private readonly string _tenantId = "test-tenant";
-    private readonly Action<IServiceCollection>? _configureTestServices;
-    private readonly string _connectionString;
-
-    public WinnowTestApp(PostgresFixture fixture, Action<IServiceCollection>? configureTestServices = null)
-    {
-        _connectionString = fixture.ConnectionString;
-        _configureTestServices = configureTestServices;
-    }
 
     static WinnowTestApp()
     {
@@ -78,6 +73,26 @@ public class WinnowTestApp : WebApplicationFactory<WinnowDbContext>, IAsyncLifet
                 (d.ImplementationType != null && d.ImplementationType.IsAssignableTo(typeof(Microsoft.Extensions.Hosting.IHostedService)))).ToList();
 
             foreach (var s in hostedServices) services.Remove(s);
+
+            // Force Caching to use Memory in tests to avoid Redis dependencies
+            var cachingDescriptors = services.Where(d =>
+                d.ServiceType == typeof(Microsoft.Extensions.Caching.Distributed.IDistributedCache) ||
+                d.ServiceType == typeof(Winnow.API.Services.Caching.ICacheService)).ToList();
+            foreach (var d in cachingDescriptors) services.Remove(d);
+
+            services.AddDistributedMemoryCache();
+            services.AddSingleton<Winnow.API.Services.Caching.ICacheService, Winnow.API.Services.Caching.DistributedCacheService>();
+
+            // Force PoW settings
+            var powDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(Microsoft.Extensions.Options.IOptions<Winnow.API.Infrastructure.Security.PoW.PoWSettings>));
+            if (powDescriptor != null) services.Remove(powDescriptor);
+
+            services.Configure<Winnow.API.Infrastructure.Security.PoW.PoWSettings>(options =>
+            {
+                options.Enabled = _enablePoW;
+                options.Difficulty = 4;
+                options.MaxTimestampAgeMinutes = 5;
+            });
 
             var connString = _connectionString ?? Environment.GetEnvironmentVariable("POSTGRES_CONNECTION_STRING")
                             ?? throw new InvalidOperationException("PostgreSQL connection string not found.");

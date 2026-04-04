@@ -16,5 +16,5 @@ public class WinnowConfig
     /// <summary>
     /// The base URL of the Winnow server. Defaults to the production API.
     /// </summary>
-    public string BaseUrl { get; set; } = "https://winnow-api.yourdomain.com"; // Adjust if necessary
+    public string BaseUrl { get; set; } = "https://api.winnowtriage.com";
 }

@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Winnow.API.Extensions;
 using Winnow.API.Infrastructure.MultiTenancy;
 using Winnow.API.Infrastructure.Persistence;
+using Winnow.API.Infrastructure.Security.PoW;
 
 namespace Winnow.API.Features.Reports.Create;
 
@@ -75,6 +76,7 @@ public sealed class IngestReportEndpoint(
     {
         Post("/reports");
         AuthSchemes("ApiKey");
+        PreProcessor<PoWPreProcessor<IngestReportRequest>>();
         Description(b => b
             .WithName("IngestReport")
             .Accepts<IngestReportRequest>("application/json")

@@ -1,15 +1,11 @@
 import { getContext } from './recorder';
 import { captureSafeScreenshot } from './screenshot';
-
-export interface WinnowConfig {
-    apiKey: string;
-    apiUrl: string;
-    tenantId?: string;
-    debug?: boolean;
-    onBeforeSend?: (reportPayload: any) => any | null;
-}
+import { WinnowClient, WinnowConfig, ReportPayload } from './core';
+export type { WinnowConfig };
 
 export function initUI(config: WinnowConfig) {
+    const client = new WinnowClient(config);
+    
     const shadowHost = document.createElement('div');
     shadowHost.id = 'winnow-sdk-host';
     document.body.appendChild(shadowHost);
@@ -209,11 +205,13 @@ export function initUI(config: WinnowConfig) {
             animation: winnow-fade-in 0.15s ease;
         }
         .winnow-lightbox img {
-            max-width: 90vw;
-            max-height: 90vh;
+            max-width: 95vw;
+            max-height: 95vh;
             object-fit: contain;
             border-radius: 8px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            /* --- ASPECT RATIO FIX --- */
+            background-color: white;
         }
         @keyframes winnow-fade-in { from { opacity: 0; } to { opacity: 1; } }
         .winnow-screenshot-actions {
@@ -351,15 +349,18 @@ export function initUI(config: WinnowConfig) {
         screenshotLoading.style.display = 'block';
     };
 
-    // FAB click: capture screenshot first, then open modal
     fab.addEventListener('click', async () => {
         resetView();
-
-
-        // Start capture
+        
+        // --- GHOST FIX: Hide SDK UI during capture ---
+        shadowHost.style.display = 'none';
+        
         try {
             const dataUrl = await captureSafeScreenshot();
             currentScreenshot = dataUrl;
+
+            // --- RESTORE UI ---
+            shadowHost.style.display = 'block';
 
             if (dataUrl) {
                 screenshotImg.src = dataUrl;
@@ -369,14 +370,15 @@ export function initUI(config: WinnowConfig) {
                 screenshotLoading.innerHTML = '<span style="color: #9ca3af;">Screenshot unavailable</span>';
                 screenshotSection.style.display = 'none';
             }
-        } catch {
+        } catch (err) {
+            console.error('[Winnow SDK] UI capture error:', err);
+            shadowHost.style.display = 'block';
             screenshotLoading.innerHTML = '<span style="color: #9ca3af;">Screenshot unavailable</span>';
             screenshotSection.style.display = 'none';
         }
         overlay.classList.add('open');
     });
 
-    // Toggle screenshot inclusion
     toggleScreenshotBtn.addEventListener('click', () => {
         screenshotIncluded = !screenshotIncluded;
         if (screenshotIncluded) {
@@ -394,7 +396,6 @@ export function initUI(config: WinnowConfig) {
         }
     });
 
-    // Replace image via file upload
     replaceInput.addEventListener('change', () => {
         const file = replaceInput.files?.[0];
         if (!file) return;
@@ -409,14 +410,12 @@ export function initUI(config: WinnowConfig) {
             toggleScreenshotBtn.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                 Remove Screenshot`;
-            // Update badge
             const badge = screenshotPreview.querySelector('.winnow-screenshot-badge') as HTMLSpanElement;
             if (badge) badge.textContent = 'User-provided';
         };
         reader.readAsDataURL(file);
     });
 
-    // Click-to-expand lightbox
     screenshotImg.addEventListener('click', () => {
         if (!currentScreenshot || !screenshotIncluded) return;
         const lightbox = document.createElement('div');
@@ -426,19 +425,9 @@ export function initUI(config: WinnowConfig) {
         shadow.appendChild(lightbox);
     });
 
-    // Cancel
-    const cancelBtn = overlay.querySelector('#winnow-cancel') as HTMLButtonElement;
-    cancelBtn.addEventListener('click', () => {
-        overlay.classList.remove('open');
-    });
+    overlay.querySelector('#winnow-cancel')?.addEventListener('click', () => overlay.classList.remove('open'));
+    overlay.querySelector('#winnow-close-success')?.addEventListener('click', () => overlay.classList.remove('open'));
 
-    // Close success
-    const closeSuccessBtn = overlay.querySelector('#winnow-close-success') as HTMLButtonElement;
-    closeSuccessBtn.addEventListener('click', () => {
-        overlay.classList.remove('open');
-    });
-
-    // Submit
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const submitBtn = form.querySelector('#winnow-submit') as HTMLButtonElement;
@@ -450,142 +439,32 @@ export function initUI(config: WinnowConfig) {
         const formData = new FormData(form);
         const title = formData.get('title') as string;
         const description = formData.get('description') as string;
-
         const context = getContext();
 
-        const payload: Record<string, unknown> = {
+        const payload: ReportPayload = {
             Title: title,
             Message: description,
             Metadata: {
                 ...context,
-                sdkVersion: '0.1.0'
+                sdkVersion: '0.2.0'
             }
         };
 
-        let screenshotKey: string | null = null;
-
-        // 1 & 2: S3 Direct Upload Flow
+        let screenshotBlob: Blob | undefined;
         if (screenshotIncluded && currentScreenshot) {
             try {
-                if (config.debug) {
-                    console.log('Winnow SDK: Starting screenshot upload flow...');
-                }
-
-                // Convert Base64 Data URL to Blob
                 const res = await fetch(currentScreenshot);
-                const blob = await res.blob();
-
-                // Get Pre-signed URL
-                const presignHeaders: Record<string, string> = {
-                    'Content-Type': 'application/json',
-                    'X-Winnow-Key': config.apiKey
-                };
-                if (config.tenantId) {
-                    presignHeaders['X-Tenant-Id'] = config.tenantId;
-                }
-
-                const fileName = `screenshot-${Date.now()}.png`;
-
-                if (config.debug) {
-                    console.log(`Winnow SDK: Requesting pre-signed URL for ${fileName} (${blob.type})`);
-                }
-
-                const presignRes = await fetch(`${config.apiUrl.replace(/\/$/, '')}/storage/upload-url`, {
-                    method: 'POST',
-                    headers: presignHeaders,
-                    body: JSON.stringify({
-                        fileName: fileName,
-                        contentType: blob.type,
-                        fileSizeBytes: blob.size
-                    })
-                });
-
-                if (!presignRes.ok) {
-                    throw new Error(`Failed to get pre-signed URL: ${presignRes.status}`);
-                }
-
-                const presignData = await presignRes.json();
-                const uploadUrl = presignData.uploadUrl;
-                screenshotKey = presignData.objectKey;
-
-                if (config.debug) {
-                    console.log(`Winnow SDK: Received upload URL. Uploading blob directly to S3...`);
-                }
-
-                // Direct PUT to S3
-                const uploadRes = await fetch(uploadUrl, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': blob.type
-                    },
-                    body: blob
-                });
-
-                if (!uploadRes.ok) {
-                    throw new Error(`S3 upload failed: ${uploadRes.status}`);
-                }
-
-                if (config.debug) {
-                    console.log(`Winnow SDK: S3 Upload successful. File Key: ${screenshotKey}`);
-                }
-
+                screenshotBlob = await res.blob();
             } catch (err) {
-                console.warn('Winnow SDK: Screenshot upload failed, submitting report without it.', err);
-                screenshotKey = null; // Drop the screenshot but proceed with the report
+                console.warn('Winnow SDK: Failed to convert screenshot to blob', err);
             }
-        }
-
-        // 3. Final Payload Construction
-        if (screenshotKey) {
-            payload.ScreenshotKey = screenshotKey; // Use the S3 Key instead of Base64
-        }
-        // *Important*: We completely removed the `payload.Screenshot = currentScreenshot;` line.
-
-        let finalPayload: any = payload;
-
-        if (typeof config.onBeforeSend === 'function') {
-            const mutated = config.onBeforeSend(finalPayload);
-            if (mutated === null || mutated === undefined) {
-                if (config.debug) {
-                    console.log('Winnow SDK: Report dropped by onBeforeSend hook.');
-                }
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-                overlay.classList.remove('open');
-                return;
-            }
-            finalPayload = mutated;
-        }
-
-        if (config.debug) {
-            console.group('Winnow SDK: Sending Final Report');
-            console.log(JSON.stringify(finalPayload, null, 2));
-            console.groupEnd();
         }
 
         try {
-            const headers: Record<string, string> = {
-                'Content-Type': 'application/json',
-                'X-Winnow-Key': config.apiKey
-            };
-
-            if (config.tenantId) {
-                headers['X-Tenant-Id'] = config.tenantId;
-            }
-
-            const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/reports`, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(finalPayload)
-            });
-
-            if (!response.ok) throw new Error('Failed to submit report');
-
-            // Show success view
+            await client.sendReport(payload, screenshotBlob);
             viewForm.style.display = 'none';
             viewSuccess.style.display = 'block';
         } catch (error) {
-            console.error('Winnow SDK Error:', error);
             alert('Failed to send report. Please try again.');
         } finally {
             submitBtn.disabled = false;
@@ -593,10 +472,10 @@ export function initUI(config: WinnowConfig) {
         }
     });
 
-    // Close on click outside
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
             overlay.classList.remove('open');
         }
     });
 }
+

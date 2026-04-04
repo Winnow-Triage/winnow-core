@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Security.Cryptography;
 using Winnow.Sdk.DotNet.Core.Models;
 
 namespace Winnow.Sdk.DotNet.Core;
@@ -123,6 +124,11 @@ public class WinnowSdkClient : IDisposable
             using var reportReqMessage = new HttpRequestMessage(HttpMethod.Post, reportUrl);
             reportReqMessage.Headers.Add("X-Winnow-Key", _apiKey);
             
+            // Generate and attach Proof-of-Work headers
+            var (nonce, timestamp) = GenerateProofOfWork("POST", "/api/reports");
+            reportReqMessage.Headers.Add("X-Winnow-PoW-Nonce", nonce);
+            reportReqMessage.Headers.Add("X-Winnow-PoW-Timestamp", timestamp);
+            
             var payloadJson = JsonSerializer.Serialize(payload, _jsonOptions);
             reportReqMessage.Content = new StringContent(payloadJson, Encoding.UTF8, "application/json");
 
@@ -137,6 +143,30 @@ public class WinnowSdkClient : IDisposable
         {
             // Fail silently or log locally to NEVER crash game engine
             Console.WriteLine($"[Winnow SDK] Exception occurred while sending report: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Generates a Proof-of-Work nonce by brute-forcing a SHA256 hash that meets the server's difficulty threshold.
+    /// Default difficulty is 4 leading zeros.
+    /// </summary>
+    private (string Nonce, string Timestamp) GenerateProofOfWork(string method, string path)
+    {
+        var targetPrefix = "0000"; // Difficulty 4
+        
+        while (true)
+        {
+            var timestamp = DateTimeOffset.UtcNow.ToString("O");
+            var nonce = Guid.NewGuid().ToString("N");
+            
+            var data = $"{_apiKey ?? ""}{method.ToUpperInvariant()}{path.ToLowerInvariant()}{timestamp}{nonce}";
+            var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(data));
+            var hashString = Convert.ToHexString(hashBytes).ToLowerInvariant();
+            
+            if (hashString.StartsWith(targetPrefix))
+            {
+                return (nonce, timestamp);
+            }
         }
     }
 

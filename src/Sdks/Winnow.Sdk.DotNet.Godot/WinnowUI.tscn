@@ -1,0 +1,112 @@
+[gd_scene load_steps=1 format=3 uid="uid://be5e1d5c-444c-4f37-8eaf-ac465989a3e3"]
+
+[ext_resource type="Script" path="res://WinnowUI.cs" id="1_id1"]
+
+[node name="WinnowUI" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_id1")
+
+[node name="Form" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -150.0
+offset_right = 200.0
+offset_bottom = 150.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Label" type="Label" parent="Form"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 180.0
+offset_bottom = 46.0
+text = "Report an Issue"
+horizontal_alignment = 1
+
+[node name="TitleInput" type="LineEdit" parent="Form"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 60.0
+offset_right = 380.0
+offset_bottom = 91.0
+placeholder_text = "Title"
+
+[node name="DescriptionInput" type="TextEdit" parent="Form"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 100.0
+offset_right = 380.0
+offset_bottom = 220.0
+placeholder_text = "Description"
+
+[node name="StatusLabel" type="Label" parent="Form"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 230.0
+offset_right = 380.0
+offset_bottom = 253.0
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1
+
+[node name="SubmitButton" type="Button" parent="Form"]
+layout_mode = 0
+offset_left = 140.0
+offset_top = 260.0
+offset_right = 260.0
+offset_bottom = 291.0
+text = "Submit"
+
+[node name="Success" type="Panel" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -150.0
+offset_top = -100.0
+offset_right = 150.0
+offset_bottom = 100.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Label" type="Label" parent="Success"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -100.0
+offset_top = 40.0
+offset_right = 100.0
+offset_bottom = 90.0
+grow_horizontal = 2
+text = "Thank You!
+Report Submitted."
+horizontal_alignment = 1
+
+[node name="CloseButton" type="Button" parent="Success"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -40.0
+offset_top = -60.0
+offset_right = 40.0
+offset_bottom = -29.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "Close"

@@ -29,7 +29,7 @@ public class DismissClusterMergeSuggestionHandler(WinnowDbContext db, INegativeM
             return new DismissClusterMergeSuggestionResult(false, "No pending merge suggestion for this cluster.", 400);
         }
 
-        negativeMatchCache.MarkAsMismatch(request.CurrentOrganizationId.ToString(), cluster.Id, cluster.SuggestedMergeClusterId.Value);
+        await negativeMatchCache.MarkAsMismatchAsync(request.CurrentOrganizationId.ToString(), cluster.Id, cluster.SuggestedMergeClusterId.Value);
 
         cluster.ClearMergeSuggestion();
 

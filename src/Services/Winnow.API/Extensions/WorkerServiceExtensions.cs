@@ -15,6 +15,7 @@ using Winnow.API.Infrastructure.MultiTenancy;
 using Winnow.API.Infrastructure.Persistence;
 using Winnow.API.Services.Ai;
 using Winnow.API.Services.Ai.Strategies;
+using Winnow.API.Services.Caching;
 using Winnow.API.Services.Storage;
 using Winnow.API.Features.Dashboard.IService;
 using Winnow.API.Features.Dashboard.Service;
@@ -30,8 +31,21 @@ public static class WorkerServiceExtensions
         // Multi-tenancy context (required for resolving DB connection string)
         services.AddScoped<ITenantContext, TenantContext>();
 
-        // In-memory cache (required by NegativeMatchCache, etc.)
-        services.AddMemoryCache();
+        // Caching (PoW replay protection and AI mismatch cache)
+        var redisConn = config.GetConnectionString("Redis");
+        if (!string.IsNullOrEmpty(redisConn))
+        {
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = redisConn;
+                options.InstanceName = "Winnow:";
+            });
+        }
+        else
+        {
+            services.AddDistributedMemoryCache();
+        }
+        services.AddSingleton<ICacheService, DistributedCacheService>();
 
         // LLM Configuration
         var llmSettings = new LlmSettings();

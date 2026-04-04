@@ -211,7 +211,7 @@ internal sealed class ClusterRefinementJob(
         {
             if (report.Embedding == null || report.ClusterId != null || report.SuggestedClusterId != null) continue;
 
-            ClusterCandidate? bestMatch = FindBestClusterMatch(report, clusters, negativeCache, vectorCalculator);
+            ClusterCandidate? bestMatch = await FindBestClusterMatchAsync(report, clusters, negativeCache, vectorCalculator);
 
             if (bestMatch == null || bestMatch.Distance > ReportSuggestThreshold)
             {
@@ -264,7 +264,7 @@ internal sealed class ClusterRefinementJob(
         // Note: AssignToCluster clears suggestions inherently in the domain model
     }
 
-    private static ClusterCandidate? FindBestClusterMatch(Report report, List<Cluster> clusters, INegativeMatchCache negativeCache, IVectorCalculator vectorCalculator)
+    private static async Task<ClusterCandidate?> FindBestClusterMatchAsync(Report report, List<Cluster> clusters, INegativeMatchCache negativeCache, IVectorCalculator vectorCalculator)
     {
         ClusterCandidate? bestMatch = null;
 
@@ -272,7 +272,7 @@ internal sealed class ClusterRefinementJob(
         {
             if (cluster.Centroid == null) continue;
 
-            if (negativeCache.IsKnownMismatch("default", report.Id, cluster.Id))
+            if (await negativeCache.IsKnownMismatchAsync("default", report.Id, cluster.Id))
                 continue;
 
             var distance = vectorCalculator.CalculateCosineDistance(report.Embedding!, cluster.Centroid);
@@ -303,7 +303,7 @@ internal sealed class ClusterRefinementJob(
 
         if (representative != null)
         {
-            if (negativeCache.IsKnownMismatch("default", report.Id, representative.Id))
+            if (await negativeCache.IsKnownMismatchAsync("default", report.Id, representative.Id))
                 return false;
 
             var areDuplicates = await duplicateChecker.AreDuplicatesAsync(
@@ -313,7 +313,7 @@ internal sealed class ClusterRefinementJob(
 
             if (!areDuplicates)
             {
-                negativeCache.MarkAsMismatch("default", report.Id, bestMatch.Id);
+                await negativeCache.MarkAsMismatchAsync("default", report.Id, bestMatch.Id);
                 return false;
             }
         }

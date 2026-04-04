@@ -16,6 +16,14 @@ services:
     networks:
       - winnow-net
 
+  redis:
+    image: redis:alpine
+    container_name: winnow-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - winnow-net
+
   mailpit:
     image: axllent/mailpit:latest
     container_name: winnow-mailpit
@@ -29,20 +37,29 @@ services:
       - winnow-net
 
   # LocalStack for SQS
-  localstack:
-    image: localstack/localstack:latest
-    container_name: winnow-localstack
+  ministack:
+    image: nahuelnucera/ministack:latest
+    container_name: winnow-ministack
     ports:
       - "4566:4566"
-      - "4510-4559:4510-4559"
     environment:
+      - S3_PERSIST=0
       - SERVICES=s3,sqs
-      - DEBUG=1
-    volumes:
-      - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack"
-      - "./localstack-init.sh:/etc/localstack/init/ready.d/init.sh"
     networks:
       - winnow-net
+
+  ministack-setup:
+    image: amazon/aws-cli:latest
+    container_name: winnow-ministack-setup
+    network_mode: "host"
+    depends_on:
+      - ministack
+    environment:
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_DEFAULT_REGION=us-east-1
+    entrypoint: ""
+    command: /bin/sh -c "until aws --endpoint-url=http://localhost:4566 s3 ls > /dev/null 2>&1; do echo 'Waiting for S3 backend to boot...'; sleep 3; done && aws --endpoint-url=http://localhost:4566 s3 mb s3://winnow-quarantine || true && aws --endpoint-url=http://localhost:4566 s3 mb s3://winnow-clean || true && aws --endpoint-url=http://localhost:4566 s3 mb s3://winnow-security-defs || true"
 
   presidio-analyzer:
     image: mcr.microsoft.com/presidio-analyzer:latest
@@ -70,20 +87,25 @@ services:
       context: ../winnow-bouncer
       dockerfile: Dockerfile
     container_name: winnow-bouncer
-    read_only: true
+    network_mode: "host"
     tmpfs:
       - /tmp
       - /run
-    network_mode: "host"
     depends_on:
-      - localstack
+      - ministack
+      - ministack-setup
+    command: /bin/sh -c "echo 'Waiting 10s for S3...' && sleep 10 && ./bouncer"
     environment:
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
       S3_ENDPOINT: http://localhost:4566
-      S3_BUCKET: winnow-quarantine
+      S3_BUCKET_QUARANTINE: winnow-quarantine
+      S3_BUCKET_CLEAN: winnow-clean
+      S3_BUCKET_DEFS: winnow-security-defs
+      S3_FORCE_PATH_STYLE: "true"
+      CALLBACK_URL: http://localhost:5000/assets/status
     volumes:
-      - clamav_defs:/var/lib/clamav
+      - clamav_defs:/var/lib/clamav:U
 
   # 3b. ClamAV Definition Updater
   clamav-updater:
@@ -91,14 +113,18 @@ services:
       context: ../winnow-bouncer/deploy/def-updater
       dockerfile: Dockerfile.updater
     container_name: winnow-clamav-updater
+    network_mode: "host"
     depends_on:
-      - localstack
+      - ministack
+      - ministack-setup
+    command: /bin/sh -c "echo 'Waiting 10s for S3...' && sleep 10 && ./sync.sh"
     environment:
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
-      - AWS_ENDPOINT_URL=http://winnow-localstack:4566
-    networks:
-      - winnow-net
+      - AWS_ENDPOINT_URL=http://localhost:4566
+      - S3_FORCE_PATH_STYLE=true
+    volumes:
+      - clamav_defs:/var/lib/clamav:U
 
   # 4. Your .NET API
   api:
@@ -109,12 +135,14 @@ services:
     network_mode: "host"
     depends_on:
       - postgres
-      - localstack
+      - ministack
       - rabbitmq
       - mailpit
       - presidio-analyzer
+      - ministack-setup
     environment:
       - ASPNETCORE_HTTP_PORTS=5000
+      - ASPNETCORE_hostBuilder_reloadConfigOnChange=false
       - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword;Maximum Pool Size=4;Minimum Pool Size=0
       - S3Settings__Endpoint=http://localhost:4566
       - LlmSettings__Provider=Ollama
@@ -128,6 +156,7 @@ services:
       - S3_ForcePathStyle=true
       - RABBITMQ_HOST=localhost
       - Encryption__MasterKey=NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg=
+      - ConnectionStrings__Redis=localhost:6379
 
   # 5. Sanitize Worker
   sanitize:
@@ -140,6 +169,7 @@ services:
       - rabbitmq
     environment:
       - ASPNETCORE_HTTP_PORTS=5001
+      - ASPNETCORE_hostBuilder_reloadConfigOnChange=false
       - RABBITMQ_HOST=localhost
       - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword;Maximum Pool Size=4;Minimum Pool Size=0
       - S3Settings__Endpoint=http://localhost:4566
@@ -151,6 +181,7 @@ services:
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
       - Encryption__MasterKey=NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg=
+      - ConnectionStrings__Redis=localhost:6379
 
   # 6. Clustering Worker
   clustering:
@@ -163,6 +194,7 @@ services:
       - rabbitmq
     environment:
       - ASPNETCORE_HTTP_PORTS=5003
+      - ASPNETCORE_hostBuilder_reloadConfigOnChange=false
       - RABBITMQ_HOST=localhost
       - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword;Maximum Pool Size=4;Minimum Pool Size=0
       - S3Settings__Endpoint=http://localhost:4566
@@ -173,6 +205,7 @@ services:
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
       - Encryption__MasterKey=NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg=
+      - ConnectionStrings__Redis=localhost:6379
 
   # 7. Summary Worker
   summary:
@@ -185,6 +218,7 @@ services:
       - rabbitmq
     environment:
       - ASPNETCORE_HTTP_PORTS=5004
+      - ASPNETCORE_hostBuilder_reloadConfigOnChange=false
       - RABBITMQ_HOST=localhost
       - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword;Maximum Pool Size=4;Minimum Pool Size=0
       - S3Settings__Endpoint=http://localhost:4566
@@ -195,6 +229,7 @@ services:
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
       - Encryption__MasterKey=NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg=
+      - ConnectionStrings__Redis=localhost:6379
 
   # 8. React Client Frontend
   client:
@@ -206,8 +241,6 @@ services:
     container_name: winnow-client
     ports:
       - "5173:80"
-    depends_on:
-      - api
     networks:
       - winnow-net
 

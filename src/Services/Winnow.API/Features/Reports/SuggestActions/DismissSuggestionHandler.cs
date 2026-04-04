@@ -31,7 +31,7 @@ public class DismissSuggestionHandler(WinnowDbContext db, INegativeMatchCache ne
         }
 
         // Record negative match between report and cluster
-        negativeMatchCache.MarkAsMismatch(request.CurrentOrganizationId.ToString(), report.Id, report.SuggestedClusterId.Value);
+        await negativeMatchCache.MarkAsMismatchAsync(request.CurrentOrganizationId.ToString(), report.Id, report.SuggestedClusterId.Value);
 
         // Clear suggestion
         report.ClearSuggestedCluster();

@@ -71,12 +71,28 @@ export function AboutDialog() {
                 asChild
               >
                 <a
+                  href="https://docs.winnowtriage.com"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Info className="h-4 w-4" />
+                  Documentation
+                  <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
+                </a>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="justify-start gap-2"
+                asChild
+              >
+                <a
                   href="https://github.com/winnow-triage"
                   target="_blank"
                   rel="noreferrer"
                 >
                   <Github className="h-4 w-4" />
-                  Documentation
+                  Source Code
                   <ExternalLink className="ml-auto h-3 w-3 opacity-50" />
                 </a>
               </Button>

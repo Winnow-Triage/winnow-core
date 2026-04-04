@@ -36,6 +36,8 @@ using Winnow.API.Services.Ai;
 using Winnow.API.Services.Ai.Strategies;
 using Winnow.API.Services.Emails;
 using Winnow.API.Services.Storage;
+using Winnow.API.Infrastructure.Security.PoW;
+using Winnow.API.Services.Caching;
 
 using Microsoft.Extensions.Hosting;
 
@@ -54,6 +56,26 @@ internal static class ServiceExtensions
         // Security
         services.AddSingleton<IApiKeyService, ApiKeyService>();
         services.AddScoped<Winnow.API.Services.Quota.IQuotaService, Winnow.API.Services.Quota.QuotaService>();
+
+        // Proof-of-Work
+        services.Configure<PoWSettings>(config.GetSection("PoWSettings"));
+        services.AddSingleton<IPoWValidator, PoWValidator>();
+
+        // Caching
+        var redisConn = config.GetConnectionString("Redis");
+        if (!string.IsNullOrEmpty(redisConn))
+        {
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = redisConn;
+                options.InstanceName = "Winnow:";
+            });
+        }
+        else
+        {
+            services.AddDistributedMemoryCache();
+        }
+        services.AddSingleton<ICacheService, DistributedCacheService>();
 
         // Stripe API Key Configuration
         Stripe.StripeConfiguration.ApiKey = config["Stripe:SecretKey"];
