@@ -570,6 +570,7 @@ function IntegrationsSettings({ onEdit }: { onEdit: (id: string) => void }) {
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label="Delete Integration"
                     className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
                     onClick={() => {
                       if (
