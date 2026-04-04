@@ -139,7 +139,6 @@ services:
       - rabbitmq
       - mailpit
       - presidio-analyzer
-      - ministack-setup
     environment:
       - ASPNETCORE_HTTP_PORTS=5000
       - ASPNETCORE_hostBuilder_reloadConfigOnChange=false
@@ -231,7 +230,30 @@ services:
       - Encryption__MasterKey=NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg=
       - ConnectionStrings__Redis=localhost:6379
 
-  # 8. React Client Frontend
+  # 8. Notifications Worker
+  notifications:
+    build:
+      context: .
+      dockerfile: src/Services/Winnow.Notifications/Dockerfile
+    container_name: winnow-notifications
+    network_mode: "host"
+    depends_on:
+      - rabbitmq
+    environment:
+      - ASPNETCORE_HTTP_PORTS=5005
+      - ASPNETCORE_hostBuilder_reloadConfigOnChange=false
+      - RABBITMQ_HOST=localhost
+      - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword;Maximum Pool Size=4;Minimum Pool Size=0
+      - S3Settings__Endpoint=http://localhost:4566
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - Encryption__MasterKey=NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg=
+      - ConnectionStrings__Redis=localhost:6379
+      - DiscordOps__NewSignupsUrl=https://discord.com/api/webhooks/1490035059993088091/IUcwd7bWN4G3pJDGT7IR5BVir4UGS-8NPODznNHl4baZ0C1SjKFtXdsuf-KQZv5pOU-K
+      - DiscordOps__DlqAlertsUrl=REPLACE_WITH_ENV_VAR
+      - DiscordOps__StripePaymentsUrl=REPLACE_WITH_ENV_VAR
+
+  # 9. React Client Frontend
   client:
     build:
       context: ./src/Apps/Winnow.Client

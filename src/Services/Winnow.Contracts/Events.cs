@@ -25,3 +25,20 @@ public record ReportSanitizedEvent
     public DateTime CreatedAt { get; init; }
     public string? Metadata { get; init; }
 }
+
+public enum NotificationProvider
+{
+    Discord,
+    Slack,
+    MicrosoftTeams
+}
+
+public record SendWebhookNotificationCommand
+{
+    public Uri? WebhookUrl { get; init; }
+    public NotificationProvider Provider { get; init; } = NotificationProvider.Discord;
+    public string? Title { get; init; }
+    public string? Message { get; init; }
+    public string? Color { get; init; }
+    public Uri? DetailUrl { get; init; }
+}

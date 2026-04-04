@@ -14,6 +14,12 @@ public class ProjectConfiguration : IEntityTypeConfiguration<Project>
             .IsRequired()
             .HasMaxLength(100);
 
+        builder.Property(p => p.DiscordWebhookUrl)
+            .HasConversion(
+                v => v == null ? null : v.ToString(),
+                v => v == null ? null : new Uri(v)
+            );
+
         builder.HasMany(p => p.ProjectMembers)
             .WithOne()
             .HasForeignKey(m => m.ProjectId);

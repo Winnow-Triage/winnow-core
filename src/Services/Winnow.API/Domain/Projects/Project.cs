@@ -53,6 +53,11 @@ public class Project : IAggregateRoot
     public string? SecondaryApiKeyHash { get; private set; }
     public DateTimeOffset? SecondaryApiKeyExpiresAt { get; private set; }
 
+    /// <summary>
+    /// Optional Discord Webhook URL for client-specific alerts.
+    /// </summary>
+    public Uri? DiscordWebhookUrl { get; private set; }
+
     // Private EF constructor
     private Project()
     {
@@ -185,5 +190,10 @@ public class Project : IAggregateRoot
         if (string.IsNullOrWhiteSpace(newName))
             throw new ArgumentException("Project name is required.", nameof(newName));
         Name = newName.Trim();
+    }
+
+    public void UpdateDiscordWebhook(Uri? url)
+    {
+        DiscordWebhookUrl = url;
     }
 }

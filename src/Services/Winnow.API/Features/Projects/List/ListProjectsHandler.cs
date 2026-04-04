@@ -48,6 +48,7 @@ public class ListProjectsHandler(WinnowDbContext dbContext) : IRequestHandler<Li
                 p.Name,
                 "",
                 p.TeamId,
+                p.DiscordWebhookUrl,
                 !string.IsNullOrEmpty(p.SecondaryApiKeyHash),
                 p.SecondaryApiKeyExpiresAt))
             .ToListAsync(ct);

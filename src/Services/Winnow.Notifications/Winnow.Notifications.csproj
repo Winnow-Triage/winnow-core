@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-Winnow.Notifications-7d2a-4a1e-8e8a-4d2a4a1e8e8a</UserSecretsId>
+    <NoWarn>;CA1515;CA1812;CA1873;CA1852;CA2007;CA1062;CA1848</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MassTransit" Version="8.3.4" />
+    <PackageReference Include="MassTransit.RabbitMQ" Version="8.3.4" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Winnow.Contracts\Winnow.Contracts.csproj" />
+    <ProjectReference Include="..\Winnow.API\Winnow.API.csproj" />
+  </ItemGroup>
+</Project>

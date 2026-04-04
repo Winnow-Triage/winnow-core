@@ -8,5 +8,6 @@ public record ProjectDto(
     string Name,
     string ApiKey,
     Guid? TeamId = null,
+    Uri? DiscordWebhookUrl = null,
     bool HasSecondaryKey = false,
     DateTimeOffset? SecondaryApiKeyExpiresAt = null);
