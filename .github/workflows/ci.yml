@@ -117,16 +117,13 @@ jobs:
         image: redis:alpine
         ports:
           - 6379:6379
-      localstack:
-        image: localstack/localstack:latest
+      ministack:
+        image: nahuelnucera/ministack:latest
         env:
+          S3_PERSIST: 0
           SERVICES: s3,sqs
-          DEBUG: 1
-          LOCALSTACK_ACKNOWLEDGE_ACCOUNT_REQUIREMENT: "1"
         ports:
           - 4566:4566
-        volumes:
-          - /var/run/docker.sock:/var/run/docker.sock
       rabbitmq:
         image: rabbitmq:3-management
         ports:
@@ -156,6 +153,12 @@ jobs:
         run: |
           dotnet restore Winnow.sln
           dotnet build src/Services/Winnow.API/Winnow.API.csproj --configuration Release
+
+      - name: Setup Ministack Buckets
+        run: |
+          docker run --network host amazon/aws-cli:latest --endpoint-url=http://localhost:4566 s3 mb s3://winnow-quarantine || true
+          docker run --network host amazon/aws-cli:latest --endpoint-url=http://localhost:4566 s3 mb s3://winnow-clean || true
+          docker run --network host amazon/aws-cli:latest --endpoint-url=http://localhost:4566 s3 mb s3://winnow-security-defs || true
 
       - name: Start Winnow API
         env:
