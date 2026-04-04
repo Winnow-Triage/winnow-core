@@ -48,7 +48,11 @@ public class ListProjectsHandler(WinnowDbContext dbContext) : IRequestHandler<Li
                 p.Name,
                 "",
                 p.TeamId,
-                p.DiscordWebhookUrl,
+                new Winnow.API.Features.Organizations.Get.NotificationSettingsDto
+                {
+                    VolumeThreshold = p.Notifications.VolumeThreshold,
+                    CriticalityThreshold = p.Notifications.CriticalityThreshold
+                },
                 !string.IsNullOrEmpty(p.SecondaryApiKeyHash),
                 p.SecondaryApiKeyExpiresAt))
             .ToListAsync(ct);

@@ -22,6 +22,10 @@ public class IntegrationConfiguration(EncryptedStringConverter encryptedConverte
         builder.Property(i => i.Token)
             .HasConversion(_encryptedConverter);
 
+        builder.Property(i => i.AutoExportEnabled)
+            .HasColumnName("AutoExportEnabled")
+            .HasDefaultValue(false);
+
         // Map polymorphic JSON config
         var jsonOptions = new JsonSerializerOptions { };
 

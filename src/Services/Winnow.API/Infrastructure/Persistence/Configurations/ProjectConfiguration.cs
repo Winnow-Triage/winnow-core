@@ -8,17 +8,24 @@ public class ProjectConfiguration : IEntityTypeConfiguration<Project>
 {
     public void Configure(EntityTypeBuilder<Project> builder)
     {
+        builder.ToTable("Projects");
+
         builder.HasKey(p => p.Id);
 
         builder.Property(p => p.Name)
             .IsRequired()
             .HasMaxLength(100);
 
-        builder.Property(p => p.DiscordWebhookUrl)
-            .HasConversion(
-                v => v == null ? null : v.ToString(),
-                v => v == null ? null : new Uri(v)
-            );
+        builder.ComplexProperty(p => p.Notifications, notifications =>
+        {
+            notifications.Property(n => n.VolumeThreshold)
+                .HasColumnName("NotificationThreshold")
+                .IsRequired(false);
+
+            notifications.Property(n => n.CriticalityThreshold)
+                .HasColumnName("CriticalityThreshold")
+                .IsRequired(false);
+        });
 
         builder.HasMany(p => p.ProjectMembers)
             .WithOne()

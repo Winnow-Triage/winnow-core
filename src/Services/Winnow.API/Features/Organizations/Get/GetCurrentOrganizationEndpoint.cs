@@ -33,6 +33,12 @@ public class AIConfigurationDto
     public List<CustomAIProviderDto> CustomProviders { get; set; } = [];
 }
 
+public class NotificationSettingsDto
+{
+    public int? VolumeThreshold { get; set; }
+    public int? CriticalityThreshold { get; set; }
+}
+
 public class CurrentOrganizationResponse
 {
     public Guid Id { get; set; }
@@ -42,6 +48,7 @@ public class CurrentOrganizationResponse
     public bool ToxicityFilterEnabled { get; set; }
     public ToxicityThresholdsDto ToxicityLimits { get; set; } = new();
     public AIConfigurationDto AIConfig { get; set; } = new();
+    public NotificationSettingsDto Notifications { get; set; } = new();
 }
 
 public sealed class GetCurrentOrganizationEndpoint(
@@ -73,7 +80,6 @@ public sealed class GetCurrentOrganizationEndpoint(
                 return;
             }
             ThrowError(result.ErrorMessage ?? "Internal Server Error", result.StatusCode ?? 500);
-            return;
         }
 
         await Send.OkAsync(result.Data!, cancellation: ct);

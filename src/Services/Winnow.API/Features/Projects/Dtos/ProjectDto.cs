@@ -8,6 +8,6 @@ public record ProjectDto(
     string Name,
     string ApiKey,
     Guid? TeamId = null,
-    Uri? DiscordWebhookUrl = null,
+    Winnow.API.Features.Organizations.Get.NotificationSettingsDto? Notifications = null,
     bool HasSecondaryKey = false,
     DateTimeOffset? SecondaryApiKeyExpiresAt = null);

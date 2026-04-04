@@ -63,7 +63,7 @@ public class Cluster : IAggregateRoot
 
         // Clusters are born with their first report — enforces the invariant from creation
         _reportIds.Add(firstReportId);
-        _domainEvents.Add(new ClusterReportAddedEvent(Id, firstReportId));
+        _domainEvents.Add(new ClusterReportAddedEvent(Id, ProjectId, OrganizationId, firstReportId));
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -78,7 +78,7 @@ public class Cluster : IAggregateRoot
             return; // idempotent
 
         _reportIds.Add(reportId);
-        _domainEvents.Add(new ClusterReportAddedEvent(Id, reportId));
+        _domainEvents.Add(new ClusterReportAddedEvent(Id, ProjectId, OrganizationId, reportId));
     }
 
     public void RemoveReport(Guid reportId)
@@ -122,7 +122,7 @@ public class Cluster : IAggregateRoot
         CriticalityReasoning = reasoning;
         LastSummarizedAt = DateTime.UtcNow;
 
-        _domainEvents.Add(new ClusterSummarizedEvent(Id, OrganizationId, criticalityScore));
+        _domainEvents.Add(new ClusterSummarizedEvent(Id, ProjectId, OrganizationId, criticalityScore, title, summary));
     }
 
     public void ClearSummary()

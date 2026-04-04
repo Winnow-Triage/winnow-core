@@ -2,6 +2,11 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 
+export interface NotificationSettings {
+  volumeThreshold?: number | null;
+  criticalityThreshold?: number | null;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -9,6 +14,7 @@ export interface Project {
   teamId?: string | null;
   hasSecondaryKey?: boolean;
   secondaryApiKeyExpiresAt?: string | null;
+  notifications: NotificationSettings;
 }
 
 interface ProjectContextType {
@@ -21,6 +27,7 @@ interface ProjectContextType {
   refreshProjects: () => Promise<void>;
   createProject: (name: string) => Promise<Project>;
   renameProject: (id: string, newName: string) => Promise<void>;
+  updateProjectSettings: (id: string, data: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
 }
 
@@ -40,7 +47,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       });
       return data;
     },
-    // We set the current project once the initial load is done if not already set
     meta: {
       onSuccess: (data: Project[]) => {
         if (!currentProject && data.length > 0) {
@@ -56,7 +62,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     },
   });
 
-  // Handle initial selection recovery manually because meta.onSuccess is deprecated/tricky in v5
   useEffect(() => {
     if (!isLoading && projects.length > 0 && !currentProject) {
       const savedProjectId = localStorage.getItem("lastProjectId");
@@ -78,7 +83,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (project) {
       setCurrentProject(project);
       localStorage.setItem("lastProjectId", project.id);
-      // Invalidate all queries to force refetch when project changes
       queryClient.invalidateQueries();
     }
   };
@@ -87,7 +91,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data: newProject } = await api.post("/projects", { name });
       await refreshProjects();
-      selectProject(newProject.id); // Auto-select new project
+      selectProject(newProject.id);
       return newProject;
     } catch (error: any) {
       console.error("Create project error", error);
@@ -112,14 +116,35 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateProjectSettings = async (id: string, updateData: Partial<Project>) => {
+    try {
+      // Maps to UpdateProjectCommand structure
+      const payload = {
+        name: updateData.name,
+        teamId: updateData.teamId,
+        notificationThreshold: updateData.notifications?.volumeThreshold,
+        criticalityThreshold: updateData.notifications?.criticalityThreshold,
+      };
+      
+      await api.put(`/projects/${id}`, payload);
+      await refreshProjects();
+      if (currentProject?.id === id) {
+        setCurrentProject((prev) => (prev ? { ...prev, ...updateData } : null));
+      }
+    } catch (error: any) {
+      console.error("Update project error", error);
+      throw new Error(
+        error.response?.data?.message || "Failed to update project settings",
+      );
+    }
+  };
+
   const deleteProject = async (id: string) => {
     try {
       await api.delete(`/projects/${id}`);
       await refreshProjects();
 
       if (currentProject?.id === id) {
-        // The query will have updated the projects list already due to invalidate
-        // but we need to pick a new one for currentProject
         const nextProject = projects.find((p: Project) => p.id !== id);
         if (nextProject) {
           selectProject(nextProject.id);
@@ -149,6 +174,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         refreshProjects,
         createProject,
         renameProject,
+        updateProjectSettings,
         deleteProject,
       }}
     >

@@ -10,10 +10,10 @@ public class CreateIntegrationRequest : ProjectScopedRequest
     public Guid? Id { get; set; }
 
     public string Provider { get; set; } = string.Empty;
-
+    public string Name { get; set; } = string.Empty;
     public string SettingsJson { get; set; } = "{}";
-
     public bool IsActive { get; set; } = true;
+    public bool NotificationsEnabled { get; set; } = true;
 }
 
 public sealed class CreateIntegrationEndpoint(IMediator mediator)
@@ -39,8 +39,10 @@ public sealed class CreateIntegrationEndpoint(IMediator mediator)
             ProjectId = req.ProjectId,
             Id = req.Id,
             Provider = req.Provider,
+            Name = req.Name,
             SettingsJson = req.SettingsJson,
             IsActive = req.IsActive,
+            NotificationsEnabled = req.NotificationsEnabled,
             CurrentProjectId = req.CurrentProjectId,
             CurrentOrganizationId = req.CurrentOrganizationId,
             CurrentUserId = req.CurrentUserId,

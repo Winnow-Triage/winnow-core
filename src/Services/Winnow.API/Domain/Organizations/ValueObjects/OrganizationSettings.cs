@@ -1,4 +1,6 @@
+using System;
 using System.Text.Json.Serialization;
+using Winnow.API.Domain.Common;
 
 namespace Winnow.API.Domain.Organizations.ValueObjects;
 
@@ -8,6 +10,7 @@ public class OrganizationSettings
     public bool ToxicityFilterEnabled { get; private set; }
     public ToxicityThresholds ToxicityLimits { get; private set; }
     public AIConfiguration AIConfig { get; private set; }
+    public NotificationSettings Notifications { get; private set; }
 
     /// <summary>
     /// Parameterized constructor for JSON deserialization and internal creation.
@@ -18,12 +21,14 @@ public class OrganizationSettings
         Guid organizationId,
         bool toxicityFilterEnabled,
         ToxicityThresholds toxicityLimits,
-        AIConfiguration aiConfig)
+        AIConfiguration aiConfig,
+        NotificationSettings notifications)
     {
         OrganizationId = organizationId;
         ToxicityFilterEnabled = toxicityFilterEnabled;
         ToxicityLimits = toxicityLimits ?? ToxicityThresholds.Default;
         AIConfig = aiConfig ?? AIConfiguration.Default;
+        Notifications = notifications ?? NotificationSettings.CreateDefault();
     }
 
     public static OrganizationSettings Create(Guid organizationId)
@@ -32,7 +37,8 @@ public class OrganizationSettings
             organizationId,
             true,
             ToxicityThresholds.Default,
-            AIConfiguration.Default
+            AIConfiguration.Default,
+            NotificationSettings.CreateDefault()
         );
     }
 
@@ -44,6 +50,11 @@ public class OrganizationSettings
     public void ToggleToxicityFilter(bool enabled)
     {
         ToxicityFilterEnabled = enabled;
+    }
+
+    public void UpdateNotificationThresholds(NotificationSettings settings)
+    {
+        Notifications = settings ?? throw new ArgumentNullException(nameof(settings));
     }
 
     public void UpdateAIConfiguration(AIConfiguration newConfig)

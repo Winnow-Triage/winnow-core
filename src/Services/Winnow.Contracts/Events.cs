@@ -42,3 +42,20 @@ public record SendWebhookNotificationCommand
     public string? Color { get; init; }
     public Uri? DetailUrl { get; init; }
 }
+
+public record ClusterVolumeMilestoneReachedIntegrationEvent(
+    Guid ProjectId,
+    Guid ClusterId,
+    int ReportCount,
+    string Title);
+
+public record ClusterCriticalityThresholdReachedIntegrationEvent(
+    Guid ProjectId,
+    string Title,
+    string Summary);
+
+public record ClusterAutoExportIntegrationEvent(
+    Guid ProjectId,
+    Guid ClusterId,
+    string Title,
+    string Description);

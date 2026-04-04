@@ -10,6 +10,9 @@ namespace Winnow.Integrations.Domain;
 [JsonDerivedType(typeof(GitHubConfig), typeDiscriminator: "github")]
 [JsonDerivedType(typeof(TrelloConfig), typeDiscriminator: "trello")]
 [JsonDerivedType(typeof(JiraConfig), typeDiscriminator: "jira")]
+[JsonDerivedType(typeof(DiscordConfig), typeDiscriminator: "discord")]
+[JsonDerivedType(typeof(SlackConfig), typeDiscriminator: "slack")]
+[JsonDerivedType(typeof(TeamsConfig), typeDiscriminator: "teams")]
 public abstract record IntegrationConfig
 {
     /// <summary>
@@ -38,6 +41,16 @@ public abstract record IntegrationConfig
     public static string MergeSecret(string current, string incoming)
     {
         return incoming == "******" ? current : incoming;
+    }
+
+    /// <summary>
+    /// Helper method to merge URI fields.
+    /// </summary>
+    public static Uri? MergeUri(Uri? current, Uri? incoming)
+    {
+        // If incoming is null, it might mean "don't change" or "clear"
+        // But for our UI, we'll assume it's a replacement if not null.
+        return incoming ?? current;
     }
 }
 
@@ -110,10 +123,73 @@ public record JiraConfig : IntegrationConfig
 
         return this with
         {
-            BaseUrl = other.BaseUrl,
+            BaseUrl = MergeUri(BaseUrl, other.BaseUrl) ?? BaseUrl,
             UserEmail = other.UserEmail,
             ApiToken = MergeSecret(ApiToken, other.ApiToken),
             ProjectKey = other.ProjectKey
+        };
+    }
+}
+
+/// <summary>
+/// Discord integration configuration domain model.
+/// </summary>
+public record DiscordConfig : IntegrationConfig
+{
+    public Uri? WebhookUrl { get; init; }
+
+    public override IntegrationConfig Merge(IntegrationConfig incoming)
+    {
+        ValidateIncoming(incoming);
+
+        if (incoming is not DiscordConfig other)
+            throw new ArgumentException($"Cannot merge {incoming.GetType().Name} with {nameof(DiscordConfig)}");
+
+        return this with
+        {
+            WebhookUrl = MergeUri(WebhookUrl, other.WebhookUrl)
+        };
+    }
+}
+
+/// <summary>
+/// Slack integration configuration domain model.
+/// </summary>
+public record SlackConfig : IntegrationConfig
+{
+    public Uri? WebhookUrl { get; init; }
+
+    public override IntegrationConfig Merge(IntegrationConfig incoming)
+    {
+        ValidateIncoming(incoming);
+
+        if (incoming is not SlackConfig other)
+            throw new ArgumentException($"Cannot merge {incoming.GetType().Name} with {nameof(SlackConfig)}");
+
+        return this with
+        {
+            WebhookUrl = MergeUri(WebhookUrl, other.WebhookUrl)
+        };
+    }
+}
+
+/// <summary>
+/// MS Teams integration configuration domain model.
+/// </summary>
+public record TeamsConfig : IntegrationConfig
+{
+    public Uri? WebhookUrl { get; init; }
+
+    public override IntegrationConfig Merge(IntegrationConfig incoming)
+    {
+        ValidateIncoming(incoming);
+
+        if (incoming is not TeamsConfig other)
+            throw new ArgumentException($"Cannot merge {incoming.GetType().Name} with {nameof(TeamsConfig)}");
+
+        return this with
+        {
+            WebhookUrl = MergeUri(WebhookUrl, other.WebhookUrl)
         };
     }
 }

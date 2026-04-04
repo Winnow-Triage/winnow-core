@@ -1,3 +1,4 @@
+using Winnow.API.Domain.Common;
 using Winnow.API.Domain.Core;
 using Winnow.API.Domain.Projects.Events;
 using Winnow.API.Domain.Teams;
@@ -54,9 +55,10 @@ public class Project : IAggregateRoot
     public DateTimeOffset? SecondaryApiKeyExpiresAt { get; private set; }
 
     /// <summary>
-    /// Optional Discord Webhook URL for client-specific alerts.
+    /// Encapsulates notification settings for this project.
+    /// If null, project-level notifications are disabled or use organization defaults.
     /// </summary>
-    public Uri? DiscordWebhookUrl { get; private set; }
+    public NotificationSettings Notifications { get; private set; } = NotificationSettings.CreateEmpty();
 
     // Private EF constructor
     private Project()
@@ -192,8 +194,8 @@ public class Project : IAggregateRoot
         Name = newName.Trim();
     }
 
-    public void UpdateDiscordWebhook(Uri? url)
+    public void UpdateNotificationThresholds(NotificationSettings settings)
     {
-        DiscordWebhookUrl = url;
+        Notifications = settings ?? throw new ArgumentNullException(nameof(settings));
     }
 }

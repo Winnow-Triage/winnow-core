@@ -15,17 +15,21 @@ public class Integration : IAggregateRoot
 
     public Guid Id { get; private set; }
     public string Provider { get; private set; }
+    public string Name { get; private set; }
     public Guid OrganizationId { get; private set; }
     public Guid ProjectId { get; private set; }
 
     public IntegrationConfig Config { get; private set; }
     public bool IsActive { get; private set; }
+    public bool AutoExportEnabled { get; private set; }
+    public bool NotificationsEnabled { get; private set; }
     public string? Token { get; private set; }
 
     // Private EF constructor
     private Integration()
     {
         Provider = null!;
+        Name = null!;
         Config = null!;
     }
 
@@ -36,6 +40,7 @@ public class Integration : IAggregateRoot
         Guid organizationId,
         Guid projectId,
         string provider,
+        string name,
         IntegrationConfig config,
         string? token = null)
     {
@@ -51,9 +56,11 @@ public class Integration : IAggregateRoot
         OrganizationId = organizationId;
         ProjectId = projectId;
         Provider = provider;
+        Name = name;
         Config = config;
         Token = token;
         IsActive = true;
+        NotificationsEnabled = true;
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -103,5 +110,31 @@ public class Integration : IAggregateRoot
 
         IsActive = true;
         _domainEvents.Add(new IntegrationReactivatedEvent(Id, ProjectId, Provider));
+    }
+
+    /// <summary>
+    /// Updates the notification enabled state.
+    /// </summary>
+    public void UpdateNotificationState(bool enabled)
+    {
+        NotificationsEnabled = enabled;
+    }
+
+    /// <summary>
+    /// Updates the integration name.
+    /// </summary>
+    public void UpdateName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Name is required.", nameof(name));
+        Name = name;
+    }
+
+    /// <summary>
+    /// Toggles automated export functionality.
+    /// </summary>
+    public void ToggleAutoExport(bool enabled)
+    {
+        AutoExportEnabled = enabled;
     }
 }

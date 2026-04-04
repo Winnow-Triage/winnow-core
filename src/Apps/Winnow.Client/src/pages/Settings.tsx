@@ -60,6 +60,7 @@ import {
   EyeOff,
   Plus,
   Trash2,
+  Bell,
 } from "lucide-react";
 import { PageTitle } from "@/components/ui/page-title";
 import {
@@ -144,6 +145,11 @@ export default function Settings() {
         modelId: string;
       }[];
     };
+    notifications: {
+      discordWebhook: string | null;
+      volumeThreshold: number;
+      criticalityThreshold: number;
+    };
   }>({
     queryKey: ["current-organization"],
     queryFn: async () => {
@@ -204,6 +210,10 @@ export default function Settings() {
   // @ts-ignore - Reserved for V1.1
   const [showNewProviderApiKey, setShowNewProviderApiKey] = useState(false);
 
+  // Notification Defaults
+  const [defaultVolumeThreshold, setDefaultVolumeThreshold] = useState<number | string>("");
+  const [defaultCriticalityThreshold, setDefaultCriticalityThreshold] = useState<number | string>("");
+
   // Sync input with fetched org name and settings
   React.useEffect(() => {
     if (organization) {
@@ -216,6 +226,10 @@ export default function Settings() {
         setTokenizerId(organization.aiConfig.tokenizer);
         setSummaryId(organization.aiConfig.summaryAgent);
         setCustomProviders(organization.aiConfig.customProviders || []);
+      }
+      if (organization.notifications) {
+        setDefaultVolumeThreshold(organization.notifications.volumeThreshold);
+        setDefaultCriticalityThreshold(organization.notifications.criticalityThreshold);
       }
     }
   }, [organization]);
@@ -236,6 +250,26 @@ export default function Settings() {
     } catch (error) {
       console.error("Failed to update AI configuration:", error);
       toast.error("Failed to update AI configuration");
+    } finally {
+      setIsSavingOrg(false);
+    }
+  };
+
+  const handleSaveNotificationDefaults = async () => {
+    setIsSavingOrg(true);
+    try {
+      await api.put("/organizations/current", {
+        name: orgName.trim(), // Keep existing name
+        notifications: {
+          volumeThreshold: defaultVolumeThreshold === "" ? null : Number(defaultVolumeThreshold),
+          criticalityThreshold: defaultCriticalityThreshold === "" ? null : Number(defaultCriticalityThreshold),
+        },
+      });
+      await refetch();
+      toast.success("Notification defaults updated successfully");
+    } catch (error) {
+      console.error("Failed to update notification defaults:", error);
+      toast.error("Failed to update notification defaults");
     } finally {
       setIsSavingOrg(false);
     }
@@ -420,7 +454,7 @@ export default function Settings() {
         onValueChange={handleTabChange}
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-7 max-w-[900px]">
+        <TabsList className="grid w-full grid-cols-8 max-w-[900px]">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="tox">Toxicity</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
@@ -430,6 +464,7 @@ export default function Settings() {
           </PermissionGate>
           <TabsTrigger value="billing">Billing</TabsTrigger>
           <TabsTrigger value="ai">AI Settings</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="mt-6 flex flex-col gap-6">
@@ -914,13 +949,74 @@ export default function Settings() {
                   }
                   disabled={subscriptionTier === "Enterprise"}
                 >
-                  {subscriptionTier === "Enterprise"
+                    {subscriptionTier === "Enterprise"
                     ? "Current Plan"
                     : "Contact Sales / Upgrade"}
                 </Button>
               </CardFooter>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="notifications" className="mt-6 flex flex-col gap-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-blue-500" />
+                <CardTitle>Workspace Notification Defaults</CardTitle>
+              </div>
+              <CardDescription>
+                These thresholds will be used for all projects unless overridden 
+                in the individual project settings.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-2 max-w-xl">
+                <div className="space-y-2">
+                  <Label htmlFor="default-volume">Default Volume Threshold</Label>
+                  <Input
+                    id="default-volume"
+                    type="number"
+                    min="1"
+                    value={defaultVolumeThreshold}
+                    onChange={(e) => setDefaultVolumeThreshold(e.target.value)}
+                    placeholder="e.g. 10"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    New clusters will trigger an alert when they reach this many reports.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="default-criticality">Default Criticality Threshold</Label>
+                  <Input
+                    id="default-criticality"
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={defaultCriticalityThreshold}
+                    onChange={(e) => setDefaultCriticalityThreshold(e.target.value)}
+                    placeholder="e.g. 8"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    New clusters will trigger an alert if AI assigns a score ≥ this value.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="flex items-center justify-end p-4 px-6 border-t bg-muted/50 rounded-b-3xl">
+              <Button
+                onClick={handleSaveNotificationDefaults}
+                disabled={
+                  isSavingOrg ||
+                  (defaultVolumeThreshold === organization?.notifications?.volumeThreshold &&
+                   defaultCriticalityThreshold === organization?.notifications?.criticalityThreshold)
+                }
+              >
+                {isSavingOrg ? "Saving..." : "Save Default Thresholds"}
+              </Button>
+            </CardFooter>
+          </Card>
         </TabsContent>
 
         <TabsContent value="ai" className="mt-6 flex flex-col gap-6">

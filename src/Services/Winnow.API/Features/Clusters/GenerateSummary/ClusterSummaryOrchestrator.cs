@@ -6,7 +6,6 @@ namespace Winnow.API.Features.Clusters.GenerateSummary;
 public class ClusterSummaryOrchestrator(
     WinnowDbContext db,
     IClusterSummaryService aiService,
-    Services.Discord.IClientNotificationService notificationService,
     ILogger<ClusterSummaryOrchestrator> logger)
 {
     public async Task<bool> GenerateAndChargeAsync(Guid clusterId, Guid projectId, CancellationToken ct)
@@ -61,12 +60,6 @@ public class ClusterSummaryOrchestrator(
                         result.Usage.PromptTokens,
                         result.Usage.CompletionTokens
                     ));
-                }
-
-                if (result.CriticalityScore > 7)
-                {
-                    // Fire and forget via the service which publishes to MassTransit
-                    _ = notificationService.NotifyClusterCriticalAsync(cluster.Id, result.Title, result.Summary);
                 }
 
                 success = true;
