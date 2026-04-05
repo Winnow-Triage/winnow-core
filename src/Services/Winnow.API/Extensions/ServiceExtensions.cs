@@ -431,8 +431,11 @@ internal static class ServiceExtensions
         services.Configure<ForwardedHeadersOptions>(options =>
         {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            // In a cloud environment like App Runner/Cloudflare, we trust the incoming proxy
+            // clearing KnownProxies and KnownNetworks allows any X-Forwarded-For to be processed
             options.KnownIPNetworks.Clear();
             options.KnownProxies.Clear();
+            options.ForwardLimit = null; // Trust all hops
         });
 
         // Rate Limiting — Layered Defense Depth (Global Safety + Per-IP Bot Protection)
@@ -440,21 +443,37 @@ internal static class ServiceExtensions
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-            // 1. GLOBAL SAFETY VALVE (Fixed Window) — Prevents backend flooding
-            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
-                RateLimitPartition.GetFixedWindowLimiter("global", _ => new FixedWindowRateLimiterOptions
+            // 1. GLOBAL SAFETY VALVE (Fixed Window) & PER-IP CONCURRENCY
+            // Using CreateChained because .NET rate limiting doesn't support multiple endpoint policies natively
+            options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
+                PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                    RateLimitPartition.GetFixedWindowLimiter("global", _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5000,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0
+                    })),
+                PartitionedRateLimiter.Create<HttpContext, string>(context =>
                 {
-                    PermitLimit = 5000,
-                    Window = TimeSpan.FromMinutes(1),
-                    QueueLimit = 0
-                }));
+                    var ip = context.Connection.RemoteIpAddress?.ToString()
+                             ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
+                             ?? "unknown";
+                    return RateLimitPartition.GetConcurrencyLimiter(ip, _ => new ConcurrencyLimiterOptions
+                    {
+                        PermitLimit = 5,
+                        QueueLimit = 0
+                    });
+                })
+            );
 
             // 2. PER-IP POLICIES (Protection against targeted abuse)
 
             // Standard API calls (100 req/min/IP)
             options.AddPolicy("api", context =>
             {
-                var ip = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+                var ip = context.Connection.RemoteIpAddress?.ToString()
+                         ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
+                         ?? "unknown";
                 return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = 100,
@@ -463,10 +482,13 @@ internal static class ServiceExtensions
                 });
             });
 
-            // Report Ingestion (5 tokens/min/IP) — Using Token Bucket as requested in WIN-102
             options.AddPolicy("webhook", context =>
             {
-                var ip = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+                // Try to get IP from RemoteIpAddress (updated by ForwardedHeaders) with a manual fallback for proxies
+                var ip = context.Connection.RemoteIpAddress?.ToString()
+                         ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
+                         ?? "unknown";
+
                 return RateLimitPartition.GetTokenBucketLimiter(ip, _ => new TokenBucketRateLimiterOptions
                 {
                     TokenLimit = 5,
@@ -480,7 +502,9 @@ internal static class ServiceExtensions
             // Auth/Sensitive Ops (10 req/min/IP)
             options.AddPolicy("strict", context =>
             {
-                var ip = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+                var ip = context.Connection.RemoteIpAddress?.ToString()
+                         ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
+                         ?? "unknown";
                 return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = 10,

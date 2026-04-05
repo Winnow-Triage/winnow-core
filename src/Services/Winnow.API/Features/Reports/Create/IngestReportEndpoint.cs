@@ -11,6 +11,7 @@ using Winnow.API.Extensions;
 using Winnow.API.Infrastructure.MultiTenancy;
 using Winnow.API.Infrastructure.Persistence;
 using Winnow.API.Infrastructure.Security.PoW;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Winnow.API.Features.Reports.Create;
 
@@ -51,6 +52,15 @@ internal class IngestReportValidator : Validator<IngestReportRequest>
     {
         RuleFor(x => x.Title).NotEmpty().MaximumLength(500);
         RuleFor(x => x.Message).NotEmpty().MaximumLength(5000);
+        RuleFor(x => x.StackTrace).MaximumLength(10000).When(x => !string.IsNullOrEmpty(x.StackTrace));
+
+        RuleFor(x => x.Metadata)
+            .Must(m => m!.Count <= 10)
+            .WithMessage("Metadata cannot contain more than 10 entries.")
+            .Must(m => m!.Keys.All(k => k.Length <= 64))
+            .WithMessage("Metadata keys cannot exceed 64 characters.")
+            .When(x => x.Metadata != null);
+
         RuleFor(x => x.ScreenshotKey)
             .MustBeValidFilePath()
             .When(x => !string.IsNullOrEmpty(x.ScreenshotKey));
@@ -67,6 +77,8 @@ public record IngestReportResponse
     public Guid Id { get; init; }
 }
 
+[RequestSizeLimit(65536)] // 64KB - WIN-102 Hardening
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("webhook")]
 public sealed class IngestReportEndpoint(
     IMediator mediator,
     WinnowDbContext dbContext,
@@ -77,6 +89,10 @@ public sealed class IngestReportEndpoint(
         Post("/reports");
         AuthSchemes("ApiKey");
         PreProcessor<PoWPreProcessor<IngestReportRequest>>();
+
+        // Ensure standard .NET rate limiting policies are applied
+        Options(x => x.RequireRateLimiting("webhook"));
+
         Description(b => b
             .WithName("IngestReport")
             .Accepts<IngestReportRequest>("application/json")
