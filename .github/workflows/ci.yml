@@ -262,7 +262,7 @@ jobs:
       - name: Install JS Dependencies
         run: |
           npm ci --prefix src/Apps/Winnow.Client
-#          npm ci --prefix src/Sdks/Winnow.Sdk.Js
+          npm ci --prefix src/Sdks/Winnow.Sdk.Js
 
       - name: Run Trivy filesystem scan
         uses: aquasecurity/trivy-action@master
