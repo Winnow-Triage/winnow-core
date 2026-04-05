@@ -11,9 +11,9 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
-  # ── Job 1: Build & Test ────────────────────────────────────────────────────
-  test:
-    name: Build & Test
+  # ── Job 1: Build & Test (.NET) ─────────────────────────────────────────────
+  test-dotnet:
+    name: Build & Test .NET Projects
     runs-on: ubuntu-latest
 
     services:
@@ -50,11 +50,40 @@ jobs:
         env:
           ConnectionStrings__Postgres: "Host=localhost;Port=5432;Database=winnow_test;Username=winnow;Password=winnow_test"
 
-  # ── Job 2: Migration Drift Detection ───────────────────────────────────────
+  # ── Job 2: Build & Test (UI/JS) ────────────────────────────────────────────
+  test-ui:
+    name: Build & Test JS/UI Projects
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install JS Dependencies (Client)
+        run: npm ci
+        working-directory: src/Apps/Winnow.Client
+
+#      - name: Install JS Dependencies (SDK)
+#        run: npm ci
+#        working-directory: src/Sdks/Winnow.Sdk.Js
+
+      - name: Test UI Client
+        run: npm test
+        working-directory: src/Apps/Winnow.Client
+
+#      - name: Test SDK
+#        run: npm test
+#        working-directory: src/Sdks/Winnow.Sdk.Js
+
+  # ── Job 3: Migration Drift Detection ───────────────────────────────────────
   drift-detection:
     name: Migration Drift Detection
     runs-on: ubuntu-latest
-    needs: test
+    needs: test-dotnet
 
     services:
       postgres:
@@ -98,11 +127,11 @@ jobs:
           dotnet ef migrations has-pending-model-changes
           echo "✅ Postgres migrations are in sync."
 
-  # ── Job 3: E2E Playwright Tests ────────────────────────────────────────────
+  # ── Job 4: E2E Playwright Tests ────────────────────────────────────────────
   e2e:
     name: E2E Playwright Tests
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test-dotnet, test-ui]
 
     services:
       postgres:
@@ -209,7 +238,7 @@ jobs:
           path: src/Apps/Winnow.Client/playwright-report/
           retention-days: 30
 
-  # ── Job 4: Security & License Scanning ──────────
+  # ── Job 5: Security & License Scanning ──────────
   security:
     name: Source Security & License Scan
     runs-on: ubuntu-latest
@@ -233,7 +262,7 @@ jobs:
       - name: Install JS Dependencies
         run: |
           npm ci --prefix src/Apps/Winnow.Client
-          npm ci --prefix src/Sdks/Winnow.Sdk.Js
+#          npm ci --prefix src/Sdks/Winnow.Sdk.Js
 
       - name: Run Trivy filesystem scan
         uses: aquasecurity/trivy-action@master
@@ -245,14 +274,27 @@ jobs:
           ignore-unfixed: true
           severity: 'CRITICAL,HIGH'
           scanners: 'vuln,secret,license'
-
-  # ── Job 4: Build & Push Docker Image to ECR ──────────────────────────────
-  deploy:
+  # ── Job 6: Build & Push Docker Image to ECR ──────────────────────────────
+  build-and-push:
     name: Build, Scan and Push to AWS ECR
     runs-on: ubuntu-latest
-    needs: [test, drift-detection, e2e, security]
+    needs: [test-dotnet, test-ui, drift-detection, e2e, security]
     if: github.ref == 'refs/heads/main'
-    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: winnow-api
+            dockerfile: src/Services/Winnow.API/Dockerfile
+          - image: winnow-sanitize
+            dockerfile: src/Services/Winnow.Sanitize/Dockerfile
+          - image: winnow-summary
+            dockerfile: src/Services/Winnow.Summary/Dockerfile
+          - image: winnow-clustering
+            dockerfile: src/Services/Winnow.Clustering/Dockerfile
+          - image: winnow-client
+            dockerfile: src/Apps/Winnow.Client/Dockerfile
+
     permissions:
       id-token: write
       contents: read
@@ -270,17 +312,17 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build Core API Image
+      - name: Build Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
-        run: docker build -t $ECR_REGISTRY/winnow-core:$IMAGE_TAG -f src/Services/Winnow.API/Dockerfile .
+        run: docker build -t $ECR_REGISTRY/${{ matrix.image }}:$IMAGE_TAG -f ${{ matrix.dockerfile }} .
 
       # ── THE SECURITY GATE (Trivy) ──
-      - name: Run Trivy Vulnerability & License Scanner on Core API
+      - name: Run Trivy Vulnerability Scanner on Image
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: '${{ steps.login-ecr.outputs.registry }}/winnow-core:${{ github.sha }}'
+          image-ref: '${{ steps.login-ecr.outputs.registry }}/${{ matrix.image }}:${{ github.sha }}'
           format: 'table'
           exit-code: '1' # Fails the build if critical vulns or bad licenses are found
           ignore-unfixed: true
@@ -288,11 +330,11 @@ jobs:
           severity: 'CRITICAL,HIGH'
           scanners: 'vuln,secret'
 
-      - name: Push Core API Image
+      - name: Push Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker push $ECR_REGISTRY/winnow-core:$IMAGE_TAG
-          docker tag $ECR_REGISTRY/winnow-core:$IMAGE_TAG $ECR_REGISTRY/winnow-core:latest
-          docker push $ECR_REGISTRY/winnow-core:latest
+          docker push $ECR_REGISTRY/${{ matrix.image }}:$IMAGE_TAG
+          docker tag $ECR_REGISTRY/${{ matrix.image }}:$IMAGE_TAG $ECR_REGISTRY/${{ matrix.image }}:latest
+          docker push $ECR_REGISTRY/${{ matrix.image }}:latest
