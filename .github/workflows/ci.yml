@@ -15,6 +15,10 @@ jobs:
   test-dotnet:
     name: Build & Test .NET Projects
     runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      pull-requests: write
+      contents: read
 
     services:
       postgres:
@@ -46,9 +50,15 @@ jobs:
         run: dotnet build Winnow.sln --no-restore
 
       - name: Test
-        run: dotnet test Winnow.sln --no-build --verbosity normal
+        run: dotnet test Winnow.sln --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx" --logger "GitHubActions"
         env:
           ConnectionStrings__Postgres: "Host=localhost;Port=5432;Database=winnow_test;Username=winnow;Password=winnow_test"
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: "**/test-results.trx"
 
   # ── Job 2: Build & Test (UI/JS) ────────────────────────────────────────────
   test-ui:
@@ -131,6 +141,10 @@ jobs:
   e2e:
     name: E2E Playwright Tests
     runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      pull-requests: write
+      contents: read
     needs: [test-dotnet, test-ui]
 
     services:
@@ -237,6 +251,12 @@ jobs:
           name: playwright-report
           path: src/Apps/Winnow.Client/playwright-report/
           retention-days: 30
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: "src/Apps/Winnow.Client/playwright-report/results.xml"
 
   # ── Job 5: Security & License Scanning ──────────
   security:
