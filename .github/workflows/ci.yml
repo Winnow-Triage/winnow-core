@@ -262,7 +262,7 @@ jobs:
       - name: Install JS Dependencies
         run: |
           npm ci --prefix src/Apps/Winnow.Client
-#          npm ci --prefix src/Sdks/Winnow.Sdk.Js
+          npm ci --prefix src/Sdks/Winnow.Sdk.Js
 
       - name: Run Trivy filesystem scan
         uses: aquasecurity/trivy-action@master
@@ -284,16 +284,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: winnow-api
+          - image: winnow-core/winnow-api
             dockerfile: src/Services/Winnow.API/Dockerfile
-          - image: winnow-sanitize
+          - image: winnow-core/winnow-sanitize
             dockerfile: src/Services/Winnow.Sanitize/Dockerfile
-          - image: winnow-summary
+          - image: winnow-core/winnow-summary
             dockerfile: src/Services/Winnow.Summary/Dockerfile
-          - image: winnow-clustering
+          - image: winnow-core/winnow-clustering
             dockerfile: src/Services/Winnow.Clustering/Dockerfile
-          - image: winnow-client
-            dockerfile: src/Apps/Winnow.Client/Dockerfile
 
     permissions:
       id-token: write
