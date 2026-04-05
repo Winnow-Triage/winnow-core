@@ -40,6 +40,8 @@ using Winnow.API.Infrastructure.Security.PoW;
 using Winnow.API.Services.Caching;
 
 using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.HttpOverrides;
+using System.Threading.RateLimiting;
 
 namespace Winnow.API.Extensions;
 
@@ -425,33 +427,90 @@ internal static class ServiceExtensions
                 policy.RequireClaim("email_verified", "true"));
         });
 
-        // Rate Limiting
+        // Configure Forwarded Headers for Cloudflare/AWS proxy support
+        services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            // In a cloud environment like App Runner/Cloudflare, we trust the incoming proxy
+            // clearing KnownProxies and KnownNetworks allows any X-Forwarded-For to be processed
+            options.KnownIPNetworks.Clear();
+            options.KnownProxies.Clear();
+            options.ForwardLimit = null; // Trust all hops
+        });
+
+        // Rate Limiting — Layered Defense Depth (Global Safety + Per-IP Bot Protection)
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-            options.AddFixedWindowLimiter("api", options =>
+            // 1. GLOBAL SAFETY VALVE (Fixed Window) & PER-IP CONCURRENCY
+            // Using CreateChained because .NET rate limiting doesn't support multiple endpoint policies natively
+            options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
+                PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                    RateLimitPartition.GetFixedWindowLimiter("global", _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5000,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0
+                    })),
+                PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                {
+                    var ip = context.Connection.RemoteIpAddress?.ToString()
+                             ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
+                             ?? "unknown";
+                    return RateLimitPartition.GetConcurrencyLimiter(ip, _ => new ConcurrencyLimiterOptions
+                    {
+                        PermitLimit = 5,
+                        QueueLimit = 0
+                    });
+                })
+            );
+
+            // 2. PER-IP POLICIES (Protection against targeted abuse)
+
+            // Standard API calls (100 req/min/IP)
+            options.AddPolicy("api", context =>
             {
-                options.PermitLimit = 100;
-                options.Window = TimeSpan.FromMinutes(1);
-                options.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
-                options.QueueLimit = 5;
+                var ip = context.Connection.RemoteIpAddress?.ToString()
+                         ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
+                         ?? "unknown";
+                return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 100,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 5
+                });
             });
 
-            options.AddFixedWindowLimiter("webhook", options =>
+            options.AddPolicy("webhook", context =>
             {
-                options.PermitLimit = 20;
-                options.Window = TimeSpan.FromSeconds(1);
-                options.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
-                options.QueueLimit = 10;
+                // Try to get IP from RemoteIpAddress (updated by ForwardedHeaders) with a manual fallback for proxies
+                var ip = context.Connection.RemoteIpAddress?.ToString()
+                         ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
+                         ?? "unknown";
+
+                return RateLimitPartition.GetTokenBucketLimiter(ip, _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = 5,
+                    QueueLimit = 0,
+                    ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+                    TokensPerPeriod = 5,
+                    AutoReplenishment = true
+                });
             });
 
-            options.AddFixedWindowLimiter("strict", options =>
+            // Auth/Sensitive Ops (10 req/min/IP)
+            options.AddPolicy("strict", context =>
             {
-                options.PermitLimit = 10;
-                options.Window = TimeSpan.FromMinutes(1);
-                options.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
-                options.QueueLimit = 0;
+                var ip = context.Connection.RemoteIpAddress?.ToString()
+                         ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
+                         ?? "unknown";
+                return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 10,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0
+                });
             });
         });
 

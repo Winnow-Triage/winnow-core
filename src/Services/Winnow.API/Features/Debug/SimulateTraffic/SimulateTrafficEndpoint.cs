@@ -18,12 +18,16 @@ public class SimulateTrafficResponse
     public int Count { get; set; }
 }
 
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("webhook")]
 public sealed class SimulateTrafficEndpoint(
     IMediator mediator) : ProjectScopedEndpoint<SimulateTrafficRequest, SimulateTrafficResponse>
 {
     public override void Configure()
     {
         Post("/debug/simulate-traffic");
+
+        // Ensure standard .NET rate limiting policies are applied
+        Options(x => x.RequireRateLimiting("webhook"));
         Summary(s =>
         {
             s.Summary = "Simulate traffic";

@@ -37,6 +37,7 @@ public class LoginRequest
 }
 
 
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("strict")]
 public sealed class LoginEndpoint(
     IMediator mediator,
     Winnow.API.Infrastructure.MultiTenancy.ITenantContext tenantContext) : Endpoint<LoginRequest, AuthResult>
@@ -45,6 +46,9 @@ public sealed class LoginEndpoint(
     {
         Post("/auth/login");
         AllowAnonymous();
+
+        // Ensure standard .NET rate limiting policies are applied
+        Options(x => x.RequireRateLimiting("strict"));
         Summary(s =>
         {
             s.Summary = "Log in to the application";

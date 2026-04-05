@@ -42,38 +42,33 @@ internal static class MiddlewareExtensions
         }
 
         // Middleware pipeline
+        app.UseForwardedHeaders();
+
         if (!app.Environment.IsDevelopment())
         {
             app.UseHsts();
         }
         app.UseHttpsRedirection();
 
+        app.UseRouting(); // REQUIRED for RateLimiting to see endpoint metadata
         app.UseCors();
         app.UseAuthentication();
         app.UseMiddleware<TenantMiddleware>();
         app.UseAuthorization();
         app.UseStaticFiles();
-        app.UseRateLimiter();
+
+        app.UseRateLimiter(); // Must come after UseRouting and before UseFastEndpoints
+
         app.UseFastEndpoints(c =>
         {
+            c.Serializer.Options.MaxDepth = 16;
             c.Endpoints.Configurator = ep =>
             {
-                if (ep.EndpointType.Name == "GetMeEndpoint")
-                {
-                    ep.Options(b => b.RequireRateLimiting("api"));
-                }
-                else if (ep.EndpointType.Namespace?.StartsWith("Winnow.API.Features.Auth") == true)
-                {
-                    ep.Options(b => b.RequireRateLimiting("strict"));
-                }
-                else if (ep.EndpointType.Name == "IngestReportEndpoint" || ep.EndpointType.Name == "SimulateTrafficEndpoint")
-                {
-                    ep.Options(b => b.RequireRateLimiting("webhook"));
-                }
-                else
-                {
-                    ep.Options(b => b.RequireRateLimiting("api"));
-                }
+                // Note: Specific rate limits (like 'webhook' for ingestion) are now 
+                // applied directly via [EnableRateLimiting] attributes on endpoint classes.
+                // This configurator adds the default API & Concurrency limits to all endpoints
+                // that haven't been explicitly configured otherwise.
+                ep.Options(b => b.RequireRateLimiting("api"));
             };
         });
         app.UseSwaggerGen();

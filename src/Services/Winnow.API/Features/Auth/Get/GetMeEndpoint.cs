@@ -16,11 +16,15 @@ public class UserMeResponse
     public Guid? DefaultProjectId { get; set; }
 }
 
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("api")]
 public sealed class GetMeEndpoint(IMediator mediator) : EndpointWithoutRequest<UserMeResponse>
 {
     public override void Configure()
     {
         Get("/auth/me");
+
+        // Ensure standard .NET rate limiting policies are applied
+        Options(x => x.RequireRateLimiting("api"));
         Summary(s =>
         {
             s.Summary = "Get current user information";
