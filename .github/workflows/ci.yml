@@ -16,8 +16,6 @@ jobs:
     name: Build & Test .NET Projects
     runs-on: ubuntu-latest
     permissions:
-      checks: write
-      pull-requests: write
       contents: read
 
     services:
@@ -54,11 +52,12 @@ jobs:
         env:
           ConnectionStrings__Postgres: "Host=localhost;Port=5432;Database=winnow_test;Username=winnow;Password=winnow_test"
 
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
+      - name: Upload Test Results
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          files: "**/test-results.trx"
+          name: test-results-dotnet
+          path: "**/test-results.trx"
 
   # ── Job 2: Build & Test (UI/JS) ────────────────────────────────────────────
   test-ui:
@@ -84,6 +83,13 @@ jobs:
       - name: Test UI Client
         run: npm test
         working-directory: src/Apps/Winnow.Client
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-ui
+          path: src/Apps/Winnow.Client/test-results.xml
 
 #      - name: Test SDK
 #        run: npm test
@@ -142,8 +148,6 @@ jobs:
     name: E2E Playwright Tests
     runs-on: ubuntu-latest
     permissions:
-      checks: write
-      pull-requests: write
       contents: read
     needs: [test-dotnet, test-ui]
 
@@ -252,13 +256,42 @@ jobs:
           path: src/Apps/Winnow.Client/playwright-report/
           retention-days: 30
 
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
+      - name: Upload Test Results
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          files: "src/Apps/Winnow.Client/playwright-report/results.xml"
+          name: test-results-e2e
+          path: src/Apps/Winnow.Client/playwright-report/results.xml
 
-  # ── Job 5: Security & License Scanning ──────────
+  # ── Job 5: Unified Test Report ─────────────────────────────────────────────
+  report-tests:
+    name: Unified Test Report
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [test-dotnet, test-ui, e2e]
+    permissions:
+      checks: write
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Download All Results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          merge-multiple: true
+          path: all-results
+
+      - name: Publish Unified Test Report
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: |
+            all-results/**/*.xml
+            all-results/**/*.trx
+          check_name: "Unified Test Results"
+          comment_title: "Unified Test Results"
+
+  # ── Job 6: Security & License Scanning ──────────
   security:
     name: Source Security & License Scan
     runs-on: ubuntu-latest
@@ -294,7 +327,7 @@ jobs:
           ignore-unfixed: true
           severity: 'CRITICAL,HIGH'
           scanners: 'vuln,secret,license'
-  # ── Job 6: Build & Push Docker Image to ECR ──────────────────────────────
+  # ── Job 7: Build & Push Docker Image to ECR ──────────────────────────────
   build-and-push:
     name: Build, Scan and Push to AWS ECR
     runs-on: ubuntu-latest
