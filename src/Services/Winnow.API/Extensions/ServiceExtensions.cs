@@ -40,6 +40,8 @@ using Winnow.API.Infrastructure.Security.PoW;
 using Winnow.API.Services.Caching;
 
 using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.HttpOverrides;
+using System.Threading.RateLimiting;
 
 namespace Winnow.API.Extensions;
 
@@ -425,33 +427,66 @@ internal static class ServiceExtensions
                 policy.RequireClaim("email_verified", "true"));
         });
 
-        // Rate Limiting
+        // Configure Forwarded Headers for Cloudflare/AWS proxy support
+        services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.KnownIPNetworks.Clear();
+            options.KnownProxies.Clear();
+        });
+
+        // Rate Limiting — Layered Defense Depth (Global Safety + Per-IP Bot Protection)
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-            options.AddFixedWindowLimiter("api", options =>
+            // 1. GLOBAL SAFETY VALVE (Fixed Window) — Prevents backend flooding
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                RateLimitPartition.GetFixedWindowLimiter("global", _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 5000,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0
+                }));
+
+            // 2. PER-IP POLICIES (Protection against targeted abuse)
+
+            // Standard API calls (100 req/min/IP)
+            options.AddPolicy("api", context =>
             {
-                options.PermitLimit = 100;
-                options.Window = TimeSpan.FromMinutes(1);
-                options.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
-                options.QueueLimit = 5;
+                var ip = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+                return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 100,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 5
+                });
             });
 
-            options.AddFixedWindowLimiter("webhook", options =>
+            // Report Ingestion (5 tokens/min/IP) — Using Token Bucket as requested in WIN-102
+            options.AddPolicy("webhook", context =>
             {
-                options.PermitLimit = 20;
-                options.Window = TimeSpan.FromSeconds(1);
-                options.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
-                options.QueueLimit = 10;
+                var ip = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+                return RateLimitPartition.GetTokenBucketLimiter(ip, _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = 5,
+                    QueueLimit = 0,
+                    ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+                    TokensPerPeriod = 5,
+                    AutoReplenishment = true
+                });
             });
 
-            options.AddFixedWindowLimiter("strict", options =>
+            // Auth/Sensitive Ops (10 req/min/IP)
+            options.AddPolicy("strict", context =>
             {
-                options.PermitLimit = 10;
-                options.Window = TimeSpan.FromMinutes(1);
-                options.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
-                options.QueueLimit = 0;
+                var ip = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+                return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 10,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0
+                });
             });
         });
 

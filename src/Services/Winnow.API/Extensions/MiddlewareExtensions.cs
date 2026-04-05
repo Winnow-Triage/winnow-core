@@ -47,6 +47,7 @@ internal static class MiddlewareExtensions
             app.UseHsts();
         }
         app.UseHttpsRedirection();
+        app.UseForwardedHeaders();
 
         app.UseCors();
         app.UseAuthentication();
