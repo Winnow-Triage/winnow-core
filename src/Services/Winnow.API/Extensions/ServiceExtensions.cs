@@ -193,10 +193,17 @@ internal static class ServiceExtensions
         {
             var s3Config = new Amazon.S3.AmazonS3Config
             {
-                ServiceURL = s3Settings.Endpoint,
-                ForcePathStyle = true, // Required for MinIO
-                UseHttp = s3Settings.Endpoint.StartsWith("http://")
+                ServiceURL = string.IsNullOrWhiteSpace(s3Settings.Endpoint) ? null : s3Settings.Endpoint,
+                ForcePathStyle = s3Settings.ForcePathStyle,
+                UseHttp = !string.IsNullOrWhiteSpace(s3Settings.Endpoint) && s3Settings.Endpoint.StartsWith("http://")
             };
+
+            if (string.IsNullOrWhiteSpace(s3Settings.AccessKey))
+            {
+                // Fallback to Default Credential Chain (IAM Role) if no keys are provided
+                return new Amazon.S3.AmazonS3Client(s3Config);
+            }
+
             return new Amazon.S3.AmazonS3Client(s3Settings.AccessKey, s3Settings.SecretKey, s3Config);
         });
         services.AddSingleton<IStorageService, S3StorageService>();
