@@ -124,4 +124,5 @@ public class S3Settings
     public string Region { get; set; } = "us-east-1";
     public string QuarantineBucket { get; set; } = "winnow-quarantine";
     public string CleanBucket { get; set; } = "winnow-clean";
+    public bool ForcePathStyle { get; set; } = true;
 }

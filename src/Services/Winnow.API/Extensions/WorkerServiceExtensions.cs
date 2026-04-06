@@ -61,10 +61,17 @@ public static class WorkerServiceExtensions
         {
             var s3Config = new AmazonS3Config
             {
-                ServiceURL = s3Settings.Endpoint,
-                ForcePathStyle = true,
-                UseHttp = s3Settings.Endpoint?.StartsWith("http://") ?? false
+                ServiceURL = string.IsNullOrWhiteSpace(s3Settings.Endpoint) ? null : s3Settings.Endpoint,
+                ForcePathStyle = s3Settings.ForcePathStyle,
+                UseHttp = !string.IsNullOrWhiteSpace(s3Settings.Endpoint) && s3Settings.Endpoint.StartsWith("http://")
             };
+
+            if (string.IsNullOrWhiteSpace(s3Settings.AccessKey))
+            {
+                // Fallback to Default Credential Chain (IAM Role) if no keys are provided
+                return new AmazonS3Client(s3Config);
+            }
+
             return new AmazonS3Client(s3Settings.AccessKey, s3Settings.SecretKey, s3Config);
         });
         services.AddSingleton<IStorageService, S3StorageService>();
