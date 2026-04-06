@@ -8,8 +8,8 @@ RUN dotnet publish src/Services/Winnow.Clustering/Winnow.Clustering.csproj -c Re
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
-# Install native dependencies for ONNX
-RUN apt-get update && apt-get install -y libgomp1 && rm -rf /var/lib/apt/lists/*
+# Install native dependencies for ONNX and curl
+RUN apt-get update && apt-get install -y libgomp1 curl && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/publish .
 EXPOSE 8080
