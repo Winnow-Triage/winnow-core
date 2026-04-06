@@ -9,6 +9,7 @@ public class LlmSettings
 
     public OllamaSettings Ollama { get; set; } = new();
     public OpenAiSettings OpenAI { get; set; } = new();
+    public AmazonBedrockSettings Bedrock { get; set; } = new();
     public PresidioSettings Presidio { get; set; } = new();
 }
 
@@ -23,6 +24,12 @@ public class OpenAiSettings
 {
     public string ApiKey { get; set; } = string.Empty;
     public string ModelId { get; set; } = "gpt-4o";
+}
+
+public class AmazonBedrockSettings
+{
+    public string ModelId { get; set; } = "anthropic.claude-3-haiku-20240307-v1:0";
+    public string GatekeeperModelId { get; set; } = "anthropic.claude-3-haiku-20240307-v1:0";
 }
 
 public class PresidioSettings
