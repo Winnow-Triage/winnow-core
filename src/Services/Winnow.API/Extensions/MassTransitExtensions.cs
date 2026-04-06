@@ -29,11 +29,25 @@ public static class MassTransitExtensions
                 });
             }
 
-            // Selection Logic: Use InMemory if in Testing environment or specifically requested via config
+            // Selection Logic: Use InMemory if in Testing environment
             if (env.IsEnvironment("Testing") || config["USE_IN_MEMORY_TRANSPORT"] == "true")
             {
                 x.UsingInMemory((context, cfg) =>
                 {
+                    configureFactory?.Invoke(context, cfg);
+                    cfg.ConfigureEndpoints(context);
+                });
+            }
+            else if (Environment.GetEnvironmentVariable("MESSAGE_BROKER")?.Equals("AmazonSqs", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                x.UsingAmazonSqs((context, cfg) =>
+                {
+                    var region = Environment.GetEnvironmentVariable("AWS_REGION") ?? "us-east-2";
+                    cfg.Host(region, h =>
+                    {
+                        // Will automatically use IAM execution roles attached to the ECS Task
+                    });
+
                     configureFactory?.Invoke(context, cfg);
                     cfg.ConfigureEndpoints(context);
                 });

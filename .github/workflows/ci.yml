@@ -389,3 +389,19 @@ jobs:
           docker push $ECR_REGISTRY/${{ matrix.image }}:$IMAGE_TAG
           docker tag $ECR_REGISTRY/${{ matrix.image }}:$IMAGE_TAG $ECR_REGISTRY/${{ matrix.image }}:latest
           docker push $ECR_REGISTRY/${{ matrix.image }}:latest
+
+  # ── Job 8: Trigger Deployment (GitOps) ────────────────────────────────
+  trigger-deploy:
+    name: Trigger Deploy in winnow-infra
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Trigger Pipeline
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.INFRA_REPO_PAT }}
+          repository: winnow-triage/winnow-infra
+          event-type: deploy_trigger
+          client-payload: '{"image_tag": "${{ github.sha }}"}'

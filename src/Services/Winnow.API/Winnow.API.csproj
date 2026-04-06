@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>1520d6bf-ee1b-41e1-a1a4-7a4784c15e56</UserSecretsId>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);NU1904</NoWarn>
+    <NoWarn>$(NoWarn);NU1904;NU1608;NU1603</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,11 +14,14 @@
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.3.23" />
     <PackageReference Include="AWSSDK.S3" Version="4.0.18.6" />
     <PackageReference Include="AWSSDK.SimpleEmail" Version="4.0.2.14" />
+    <PackageReference Include="AWSSDK.SQS" Version="4.0.2" />
+    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="4.0.2" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
     <PackageReference Include="Dapper" Version="2.1.66" />
     <PackageReference Include="FastEndpoints" Version="7.2.0" />
     <PackageReference Include="FastEndpoints.Swagger" Version="7.2.0" />
     <PackageReference Include="MassTransit" Version="8.3.4" />
+    <PackageReference Include="MassTransit.AmazonSQS" Version="8.3.4" />
     <PackageReference Include="MassTransit.RabbitMQ" Version="8.3.4" />
     <PackageReference Include="MassTransit.EntityFrameworkCore" Version="8.3.4" />
     <PackageReference Include="MediatR" Version="14.1.0" />
@@ -37,6 +40,7 @@
     <PackageReference Include="Microsoft.SemanticKernel" Version="1.71.0" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.Ollama" Version="1.71.0-alpha" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.71.0" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Amazon" Version="1.71.0-alpha" />
     <PackageReference Include="Pgvector" Version="0.3.2" />
     <PackageReference Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
     <PackageReference Include="Polly" Version="8.4.0" />

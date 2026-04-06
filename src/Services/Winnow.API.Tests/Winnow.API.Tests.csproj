@@ -9,7 +9,7 @@
     <IsTestProject>true</IsTestProject>
     
     <!-- Suppress analyzer warnings that don't apply to test projects -->
-    <NoWarn>$(NoWarn);CA1515;CA1707;CA1001;CA1852;CA1823;CA1862;CA1711;CA1847;CA2007;CA1303;CA1822;CA1866</NoWarn>
+    <NoWarn>$(NoWarn);CA1515;CA1707;CA1001;CA1852;CA1823;CA1862;CA1711;CA1847;CA2007;CA1303;CA1822;CA1866;NU1608</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

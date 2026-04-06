@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Connectors.Amazon;
 using Winnow.API.Domain.Core;
 using Winnow.API.Domain.Organizations;
 using Winnow.API.Domain.Projects;
@@ -218,16 +219,16 @@ internal static class ServiceExtensions
         services.AddSingleton<IVectorCalculator, VectorCalculator>();
 
         // Semantic Kernel setup based on provider
-        services.AddKernel();
+        var kernelBuilder = services.AddKernel();
 
         if (llmSettings.Provider == "Ollama")
         {
-            services.AddOllamaChatCompletion(
+            kernelBuilder.AddOllamaChatCompletion(
                 modelId: llmSettings.Ollama.ModelId,
                 endpoint: new Uri(llmSettings.Ollama.Endpoint));
 
             // Secondary model for fast gatekeeping (phi3/gemma)
-            services.AddOllamaChatCompletion(
+            kernelBuilder.AddOllamaChatCompletion(
                 serviceId: "Gatekeeper",
                 modelId: llmSettings.Ollama.GatekeeperModelId,
                 endpoint: new Uri(llmSettings.Ollama.Endpoint));
@@ -236,9 +237,20 @@ internal static class ServiceExtensions
         }
         else if (llmSettings.Provider == "OpenAI")
         {
-            services.AddOpenAIChatCompletion(
+            kernelBuilder.AddOpenAIChatCompletion(
                 modelId: llmSettings.OpenAI.ModelId,
                 apiKey: llmSettings.OpenAI.ApiKey);
+            services.AddScoped<IClusterSummaryService, SemanticKernelClusterSummaryService>();
+        }
+        else if (llmSettings.Provider == "Bedrock")
+        {
+            kernelBuilder.AddBedrockChatCompletionService(
+                modelId: llmSettings.Bedrock.ModelId);
+
+            kernelBuilder.AddBedrockChatCompletionService(
+                serviceId: "Gatekeeper",
+                modelId: llmSettings.Bedrock.GatekeeperModelId);
+
             services.AddScoped<IClusterSummaryService, SemanticKernelClusterSummaryService>();
         }
         else
