@@ -331,6 +331,7 @@ jobs:
   build-and-push:
     name: Build, Scan and Push to AWS ECR
     runs-on: ubuntu-latest
+    environment: production
     needs: [test-dotnet, test-ui, drift-detection, e2e, security]
     if: github.ref == 'refs/heads/main'
     strategy:
@@ -394,6 +395,7 @@ jobs:
   trigger-deploy:
     name: Trigger Deploy in winnow-infra
     runs-on: ubuntu-latest
+    environment: production
     needs: build-and-push
     if: github.ref == 'refs/heads/main'
 
