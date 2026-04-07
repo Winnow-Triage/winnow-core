@@ -3,6 +3,7 @@ using Amazon;
 using Amazon.Comprehend;
 using Amazon.Extensions.NETCore.Setup;
 using Amazon.SimpleEmail;
+using Resend;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using MediatR;
@@ -299,6 +300,20 @@ internal static class ServiceExtensions
         {
             services.AddAWSService<IAmazonSimpleEmailService>();
             services.AddScoped<IEmailService, AwsSesEmailService>();
+        }
+        else if (emailSettings.Provider == "Resend")
+        {
+            services.Configure<ResendClientOptions>(options =>
+            {
+                options.ApiToken = emailSettings.Resend.ApiKey;
+            });
+
+            services.AddHttpClient<IResend, ResendClient>(client =>
+            {
+                client.BaseAddress = new Uri("https://api.resend.com/");
+            });
+
+            services.AddScoped<IEmailService, ResendEmailService>();
         }
         else
         {

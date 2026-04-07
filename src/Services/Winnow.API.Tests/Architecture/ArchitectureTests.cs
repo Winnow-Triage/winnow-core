@@ -1190,6 +1190,7 @@ public class ArchitectureTests
                 typeName == "SubmitContactFormCommand" ||
                 typeName == "ProcessStripeWebhookCommand" ||
                 typeName == "ProcessSesBounceCommand" ||
+                typeName == "ProcessResendWebhookCommand" ||
                 typeName == "AcceptInvitationCommand" ||
                 typeName == "GetInvitationDetailsQuery" ||
                 typeName == "ListUserOrganizationsQuery" ||

@@ -11,7 +11,7 @@ public sealed class StripeWebhookEndpoint(IConfiguration config, IMediator media
 {
     public override void Configure()
     {
-        Post("/api/webhooks/stripe");
+        Post("/webhooks/stripe");
         AllowAnonymous();
     }
 
