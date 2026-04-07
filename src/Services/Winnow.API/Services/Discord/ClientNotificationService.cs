@@ -45,7 +45,7 @@ public class ClientNotificationService(
                 targets.Add(new NotificationTarget(slackConfig.WebhookUrl, null, NotificationProvider.Slack));
             else if (integration.Config is TeamsConfig teamsConfig && teamsConfig.WebhookUrl != null)
                 targets.Add(new NotificationTarget(teamsConfig.WebhookUrl, null, NotificationProvider.MicrosoftTeams));
-            else if (integration.Config is EmailConfig emailConfig && !string.IsNullOrWhiteSpace(emailConfig.RecipientEmail))
+            else if (integration.Config is EmailConfig emailConfig && emailConfig.IsVerified && !string.IsNullOrWhiteSpace(emailConfig.RecipientEmail))
                 targets.Add(new NotificationTarget(null, emailConfig.RecipientEmail, NotificationProvider.Email));
         }
 

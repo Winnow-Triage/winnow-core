@@ -198,14 +198,24 @@ public record TeamsConfig : IntegrationConfig
 public record EmailConfig : IntegrationConfig
 {
     public string RecipientEmail { get; init; } = string.Empty;
+    public bool IsVerified { get; init; }
+    public string? VerificationToken { get; init; }
 
     public override IntegrationConfig Merge(IntegrationConfig incoming)
     {
         if (incoming is not EmailConfig emailConfig) return this;
 
-        return this with
+        // If email changed, drop verification status
+        if (!string.IsNullOrWhiteSpace(emailConfig.RecipientEmail) && emailConfig.RecipientEmail != RecipientEmail)
         {
-            RecipientEmail = string.IsNullOrWhiteSpace(emailConfig.RecipientEmail) ? RecipientEmail : emailConfig.RecipientEmail
-        };
+            return this with
+            {
+                RecipientEmail = emailConfig.RecipientEmail,
+                IsVerified = false,
+                VerificationToken = null
+            };
+        }
+
+        return this;
     }
 }

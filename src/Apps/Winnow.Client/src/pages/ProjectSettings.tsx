@@ -11,6 +11,7 @@ import {
   Trash2,
   Bell,
   ArrowLeft,
+  Mail,
 } from "lucide-react";
 import {
   SiDiscord,
@@ -74,6 +75,7 @@ interface IntegrationConfig {
   provider: string;
   name: string;
   notificationsEnabled: boolean;
+  isVerified?: boolean;
 }
 
 function ApiKeyManagementSection() {
@@ -315,6 +317,27 @@ export default function ProjectSettings() {
       setProjectName(currentProject.name);
       setNotificationThreshold(currentProject.notifications?.volumeThreshold ?? "");
       setCriticalityThreshold(currentProject.notifications?.criticalityThreshold ?? "");
+    }
+  }, [currentProject]);
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const verifyIntegration = query.get("verifyIntegration");
+    const token = query.get("token");
+
+    if (currentProject && verifyIntegration && token) {
+      const verify = async () => {
+        try {
+          // Clean the URL to avoid double verification
+          window.history.replaceState({}, document.title, window.location.pathname);
+          
+          await api.post(`/projects/${currentProject.id}/integrations/${verifyIntegration}/verify?token=${encodeURIComponent(token)}`);
+          toast.success("Email verification successful! The integration is now active.");
+        } catch (err: any) {
+          toast.error("Email verification failed: " + (err.response?.data?.message || err.message));
+        }
+      };
+      verify();
     }
   }, [currentProject]);
 
@@ -631,7 +654,9 @@ function IntegrationsSettings({ onEdit }: { onEdit: (id: string) => void }) {
                             ? "bg-[#4a154b]"
                             : config.provider.toLowerCase() === "teams" || config.provider.toLowerCase() === "microsoftteams"
                               ? "bg-[#464eb8]"
-                              : "bg-blue-500"
+                              : config.provider.toLowerCase() === "email"
+                                ? "bg-stone-500"
+                                : "bg-blue-500"
                 }`}
               />
               <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
@@ -653,6 +678,9 @@ function IntegrationsSettings({ onEdit }: { onEdit: (id: string) => void }) {
                   )}
                   {(config.provider.toLowerCase() === "teams" || config.provider.toLowerCase() === "microsoftteams") && (
                     <BsMicrosoftTeams className="h-5 w-5 text-[#464eb8]" />
+                  )}
+                  {config.provider.toLowerCase() === "email" && (
+                    <Mail className="h-5 w-5 text-stone-500" />
                   )}
                   {config.name || `${config.provider} Integration`}
                 </CardTitle>
@@ -685,8 +713,16 @@ function IntegrationsSettings({ onEdit }: { onEdit: (id: string) => void }) {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-xs text-muted-foreground capitalize">
-                  {config.provider} Provider
+                <div className="flex flex-col gap-2">
+                  <div className="text-xs text-muted-foreground capitalize">
+                    {config.provider} Provider
+                  </div>
+                  {config.provider.toLowerCase() === "email" && config.isVerified === false && (
+                    <div className="inline-flex items-center gap-1.5 text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2.5 py-0.5 rounded-md font-medium w-fit border border-amber-500/20 mt-1">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      Verification Pending
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -721,6 +757,7 @@ function AddIntegrationDialog({
     { id: "Discord", name: "Discord", icon: SiDiscord, color: "bg-[#5865f2]", text: "text-[#5865f2]" },
     { id: "Slack", name: "Slack", icon: SlackIcon, color: "bg-[#4a154b]", text: "text-[#4a154b]" },
     { id: "Teams", name: "MS Teams", icon: BsMicrosoftTeams, color: "bg-[#464eb8]", text: "text-[#464eb8]" },
+    { id: "Email", name: "Email", icon: Mail, color: "bg-stone-500", text: "text-stone-500" },
   ];
 
   // Fetch details if in edit mode
@@ -969,6 +1006,23 @@ function AddIntegrationDialog({
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   We'll send notifications to this {provider} channel when thresholds are met.
+                </p>
+              </div>
+            )}
+
+            {provider === "Email" && (
+              <div className="grid gap-2">
+                <Label>Recipient Email Address</Label>
+                <Input
+                  type="email"
+                  value={formData.recipientEmail || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, recipientEmail: e.target.value })
+                  }
+                  placeholder="alerts@example.com"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  We'll send notifications to this email address when thresholds are met.
                 </p>
               </div>
             )}

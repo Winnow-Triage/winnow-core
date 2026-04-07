@@ -62,6 +62,13 @@ public class AwsSesEmailService : IEmailService
         await SendEmailAsync(to, "Reset your password", body);
     }
 
+    public async Task SendIntegrationVerificationAsync(string to, string projectName, Uri verifyUrl)
+    {
+        var body = await LoadTemplateAsync("Verification.html");
+        body = body.Replace("{{ActionUrl}}", verifyUrl.ToString());
+        await SendEmailAsync(to, $"Verify Alert Destination for {projectName}", body);
+    }
+
 
 
     public async Task SendOrganizationInviteAsync(string to, string orgName, Uri inviteLink)

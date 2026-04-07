@@ -1,10 +1,13 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Wolverine;
 using Winnow.API.Infrastructure.Security.Authorization;
 using Winnow.Integrations.Domain;
 using Winnow.API.Domain.Integrations;
 using Winnow.API.Features.Shared;
 using Winnow.API.Infrastructure.Integrations.Strategies;
 using Winnow.API.Infrastructure.Persistence;
+using Winnow.API.Features.Projects.VerifyIntegration;
 
 namespace Winnow.API.Features.Projects.Create;
 
@@ -26,6 +29,7 @@ public record CreateIntegrationCommand : IRequest<Integration>, IProjectScopedRe
 
 public class CreateIntegrationHandler(
     WinnowDbContext db,
+    IMessageBus messageBus,
     IEnumerable<IIntegrationConfigDeserializationStrategy> deserializationStrategies)
     : IRequestHandler<CreateIntegrationCommand, Integration>
 {
@@ -35,6 +39,13 @@ public class CreateIntegrationHandler(
             ?? throw new ArgumentException($"Unsupported provider: {request.Provider}");
 
         IntegrationConfig newConfig = strategy.Deserialize(request.SettingsJson);
+        bool requiresEmailVerification = false;
+        string? generatedVerificationToken = null;
+
+        var projectName = await db.Projects
+            .Where(p => p.Id == request.ProjectId)
+            .Select(p => p.Name)
+            .FirstOrDefaultAsync(ct) ?? "Your Project";
 
         Integration? integration;
 
@@ -50,6 +61,16 @@ public class CreateIntegrationHandler(
                 throw new UnauthorizedAccessException("Access denied.");
             }
 
+            if (newConfig is EmailConfig newEmailConfig && !string.IsNullOrWhiteSpace(newEmailConfig.RecipientEmail))
+            {
+                if (integration.Config is not EmailConfig oldEmailConfig || oldEmailConfig.RecipientEmail != newEmailConfig.RecipientEmail)
+                {
+                    generatedVerificationToken = Guid.NewGuid().ToString("N");
+                    newConfig = newEmailConfig with { IsVerified = false, VerificationToken = generatedVerificationToken };
+                    requiresEmailVerification = true;
+                }
+            }
+
             integration.UpdateConfig(newConfig);
             if (request.IsActive) integration.Reactivate(); else integration.Deactivate();
             integration.UpdateNotificationState(request.NotificationsEnabled);
@@ -57,6 +78,13 @@ public class CreateIntegrationHandler(
         }
         else
         {
+            if (newConfig is EmailConfig newEmailConfig && !string.IsNullOrWhiteSpace(newEmailConfig.RecipientEmail))
+            {
+                generatedVerificationToken = Guid.NewGuid().ToString("N");
+                newConfig = newEmailConfig with { IsVerified = false, VerificationToken = generatedVerificationToken };
+                requiresEmailVerification = true;
+            }
+
             integration = new Integration(
                 request.CurrentOrganizationId,
                 request.ProjectId,
@@ -71,6 +99,18 @@ public class CreateIntegrationHandler(
         }
 
         await db.SaveChangesAsync(ct);
+
+        if (requiresEmailVerification && newConfig is EmailConfig finalEmailConfig && generatedVerificationToken != null)
+        {
+            await messageBus.PublishAsync(new SendIntegrationVerificationTokenCommand
+            {
+                IntegrationId = integration.Id,
+                ProjectId = integration.ProjectId,
+                ProjectName = projectName,
+                RecipientEmail = finalEmailConfig.RecipientEmail,
+                Token = generatedVerificationToken
+            });
+        }
 
         return integration;
     }

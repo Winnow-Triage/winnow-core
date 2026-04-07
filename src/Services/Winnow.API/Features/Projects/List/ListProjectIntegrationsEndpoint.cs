@@ -5,7 +5,7 @@ namespace Winnow.API.Features.Projects.List;
 
 public class ListProjectIntegrationsRequest : ProjectScopedRequest { }
 
-public record ProjectIntegrationDto(Guid Id, string Provider, string Name, bool IsActive);
+public record ProjectIntegrationDto(Guid Id, string Provider, string Name, bool IsActive, bool? IsVerified = null);
 
 public sealed class ListProjectIntegrationsEndpoint(IMediator mediator)
     : ProjectScopedEndpoint<ListProjectIntegrationsRequest, List<ProjectIntegrationDto>>

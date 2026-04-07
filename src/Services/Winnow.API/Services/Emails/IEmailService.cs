@@ -14,6 +14,7 @@ public interface IEmailService
 
     Task SendPasswordResetAsync(string to, Uri resetUrl);
 
+    Task SendIntegrationVerificationAsync(string to, string projectName, Uri verifyUrl);
 
     Task SendOrganizationInviteAsync(string to, string orgName, Uri inviteLink);
 }
