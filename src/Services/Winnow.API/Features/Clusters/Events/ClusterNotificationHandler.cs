@@ -2,8 +2,6 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Winnow.API.Domain.Clusters.Events;
 using Winnow.API.Infrastructure.Persistence;
-using Winnow.API.Services.Discord;
-using MassTransit;
 using Winnow.Contracts;
 
 namespace Winnow.API.Features.Clusters.Events;
@@ -14,7 +12,7 @@ namespace Winnow.API.Features.Clusters.Events;
 /// </summary>
 public sealed class ClusterNotificationHandler(
     WinnowDbContext dbContext,
-    IPublishEndpoint publishEndpoint,
+    Wolverine.IMessageBus messageBus,
     ILogger<ClusterNotificationHandler> logger)
     : INotificationHandler<ClusterReportAddedEvent>,
       INotificationHandler<ClusterSummarizedEvent>
@@ -51,11 +49,11 @@ public sealed class ClusterNotificationHandler(
             logger.LogInformation("Cluster {ClusterId} reached volume threshold ({Count}). Publishing integration event.",
                 cluster.Id, cluster.ReportCount);
 
-            await publishEndpoint.Publish(new ClusterVolumeMilestoneReachedIntegrationEvent(
+            await messageBus.PublishAsync(new ClusterVolumeMilestoneReachedIntegrationEvent(
                 project.Id,
                 cluster.Id,
                 cluster.ReportCount,
-                cluster.Title ?? "Untitled Cluster"), ct);
+                cluster.Title ?? "Untitled Cluster"));
         }
     }
 
@@ -84,10 +82,10 @@ public sealed class ClusterNotificationHandler(
             logger.LogInformation("Cluster {ClusterId} reached criticality threshold ({Score} >= {Threshold}). Publishing integration event.",
                 notification.ClusterId, notification.CriticalityScore, threshold);
 
-            await publishEndpoint.Publish(new ClusterCriticalityThresholdReachedIntegrationEvent(
+            await messageBus.PublishAsync(new ClusterCriticalityThresholdReachedIntegrationEvent(
                 project.Id,
                 notification.Title,
-                notification.Summary), ct);
+                notification.Summary));
         }
     }
 }

@@ -116,8 +116,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
     private ClusterRefinementJob CreateJob(IServiceScope scope)
     {
         var scopeFactory = scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>();
-        var messageBus = new Mock<Wolverine.IMessageBus>();
-        return new ClusterRefinementJob(scopeFactory, messageBus.Object, NullLogger<ClusterRefinementJob>.Instance);
+        return new ClusterRefinementJob(scopeFactory, NullLogger<ClusterRefinementJob>.Instance);
     }
 
     [Fact]

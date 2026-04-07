@@ -1,5 +1,4 @@
 using Winnow.API.Infrastructure.Persistence;
-using MassTransit;
 using Winnow.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -15,7 +14,7 @@ public interface IClientNotificationService
 
 public class ClientNotificationService(
     WinnowDbContext dbContext,
-    IPublishEndpoint publishEndpoint,
+    Wolverine.IMessageBus messageBus,
     ILogger<ClientNotificationService> logger)
     : IClientNotificationService
 {
@@ -65,7 +64,7 @@ public class ClientNotificationService(
 
         foreach (var target in targets)
         {
-            await publishEndpoint.Publish(new SendWebhookNotificationCommand
+            await messageBus.PublishAsync(new SendWebhookNotificationCommand
             {
                 WebhookUrl = target.WebhookUrl,
                 Provider = target.Provider,
@@ -92,7 +91,7 @@ public class ClientNotificationService(
 
         foreach (var target in targets)
         {
-            await publishEndpoint.Publish(new SendWebhookNotificationCommand
+            await messageBus.PublishAsync(new SendWebhookNotificationCommand
             {
                 WebhookUrl = target.WebhookUrl,
                 Provider = target.Provider,

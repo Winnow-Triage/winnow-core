@@ -1,5 +1,4 @@
 using MediatR;
-using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Winnow.API.Domain.Clusters.Events;
 using Winnow.API.Infrastructure.Persistence;
@@ -12,7 +11,7 @@ namespace Winnow.API.Features.Clusters.Events;
 /// </summary>
 public sealed class AutoExportHandler(
     WinnowDbContext dbContext,
-    IPublishEndpoint publishEndpoint,
+    Wolverine.IMessageBus messageBus,
     ILogger<AutoExportHandler> logger)
     : INotificationHandler<ClusterReportAddedEvent>,
       INotificationHandler<ClusterSummarizedEvent>
@@ -75,14 +74,14 @@ public sealed class AutoExportHandler(
 
     private async Task TriggerAutoExportsAsync(Guid projectId, Guid clusterId, string title, string description, CancellationToken ct)
     {
-        // Offload the cross-boundary export logic to the API "Hub" using MassTransit
+        // Offload the cross-boundary export logic to the API "Hub" using Wolverine
         logger.LogInformation("Enqueuing auto-export integration event for Cluster {ClusterId}.", clusterId);
 
-        await publishEndpoint.Publish(new ClusterAutoExportIntegrationEvent(
+        await messageBus.PublishAsync(new ClusterAutoExportIntegrationEvent(
             projectId,
             clusterId,
             title,
             description
-        ), ct);
+        ));
     }
 }

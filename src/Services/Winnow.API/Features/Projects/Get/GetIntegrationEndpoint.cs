@@ -1,3 +1,4 @@
+using Winnow.API.Infrastructure.Security.Authorization;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Winnow.API.Domain.Integrations;
@@ -6,6 +7,7 @@ using Winnow.API.Infrastructure.Persistence;
 
 namespace Winnow.API.Features.Projects.Get;
 
+[RequirePermission("projects:read")]
 public record GetIntegrationQuery : IRequest<Integration>, IProjectScopedRequest
 {
     public Guid Id { get; set; }

@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Options;
-using MassTransit;
 using Winnow.API.Infrastructure.Configuration;
 using Winnow.Contracts;
 using Microsoft.Extensions.Logging;
@@ -14,7 +13,7 @@ public interface IInternalOpsNotifier
 }
 
 public class InternalOpsNotifier(
-    IPublishEndpoint publishEndpoint,
+    Wolverine.IMessageBus messageBus,
     IOptions<DiscordOps> settings,
     ILogger<InternalOpsNotifier> logger)
     : IInternalOpsNotifier
@@ -23,7 +22,7 @@ public class InternalOpsNotifier(
     {
         if (settings.Value.NewSignupsUrl == null) return;
 
-        await publishEndpoint.Publish(new SendWebhookNotificationCommand
+        await messageBus.PublishAsync(new SendWebhookNotificationCommand
         {
             WebhookUrl = settings.Value.NewSignupsUrl,
             Provider = NotificationProvider.Discord,
@@ -39,7 +38,7 @@ public class InternalOpsNotifier(
     {
         if (settings.Value.DlqAlertsUrl == null) return;
 
-        await publishEndpoint.Publish(new SendWebhookNotificationCommand
+        await messageBus.PublishAsync(new SendWebhookNotificationCommand
         {
             WebhookUrl = settings.Value.DlqAlertsUrl,
             Provider = NotificationProvider.Discord,
@@ -55,7 +54,7 @@ public class InternalOpsNotifier(
     {
         if (settings.Value.StripePaymentsUrl == null) return;
 
-        await publishEndpoint.Publish(new SendWebhookNotificationCommand
+        await messageBus.PublishAsync(new SendWebhookNotificationCommand
         {
             WebhookUrl = settings.Value.StripePaymentsUrl,
             Provider = NotificationProvider.Discord,
