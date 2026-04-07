@@ -346,6 +346,8 @@ jobs:
             dockerfile: src/Services/Winnow.Summary/Dockerfile
           - image: winnow-core/winnow-clustering
             dockerfile: src/Services/Winnow.Clustering/Dockerfile
+          - image: winnow-core/winnow-notifications
+            dockerfile: src/Services/Winnow.Notifications/Dockerfile
 
     permissions:
       id-token: write
