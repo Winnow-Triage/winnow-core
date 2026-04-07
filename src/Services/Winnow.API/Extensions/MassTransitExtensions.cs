@@ -42,8 +42,7 @@ public static class MassTransitExtensions
             {
                 x.UsingAmazonSqs((context, cfg) =>
                 {
-                    cfg.Host();
-
+                    // No Host configurator needed when AWS clients are in DI
                     configureFactory?.Invoke(context, cfg);
                     cfg.ConfigureEndpoints(context);
                 });
