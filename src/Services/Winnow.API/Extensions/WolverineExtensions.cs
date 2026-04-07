@@ -58,7 +58,7 @@ public static class WolverineExtensions
                 opts.UseAmazonSqsTransport(sqs =>
                 {
                     sqs.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(region);
-                });
+                }).DisableAllNativeDeadLetterQueues();
 
                 // Routing to SQS Queues
                 opts.PublishMessage<GenerateClusterSummaryEvent>().ToSqsQueue($"{projectName}-summary-queue");
