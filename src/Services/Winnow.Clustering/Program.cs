@@ -95,11 +95,8 @@ var app = builder.Build();
     var embeddingService = app.Services.GetRequiredService<Winnow.API.Services.Ai.IEmbeddingService>();
     startupLogger.LogWarning("  EmbeddingService type: {Type}", embeddingService.GetType().Name);
 
-    // Quick test — generate an embedding and check if it's deterministic
-    var e1 = await embeddingService.GetEmbeddingAsync("test diagnostic");
-    var e2 = await embeddingService.GetEmbeddingAsync("test diagnostic");
-    var same = e1.Vector.SequenceEqual(e2.Vector);
-    startupLogger.LogWarning("  Same text → same embedding? {Same} (should be True for ONNX, False for Mock)", same);
+    // Removed embedding validation test from startup. If embedding provider is misconfigured, 
+    // it will throw gracefully at request-time instead of entering an endless bot startup CrashLoopBackOff.
     startupLogger.LogWarning("=== END ONNX DIAGNOSTICS ===");
 }
 

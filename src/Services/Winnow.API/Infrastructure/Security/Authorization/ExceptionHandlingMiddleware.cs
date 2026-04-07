@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace Winnow.API.Infrastructure.Security.Authorization;
 
-public class ExceptionHandlingMiddleware(RequestDelegate next, IWebHostEnvironment environment)
+public class ExceptionHandlingMiddleware(RequestDelegate next, IWebHostEnvironment environment, ILogger<ExceptionHandlingMiddleware> logger)
 {
     public async Task InvokeAsync(HttpContext context)
     {
@@ -43,6 +43,8 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, IWebHostEnvironme
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "Unhandled exception in HTTP pipeline: {Message}", ex.Message);
+
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             context.Response.ContentType = "application/problem+json";
 
@@ -51,7 +53,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, IWebHostEnvironme
                 Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1",
                 Title = "An error occurred while processing your request.",
                 Status = 500,
-                Detail = environment.IsDevelopment() || environment.IsEnvironment("Testing") ? ex.Message : "Internal Server Error"
+                Detail = environment.IsDevelopment() || environment.IsEnvironment("Testing") ? ex.Message : ex.ToString()
             };
 
             await context.Response.WriteAsync(JsonSerializer.Serialize(response));

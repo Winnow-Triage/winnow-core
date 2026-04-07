@@ -194,9 +194,11 @@ internal static class ServiceExtensions
             var s3Config = new Amazon.S3.AmazonS3Config
             {
                 ServiceURL = string.IsNullOrWhiteSpace(s3Settings.Endpoint) ? null : s3Settings.Endpoint,
+                RegionEndpoint = string.IsNullOrWhiteSpace(s3Settings.Region) ? null : Amazon.RegionEndpoint.GetBySystemName(s3Settings.Region),
                 ForcePathStyle = s3Settings.ForcePathStyle,
                 UseHttp = !string.IsNullOrWhiteSpace(s3Settings.Endpoint) && s3Settings.Endpoint.StartsWith("http://")
             };
+
 
             if (string.IsNullOrWhiteSpace(s3Settings.AccessKey))
             {

@@ -17,9 +17,13 @@ public class AwsSesEmailService : IEmailService
 
     public async Task SendEmailAsync(string to, string subject, string htmlBody)
     {
+        var source = string.IsNullOrWhiteSpace(_settings.FromName)
+            ? _settings.FromAddress
+            : $"{_settings.FromName} <{_settings.FromAddress}>";
+
         var sendRequest = new SendEmailRequest
         {
-            Source = $"{_settings.FromName} <{_settings.FromAddress}>",
+            Source = source,
             Destination = new Destination
             {
                 ToAddresses = [to]
