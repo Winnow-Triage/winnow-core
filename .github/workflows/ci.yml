@@ -364,6 +364,14 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Download HuggingFace ONNX Model
+        run: |
+          echo "⬇️ Downloading Xenova/all-MiniLM-L6-v2 ONNX model binaries..."
+          mkdir -p src/Services/Winnow.API/AiModel
+          curl -s -L -o src/Services/Winnow.API/AiModel/model.onnx https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx
+          curl -s -L -o src/Services/Winnow.API/AiModel/vocab.txt https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/vocab.txt
+          curl -s -L -o src/Services/Winnow.API/AiModel/tokenizer.json https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/tokenizer.json
+
       - name: Build Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
