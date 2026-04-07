@@ -151,17 +151,19 @@ internal static class ServiceExtensions
         services.AddSingleton(emailSettings);
 
         // AWS Configuration (Shared)
-        if (llmSettings.ToxicityProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true ||
-            llmSettings.PiiRedactionProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true ||
-            emailSettings.Provider?.Equals("AwsSes", StringComparison.OrdinalIgnoreCase) == true)
+        services.AddDefaultAWSOptions(config.GetAWSOptions());
+
+        // Conditionally inject MassTransit components to maintain local development without AWS credentials
+        if (Environment.GetEnvironmentVariable("MESSAGE_BROKER")?.Equals("AmazonSqs", StringComparison.OrdinalIgnoreCase) == true)
         {
-            services.AddDefaultAWSOptions(config.GetAWSOptions());
+            services.AddAWSService<Amazon.SQS.IAmazonSQS>();
+            services.AddAWSService<Amazon.SimpleNotificationService.IAmazonSimpleNotificationService>();
         }
 
         if (llmSettings.ToxicityProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true ||
             llmSettings.PiiRedactionProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true)
         {
-            services.AddAWSService<IAmazonComprehend>();
+            services.AddAWSService<Amazon.Comprehend.IAmazonComprehend>();
         }
 
         // Toxicity Detection
