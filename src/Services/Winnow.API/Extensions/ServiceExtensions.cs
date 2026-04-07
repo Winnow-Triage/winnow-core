@@ -5,7 +5,6 @@ using Amazon.Extensions.NETCore.Setup;
 using Amazon.SimpleEmail;
 using FastEndpoints;
 using FastEndpoints.Swagger;
-using MassTransit;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;

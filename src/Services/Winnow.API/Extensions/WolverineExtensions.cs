@@ -30,6 +30,13 @@ public static class WolverineExtensions
                 var connString = config.GetConnectionString("Postgres")
                     ?? throw new InvalidOperationException("Postgres connection string missing.");
 
+                // Bridge for AWS-managed passwords or GitHub secrets
+                var dbPassword = config["DB_PASSWORD"];
+                if (!string.IsNullOrEmpty(dbPassword) && connString.Contains("{password}"))
+                {
+                    connString = connString.Replace("{password}", dbPassword);
+                }
+
                 // Wolverine uses Weasel to manage schema for outbox
                 opts.PersistMessagesWithPostgresql(connString);
                 opts.UseEntityFrameworkCoreTransactions();
