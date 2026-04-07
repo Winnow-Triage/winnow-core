@@ -97,7 +97,7 @@ public class IntegrationAggregateTests
     private static readonly Guid SomeProject = Guid.NewGuid();
 
     private static Winnow.API.Domain.Integrations.Integration CreateIntegration() =>
-        new(SomeOrg, SomeProject, "GitHub", new GitHubConfig { ApiKey = "initial" });
+        new(SomeOrg, SomeProject, "GitHub", "My Integration", new GitHubConfig { ApiKey = "initial" });
 
     [Fact]
     public void Constructor_SetsIsActiveToTrue()
