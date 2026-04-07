@@ -8,6 +8,7 @@ namespace Winnow.Notifications;
 public class WebhookNotificationHandler(
     IHttpClientFactory httpClientFactory,
     IEnumerable<IWebhookFormatter> formatters,
+    Winnow.API.Services.Emails.IEmailService emailService,
     ILogger<WebhookNotificationHandler> logger)
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -18,6 +19,37 @@ public class WebhookNotificationHandler(
 
     public async Task Handle(SendWebhookNotificationCommand command)
     {
+        if (command.Provider == NotificationProvider.Email)
+        {
+            if (string.IsNullOrWhiteSpace(command.RecipientAddress))
+            {
+                logger.LogWarning("Discarding email notification: RecipientAddress is null.");
+                return;
+            }
+
+            try
+            {
+                var htmlBody = $"<h2>{command.Title}</h2><p>{command.Message}</p>";
+                if (command.DetailUrl != null)
+                {
+                    htmlBody += $"<p><a href=\"{command.DetailUrl}\">View Details</a></p>";
+                }
+
+                await emailService.SendEmailAsync(
+                    command.RecipientAddress,
+                    command.Title ?? "Winnow Notification",
+                    htmlBody);
+
+                logger.LogInformation("Successfully sent email notification to {Target}.", command.RecipientAddress);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to send email notification to {Target}.", command.RecipientAddress);
+                throw;
+            }
+            return;
+        }
+
         if (command.WebhookUrl == null)
         {
             logger.LogWarning("Discarding notification: WebhookUrl is null.");

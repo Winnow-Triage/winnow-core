@@ -23,7 +23,8 @@ public class GetAccountDetailsHandler(UserManager<ApplicationUser> userManager) 
         {
             Id = user.Id,
             Email = user.Email ?? string.Empty,
-            FullName = user.FullName
+            FullName = user.FullName,
+            EmailBounced = user.EmailBounced
         };
     }
 }

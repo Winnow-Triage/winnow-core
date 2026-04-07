@@ -17,7 +17,8 @@ public record GetMeResult(
     List<string> Roles,
     List<string> Permissions,
     Guid? ActiveOrganizationId,
-    Guid? DefaultProjectId);
+    Guid? DefaultProjectId,
+    bool EmailBounced);
 
 public class GetMeHandler(
     UserManager<ApplicationUser> userManager,
@@ -28,7 +29,7 @@ public class GetMeHandler(
         var user = await userManager.FindByIdAsync(request.UserId);
         if (user == null)
         {
-            return new GetMeResult(false, "", "", "", false, [], [], null, null);
+            return new GetMeResult(false, "", "", "", false, [], [], null, null, false);
         }
 
         Guid? activeOrgId = null;
@@ -73,7 +74,8 @@ public class GetMeHandler(
             roles.ToList(),
             permissions,
             activeOrgId,
-            defaultProjectId
+            defaultProjectId,
+            user.EmailBounced
         );
     }
 }

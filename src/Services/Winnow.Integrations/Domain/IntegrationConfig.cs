@@ -13,6 +13,7 @@ namespace Winnow.Integrations.Domain;
 [JsonDerivedType(typeof(DiscordConfig), typeDiscriminator: "discord")]
 [JsonDerivedType(typeof(SlackConfig), typeDiscriminator: "slack")]
 [JsonDerivedType(typeof(TeamsConfig), typeDiscriminator: "teams")]
+[JsonDerivedType(typeof(EmailConfig), typeDiscriminator: "email")]
 public abstract record IntegrationConfig
 {
     /// <summary>
@@ -190,6 +191,21 @@ public record TeamsConfig : IntegrationConfig
         return this with
         {
             WebhookUrl = MergeUri(WebhookUrl, other.WebhookUrl)
+        };
+    }
+}
+
+public record EmailConfig : IntegrationConfig
+{
+    public string RecipientEmail { get; init; } = string.Empty;
+
+    public override IntegrationConfig Merge(IntegrationConfig incoming)
+    {
+        if (incoming is not EmailConfig emailConfig) return this;
+
+        return this with
+        {
+            RecipientEmail = string.IsNullOrWhiteSpace(emailConfig.RecipientEmail) ? RecipientEmail : emailConfig.RecipientEmail
         };
     }
 }

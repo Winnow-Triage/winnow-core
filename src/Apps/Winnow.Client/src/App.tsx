@@ -49,6 +49,7 @@ import { AboutDialog } from "@/components/AboutDialog";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import UserNav from "@/components/UserNav";
 import VerificationBanner from "./components/VerificationBanner";
+import EmailBouncedBanner from "./components/EmailBouncedBanner";
 import { Loader2 } from "lucide-react";
 import { AuthProvider } from "./context/AuthContext";
 
@@ -110,6 +111,7 @@ export default function App() {
                       </Suspense>
                     )}
                     <div className="flex-1 flex flex-col overflow-hidden">
+                      <EmailBouncedBanner />
                       <VerificationBanner />
                       <SidebarProvider>
                         <AppSidebar />

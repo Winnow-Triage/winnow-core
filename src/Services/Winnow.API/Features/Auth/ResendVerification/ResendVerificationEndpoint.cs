@@ -9,6 +9,7 @@ public sealed class ResendVerificationEndpoint(IMediator mediator) : EndpointWit
     public override void Configure()
     {
         Post("/auth/resend-verification");
+        Options(x => x.RequireRateLimiting("email_dispatch"));
         Summary(s =>
         {
             s.Summary = "Resend email verification token";

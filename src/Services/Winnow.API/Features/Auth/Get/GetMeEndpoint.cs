@@ -14,6 +14,7 @@ public class UserMeResponse
     public List<string> Permissions { get; set; } = [];
     public Guid? ActiveOrganizationId { get; set; }
     public Guid? DefaultProjectId { get; set; }
+    public bool EmailBounced { get; set; }
 }
 
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("api")]
@@ -63,7 +64,8 @@ public sealed class GetMeEndpoint(IMediator mediator) : EndpointWithoutRequest<U
             Roles = result.Roles,
             Permissions = result.Permissions,
             ActiveOrganizationId = result.ActiveOrganizationId,
-            DefaultProjectId = result.DefaultProjectId
+            DefaultProjectId = result.DefaultProjectId,
+            EmailBounced = result.EmailBounced
         }, ct);
     }
 }

@@ -30,12 +30,14 @@ public enum NotificationProvider
 {
     Discord,
     Slack,
-    MicrosoftTeams
+    MicrosoftTeams,
+    Email
 }
 
 public record SendWebhookNotificationCommand
 {
     public Uri? WebhookUrl { get; init; }
+    public string? RecipientAddress { get; init; }
     public NotificationProvider Provider { get; init; } = NotificationProvider.Discord;
     public string? Title { get; init; }
     public string? Message { get; init; }

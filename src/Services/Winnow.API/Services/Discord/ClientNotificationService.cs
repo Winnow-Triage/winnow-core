@@ -40,17 +40,19 @@ public class ClientNotificationService(
         foreach (var integration in integrations)
         {
             if (integration.Config is DiscordConfig discordConfig && discordConfig.WebhookUrl != null)
-                targets.Add(new NotificationTarget(discordConfig.WebhookUrl, NotificationProvider.Discord));
+                targets.Add(new NotificationTarget(discordConfig.WebhookUrl, null, NotificationProvider.Discord));
             else if (integration.Config is SlackConfig slackConfig && slackConfig.WebhookUrl != null)
-                targets.Add(new NotificationTarget(slackConfig.WebhookUrl, NotificationProvider.Slack));
+                targets.Add(new NotificationTarget(slackConfig.WebhookUrl, null, NotificationProvider.Slack));
             else if (integration.Config is TeamsConfig teamsConfig && teamsConfig.WebhookUrl != null)
-                targets.Add(new NotificationTarget(teamsConfig.WebhookUrl, NotificationProvider.MicrosoftTeams));
+                targets.Add(new NotificationTarget(teamsConfig.WebhookUrl, null, NotificationProvider.MicrosoftTeams));
+            else if (integration.Config is EmailConfig emailConfig && !string.IsNullOrWhiteSpace(emailConfig.RecipientEmail))
+                targets.Add(new NotificationTarget(null, emailConfig.RecipientEmail, NotificationProvider.Email));
         }
 
         return targets;
     }
 
-    private record NotificationTarget(Uri WebhookUrl, NotificationProvider Provider);
+    private record NotificationTarget(Uri? WebhookUrl, string? EmailAddress, NotificationProvider Provider);
 
     public async Task NotifyClusterCriticalAsync(Guid projectId, string clusterTitle, string clusterSummary)
     {
@@ -67,6 +69,7 @@ public class ClientNotificationService(
             await messageBus.PublishAsync(new SendWebhookNotificationCommand
             {
                 WebhookUrl = target.WebhookUrl,
+                RecipientAddress = target.EmailAddress,
                 Provider = target.Provider,
                 Title = $"⚠️ Critical Cluster Detected: {clusterTitle}",
                 Message = clusterSummary,
@@ -94,6 +97,7 @@ public class ClientNotificationService(
             await messageBus.PublishAsync(new SendWebhookNotificationCommand
             {
                 WebhookUrl = target.WebhookUrl,
+                RecipientAddress = target.EmailAddress,
                 Provider = target.Provider,
                 Title = $"📈 High Volume Cluster: {title}",
                 Message = $"Cluster {clusterId} has reached {count} reports. This may indicate a widespread issue.",

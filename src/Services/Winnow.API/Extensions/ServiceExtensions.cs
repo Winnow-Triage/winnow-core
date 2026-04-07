@@ -564,6 +564,20 @@ internal static class ServiceExtensions
                     QueueLimit = 0
                 });
             });
+
+            // Email Dispatch (1 req/2min/IP)
+            options.AddPolicy("email_dispatch", context =>
+            {
+                var ip = context.Connection.RemoteIpAddress?.ToString()
+                         ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
+                         ?? "unknown";
+                return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 1,
+                    Window = TimeSpan.FromMinutes(2),
+                    QueueLimit = 0
+                });
+            });
         });
 
         // CORS
