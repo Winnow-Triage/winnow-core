@@ -19,7 +19,7 @@ public sealed class AwsSesWebhookEndpoint(IMediator mediator, IHttpClientFactory
 {
     public override void Configure()
     {
-        Post("/api/webhooks/ses");
+        Post("/webhooks/ses");
         AllowAnonymous();
         Options(x => x.RequireRateLimiting("webhook"));
     }
