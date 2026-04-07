@@ -8,7 +8,7 @@ using Wolverine.EntityFrameworkCore;
 using Wolverine.Postgresql;
 using Winnow.API.Infrastructure.Persistence;
 using Amazon;
-
+using Winnow.Contracts;
 
 namespace Winnow.API.Extensions;
 
@@ -49,17 +49,22 @@ public static class WolverineExtensions
             if (env.IsEnvironment("Testing") || config["USE_IN_MEMORY_TRANSPORT"] == "true")
             {
                 // Wolverine handles local/in-memory routing out of the box when no external broker is configured
-                // Or you can explicitly route to local queues if desired
             }
             else if (Environment.GetEnvironmentVariable("MESSAGE_BROKER")?.Equals("AmazonSqs", StringComparison.OrdinalIgnoreCase) == true)
             {
                 var region = Environment.GetEnvironmentVariable("AWS_REGION") ?? "us-east-2";
+                var projectName = config["ProjectName"] ?? "winnow-prod";
 
                 opts.UseAmazonSqsTransport(sqs =>
                 {
-                    // By default, it will use standard AWS SDK credential chains
                     sqs.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(region);
                 });
+
+                // Routing to SQS Queues
+                opts.PublishMessage<GenerateClusterSummaryEvent>().ToSqsQueue($"{projectName}-summary-queue");
+                opts.PublishMessage<ReportCreatedEvent>().ToSqsQueue($"{projectName}-sanitize-queue");
+                opts.PublishMessage<ReportSanitizedEvent>().ToSqsQueue($"{projectName}-clustering-queue");
+                opts.PublishMessage<SendWebhookNotificationCommand>().ToSqsQueue($"{projectName}-notifications-queue");
             }
             else
             {

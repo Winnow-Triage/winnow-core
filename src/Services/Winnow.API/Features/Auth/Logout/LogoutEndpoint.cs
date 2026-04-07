@@ -18,6 +18,6 @@ public sealed class LogoutEndpoint : EndpointWithoutRequest
     public override async Task HandleAsync(CancellationToken ct)
     {
         HttpContext.Response.Cookies.Delete("winnow_auth");
-        await Send.OkAsync(ct);
+        await Send.OkAsync(cancellation: ct);
     }
 }

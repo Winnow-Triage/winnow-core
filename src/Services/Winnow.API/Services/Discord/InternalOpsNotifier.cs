@@ -20,7 +20,11 @@ public class InternalOpsNotifier(
 {
     public async Task NotifyNewSignupAsync(string userEmail)
     {
-        if (settings.Value.NewSignupsUrl == null) return;
+        if (settings.Value.NewSignupsUrl == null)
+        {
+            logger.LogWarning("DiscordOps:NewSignupsUrl is not configured. Skipping notification.");
+            return;
+        }
 
         await messageBus.PublishAsync(new SendWebhookNotificationCommand
         {
@@ -36,7 +40,11 @@ public class InternalOpsNotifier(
 
     public async Task NotifyDlqAlertAsync(string queueName, string errorReason)
     {
-        if (settings.Value.DlqAlertsUrl == null) return;
+        if (settings.Value.DlqAlertsUrl == null)
+        {
+            logger.LogWarning("DiscordOps:DlqAlertsUrl is not configured. Skipping notification.");
+            return;
+        }
 
         await messageBus.PublishAsync(new SendWebhookNotificationCommand
         {
@@ -52,7 +60,11 @@ public class InternalOpsNotifier(
 
     public async Task NotifyStripePaymentAsync(string userEmail, decimal amount, string currency)
     {
-        if (settings.Value.StripePaymentsUrl == null) return;
+        if (settings.Value.StripePaymentsUrl == null)
+        {
+            logger.LogWarning("DiscordOps:StripePaymentsUrl is not configured. Skipping notification.");
+            return;
+        }
 
         await messageBus.PublishAsync(new SendWebhookNotificationCommand
         {
