@@ -100,7 +100,8 @@ public class RegisterHandler(
             Console.WriteLine($"[REGISTER] Welcome email sent to {user.Email}");
 
             var emailToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
-            var verificationUrl = $"http://localhost:5173/verify-email?userId={user.Id}&token={Uri.EscapeDataString(emailToken)}";
+            var appUrl = config["AppUrl"] ?? "https://app.winnowtriage.com";
+            var verificationUrl = $"{appUrl.TrimEnd('/')}/verify-email?userId={user.Id}&token={Uri.EscapeDataString(emailToken)}";
 
             Console.WriteLine($"[REGISTER] Sending verification email to {user.Email}");
             await emailService.SendEmailVerificationAsync(user.Email!, new Uri(verificationUrl));
