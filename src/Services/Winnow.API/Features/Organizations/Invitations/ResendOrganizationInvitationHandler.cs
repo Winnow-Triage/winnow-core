@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Winnow.API.Infrastructure.Persistence;
 using Winnow.API.Services.Emails;
 using Winnow.API.Features.Shared;
+using Microsoft.Extensions.Configuration;
 
 namespace Winnow.API.Features.Organizations.Invitations;
 
@@ -14,7 +15,8 @@ public record ResendOrganizationInvitationResult(bool IsSuccess, string? ErrorMe
 
 public class ResendOrganizationInvitationHandler(
     WinnowDbContext db,
-    IEmailService emailService) : IRequestHandler<ResendOrganizationInvitationCommand, ResendOrganizationInvitationResult>
+    IEmailService emailService,
+    IConfiguration config) : IRequestHandler<ResendOrganizationInvitationCommand, ResendOrganizationInvitationResult>
 {
     public async Task<ResendOrganizationInvitationResult> Handle(ResendOrganizationInvitationCommand request, CancellationToken cancellationToken)
     {
@@ -43,7 +45,8 @@ public class ResendOrganizationInvitationHandler(
 
         await db.SaveChangesAsync(cancellationToken);
 
-        var inviteLink = new Uri($"http://localhost:5173/accept-invite?token={invitation.Token}");
+        var appUrl = config["AppUrl"] ?? "https://app.winnowtriage.com";
+        var inviteLink = new Uri($"{appUrl.TrimEnd('/')}/accept-invite?token={invitation.Token}");
         await emailService.SendOrganizationInviteAsync(invitation.Email.Value, organizationName, inviteLink);
 
         return new ResendOrganizationInvitationResult(true);

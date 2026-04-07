@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Winnow.API.Infrastructure.Identity;
 using Winnow.API.Services.Emails;
+using Microsoft.Extensions.Configuration;
 
 namespace Winnow.API.Features.Auth.ForgotPassword;
 
@@ -9,7 +10,8 @@ public record ForgotPasswordCommand(string Email) : IRequest;
 
 public class ForgotPasswordHandler(
     UserManager<ApplicationUser> userManager,
-    IEmailService emailService) : IRequestHandler<ForgotPasswordCommand>
+    IEmailService emailService,
+    IConfiguration config) : IRequestHandler<ForgotPasswordCommand>
 {
     public async Task Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)
     {
@@ -19,7 +21,8 @@ public class ForgotPasswordHandler(
         {
             var token = await userManager.GeneratePasswordResetTokenAsync(user);
 
-            var resetUrl = $"http://localhost:5173/reset-password?token={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(user.Email!)}";
+            var appUrl = config["AppUrl"] ?? "https://app.winnowtriage.com";
+            var resetUrl = $"{appUrl.TrimEnd('/')}/reset-password?token={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(user.Email!)}";
 
             await emailService.SendPasswordResetAsync(user.Email!, new Uri(resetUrl));
         }
