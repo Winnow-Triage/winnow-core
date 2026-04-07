@@ -1,4 +1,3 @@
-using MassTransit;
 using Winnow.Notifications;
 using Winnow.API.Extensions;
 
@@ -19,16 +18,11 @@ builder.Services.AddSingleton<IWebhookFormatter, MicrosoftTeamsWebhookFormatter>
 builder.Services.AddHttpClient("Webhooks")
     .AddStandardResilienceHandler();
 
-// Configure MassTransit using centralized logic
-builder.Services.AddWinnowMassTransit(builder.Configuration, builder.Environment,
-    configureBus: x =>
-    {
-        x.AddConsumer<WebhookNotificationConsumer>();
-    },
-    configureFactory: (context, cfg) =>
-    {
-        cfg.PrefetchCount = 16;
-    });
+// Configure Wolverine
+builder.Host.UseWinnowWolverine(builder.Configuration, builder.Environment, enableOutbox: false, configure: opts =>
+{
+    opts.Discovery.IncludeAssembly(typeof(Winnow.Notifications.WebhookNotificationHandler).Assembly);
+});
 
 var app = builder.Build();
 

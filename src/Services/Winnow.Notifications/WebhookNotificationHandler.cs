@@ -1,16 +1,14 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Net.Http.Json;
-using MassTransit;
 using Winnow.Contracts;
 
 namespace Winnow.Notifications;
 
-public class WebhookNotificationConsumer(
+public class WebhookNotificationHandler(
     IHttpClientFactory httpClientFactory,
     IEnumerable<IWebhookFormatter> formatters,
-    ILogger<WebhookNotificationConsumer> logger)
-    : IConsumer<SendWebhookNotificationCommand>
+    ILogger<WebhookNotificationHandler> logger)
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -18,10 +16,8 @@ public class WebhookNotificationConsumer(
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public async Task Consume(ConsumeContext<SendWebhookNotificationCommand> context)
+    public async Task Handle(SendWebhookNotificationCommand command)
     {
-        var command = context.Message;
-
         if (command.WebhookUrl == null)
         {
             logger.LogWarning("Discarding notification: WebhookUrl is null.");
@@ -48,7 +44,7 @@ public class WebhookNotificationConsumer(
                 logger.LogError("Webhook API for {Provider} returned {StatusCode}: {Error}",
                     command.Provider, response.StatusCode, errorBody);
 
-                // Trigger MassTransit retry
+                // Trigger Wolverine retry by throwing exception
                 response.EnsureSuccessStatusCode();
             }
 
@@ -58,7 +54,7 @@ public class WebhookNotificationConsumer(
         {
             logger.LogError(ex, "Failed to send {Provider} notification.",
                 command.Provider);
-            throw; // Re-throw to allow MassTransit to retry
+            throw; // Re-throw to allow Wolverine to retry
         }
     }
 }
