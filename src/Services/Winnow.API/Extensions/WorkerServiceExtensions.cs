@@ -141,6 +141,14 @@ public static class WorkerServiceExtensions
             options.AddInterceptors(sp.GetRequiredService<DomainEventInterceptor>());
         });
 
+        // Conditionally inject MassTransit components to maintain local development without AWS credentials
+        // This MUST be in the base infrastructure so workers (winnow-summary) receive it.
+        if (Environment.GetEnvironmentVariable("MESSAGE_BROKER")?.Equals("AmazonSqs", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            services.AddAWSService<Amazon.SQS.IAmazonSQS>();
+            services.AddAWSService<Amazon.SimpleNotificationService.IAmazonSimpleNotificationService>();
+        }
+
         return services;
     }
 

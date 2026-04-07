@@ -153,13 +153,6 @@ internal static class ServiceExtensions
         // AWS Configuration (Shared)
         services.AddDefaultAWSOptions(config.GetAWSOptions());
 
-        // Conditionally inject MassTransit components to maintain local development without AWS credentials
-        if (Environment.GetEnvironmentVariable("MESSAGE_BROKER")?.Equals("AmazonSqs", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            services.AddAWSService<Amazon.SQS.IAmazonSQS>();
-            services.AddAWSService<Amazon.SimpleNotificationService.IAmazonSimpleNotificationService>();
-        }
-
         if (llmSettings.ToxicityProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true ||
             llmSettings.PiiRedactionProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true)
         {

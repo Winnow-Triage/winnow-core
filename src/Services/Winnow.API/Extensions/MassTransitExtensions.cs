@@ -42,7 +42,13 @@ public static class MassTransitExtensions
             {
                 x.UsingAmazonSqs((context, cfg) =>
                 {
-                    // No Host configurator needed when AWS clients are in DI
+                    var region = Environment.GetEnvironmentVariable("AWS_REGION") ?? "us-east-2";
+                    cfg.Host(region, h =>
+                    {
+                        // Explicit empty configuration block: MassTransit will automatically use the 
+                        // IAmazonSQS and IAmazonSimpleNotificationService registered in the DI container.
+                    });
+
                     configureFactory?.Invoke(context, cfg);
                     cfg.ConfigureEndpoints(context);
                 });
