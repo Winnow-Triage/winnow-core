@@ -3,10 +3,12 @@ using Amazon;
 using Amazon.Comprehend;
 using Amazon.Extensions.NETCore.Setup;
 using Amazon.SimpleEmail;
+using Resend;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Net.Http.Headers;
 using Microsoft.SemanticKernel;
 using Winnow.API.Infrastructure.Analysis;
 using Winnow.API.Infrastructure.Configuration;
@@ -155,10 +157,22 @@ public static class WorkerServiceExtensions
         config.GetSection("EmailSettings").Bind(emailSettings);
         services.AddSingleton(emailSettings);
 
+        // Discord Configuration
+        services.Configure<DiscordOps>(config.GetSection("DiscordOps"));
+
         if (emailSettings.Provider == "AwsSes")
         {
             services.AddAWSService<IAmazonSimpleEmailService>();
             services.AddScoped<IEmailService, Winnow.API.Services.Emails.AwsSesEmailService>();
+        }
+        else if (emailSettings.Provider == "Resend")
+        {
+            services.AddHttpClient<IResend, ResendClient>(client =>
+            {
+                client.BaseAddress = new Uri("https://api.resend.com/");
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", emailSettings.Resend.ApiKey);
+            });
+            services.AddScoped<IEmailService, ResendEmailService>();
         }
         else
         {

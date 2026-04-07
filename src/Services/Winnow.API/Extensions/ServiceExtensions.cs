@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.Amazon;
+using System.Net.Http.Headers;
 using Winnow.API.Domain.Core;
 using Winnow.API.Domain.Organizations;
 using Winnow.API.Domain.Projects;
