@@ -1,9 +1,10 @@
-using MassTransit;
+using Wolverine;
 using Winnow.Contracts;
 using Winnow.Clustering;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Winnow.API.Extensions;
+
 using System.Runtime.InteropServices;
 using Microsoft.ML.OnnxRuntime;
 
@@ -32,46 +33,11 @@ builder.Services.AddWinnowBaseInfrastructure(builder.Configuration);
 builder.Services.AddWinnowClusteringInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<Winnow.Clustering.Infrastructure.Scheduling.ClusterRefinementJob>();
 
-// Add MassTransit
-builder.Services.AddWinnowMassTransit(builder.Configuration, builder.Environment, enableOutbox: true,
-    configureBus: x =>
-    {
-        x.AddConsumer<ClusteringBatchConsumer>();
-    },
-    configureFactory: (context, cfg) =>
-    {
-        if (cfg is IRabbitMqBusFactoryConfigurator rmq)
-        {
-            rmq.ReceiveEndpoint("cluster-reports-queue", e =>
-            {
-                e.PrefetchCount = 100;
-                e.Batch<ReportSanitizedEvent>(b =>
-                {
-                    b.MessageLimit = 50;
-                    b.TimeLimit = TimeSpan.FromSeconds(3);
-                });
-
-                e.ConfigureConsumer<ClusteringBatchConsumer>(context);
-            });
-        }
-        else
-        {
-            // For InMemory, we can still configure the same endpoint logic if we want, 
-            // but MassTransit InMemory usually handles it via ConfigureEndpoints if we don't need custom queue names.
-            // However, Batching REQUIRES explicit endpoint configuration in some versions.
-            cfg.ReceiveEndpoint("cluster-reports-queue", e =>
-            {
-                e.PrefetchCount = 100;
-                e.Batch<ReportSanitizedEvent>(b =>
-                {
-                    b.MessageLimit = 50;
-                    b.TimeLimit = TimeSpan.FromSeconds(3);
-                });
-
-                e.ConfigureConsumer<ClusteringBatchConsumer>(context);
-            });
-        }
-    });
+// Add Wolverine
+builder.Host.UseWinnowWolverine(builder.Configuration, builder.Environment, enableOutbox: true, configure: opts =>
+{
+    opts.Discovery.IncludeAssembly(typeof(Winnow.Clustering.ClusteringBatchHandler).Assembly);
+});
 
 var app = builder.Build();
 

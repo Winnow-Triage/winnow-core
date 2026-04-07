@@ -1,5 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
-using MassTransit;
+using Wolverine;
 using Microsoft.EntityFrameworkCore;
 using Winnow.API.Domain.Clusters;
 using Winnow.API.Domain.Clusters.ValueObjects;
@@ -15,7 +15,6 @@ namespace Winnow.Clustering.Infrastructure.Scheduling;
 
 internal sealed class ClusterRefinementJob(
     IServiceScopeFactory scopeFactory,
-    IPublishEndpoint publishEndpoint,
     ILogger<ClusterRefinementJob> logger) : BackgroundService
 {
     [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Background service loop must continue on failure")]
@@ -49,7 +48,9 @@ internal sealed class ClusterRefinementJob(
                         var vectorCalculator = scope.ServiceProvider.GetRequiredService<IVectorCalculator>();
                         var clusterService = scope.ServiceProvider.GetRequiredService<IClusterService>();
 
-                        await ProcessProjectAsync(db, projectId, embeddingService, duplicateChecker, negativeCache, vectorCalculator, clusterService, stoppingToken);
+                        var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
+
+                        await ProcessProjectAsync(db, projectId, embeddingService, duplicateChecker, negativeCache, vectorCalculator, clusterService, bus, stoppingToken);
                     }
                     catch (OperationCanceledException)
                     {
@@ -82,6 +83,7 @@ internal sealed class ClusterRefinementJob(
         INegativeMatchCache negativeCache,
         IVectorCalculator vectorCalculator,
         IClusterService clusterService,
+        IMessageBus bus,
         CancellationToken ct)
     {
         var orphanReports = await GetOrphanReportsAsync(db, projectId, ct);
@@ -118,10 +120,10 @@ internal sealed class ClusterRefinementJob(
         {
             if (cluster.ReportCount >= 5 && (cluster.LastSummarizedAt == null || cluster.LastSummarizedAt <= tenMinutesAgo))
             {
-                await publishEndpoint.Publish(new GenerateClusterSummaryEvent(
+                await bus.PublishAsync(new GenerateClusterSummaryEvent(
                     cluster.Id,
                     cluster.OrganizationId,
-                    cluster.ProjectId), ct);
+                    cluster.ProjectId));
             }
         }
     }

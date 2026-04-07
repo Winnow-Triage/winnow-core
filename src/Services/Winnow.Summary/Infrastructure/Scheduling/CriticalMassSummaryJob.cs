@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using global::Winnow.API.Domain.Clusters.ValueObjects;
 using global::Winnow.API.Infrastructure.Persistence;
 using global::Winnow.Contracts;
-using MassTransit;
+using Wolverine;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -12,7 +12,6 @@ namespace Winnow.Summary.Infrastructure.Scheduling;
 
 internal sealed class CriticalMassSummaryJob(
     IServiceScopeFactory scopeFactory,
-    IPublishEndpoint publishEndpoint,
     ILogger<CriticalMassSummaryJob> logger) : BackgroundService
 {
     [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Background service loop must continue on failure")]
@@ -25,6 +24,7 @@ internal sealed class CriticalMassSummaryJob(
             {
                 using var scope = scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
+                var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
 
                 logger.LogInformation("CriticalMassSummaryJob: Starting safety net check for clusters needing summary.");
 
@@ -50,10 +50,10 @@ internal sealed class CriticalMassSummaryJob(
 
                 foreach (var info in clusterIds)
                 {
-                    await publishEndpoint.Publish(new GenerateClusterSummaryEvent(
+                    await bus.PublishAsync(new GenerateClusterSummaryEvent(
                         info.Id,
                         info.OrganizationId,
-                        info.ProjectId), stoppingToken);
+                        info.ProjectId));
                 }
             }
             catch (OperationCanceledException)

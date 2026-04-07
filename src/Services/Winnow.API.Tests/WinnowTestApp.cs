@@ -15,16 +15,22 @@ using Winnow.API.Infrastructure.Persistence;
 
 namespace Winnow.API.Tests;
 
-/// <summary>
-/// WebApplicationFactory for Winnow.API integration tests.
-/// Uses a shared PostgreSQL Testcontainer from PostgresFixture.
-/// </summary>
-public class WinnowTestApp(PostgresFixture fixture, Action<IServiceCollection>? configureTestServices = null, bool enablePoW = false) : WebApplicationFactory<WinnowDbContext>, IAsyncLifetime
+public class WinnowTestApp : WebApplicationFactory<WinnowDbContext>, IAsyncLifetime
 {
-    private readonly bool _enablePoW = enablePoW;
-    private readonly Action<IServiceCollection>? _configureTestServices = configureTestServices;
-    private readonly string _connectionString = fixture.ConnectionString;
+    private readonly bool _enablePoW;
+    private readonly Action<IServiceCollection>? _configureTestServices;
+    private readonly string _connectionString;
     private readonly string _tenantId = "test-tenant";
+
+    public WinnowTestApp(PostgresFixture fixture, Action<IServiceCollection>? configureTestServices = null, bool enablePoW = false)
+    {
+        _enablePoW = enablePoW;
+        _configureTestServices = configureTestServices;
+        _connectionString = fixture.ConnectionString;
+
+        Environment.SetEnvironmentVariable("ConnectionStrings__Postgres", fixture.ConnectionString);
+        Environment.SetEnvironmentVariable("USE_IN_MEMORY_TRANSPORT", "true");
+    }
 
     static WinnowTestApp()
     {
@@ -52,6 +58,15 @@ public class WinnowTestApp(PostgresFixture fixture, Action<IServiceCollection>? 
             {
                 source.ReloadOnChange = false;
             }
+
+            var connString = _connectionString ?? Environment.GetEnvironmentVariable("POSTGRES_CONNECTION_STRING")
+                             ?? "Host=localhost;Database=winnow;Username=postgres;Password=postgres";
+
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:Postgres"] = connString,
+                ["USE_IN_MEMORY_TRANSPORT"] = "true"
+            });
         });
 
         builder.ConfigureTestServices(services =>
@@ -66,11 +81,22 @@ public class WinnowTestApp(PostgresFixture fixture, Action<IServiceCollection>? 
 
             foreach (var d in descriptors) services.Remove(d);
 
-            // Remove hosted services to prevent background interference
-            // We remove both the IHostedService registration and any direct registrations of BackgroundServices
+            // Remove hosted services to prevent background interference during tests
+            // except for vital framework services like Wolverine which is needed for IMessageBus
             var hostedServices = services.Where(d =>
-                d.ServiceType == typeof(Microsoft.Extensions.Hosting.IHostedService) ||
-                (d.ImplementationType != null && d.ImplementationType.IsAssignableTo(typeof(Microsoft.Extensions.Hosting.IHostedService)))).ToList();
+            {
+                if (d.ServiceType == typeof(Microsoft.Extensions.Hosting.IHostedService) ||
+                    (d.ImplementationType != null && d.ImplementationType.IsAssignableTo(typeof(Microsoft.Extensions.Hosting.IHostedService))))
+                {
+                    var implName = d.ImplementationType?.FullName ?? "";
+                    if (implName.StartsWith("Winnow"))
+                    {
+                        return true; // remove all our background jobs including AdminSeeder
+                    }
+                    return false; // keep Wolverine, Microsoft, etc.
+                }
+                return false;
+            }).ToList();
 
             foreach (var s in hostedServices) services.Remove(s);
 

@@ -574,8 +574,6 @@ internal static class ServiceExtensions
             });
         });
 
-        // MassTransit
-        services.AddWinnowMassTransit(config, hostEnv, enableOutbox: true);
 
         // MediatR — in-process domain event dispatcher
         // DomainEventInterceptor automatically dispatches events from all IAggregateRoot

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Winnow.Contracts;
 using MediatR;
-using MassTransit;
+using Wolverine;
 using Microsoft.EntityFrameworkCore;
 using Winnow.API.Domain.Reports;
 using Winnow.API.Infrastructure.Persistence;
@@ -24,7 +24,7 @@ public class CreateReportHandler(
     WinnowDbContext dbContext,
     IQuotaService quotaService,
     IEmbeddingService embeddingService,
-    IPublishEndpoint publishEndpoint,
+    IMessageBus bus,
     ILogger<CreateReportHandler> logger) : IRequestHandler<CreateReportCommand, Guid>
 {
     public async Task<Guid> Handle(CreateReportCommand request, CancellationToken ct)
@@ -106,7 +106,7 @@ public class CreateReportHandler(
             report.Id, request.OrganizationId);
 
         // 5. Publish Event to trigger analysis chain
-        await publishEndpoint.Publish(new ReportCreatedEvent
+        await bus.PublishAsync(new ReportCreatedEvent
         {
             ReportId = report.Id,
             CurrentOrganizationId = request.OrganizationId,
@@ -116,7 +116,7 @@ public class CreateReportHandler(
             StackTrace = report.StackTrace,
             CreatedAt = report.CreatedAt,
             Metadata = report.Metadata
-        }, ct);
+        });
 
         return report.Id;
     }

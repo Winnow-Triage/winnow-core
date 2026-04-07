@@ -1,4 +1,4 @@
-using MassTransit;
+using Wolverine;
 using Winnow.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Winnow.API.Domain.Clusters;
@@ -13,21 +13,22 @@ using Microsoft.Extensions.Logging;
 
 namespace Winnow.Clustering;
 
-public sealed class ClusteringBatchConsumer(
+public sealed class ClusteringBatchHandler(
     WinnowDbContext dbContext,
-    ILogger<ClusteringBatchConsumer> logger,
+    ILogger<ClusteringBatchHandler> logger,
     ITenantContext tenantContext,
     IDuplicateChecker duplicateChecker,
     IVectorCalculator vectorCalculator,
     IClusterService clusterService,
-    IEmbeddingService embeddingService) : IConsumer<Batch<ReportSanitizedEvent>>
+    IEmbeddingService embeddingService,
+    IMessageBus bus)
 {
-    public async Task Consume(ConsumeContext<Batch<ReportSanitizedEvent>> context)
+    public async Task Handle(IReadOnlyList<ReportSanitizedEvent> messages, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Received a batch of {Count} sanitized reports for clustering.", context.Message.Length);
+        logger.LogInformation("Received a batch of {Count} sanitized reports for clustering.", messages.Count);
 
         // Group by Organization to respect multi-tenancy filters
-        var groupsByOrg = context.Message.GroupBy(m => m.Message.CurrentOrganizationId);
+        var groupsByOrg = messages.GroupBy(m => m.CurrentOrganizationId);
 
         foreach (var orgGroup in groupsByOrg)
         {
@@ -39,12 +40,12 @@ public sealed class ClusteringBatchConsumer(
                 concreteContext.TenantId = organizationId.ToString();
             }
 
-            var reportIdsInOrg = orgGroup.Select(m => m.Message.ReportId).ToList();
+            var reportIdsInOrg = orgGroup.Select(m => m.ReportId).ToList();
 
             // 1. Load all reports for this organization in this batch
             var reportsInOrg = await dbContext.Reports
                 .Where(r => reportIdsInOrg.Contains(r.Id))
-                .ToListAsync(context.CancellationToken);
+                .ToListAsync(cancellationToken);
 
             // Group by Project within the Organization
             var groupsByProject = reportsInOrg.GroupBy(r => r.ProjectId);
@@ -57,7 +58,7 @@ public sealed class ClusteringBatchConsumer(
                 // 2. Load all active clusters for this project once
                 var projectClusters = await dbContext.Clusters
                     .Where(c => c.ProjectId == projectId && c.Status != ClusterStatus.Dismissed && c.Centroid != null)
-                    .ToListAsync(context.CancellationToken);
+                    .ToListAsync(cancellationToken);
 
                 foreach (var report in projectGroup)
                 {
@@ -119,7 +120,7 @@ public sealed class ClusteringBatchConsumer(
                                     .Where(r => r.ClusterId == bestMatch.Cluster.Id && r.ProjectId == projectId)
                                     .OrderBy(r => r.CreatedAt)
                                     .Take(1)
-                                    .ToListAsync(context.CancellationToken);
+                                    .ToListAsync(cancellationToken);
 
                                 if (clusterReports.Count > 0)
                                 {
@@ -127,7 +128,7 @@ public sealed class ClusteringBatchConsumer(
                                     var areDuplicates = await duplicateChecker.AreDuplicatesAsync(
                                         report.Title, report.Message,
                                         representative.Title, representative.Message,
-                                        context.CancellationToken);
+                                        cancellationToken);
 
                                     if (areDuplicates)
                                     {
@@ -180,18 +181,18 @@ public sealed class ClusteringBatchConsumer(
                 }
 
                 // 6. Save report assignments and new clusters for this project
-                await dbContext.SaveChangesAsync(context.CancellationToken);
+                await dbContext.SaveChangesAsync(cancellationToken);
 
                 // 7. Recalculate centroids
                 foreach (var clusterId in modifiedClusterIds)
                 {
-                    await clusterService.RecalculateCentroidAsync(clusterId, context.CancellationToken);
+                    await clusterService.RecalculateCentroidAsync(clusterId, cancellationToken);
                 }
 
                 // 8. Trigger Summary if critical mass reached
                 foreach (var clusterId in modifiedClusterIds)
                 {
-                    var cluster = await dbContext.Clusters.FindAsync([clusterId], context.CancellationToken);
+                    var cluster = await dbContext.Clusters.FindAsync([clusterId], cancellationToken);
                     if (cluster != null && cluster.ReportCount >= 5)
                     {
                         var tenMinutesAgo = DateTime.UtcNow.AddMinutes(-10);
@@ -200,10 +201,10 @@ public sealed class ClusteringBatchConsumer(
                             logger.LogInformation("ClusteringBatchConsumer: Cluster {ClusterId} reached critical mass ({Count} reports). Requesting summary.",
                                 cluster.Id, cluster.ReportCount);
 
-                            await context.Publish(new GenerateClusterSummaryEvent(
+                            await bus.PublishAsync(new GenerateClusterSummaryEvent(
                                 cluster.Id,
                                 cluster.OrganizationId,
-                                cluster.ProjectId), context.CancellationToken);
+                                cluster.ProjectId));
                         }
                     }
                 }

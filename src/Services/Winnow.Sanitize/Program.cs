@@ -1,8 +1,9 @@
-using MassTransit;
+using Wolverine;
 using Winnow.Sanitize;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Winnow.API.Extensions;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,18 +14,11 @@ builder.Services.AddHealthChecks();
 builder.Services.AddWinnowBaseInfrastructure(builder.Configuration);
 builder.Services.AddWinnowSanitizeInfrastructure(builder.Configuration);
 
-// Add MassTransit
-builder.Services.AddWinnowMassTransit(builder.Configuration, builder.Environment, enableOutbox: true,
-    configureBus: x =>
-    {
-        x.AddConsumer<AnalyzeReportConsumer>();
-    },
-    configureFactory: (context, cfg) =>
-    {
-        // Configure concurrent consumer execution
-        cfg.PrefetchCount = 16;
-        cfg.UseConcurrencyLimit(16);
-    });
+// Add Wolverine
+builder.Host.UseWinnowWolverine(builder.Configuration, builder.Environment, enableOutbox: true, configure: opts =>
+{
+    opts.Discovery.IncludeAssembly(typeof(Winnow.Sanitize.AnalyzeReportHandler).Assembly);
+});
 
 var app = builder.Build();
 
