@@ -24,10 +24,10 @@ public class ListProjectIntegrationsHandler(WinnowDbContext db)
         var integrations = await db.Integrations
             .AsNoTracking()
             .Where(i => i.ProjectId == request.ProjectId)
-            .Select(i => new { i.Id, i.Provider, i.IsActive })
+            .Select(i => new { i.Id, i.Provider, i.Name, i.IsActive })
             .ToListAsync(ct);
 
-        var dtos = integrations.Select(i => new ProjectIntegrationDto(i.Id, i.Provider, $"{i.Provider} Integration", i.IsActive)).ToList();
+        var dtos = integrations.Select(i => new ProjectIntegrationDto(i.Id, i.Provider, i.Name, i.IsActive)).ToList();
 
         return dtos;
     }

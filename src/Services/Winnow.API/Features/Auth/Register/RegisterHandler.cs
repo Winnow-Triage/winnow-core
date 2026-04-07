@@ -26,7 +26,8 @@ public class RegisterHandler(
     Winnow.API.Infrastructure.MultiTenancy.ITenantContext tenantContext,
     IConfiguration config,
     Winnow.API.Infrastructure.Security.IApiKeyService apiKeyService,
-    IEmailService emailService) : IRequestHandler<RegisterCommand, AuthResult>
+    IEmailService emailService,
+    Winnow.API.Services.Discord.IInternalOpsNotifier internalOpsNotifier) : IRequestHandler<RegisterCommand, AuthResult>
 {
     public async Task<AuthResult> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
@@ -76,6 +77,18 @@ public class RegisterHandler(
         );
 
         dbContext.Projects.Add(project);
+
+        // Notify internal operations of new signup - MUST happen before SaveChangesAsync for Outbox to capture it
+        try
+        {
+            await internalOpsNotifier.NotifyNewSignupAsync(request.Email);
+        }
+        catch (Exception ex)
+        {
+            // Do not block registration for notification failures
+            Console.WriteLine($"[REGISTER] Internal notification failed: {ex.Message}");
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
 
         tenantContext.CurrentOrganizationId = organization.Id;

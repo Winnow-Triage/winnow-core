@@ -139,11 +139,10 @@ services:
       - rabbitmq
       - mailpit
       - presidio-analyzer
-      - ministack-setup
     environment:
       - ASPNETCORE_HTTP_PORTS=5000
       - ASPNETCORE_hostBuilder_reloadConfigOnChange=false
-      - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=localpassword;Maximum Pool Size=4;Minimum Pool Size=0
+      - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=${POSTGRES_PASSWORD};Maximum Pool Size=4;Minimum Pool Size=0
       - S3Settings__Endpoint=http://localhost:4566
       - LlmSettings__Provider=Ollama
       - LlmSettings__Ollama__Endpoint=http://localhost:11434
@@ -151,12 +150,15 @@ services:
       - LlmSettings__Ollama__GatekeeperModelId=llama3.2
       - LlmSettings__Presidio__AnalyzerEndpoint=http://localhost:5002
       - EmailSettings__Smtp__Host=localhost
-      - AWS_ACCESS_KEY_ID=minioadmin
-      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - S3_ForcePathStyle=true
       - RABBITMQ_HOST=localhost
-      - Encryption__MasterKey=NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg=
+      - Encryption__MasterKey=${ENCRYPTION_MASTER_KEY}
       - ConnectionStrings__Redis=localhost:6379
+      - DiscordOps__NewSignupsUrl=${DISCORD_NEW_SIGNUPS_URL}
+      - DiscordOps__DlqAlertsUrl=${DISCORD_DLQ_ALERTS_URL}
+      - DiscordOps__StripePaymentsUrl=${DISCORD_STRIPE_PAYMENTS_URL}
 
   # 5. Sanitize Worker
   sanitize:
@@ -231,7 +233,30 @@ services:
       - Encryption__MasterKey=NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg=
       - ConnectionStrings__Redis=localhost:6379
 
-  # 8. React Client Frontend
+  # 8. Notifications Worker
+  notifications:
+    build:
+      context: .
+      dockerfile: src/Services/Winnow.Notifications/Dockerfile
+    container_name: winnow-notifications
+    network_mode: "host"
+    depends_on:
+      - rabbitmq
+    environment:
+      - ASPNETCORE_HTTP_PORTS=5005
+      - ASPNETCORE_hostBuilder_reloadConfigOnChange=false
+      - RABBITMQ_HOST=localhost
+      - ConnectionStrings__Postgres=Host=localhost;Port=5432;Database=winnow_db;Username=winnow;Password=${POSTGRES_PASSWORD};Maximum Pool Size=4;Minimum Pool Size=0
+      - S3Settings__Endpoint=http://localhost:4566
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - Encryption__MasterKey=${ENCRYPTION_MASTER_KEY}
+      - ConnectionStrings__Redis=localhost:6379
+      - DiscordOps__NewSignupsUrl=${DISCORD_NEW_SIGNUPS_URL}
+      - DiscordOps__DlqAlertsUrl=${DISCORD_DLQ_ALERTS_URL}
+      - DiscordOps__StripePaymentsUrl=${DISCORD_STRIPE_PAYMENTS_URL}
+
+  # 9. React Client Frontend
   client:
     build:
       context: ./src/Apps/Winnow.Client

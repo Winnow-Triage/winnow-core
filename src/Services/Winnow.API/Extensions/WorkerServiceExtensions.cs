@@ -22,6 +22,7 @@ using Winnow.API.Features.Dashboard.Service;
 using Winnow.API.Features.Clusters.GenerateSummary;
 using Winnow.API.Domain.Services; // For IVectorCalculator
 using Amazon.S3;
+using Winnow.API.Services.Emails;
 namespace Winnow.API.Extensions;
 
 public static class WorkerServiceExtensions
@@ -147,6 +148,21 @@ public static class WorkerServiceExtensions
         {
             services.AddAWSService<Amazon.SQS.IAmazonSQS>();
             services.AddAWSService<Amazon.SimpleNotificationService.IAmazonSimpleNotificationService>();
+        }
+
+        // Email Service
+        var emailSettings = new Winnow.API.Infrastructure.Configuration.EmailSettings();
+        config.GetSection("EmailSettings").Bind(emailSettings);
+        services.AddSingleton(emailSettings);
+
+        if (emailSettings.Provider == "AwsSes")
+        {
+            services.AddAWSService<IAmazonSimpleEmailService>();
+            services.AddScoped<IEmailService, Winnow.API.Services.Emails.AwsSesEmailService>();
+        }
+        else
+        {
+            services.AddScoped<IEmailService, Winnow.API.Services.Emails.SmtpEmailService>();
         }
 
         return services;

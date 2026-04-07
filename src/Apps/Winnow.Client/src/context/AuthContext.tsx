@@ -17,6 +17,7 @@ interface User {
   permissions?: string[];
   activeOrganizationId?: string;
   defaultProjectId?: string;
+  emailBounced?: boolean;
 }
 
 interface AuthContextType {
@@ -56,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         permissions: data.permissions || [],
         activeOrganizationId: data.activeOrganizationId,
         defaultProjectId: data.defaultProjectId,
+        emailBounced: data.emailBounced,
       };
       setUser(userData);
       localStorage.setItem("user", JSON.stringify(userData));
@@ -94,6 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       permissions: userData.permissions || [],
       activeOrganizationId: userData.activeOrganizationId,
       defaultProjectId: userData.defaultProjectId,
+      emailBounced: userData.emailBounced,
     };
     setUser(user);
     localStorage.setItem("user", JSON.stringify(user));

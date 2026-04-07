@@ -14,8 +14,10 @@ public record CreateIntegrationCommand : IRequest<Integration>, IProjectScopedRe
     public Guid ProjectId { get; set; }
     public Guid? Id { get; set; }
     public string Provider { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
     public string SettingsJson { get; set; } = "{}";
     public bool IsActive { get; set; } = true;
+    public bool NotificationsEnabled { get; set; } = true;
     public Guid CurrentProjectId { get; set; }
     public Guid CurrentOrganizationId { get; set; }
     public string CurrentUserId { get; set; } = string.Empty;
@@ -50,6 +52,8 @@ public class CreateIntegrationHandler(
 
             integration.UpdateConfig(newConfig);
             if (request.IsActive) integration.Reactivate(); else integration.Deactivate();
+            integration.UpdateNotificationState(request.NotificationsEnabled);
+            integration.UpdateName(request.Name);
         }
         else
         {
@@ -57,9 +61,11 @@ public class CreateIntegrationHandler(
                 request.CurrentOrganizationId,
                 request.ProjectId,
                 request.Provider,
+                request.Name,
                 newConfig
             );
             if (!request.IsActive) integration.Deactivate();
+            integration.UpdateNotificationState(request.NotificationsEnabled);
 
             await db.Integrations.AddAsync(integration, ct);
         }

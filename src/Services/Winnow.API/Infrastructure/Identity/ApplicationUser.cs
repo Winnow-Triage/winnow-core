@@ -12,4 +12,7 @@ public class ApplicationUser : IdentityUser
 
     // Relationship: A user can be a member of multiple organizations
     public ICollection<Winnow.API.Domain.Organizations.OrganizationMember> OrganizationMemberships { get; set; } = new List<Winnow.API.Domain.Organizations.OrganizationMember>();
+
+    public bool EmailBounced { get; set; }
+    public DateTimeOffset? BouncedAt { get; set; }
 }

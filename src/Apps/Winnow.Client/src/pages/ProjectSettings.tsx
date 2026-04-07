@@ -7,12 +7,23 @@ import { Input } from "@/components/ui/input";
 import {
   Copy,
   Edit,
-  FolderGit2,
-  Github,
   Plus,
   Trash2,
-  Trello,
+  Bell,
+  ArrowLeft,
 } from "lucide-react";
+import {
+  SiDiscord,
+  SiGithub,
+  SiJira,
+} from "react-icons/si";
+import {
+  FaTrello
+} from "react-icons/fa";
+import {
+  BsMicrosoftTeams
+} from "react-icons/bs";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +33,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+
+const SlackIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 122.8 122.8" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M25.8 77.6c0 7.1-5.8 12.9-12.9 12.9S0 84.7 0 77.6s5.8-12.9 12.9-12.9h12.9v12.9zm6.4 0c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9v32.3c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V77.6z" fill="#E01E5A"/>
+    <path d="M45.1 25.8c-7.1 0-12.9-5.8-12.9-12.9S38 0 45.1 0s12.9 5.8 12.9 12.9v12.9H45.1zm0 6.4c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H12.9C5.8 58.1 0 52.3 0 45.1s5.8-12.9 12.9-12.9h32.2z" fill="#36C5F0"/>
+    <path d="M97 45.1c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H97V45.1zm-6.4 0c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V12.9C64.8 5.8 70.6 0 77.7 0s12.9 5.8 12.9 12.9v32.2z" fill="#2EB67D"/>
+    <path d="M77.7 97c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V97h12.9zm0-6.4c-7.1 0-12.9-5.8-12.9-12.9s5.8-12.9 12.9-12.9h32.3c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H77.7z" fill="#ECB22E"/>
+  </svg>
+);
+
 import {
   Select,
   SelectContent,
@@ -52,6 +73,7 @@ interface IntegrationConfig {
   id: string;
   provider: string;
   name: string;
+  notificationsEnabled: boolean;
 }
 
 function ApiKeyManagementSection() {
@@ -279,8 +301,10 @@ function ApiKeyManagementSection() {
 }
 
 export default function ProjectSettings() {
-  const { currentProject, renameProject, deleteProject } = useProject();
+  const { currentProject, updateProjectSettings, deleteProject } = useProject();
   const [projectName, setProjectName] = useState("");
+  const [notificationThreshold, setNotificationThreshold] = useState<number | string>("");
+  const [criticalityThreshold, setCriticalityThreshold] = useState<number | string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -289,6 +313,8 @@ export default function ProjectSettings() {
   useEffect(() => {
     if (currentProject) {
       setProjectName(currentProject.name);
+      setNotificationThreshold(currentProject.notifications?.volumeThreshold ?? "");
+      setCriticalityThreshold(currentProject.notifications?.criticalityThreshold ?? "");
     }
   }, [currentProject]);
 
@@ -297,10 +323,16 @@ export default function ProjectSettings() {
 
     setIsSaving(true);
     try {
-      await renameProject(currentProject.id, projectName.trim());
-      toast.success("Project updated successfully");
-    } catch (error) {
-      toast.error("Failed to update project");
+      await updateProjectSettings(currentProject.id, {
+        name: projectName.trim(),
+        notifications: {
+          volumeThreshold: notificationThreshold === "" ? null : Number(notificationThreshold),
+          criticalityThreshold: criticalityThreshold === "" ? null : Number(criticalityThreshold),
+        }
+      });
+      toast.success("Project settings updated");
+    } catch (error: any) {
+      toast.error(error.message);
     } finally {
       setIsSaving(false);
     }
@@ -343,19 +375,66 @@ export default function ProjectSettings() {
         {/* General Section */}
         <Card>
           <CardHeader>
-            <CardTitle>General</CardTitle>
+            <CardTitle>General Settings</CardTitle>
             <CardDescription>
-              Change basic project details here.
+              Manage your project's basic information.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2 max-w-sm">
-              <Label>Project Name</Label>
+            <div className="flex flex-col gap-2 max-w-sm">
+              <Label htmlFor="project-name">Project Name</Label>
               <Input
+                id="project-name"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                placeholder="My Awesome Project"
+                placeholder="My Project"
               />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-blue-500" />
+              <CardTitle>Notifications</CardTitle>
+            </div>
+            <CardDescription>
+              Configure how and when you want to be notified about cluster activity.
+              Leave thresholds empty to use organization defaults.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2 max-w-xl">
+              <div className="space-y-2">
+                <Label htmlFor="volume-threshold">Volume Threshold</Label>
+                <Input
+                  id="volume-threshold"
+                  type="number"
+                  min="1"
+                  value={notificationThreshold}
+                  onChange={(e) => setNotificationThreshold(e.target.value)}
+                  placeholder="e.g. 10 (Organization Default)"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Notify when a cluster reaches exactly this many reports.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="criticality-threshold">Criticality Threshold</Label>
+                <Input
+                  id="criticality-threshold"
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={criticalityThreshold}
+                  onChange={(e) => setCriticalityThreshold(e.target.value)}
+                  placeholder="e.g. 8 (Organization Default)"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Notify when AI assigns a score ≥ this value.
+                </p>
+              </div>
             </div>
           </CardContent>
           <CardFooter className="justify-end border-t bg-muted/20 mt-8 py-6 px-6">
@@ -364,10 +443,12 @@ export default function ProjectSettings() {
               disabled={
                 isSaving ||
                 !projectName.trim() ||
-                projectName.trim() === currentProject.name
+                (projectName.trim() === currentProject.name &&
+                 notificationThreshold === (currentProject.notifications?.volumeThreshold ?? "") &&
+                 criticalityThreshold === (currentProject.notifications?.criticalityThreshold ?? ""))
               }
             >
-              {isSaving ? "Saving..." : "Save Changes"}
+              {isSaving ? "Saving..." : "Save Settings"}
             </Button>
           </CardFooter>
         </Card>
@@ -541,22 +622,39 @@ function IntegrationsSettings({ onEdit }: { onEdit: (id: string) => void }) {
                   config.provider.toLowerCase() === "github"
                     ? "bg-slate-800"
                     : config.provider.toLowerCase() === "trello"
-                      ? "bg-blue-600"
-                      : "bg-blue-500" // Jira
+                      ? "bg-[#0079bf]"
+                      : config.provider.toLowerCase() === "jira"
+                        ? "bg-[#0052cc]"
+                        : config.provider.toLowerCase() === "discord"
+                          ? "bg-[#5865f2]"
+                          : config.provider.toLowerCase() === "slack"
+                            ? "bg-[#4a154b]"
+                            : config.provider.toLowerCase() === "teams" || config.provider.toLowerCase() === "microsoftteams"
+                              ? "bg-[#464eb8]"
+                              : "bg-blue-500"
                 }`}
               />
               <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
                 <CardTitle className="text-base font-medium flex items-center gap-2">
                   {config.provider.toLowerCase() === "github" && (
-                    <Github className="h-5 w-5" />
+                    <SiGithub className="h-5 w-5" />
                   )}
                   {config.provider.toLowerCase() === "trello" && (
-                    <Trello className="h-5 w-5" />
+                    <FaTrello className="h-5 w-5 text-[#0079bf]" />
                   )}
                   {config.provider.toLowerCase() === "jira" && (
-                    <FolderGit2 className="h-5 w-5" />
+                    <SiJira className="h-5 w-5 text-[#0052cc]" />
                   )}
-                  {config.name}
+                  {config.provider.toLowerCase() === "discord" && (
+                    <SiDiscord className="h-5 w-5 text-[#5865f2]" />
+                  )}
+                  {config.provider.toLowerCase() === "slack" && (
+                    <SlackIcon className="h-5 w-5" />
+                  )}
+                  {(config.provider.toLowerCase() === "teams" || config.provider.toLowerCase() === "microsoftteams") && (
+                    <BsMicrosoftTeams className="h-5 w-5 text-[#464eb8]" />
+                  )}
+                  {config.name || `${config.provider} Integration`}
                 </CardTitle>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button
@@ -610,16 +708,31 @@ function AddIntegrationDialog({
 }) {
   const queryClient = useQueryClient();
   const { currentProject } = useProject();
-  const [provider, setProvider] = useState<string>("GitHub");
+  const [provider, setProvider] = useState<string>("");
   const [formData, setFormData] = useState<any>({});
+  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(true);
+  const [integrationName, setIntegrationName] = useState<string>("");
+  const [step, setStep] = useState(editId ? 1 : 0); // 0: Selection, 1: Configuration
+
+  const providers = [
+    { id: "GitHub", name: "GitHub", icon: SiGithub, color: "bg-slate-800", text: "text-slate-800" },
+    { id: "Trello", name: "Trello", icon: FaTrello, color: "bg-[#0079bf]", text: "text-[#0079bf]" },
+    { id: "Jira", name: "Jira", icon: SiJira, color: "bg-[#0052cc]", text: "text-[#0052cc]" },
+    { id: "Discord", name: "Discord", icon: SiDiscord, color: "bg-[#5865f2]", text: "text-[#5865f2]" },
+    { id: "Slack", name: "Slack", icon: SlackIcon, color: "bg-[#4a154b]", text: "text-[#4a154b]" },
+    { id: "Teams", name: "MS Teams", icon: BsMicrosoftTeams, color: "bg-[#464eb8]", text: "text-[#464eb8]" },
+  ];
 
   // Fetch details if in edit mode
   useQuery({
     queryKey: ["integration", editId, currentProject?.id],
     queryFn: async () => {
-      if (!editId) return null;
-      const { data } = await api.get(`/integrations/${editId}`);
+      if (!editId || !currentProject?.id) return null;
+      const { data } = await api.get(`/projects/${currentProject.id}/integrations/${editId}`);
       setProvider(data.provider);
+      setNotificationsEnabled(data.notificationsEnabled);
+      setIntegrationName(data.name);
+      setStep(1); // Ensure we stay/jump to config
       try {
         setFormData(JSON.parse(data.settingsJson));
       } catch (e) {
@@ -633,8 +746,11 @@ function AddIntegrationDialog({
   // Reset form when opening in 'add' mode
   useEffect(() => {
     if (open && !editId) {
-      setProvider("GitHub");
+      setProvider("");
       setFormData({});
+      setNotificationsEnabled(true);
+      setIntegrationName("");
+      setStep(0);
     }
   }, [open, editId]);
 
@@ -642,11 +758,13 @@ function AddIntegrationDialog({
     mutationFn: async (data: any) => {
       if (!currentProject?.id) return;
       await api.post(`/projects/${currentProject.id}/integrations`, {
-        id: editId, // Include ID if editing
-        projectId: currentProject.id, // Ensure projectId is passed
+        id: editId,
+        projectId: currentProject.id,
         provider: provider,
+        name: integrationName || `${provider} Integration`,
         settingsJson: JSON.stringify(data),
         isActive: true,
+        notificationsEnabled: notificationsEnabled,
       });
     },
     onSuccess: () => {
@@ -666,163 +784,218 @@ function AddIntegrationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className={step === 0 ? "sm:max-w-[550px]" : "sm:max-w-[425px]"}>
         <DialogHeader>
-          <DialogTitle>
-            {editId ? "Edit Integration" : "Add Integration"}
-          </DialogTitle>
+          <div className="flex items-center gap-2">
+            {step === 1 && !editId && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 -ml-2" 
+                onClick={() => setStep(0)}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            )}
+            <DialogTitle>
+              {editId ? "Edit Integration" : step === 0 ? "Select Provider" : `Configure ${provider}`}
+            </DialogTitle>
+          </div>
           <DialogDescription>
             {editId
               ? "Modify existing connection settings."
-              : "Configure a new connection to an external system."}
+              : step === 0 
+                ? "Choose a service to integrate with your project." 
+                : `Enter your ${provider} connection details.`}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label>Provider</Label>
-            <Select
-              value={provider}
-              onValueChange={(val) => {
-                setProvider(val);
-                setFormData({});
-              }}
-              disabled={!!editId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select provider" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="GitHub">GitHub</SelectItem>
-                <SelectItem value="Trello">Trello</SelectItem>
-                <SelectItem value="Jira">Jira</SelectItem>
-              </SelectContent>
-            </Select>
+
+        {step === 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 py-4">
+            {providers.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => {
+                  setProvider(p.id);
+                  setStep(1);
+                }}
+                className="flex flex-col items-center justify-center p-6 rounded-2xl border bg-card hover:bg-muted/50 hover:border-blue-500/50 transition-all group overflow-hidden relative"
+              >
+                <div className={`absolute top-0 left-0 w-full h-1 ${p.color} opacity-0 group-hover:opacity-100 transition-opacity`} />
+                <p.icon className={`h-8 w-8 mb-3 ${p.text} transition-transform group-hover:scale-110`} />
+                <span className="text-sm font-medium">{p.name}</span>
+              </button>
+            ))}
           </div>
+        ) : (
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Integration Nickname</Label>
+              <Input
+                value={integrationName}
+                onChange={(e) => setIntegrationName(e.target.value)}
+                placeholder={`e.g. My ${provider}`}
+              />
+            </div>
 
-          {provider === "GitHub" && (
-            <>
-              <div className="grid gap-2">
-                <Label>Owner (User/Org)</Label>
-                <Input
-                  value={formData.owner || ""}
-                  onChange={(e) =>
-                    setFormData({ ...formData, owner: e.target.value })
-                  }
-                  placeholder="e.g. microsoft"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Repository</Label>
-                <Input
-                  value={formData.repo || ""}
-                  onChange={(e) =>
-                    setFormData({ ...formData, repo: e.target.value })
-                  }
-                  placeholder="e.g. vscode"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Personal Access Token</Label>
-                <Input
-                  type="password"
-                  value={formData.apiKey || ""}
-                  onChange={(e) =>
-                    setFormData({ ...formData, apiKey: e.target.value })
-                  }
-                  placeholder={editId ? "****** (Unchanged)" : "ghp_..."}
-                />
-              </div>
-            </>
-          )}
+            {provider === "GitHub" && (
+              <>
+                <div className="grid gap-2">
+                  <Label>Owner (User/Org)</Label>
+                  <Input
+                    value={formData.owner || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, owner: e.target.value })
+                    }
+                    placeholder="e.g. microsoft"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Repository</Label>
+                  <Input
+                    value={formData.repo || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, repo: e.target.value })
+                    }
+                    placeholder="e.g. vscode"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Personal Access Token</Label>
+                  <Input
+                    type="password"
+                    value={formData.apiKey || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, apiKey: e.target.value })
+                    }
+                    placeholder={editId ? "****** (Unchanged)" : "ghp_..."}
+                  />
+                </div>
+              </>
+            )}
 
-          {provider === "Trello" && (
-            <>
-              <div className="grid gap-2">
-                <Label>API Key</Label>
-                <Input
-                  type="password"
-                  value={formData.apiKey || ""}
-                  onChange={(e) =>
-                    setFormData({ ...formData, apiKey: e.target.value })
-                  }
-                  placeholder={editId ? "****** (Unchanged)" : ""}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Token</Label>
-                <Input
-                  type="password"
-                  value={formData.token || ""}
-                  onChange={(e) =>
-                    setFormData({ ...formData, token: e.target.value })
-                  }
-                  placeholder={editId ? "****** (Unchanged)" : ""}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>List ID</Label>
-                <Input
-                  value={formData.listId || ""}
-                  onChange={(e) =>
-                    setFormData({ ...formData, listId: e.target.value })
-                  }
-                  placeholder="Check board URL .json"
-                />
-              </div>
-            </>
-          )}
+            {provider === "Trello" && (
+              <>
+                <div className="grid gap-2">
+                  <Label>API Key</Label>
+                  <Input
+                    type="password"
+                    value={formData.apiKey || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, apiKey: e.target.value })
+                    }
+                    placeholder={editId ? "****** (Unchanged)" : ""}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Token</Label>
+                  <Input
+                    type="password"
+                    value={formData.token || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, token: e.target.value })
+                    }
+                    placeholder={editId ? "****** (Unchanged)" : ""}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>List ID</Label>
+                  <Input
+                    value={formData.listId || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, listId: e.target.value })
+                    }
+                    placeholder="Check board URL .json"
+                  />
+                </div>
+              </>
+            )}
 
-          {provider === "Jira" && (
-            <>
+            {provider === "Jira" && (
+              <>
+                <div className="grid gap-2">
+                  <Label>Jira Base URL</Label>
+                  <Input
+                    value={formData.baseUrl || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, baseUrl: e.target.value })
+                    }
+                    placeholder="https://your-domain.atlassian.net"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>User Email</Label>
+                  <Input
+                    value={formData.userEmail || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, userEmail: e.target.value })
+                    }
+                    placeholder="user@example.com"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>API Token</Label>
+                  <Input
+                    type="password"
+                    value={formData.apiToken || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, apiToken: e.target.value })
+                    }
+                    placeholder={editId ? "****** (Unchanged)" : ""}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Project Key</Label>
+                  <Input
+                    value={formData.projectKey || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, projectKey: e.target.value })
+                    }
+                    placeholder="PROJ"
+                  />
+                </div>
+              </>
+            )}
+
+            {(provider === "Discord" || provider === "Slack" || provider === "Teams") && (
               <div className="grid gap-2">
-                <Label>Jira Base URL</Label>
+                <Label>Webhook URL</Label>
                 <Input
-                  value={formData.baseUrl || ""}
+                  value={formData.webhookUrl || ""}
                   onChange={(e) =>
-                    setFormData({ ...formData, baseUrl: e.target.value })
+                    setFormData({ ...formData, webhookUrl: e.target.value })
                   }
-                  placeholder="https://your-domain.atlassian.net"
+                  placeholder={`https://${provider.toLowerCase()}.com/api/webhooks/...`}
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  We'll send notifications to this {provider} channel when thresholds are met.
+                </p>
               </div>
-              <div className="grid gap-2">
-                <Label>User Email</Label>
-                <Input
-                  value={formData.userEmail || ""}
-                  onChange={(e) =>
-                    setFormData({ ...formData, userEmail: e.target.value })
-                  }
-                  placeholder="user@example.com"
-                />
+            )}
+
+            <div className="flex items-center gap-2 pt-2 border-t mt-2">
+              <Checkbox
+                id="notify-enabled"
+                checked={notificationsEnabled}
+                onCheckedChange={(checked) => setNotificationsEnabled(!!checked)}
+              />
+              <div className="grid gap-1.5 leading-none">
+                <Label htmlFor="notify-enabled" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Enable Real-time Notifications
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Receive alerts when new error clusters are detected.
+                </p>
               </div>
-              <div className="grid gap-2">
-                <Label>API Token</Label>
-                <Input
-                  type="password"
-                  value={formData.apiToken || ""}
-                  onChange={(e) =>
-                    setFormData({ ...formData, apiToken: e.target.value })
-                  }
-                  placeholder={editId ? "****** (Unchanged)" : ""}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Project Key</Label>
-                <Input
-                  value={formData.projectKey || ""}
-                  onChange={(e) =>
-                    setFormData({ ...formData, projectKey: e.target.value })
-                  }
-                  placeholder="PROJ"
-                />
-              </div>
-            </>
-          )}
-        </div>
-        <DialogFooter>
+            </div>
+          </div>
+        )}
+
+        <DialogFooter className={step === 0 ? "hidden" : "flex"}>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saveMutation.isPending}>
+          <Button onClick={handleSave} disabled={saveMutation.isPending || !provider}>
             {saveMutation.isPending ? "Saving..." : "Save Configuration"}
           </Button>
         </DialogFooter>

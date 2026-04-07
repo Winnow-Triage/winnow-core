@@ -20,6 +20,7 @@ using Winnow.API.Domain.Teams;
 using Winnow.API.Features.Clusters.GenerateSummary;
 using Winnow.API.Features.Dashboard.IService;
 using Winnow.API.Features.Dashboard.Service;
+using Winnow.API.Services.Discord;
 using Winnow.API.Infrastructure.Analysis;
 using Winnow.API.Infrastructure.Billing;
 using Winnow.API.Infrastructure.Configuration;
@@ -148,6 +149,11 @@ internal static class ServiceExtensions
         var emailSettings = new EmailSettings();
         config.GetSection("EmailSettings").Bind(emailSettings);
         services.AddSingleton(emailSettings);
+
+        // Discord Configuration
+        services.Configure<DiscordOps>(config.GetSection("DiscordOps"));
+        services.AddScoped<IInternalOpsNotifier, InternalOpsNotifier>();
+        services.AddScoped<IClientNotificationService, ClientNotificationService>();
 
         // AWS Configuration (Shared)
         services.AddDefaultAWSOptions(config.GetAWSOptions());
@@ -555,6 +561,20 @@ internal static class ServiceExtensions
                 {
                     PermitLimit = 10,
                     Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0
+                });
+            });
+
+            // Email Dispatch (1 req/2min/IP)
+            options.AddPolicy("email_dispatch", context =>
+            {
+                var ip = context.Connection.RemoteIpAddress?.ToString()
+                         ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
+                         ?? "unknown";
+                return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 1,
+                    Window = TimeSpan.FromMinutes(2),
                     QueueLimit = 0
                 });
             });

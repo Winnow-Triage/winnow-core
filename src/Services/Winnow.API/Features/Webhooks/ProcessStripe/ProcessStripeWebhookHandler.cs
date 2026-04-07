@@ -15,6 +15,7 @@ public record ProcessStripeWebhookResult(bool IsSuccess, string? ErrorMessage = 
 public class ProcessStripeWebhookHandler(
     WinnowDbContext db,
     IStripePlanMapper mapper,
+    Winnow.API.Services.Discord.IInternalOpsNotifier internalOpsNotifier,
     ILogger<ProcessStripeWebhookHandler> logger) : IRequestHandler<ProcessStripeWebhookCommand, ProcessStripeWebhookResult>
 {
     public async Task<ProcessStripeWebhookResult> Handle(ProcessStripeWebhookCommand request, CancellationToken cancellationToken)
@@ -91,7 +92,22 @@ public class ProcessStripeWebhookHandler(
             logger.LogWarning(ex, "Could not fetch subscription {SubscriptionId} during checkout session parsing. Tier evaluation will rely on subscription events.", subscriptionId);
         }
 
+        // Notify internal operations of new payment - MUST happen before SaveChangesAsync for Outbox to capture it
+        try
+        {
+            await internalOpsNotifier.NotifyStripePaymentAsync(
+                userEmail: session.CustomerEmail ?? organization.ContactEmail.Value,
+                amount: (decimal)(session.AmountTotal ?? 0) / 100, // Convert from cents
+                currency: session.Currency
+            );
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to send internal payment notification for Organization {OrganizationId}", organization.Id);
+        }
+
         await db.SaveChangesAsync(ct);
+
         logger.LogInformation("Successfully processed checkout completed for Organization {OrganizationId}. Tier set to {Tier}.", organization.Id, organization.Plan.Name);
     }
 

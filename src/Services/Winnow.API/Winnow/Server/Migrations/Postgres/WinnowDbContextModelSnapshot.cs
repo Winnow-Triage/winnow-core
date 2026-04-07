@@ -331,11 +331,24 @@ namespace Winnow.API.Migrations.Postgres
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("AutoExportEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("AutoExportEnabled");
+
                     b.Property<string>("Config")
                         .IsRequired()
                         .HasColumnType("jsonb");
 
                     b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("NotificationsEnabled")
                         .HasColumnType("boolean");
 
                     b.Property<Guid>("OrganizationId")
@@ -573,13 +586,26 @@ namespace Winnow.API.Migrations.Postgres
                     b.Property<Guid?>("TeamId")
                         .HasColumnType("uuid");
 
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Notifications", "Winnow.API.Domain.Projects.Project.Notifications#NotificationSettings", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<int?>("CriticalityThreshold")
+                                .HasColumnType("integer")
+                                .HasColumnName("CriticalityThreshold");
+
+                            b1.Property<int?>("VolumeThreshold")
+                                .HasColumnType("integer")
+                                .HasColumnName("NotificationThreshold");
+                        });
+
                     b.HasKey("Id");
 
                     b.HasIndex("ApplicationUserId");
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("Projects");
+                    b.ToTable("Projects", (string)null);
                 });
 
             modelBuilder.Entity("Winnow.API.Domain.Projects.ProjectMember", b =>
@@ -816,6 +842,9 @@ namespace Winnow.API.Migrations.Postgres
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("integer");
 
+                    b.Property<DateTimeOffset?>("BouncedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("text");
@@ -826,6 +855,9 @@ namespace Winnow.API.Migrations.Postgres
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("EmailBounced")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");

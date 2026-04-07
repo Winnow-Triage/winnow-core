@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Winnow.Sanitize", "src\Serv
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Winnow.Contracts", "src\Services\Winnow.Contracts\Winnow.Contracts.csproj", "{F909350E-FC64-43D9-8047-2E1338B3F9D7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Winnow.Notifications", "src\Services\Winnow.Notifications\Winnow.Notifications.csproj", "{3DEFCA8E-1297-44EA-AB30-05312BE6BB29}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -129,6 +131,18 @@ Global
 		{F909350E-FC64-43D9-8047-2E1338B3F9D7}.Release|x64.Build.0 = Release|Any CPU
 		{F909350E-FC64-43D9-8047-2E1338B3F9D7}.Release|x86.ActiveCfg = Release|Any CPU
 		{F909350E-FC64-43D9-8047-2E1338B3F9D7}.Release|x86.Build.0 = Release|Any CPU
+		{3DEFCA8E-1297-44EA-AB30-05312BE6BB29}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3DEFCA8E-1297-44EA-AB30-05312BE6BB29}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3DEFCA8E-1297-44EA-AB30-05312BE6BB29}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3DEFCA8E-1297-44EA-AB30-05312BE6BB29}.Debug|x64.Build.0 = Debug|Any CPU
+		{3DEFCA8E-1297-44EA-AB30-05312BE6BB29}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3DEFCA8E-1297-44EA-AB30-05312BE6BB29}.Debug|x86.Build.0 = Debug|Any CPU
+		{3DEFCA8E-1297-44EA-AB30-05312BE6BB29}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3DEFCA8E-1297-44EA-AB30-05312BE6BB29}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3DEFCA8E-1297-44EA-AB30-05312BE6BB29}.Release|x64.ActiveCfg = Release|Any CPU
+		{3DEFCA8E-1297-44EA-AB30-05312BE6BB29}.Release|x64.Build.0 = Release|Any CPU
+		{3DEFCA8E-1297-44EA-AB30-05312BE6BB29}.Release|x86.ActiveCfg = Release|Any CPU
+		{3DEFCA8E-1297-44EA-AB30-05312BE6BB29}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -143,5 +157,6 @@ Global
 		{F5B64CCC-A1BA-4D5E-B319-D98D3F322564} = {361C2452-1516-3F68-0255-4F28CD2E6C9E}
 		{F69E8E02-4EED-4AC2-96E9-FF1CE8324162} = {361C2452-1516-3F68-0255-4F28CD2E6C9E}
 		{F909350E-FC64-43D9-8047-2E1338B3F9D7} = {361C2452-1516-3F68-0255-4F28CD2E6C9E}
+		{3DEFCA8E-1297-44EA-AB30-05312BE6BB29} = {361C2452-1516-3F68-0255-4F28CD2E6C9E}
 	EndGlobalSection
 EndGlobal

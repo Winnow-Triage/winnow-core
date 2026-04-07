@@ -56,6 +56,11 @@ public class GetCurrentOrganizationHandler(WinnowDbContext db) : IRequestHandler
                         ApiKey = p.ApiKey,
                         ModelId = p.ModelId
                     }).ToList()
+            },
+            Notifications = new NotificationSettingsDto
+            {
+                VolumeThreshold = organization.Settings.Notifications.VolumeThreshold,
+                CriticalityThreshold = organization.Settings.Notifications.CriticalityThreshold
             }
         };
 

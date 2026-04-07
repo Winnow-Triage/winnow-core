@@ -3,6 +3,8 @@ using Winnow.API.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Winnow.API.Features.Shared;
 using Winnow.API.Infrastructure.Persistence;
+using Winnow.API.Domain.Projects;
+using Winnow.API.Domain.Common;
 
 namespace Winnow.API.Features.Projects.Update;
 
@@ -11,6 +13,8 @@ public record UpdateProjectCommand : IRequest<UpdateProjectResponse>, IProjectSc
 {
     public string Name { get; set; } = string.Empty;
     public Guid? TeamId { get; set; }
+    public int? NotificationThreshold { get; set; }
+    public int? CriticalityThreshold { get; set; }
     public Guid ProjectId { get; set; }
     public Guid CurrentProjectId { get; set; }
     public Guid CurrentOrganizationId { get; set; }
@@ -33,6 +37,13 @@ public class UpdateProjectHandler(WinnowDbContext dbContext) : IRequestHandler<U
         // Update properties
         project.Rename(request.Name);
         project.ChangeTeam(request.TeamId);
+
+        // Use the new NotificationSettings object
+        var notificationSettings = new NotificationSettings(
+            request.NotificationThreshold,
+            request.CriticalityThreshold
+        );
+        project.UpdateNotificationThresholds(notificationSettings);
 
         await dbContext.SaveChangesAsync(ct);
 

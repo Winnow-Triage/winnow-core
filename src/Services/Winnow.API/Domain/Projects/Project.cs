@@ -1,3 +1,4 @@
+using Winnow.API.Domain.Common;
 using Winnow.API.Domain.Core;
 using Winnow.API.Domain.Projects.Events;
 using Winnow.API.Domain.Teams;
@@ -52,6 +53,12 @@ public class Project : IAggregateRoot
     /// </summary>
     public string? SecondaryApiKeyHash { get; private set; }
     public DateTimeOffset? SecondaryApiKeyExpiresAt { get; private set; }
+
+    /// <summary>
+    /// Encapsulates notification settings for this project.
+    /// If null, project-level notifications are disabled or use organization defaults.
+    /// </summary>
+    public NotificationSettings Notifications { get; private set; } = NotificationSettings.CreateEmpty();
 
     // Private EF constructor
     private Project()
@@ -185,5 +192,10 @@ public class Project : IAggregateRoot
         if (string.IsNullOrWhiteSpace(newName))
             throw new ArgumentException("Project name is required.", nameof(newName));
         Name = newName.Trim();
+    }
+
+    public void UpdateNotificationThresholds(NotificationSettings settings)
+    {
+        Notifications = settings ?? throw new ArgumentNullException(nameof(settings));
     }
 }

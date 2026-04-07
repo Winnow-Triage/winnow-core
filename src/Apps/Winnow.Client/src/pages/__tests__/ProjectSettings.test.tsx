@@ -48,7 +48,7 @@ const createWrapper = () => {
 };
 
 describe("ProjectSettings Component", () => {
-  const mockRenameProject = vi.fn();
+  const mockUpdateProjectSettings = vi.fn();
   const mockDeleteProject = vi.fn();
   const mockRefreshProjects = vi.fn();
 
@@ -56,7 +56,7 @@ describe("ProjectSettings Component", () => {
     vi.clearAllMocks();
     (useProject as any).mockReturnValue({
       currentProject: { id: "p1", name: "Project One", hasSecondaryKey: false },
-      renameProject: mockRenameProject,
+      updateProjectSettings: mockUpdateProjectSettings,
       deleteProject: mockDeleteProject,
       refreshProjects: mockRefreshProjects,
     });
@@ -71,19 +71,25 @@ describe("ProjectSettings Component", () => {
   });
 
   it("handles project rename successfully", async () => {
-    mockRenameProject.mockResolvedValueOnce(undefined);
+    mockUpdateProjectSettings.mockResolvedValueOnce(undefined);
 
     render(<ProjectSettings />, { wrapper: createWrapper() });
 
-    const input = screen.getByPlaceholderText(/My Awesome Project/i);
+    const input = screen.getByPlaceholderText(/My Project/i);
     fireEvent.change(input, { target: { value: "New Project Name" } });
     
-    const saveButton = screen.getByRole("button", { name: /Save Changes/i });
+    const saveButton = screen.getByRole("button", { name: /Save Settings/i });
     fireEvent.click(saveButton);
 
     await waitFor(() => {
-      expect(mockRenameProject).toHaveBeenCalledWith("p1", "New Project Name");
-      expect(toast.success).toHaveBeenCalledWith("Project updated successfully");
+      expect(mockUpdateProjectSettings).toHaveBeenCalledWith("p1", {
+        name: "New Project Name",
+        notifications: {
+          criticalityThreshold: null,
+          volumeThreshold: null
+        }
+      });
+      expect(toast.success).toHaveBeenCalledWith("Project settings updated");
     });
   });
 

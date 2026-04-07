@@ -9,6 +9,7 @@ public class AccountDetailsResponse
     public string Id { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
+    public bool EmailBounced { get; set; }
 }
 
 public sealed class GetAccountDetailsEndpoint(IMediator mediator)

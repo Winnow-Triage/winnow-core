@@ -17,6 +17,9 @@ public class UpdateProjectRequest : ProjectScopedRequest
     /// The ID of the team to assign this project to.
     /// </summary>
     public Guid? TeamId { get; set; }
+
+    public int? NotificationThreshold { get; set; }
+    public int? CriticalityThreshold { get; set; }
 }
 
 /// <summary>
@@ -52,6 +55,8 @@ public sealed class UpdateProjectEndpoint(IMediator mediator) : ProjectScopedEnd
         {
             Name = req.Name,
             TeamId = req.TeamId,
+            NotificationThreshold = req.NotificationThreshold,
+            CriticalityThreshold = req.CriticalityThreshold,
             ProjectId = req.ProjectId, // Use ProjectId from route
             CurrentOrganizationId = req.CurrentOrganizationId,
             CurrentUserId = req.CurrentUserId,

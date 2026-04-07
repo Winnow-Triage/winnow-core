@@ -4,6 +4,7 @@ using Winnow.API.Infrastructure.Security.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Winnow.API.Infrastructure.Persistence;
 using Winnow.API.Features.Shared;
+using Winnow.API.Domain.Common;
 
 namespace Winnow.API.Features.Organizations.Update;
 
@@ -13,7 +14,8 @@ public record UpdateOrganizationCommand(
     string Name,
     bool? ToxicityFilterEnabled = null,
     ToxicityThresholdsDto? ToxicityLimits = null,
-    AIConfigurationDto? AIConfig = null) : IRequest<UpdateOrganizationResult>, IOrgScopedRequest;
+    AIConfigurationDto? AIConfig = null,
+    NotificationSettingsDto? Notifications = null) : IRequest<UpdateOrganizationResult>, IOrgScopedRequest;
 
 public record UpdateOrganizationResult(bool IsSuccess, CurrentOrganizationResponse? Data = null, string? ErrorMessage = null, int? StatusCode = null);
 
@@ -63,6 +65,15 @@ public class UpdateOrganizationHandler(WinnowDbContext db) : IRequestHandler<Upd
             organization.Settings.UpdateAIConfiguration(newAiConfig);
         }
 
+        if (request.Notifications != null)
+        {
+            var newNotifications = new NotificationSettings(
+                request.Notifications.VolumeThreshold,
+                request.Notifications.CriticalityThreshold
+            );
+            organization.Settings.UpdateNotificationThresholds(newNotifications);
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
         var data = new CurrentOrganizationResponse
@@ -97,6 +108,11 @@ public class UpdateOrganizationHandler(WinnowDbContext db) : IRequestHandler<Upd
                         ApiKey = p.ApiKey,
                         ModelId = p.ModelId
                     }).ToList()
+            },
+            Notifications = new NotificationSettingsDto
+            {
+                VolumeThreshold = organization.Settings.Notifications.VolumeThreshold,
+                CriticalityThreshold = organization.Settings.Notifications.CriticalityThreshold
             }
         };
 
