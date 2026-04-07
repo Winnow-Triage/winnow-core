@@ -43,6 +43,8 @@ catch (InvalidOperationException)
 // Register all Winnow services
 builder.Services.AddWinnowServices(builder.Configuration, builder.Environment);
 
+builder.Host.UseWinnowWolverine(builder.Configuration, builder.Environment, enableOutbox: true);
+
 var app = builder.Build();
 
 // Configure global exception handling with custom middleware

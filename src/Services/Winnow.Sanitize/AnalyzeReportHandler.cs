@@ -1,4 +1,4 @@
-using MassTransit;
+using Wolverine;
 using Winnow.Contracts;
 using Winnow.API.Extensions;
 using Winnow.API.Domain.Organizations.ValueObjects;
@@ -9,29 +9,29 @@ namespace Winnow.Sanitize;
 
 
 
-public sealed class AnalyzeReportConsumer(
+public sealed class AnalyzeReportHandler(
     WinnowDbContext dbContext,
     IToxicityDetectionService toxicityService,
     IPiiRedactionService piiService,
-    IPublishEndpoint publishEndpoint,
-    ILogger<AnalyzeReportConsumer> logger) : IConsumer<ReportCreatedEvent>
+    IMessageBus bus,
+    ILogger<AnalyzeReportHandler> logger)
 {
-    public async Task Consume(ConsumeContext<ReportCreatedEvent> context)
+    public async Task Handle(ReportCreatedEvent message, CancellationToken cancellationToken)
     {
         logger.LogInformation("AnalyzeReportConsumer: Starting analysis for report {Id} (Org: {OrgId})",
-            context.Message.ReportId, context.Message.CurrentOrganizationId);
+            message.ReportId, message.CurrentOrganizationId);
 
-        var report = await dbContext.Reports.FindAsync([context.Message.ReportId], context.CancellationToken);
+        var report = await dbContext.Reports.FindAsync([message.ReportId], cancellationToken);
 
         if (report == null || string.IsNullOrWhiteSpace(report.Message))
         {
-            logger.LogWarning("AnalyzeReportConsumer: Report {Id} or message content not found.", context.Message.ReportId);
+            logger.LogWarning("AnalyzeReportConsumer: Report {Id} or message content not found.", message.ReportId);
             return;
         }
 
         // Gate 1: Toxicity Check
-        var organization = await dbContext.Organizations.FindAsync([report.OrganizationId]);
-        var result = await toxicityService.DetectToxicityAsync(report.Message, context.CancellationToken);
+        var organization = await dbContext.Organizations.FindAsync([report.OrganizationId], cancellationToken);
+        var result = await toxicityService.DetectToxicityAsync(report.Message, cancellationToken);
 
         // Fallback to default thresholds if settings are missing (safety check)
         var thresholds = organization?.Settings?.ToxicityLimits ?? ToxicityThresholds.Default;
@@ -41,22 +41,22 @@ public sealed class AnalyzeReportConsumer(
         if (result.Violates(policy))
         {
             report.MarkAsToxic();
-            await dbContext.SaveChangesAsync(context.CancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
 
             // Short-circuit! Do NOT redact PII, do NOT send to clustering.
             return;
         }
 
         // Gate 2: PII Redaction (Only runs if it survived Gate 1)
-        var redactedMessage = await piiService.RedactPiiAsync(report.Message, context.CancellationToken);
+        var redactedMessage = await piiService.RedactPiiAsync(report.Message, cancellationToken);
         report.UpdateMessage(redactedMessage);
         report.MarkAsClean();
 
         // Single database commit for the clean, redacted report
-        await dbContext.SaveChangesAsync(context.CancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         // Gate 3: Hand off to your existing Vector/Clustering consumer
-        await publishEndpoint.Publish(
+        await bus.PublishAsync(
             new ReportSanitizedEvent
             {
                 ReportId = report.Id,
@@ -67,7 +67,6 @@ public sealed class AnalyzeReportConsumer(
                 StackTrace = report.StackTrace,
                 CreatedAt = report.CreatedAt,
                 Metadata = report.Metadata
-            },
-        context.CancellationToken);
+            });
     }
 }

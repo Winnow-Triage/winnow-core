@@ -1,4 +1,4 @@
-using MassTransit;
+using Wolverine;
 using Winnow.Summary;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,18 +31,11 @@ builder.Services.AddWinnowBaseInfrastructure(builder.Configuration);
 builder.Services.AddWinnowSummaryInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<Winnow.Summary.Infrastructure.Scheduling.CriticalMassSummaryJob>();
 
-// Add MassTransit
-builder.Services.AddWinnowMassTransit(builder.Configuration, builder.Environment, enableOutbox: true,
-    configureBus: x =>
-    {
-        x.AddConsumer<GenerateClusterSummaryConsumer>();
-    },
-    configureFactory: (context, cfg) =>
-    {
-        // Configure concurrent consumer execution
-        cfg.PrefetchCount = 4;
-        cfg.UseConcurrencyLimit(4);
-    });
+// Add Wolverine
+builder.Host.UseWinnowWolverine(builder.Configuration, builder.Environment, enableOutbox: true, configure: opts =>
+{
+    opts.Discovery.IncludeAssembly(typeof(Winnow.Summary.GenerateClusterSummaryHandler).Assembly);
+});
 
 var app = builder.Build();
 

@@ -18,8 +18,8 @@ using Winnow.API.Domain.Reports.ValueObjects;
 using Winnow.API.Infrastructure.Identity;
 using Winnow.API.Infrastructure.Persistence;
 using Xunit;
+using Wolverine;
 using Moq;
-using MassTransit;
 using Winnow.Contracts;
 
 namespace Winnow.API.Tests.Integration;
@@ -116,8 +116,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
     private ClusterRefinementJob CreateJob(IServiceScope scope)
     {
         var scopeFactory = scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>();
-        var publishEndpoint = new Mock<IPublishEndpoint>();
-        return new ClusterRefinementJob(scopeFactory, publishEndpoint.Object, NullLogger<ClusterRefinementJob>.Instance);
+        return new ClusterRefinementJob(scopeFactory, NullLogger<ClusterRefinementJob>.Instance);
     }
 
     [Fact]
@@ -137,6 +136,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
             scope.ServiceProvider.GetRequiredService<INegativeMatchCache>(),
             scope.ServiceProvider.GetRequiredService<IVectorCalculator>(),
             scope.ServiceProvider.GetRequiredService<IClusterService>(),
+            new Mock<IMessageBus>().Object,
             CancellationToken.None);
 
         db.ChangeTracker.Clear();
@@ -169,6 +169,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
             scope.ServiceProvider.GetRequiredService<INegativeMatchCache>(),
             scope.ServiceProvider.GetRequiredService<IVectorCalculator>(),
             scope.ServiceProvider.GetRequiredService<IClusterService>(),
+            new Mock<IMessageBus>().Object,
             CancellationToken.None);
 
         db.ChangeTracker.Clear();
@@ -200,6 +201,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
             scope.ServiceProvider.GetRequiredService<INegativeMatchCache>(),
             scope.ServiceProvider.GetRequiredService<IVectorCalculator>(),
             scope.ServiceProvider.GetRequiredService<IClusterService>(),
+            new Mock<IMessageBus>().Object,
             CancellationToken.None);
 
         db.ChangeTracker.Clear();
@@ -248,6 +250,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
             scope.ServiceProvider.GetRequiredService<INegativeMatchCache>(),
             scope.ServiceProvider.GetRequiredService<IVectorCalculator>(),
             scope.ServiceProvider.GetRequiredService<IClusterService>(),
+            new Mock<IMessageBus>().Object,
             CancellationToken.None);
 
         db.ChangeTracker.Clear();
@@ -284,6 +287,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
             scope.ServiceProvider.GetRequiredService<INegativeMatchCache>(),
             scope.ServiceProvider.GetRequiredService<IVectorCalculator>(),
             scope.ServiceProvider.GetRequiredService<IClusterService>(),
+            new Mock<IMessageBus>().Object,
             CancellationToken.None);
 
         db.ChangeTracker.Clear();
@@ -322,6 +326,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
             scope.ServiceProvider.GetRequiredService<INegativeMatchCache>(),
             scope.ServiceProvider.GetRequiredService<IVectorCalculator>(),
             scope.ServiceProvider.GetRequiredService<IClusterService>(),
+            new Mock<IMessageBus>().Object,
             CancellationToken.None);
 
         db.ChangeTracker.Clear();
@@ -358,6 +363,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
             scope.ServiceProvider.GetRequiredService<INegativeMatchCache>(),
             scope.ServiceProvider.GetRequiredService<IVectorCalculator>(),
             scope.ServiceProvider.GetRequiredService<IClusterService>(),
+            new Mock<IMessageBus>().Object,
             CancellationToken.None);
 
         db.ChangeTracker.Clear();
@@ -403,6 +409,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
             negativeCache,
             scope.ServiceProvider.GetRequiredService<IVectorCalculator>(),
             scope.ServiceProvider.GetRequiredService<IClusterService>(),
+            new Mock<IMessageBus>().Object,
             CancellationToken.None);
 
         db.ChangeTracker.Clear();
@@ -441,6 +448,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
             scope.ServiceProvider.GetRequiredService<INegativeMatchCache>(),
             scope.ServiceProvider.GetRequiredService<IVectorCalculator>(),
             scope.ServiceProvider.GetRequiredService<IClusterService>(),
+            new Mock<IMessageBus>().Object,
             CancellationToken.None);
 
         db.ChangeTracker.Clear();

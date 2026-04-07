@@ -1,5 +1,5 @@
 using MediatR;
-using MassTransit;
+using Wolverine;
 using Winnow.Contracts;
 using Winnow.API.Infrastructure.Security.Authorization;
 using Winnow.API.Features.Shared;
@@ -14,7 +14,7 @@ public record GenerateClusterSummaryCommand(Guid CurrentOrganizationId, Guid Id,
 
 public record GenerateClusterSummaryResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 
-public class GenerateClusterSummaryHandler(IPublishEndpoint publishEndpoint, WinnowDbContext db) : IRequestHandler<GenerateClusterSummaryCommand, GenerateClusterSummaryResult>
+public class GenerateClusterSummaryHandler(IMessageBus bus, WinnowDbContext db) : IRequestHandler<GenerateClusterSummaryCommand, GenerateClusterSummaryResult>
 {
     public async Task<GenerateClusterSummaryResult> Handle(GenerateClusterSummaryCommand request, CancellationToken cancellationToken)
     {
@@ -26,11 +26,11 @@ public class GenerateClusterSummaryHandler(IPublishEndpoint publishEndpoint, Win
 
         cluster.StartSummarizing();
 
-        await publishEndpoint.Publish(new GenerateClusterSummaryEvent(
+        await bus.PublishAsync(new GenerateClusterSummaryEvent(
             request.Id,
             request.CurrentOrganizationId,
             request.ProjectId
-        ), cancellationToken);
+        ));
 
         await db.SaveChangesAsync(cancellationToken);
 

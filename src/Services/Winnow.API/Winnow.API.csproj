@@ -10,20 +10,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.Comprehend" Version="4.0.2.17" />
-    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.3.23" />
-    <PackageReference Include="AWSSDK.S3" Version="4.0.18.6" />
-    <PackageReference Include="AWSSDK.SimpleEmail" Version="4.0.2.14" />
-    <PackageReference Include="AWSSDK.SQS" Version="4.0.2" />
-    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="4.0.2" />
+    <PackageReference Include="AWSSDK.Comprehend" Version="4.0.*" />
+    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.*" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.*" />
+    <PackageReference Include="AWSSDK.SimpleEmail" Version="4.0.*" />
+    <PackageReference Include="AWSSDK.SQS" Version="4.0.*" />
+    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="4.0.*" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
     <PackageReference Include="Dapper" Version="2.1.66" />
     <PackageReference Include="FastEndpoints" Version="7.2.0" />
     <PackageReference Include="FastEndpoints.Swagger" Version="7.2.0" />
-    <PackageReference Include="MassTransit" Version="8.3.4" />
-    <PackageReference Include="MassTransit.AmazonSQS" Version="8.3.4" />
-    <PackageReference Include="MassTransit.RabbitMQ" Version="8.3.4" />
-    <PackageReference Include="MassTransit.EntityFrameworkCore" Version="8.3.4" />
     <PackageReference Include="MediatR" Version="14.1.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.3" />
@@ -47,6 +43,11 @@
     <PackageReference Include="Scrutor" Version="5.0.2" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="8.0.0" />
     <PackageReference Include="Stripe.net" Version="50.3.0" />
+    <PackageReference Include="WolverineFx" Version="5.28.0" />
+    <PackageReference Include="WolverineFx.AmazonSqs" Version="5.28.0" />
+    <PackageReference Include="WolverineFx.EntityFrameworkCore" Version="5.28.0" />
+    <PackageReference Include="WolverineFx.Postgresql" Version="5.28.0" />
+    <PackageReference Include="WolverineFx.RabbitMQ" Version="5.28.0" />
   </ItemGroup>
 
   <ItemGroup>
