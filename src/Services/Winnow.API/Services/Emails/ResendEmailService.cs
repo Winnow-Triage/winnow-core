@@ -3,24 +3,32 @@ using Winnow.API.Infrastructure.Configuration;
 
 namespace Winnow.API.Services.Emails;
 
-public class ResendEmailService(IResend resend, EmailSettings settings) : IEmailService
+public class ResendEmailService : IEmailService
 {
-    private readonly IResend _resend = resend;
-    private readonly EmailSettings _settings = settings;
+    private readonly IResend _resendClient;
+    private readonly EmailSettings _settings;
+
+    public ResendEmailService(IResend resendClient, EmailSettings settings)
+    {
+        _resendClient = resendClient;
+        _settings = settings;
+    }
 
     public async Task SendEmailAsync(string to, string subject, string htmlBody)
     {
-        var source = string.IsNullOrWhiteSpace(_settings.FromName)
+        var from = string.IsNullOrWhiteSpace(_settings.FromName)
             ? _settings.FromAddress
             : $"{_settings.FromName} <{_settings.FromAddress}>";
 
-        var message = new EmailMessage();
-        message.From = source;
+        var message = new EmailMessage
+        {
+            From = from,
+            Subject = subject,
+            HtmlBody = htmlBody
+        };
         message.To.Add(to);
-        message.Subject = subject;
-        message.HtmlBody = htmlBody;
 
-        await _resend.EmailSendAsync(message);
+        await _resendClient.EmailSendAsync(message);
     }
 
     public async Task SendWelcomeEmailAsync(string to, string userName)

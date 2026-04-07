@@ -1,4 +1,7 @@
 using Npgsql;
+using Winnow.API.Infrastructure.Configuration;
+using Microsoft.Extensions.Http.Resilience;
+using Winnow.API.Services.Emails;
 using Amazon;
 using Amazon.Comprehend;
 using Amazon.Extensions.NETCore.Setup;
@@ -25,7 +28,6 @@ using Winnow.API.Features.Dashboard.Service;
 using Winnow.API.Services.Discord;
 using Winnow.API.Infrastructure.Analysis;
 using Winnow.API.Infrastructure.Billing;
-using Winnow.API.Infrastructure.Configuration;
 using Winnow.API.Infrastructure.HealthChecks;
 using Winnow.API.Infrastructure.Identity;
 using Winnow.API.Infrastructure.Integrations;
@@ -37,11 +39,9 @@ using Winnow.API.Infrastructure.Scheduling;
 using Winnow.API.Infrastructure.Security;
 using Winnow.API.Services.Ai;
 using Winnow.API.Services.Ai.Strategies;
-using Winnow.API.Services.Emails;
 using Winnow.API.Services.Storage;
 using Winnow.API.Infrastructure.Security.PoW;
 using Winnow.API.Services.Caching;
-
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Threading.RateLimiting;
@@ -148,7 +148,7 @@ internal static class ServiceExtensions
         services.AddSingleton(llmSettings);
 
         // Email Configuration
-        var emailSettings = new EmailSettings();
+        var emailSettings = new Winnow.API.Infrastructure.Configuration.EmailSettings();
         config.GetSection("EmailSettings").Bind(emailSettings);
         services.AddSingleton(emailSettings);
 
@@ -304,6 +304,11 @@ internal static class ServiceExtensions
         }
         else if (emailSettings.Provider == "Resend")
         {
+            if (string.IsNullOrWhiteSpace(emailSettings.Resend.ApiKey))
+            {
+                Console.WriteLine("[WARNING] Resend API Key is missing or empty. Emails will likely fail.");
+            }
+
             services.Configure<ResendClientOptions>(options =>
             {
                 options.ApiToken = emailSettings.Resend.ApiKey;

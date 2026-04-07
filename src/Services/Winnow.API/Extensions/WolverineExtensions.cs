@@ -53,7 +53,7 @@ public static class WolverineExtensions
             else if (Environment.GetEnvironmentVariable("MESSAGE_BROKER")?.Equals("AmazonSqs", StringComparison.OrdinalIgnoreCase) == true)
             {
                 var region = Environment.GetEnvironmentVariable("AWS_REGION") ?? "us-east-2";
-                var projectName = config["ProjectName"] ?? "winnow-prod";
+                var projectName = config["ProjectName"] ?? "winnow";
 
                 opts.UseAmazonSqsTransport(sqs =>
                 {

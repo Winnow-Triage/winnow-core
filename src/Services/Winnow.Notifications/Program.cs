@@ -1,5 +1,6 @@
 using Winnow.Notifications;
 using Winnow.API.Extensions;
+using Wolverine.AmazonSqs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +23,9 @@ builder.Services.AddHttpClient("Webhooks")
 builder.Host.UseWinnowWolverine(builder.Configuration, builder.Environment, enableOutbox: false, configure: opts =>
 {
     opts.Discovery.IncludeAssembly(typeof(Winnow.Notifications.WebhookNotificationHandler).Assembly);
+
+    var projectName = builder.Configuration["ProjectName"] ?? "winnow";
+    opts.ListenToSqsQueue($"{projectName}-notifications-queue");
 });
 
 var app = builder.Build();
