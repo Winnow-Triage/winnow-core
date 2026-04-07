@@ -4,6 +4,7 @@ using Winnow.Clustering;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Winnow.API.Extensions;
+using Wolverine.AmazonSqs;
 
 using System.Runtime.InteropServices;
 using Microsoft.ML.OnnxRuntime;
@@ -37,6 +38,9 @@ builder.Services.AddHostedService<Winnow.Clustering.Infrastructure.Scheduling.Cl
 builder.Host.UseWinnowWolverine(builder.Configuration, builder.Environment, enableOutbox: true, configure: opts =>
 {
     opts.Discovery.IncludeAssembly(typeof(Winnow.Clustering.ClusteringBatchHandler).Assembly);
+
+    var projectName = builder.Configuration["ProjectName"] ?? "winnow";
+    opts.ListenToSqsQueue($"{projectName}-clustering-queue");
 });
 
 var app = builder.Build();

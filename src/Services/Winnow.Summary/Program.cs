@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using global::Winnow.API.Extensions;
 using System.Runtime.InteropServices;
 using Microsoft.ML.OnnxRuntime;
+using Wolverine.AmazonSqs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,6 +36,9 @@ builder.Services.AddHostedService<Winnow.Summary.Infrastructure.Scheduling.Criti
 builder.Host.UseWinnowWolverine(builder.Configuration, builder.Environment, enableOutbox: true, configure: opts =>
 {
     opts.Discovery.IncludeAssembly(typeof(Winnow.Summary.GenerateClusterSummaryHandler).Assembly);
+
+    var projectName = builder.Configuration["ProjectName"] ?? "winnow";
+    opts.ListenToSqsQueue($"{projectName}-summary-queue");
 });
 
 var app = builder.Build();

@@ -3,6 +3,7 @@ using Winnow.Sanitize;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Winnow.API.Extensions;
+using Wolverine.AmazonSqs;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,6 +19,9 @@ builder.Services.AddWinnowSanitizeInfrastructure(builder.Configuration);
 builder.Host.UseWinnowWolverine(builder.Configuration, builder.Environment, enableOutbox: true, configure: opts =>
 {
     opts.Discovery.IncludeAssembly(typeof(Winnow.Sanitize.AnalyzeReportHandler).Assembly);
+
+    var projectName = builder.Configuration["ProjectName"] ?? "winnow";
+    opts.ListenToSqsQueue($"{projectName}-sanitize-queue");
 });
 
 var app = builder.Build();

@@ -16,7 +16,6 @@ public class ResendSettings
     public string ApiKey { get; set; } = string.Empty;
     public string WebhookSecret { get; set; } = string.Empty;
 }
-
 public class SmtpSettings
 {
     public string Host { get; set; } = "localhost";
