@@ -42,11 +42,7 @@ public static class MassTransitExtensions
             {
                 x.UsingAmazonSqs((context, cfg) =>
                 {
-                    var region = Environment.GetEnvironmentVariable("AWS_REGION") ?? "us-east-2";
-                    cfg.Host(region, h =>
-                    {
-                        // Will automatically use IAM execution roles attached to the ECS Task
-                    });
+                    cfg.Host();
 
                     configureFactory?.Invoke(context, cfg);
                     cfg.ConfigureEndpoints(context);
