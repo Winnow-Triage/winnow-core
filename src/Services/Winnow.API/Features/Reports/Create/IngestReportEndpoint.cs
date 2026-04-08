@@ -41,6 +41,11 @@ public class IngestReportRequest
     public string? ScreenshotKey { get; set; }
 
     /// <summary>
+    /// Size of the screenshot in bytes. Required if ScreenshotKey is provided.
+    /// </summary>
+    public long? ScreenshotSize { get; set; }
+
+    /// <summary>
     /// Arbitrary metadata key-value pairs.
     /// </summary>
     public Dictionary<string, object>? Metadata { get; set; }
@@ -141,6 +146,7 @@ public sealed class IngestReportEndpoint(
             req.Message,
             req.StackTrace,
             req.ScreenshotKey,
+            req.ScreenshotSize,
             req.Metadata
         );
 

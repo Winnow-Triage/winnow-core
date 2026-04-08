@@ -16,6 +16,7 @@ export interface ReportPayload {
     AppVersion?: string;
     Resolution?: string;
     ScreenshotKey?: string;
+    ScreenshotSize?: number;
     Metadata?: Record<string, unknown>;
 }
 
@@ -86,6 +87,7 @@ export class WinnowClient {
                 }
 
                 finalPayload.ScreenshotKey = screenshotKey;
+                finalPayload.ScreenshotSize = screenshotBlob.size;
 
             } catch (err) {
                 console.warn('Winnow SDK: Screenshot upload failed, submitting report without it.', err);

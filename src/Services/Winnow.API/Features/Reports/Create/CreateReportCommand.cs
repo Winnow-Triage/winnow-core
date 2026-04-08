@@ -18,6 +18,7 @@ public record CreateReportCommand(
     string Message,
     string? StackTrace = null,
     string? ScreenshotKey = null,
+    long? ScreenshotSize = null,
     Dictionary<string, object>? Metadata = null) : IRequest<Guid>;
 
 public class CreateReportHandler(
@@ -94,7 +95,7 @@ public class CreateReportHandler(
                 report.Id,
                 string.IsNullOrEmpty(fileName) ? "screenshot.png" : fileName,
                 request.ScreenshotKey,
-                0,
+                request.ScreenshotSize ?? 1, // Fallback to 1 byte to satisfy domain constraint if SDK fails
                 "image/png"
             );
             dbContext.Assets.Add(screenshotAsset);
