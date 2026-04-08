@@ -37,6 +37,30 @@ public static class WolverineExtensions
                     connString = connString.Replace("{password}", dbPassword);
                 }
 
+                // Bridge for SSL Certificate Download (Optional/Portability)
+                var certUrl = config["DB_SSL_CERT_URL"];
+                if (!string.IsNullOrEmpty(certUrl) && connString.Contains("Root Certificate="))
+                {
+                    var match = System.Text.RegularExpressions.Regex.Match(connString, @"Root Certificate=([^;]+)");
+                    if (match.Success)
+                    {
+                        var certPath = match.Groups[1].Value.Trim();
+                        if (!System.IO.File.Exists(certPath))
+                        {
+                            try
+                            {
+                                using var client = new System.Net.Http.HttpClient();
+                                var certData = client.GetByteArrayAsync(certUrl).GetAwaiter().GetResult();
+                                var directory = System.IO.Path.GetDirectoryName(certPath);
+                                if (!string.IsNullOrEmpty(directory) && !System.IO.Directory.Exists(directory))
+                                    System.IO.Directory.CreateDirectory(directory);
+                                System.IO.File.WriteAllBytes(certPath, certData);
+                            }
+                            catch { /* Fallback to standard connection if download fails */ }
+                        }
+                    }
+                }
+
                 // Wolverine uses Weasel to manage schema for outbox
                 opts.PersistMessagesWithPostgresql(connString);
                 opts.UseEntityFrameworkCoreTransactions();
