@@ -12,14 +12,17 @@ public class SmtpEmailService : IEmailService
         _settings = settings;
     }
 
-    public async Task SendEmailAsync(string to, string subject, string htmlBody)
+    public async Task SendEmailAsync(string to, string subject, string htmlBody, string? fromAddress = null, string? fromName = null)
     {
         using var client = new SmtpClient(_settings.Smtp.Host, _settings.Smtp.Port);
         client.EnableSsl = _settings.Smtp.EnableSsl;
 
+        var finalFromAddress = fromAddress ?? _settings.FromAddress;
+        var finalFromName = fromName ?? _settings.FromName;
+
         var mailMessage = new MailMessage
         {
-            From = new MailAddress(_settings.FromAddress, _settings.FromName),
+            From = new MailAddress(finalFromAddress, finalFromName),
             Subject = subject,
             Body = htmlBody,
             IsBodyHtml = true
@@ -34,7 +37,7 @@ public class SmtpEmailService : IEmailService
     {
         var body = await LoadTemplateAsync("Welcome.html");
         body = body.Replace("{{UserName}}", userName);
-        await SendEmailAsync(to, "Welcome to Winnow", body);
+        await SendEmailAsync(to, "Welcome to Winnow! (Here's what to do next)", body, "james@winnowtriage.com", "James from Winnow");
     }
 
     public async Task SendEmailVerificationAsync(string to, Uri actionUrl)
