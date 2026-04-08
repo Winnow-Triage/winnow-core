@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from "react";
 import { getMe, logoutUser as apiLogout } from "../lib/api";
 import { isAxiosError } from "axios";
@@ -44,8 +45,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState<any>(null);
 
+  const lastLoginTimestamp = useRef<number>(0);
+
   const refreshUser = useCallback(async () => {
     setIsLoading(true);
+    const fetchStartTime = Date.now();
     try {
       const data = await getMe();
       const userData: User = {
@@ -63,6 +67,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.setItem("user", JSON.stringify(userData));
       setError(null);
     } catch (err) {
+      if (lastLoginTimestamp.current > fetchStartTime) {
+        return;
+      }
+      
       if (isAxiosError(err) && err.response?.status === 401) {
         // Initial check failed with 401, this is expected if not logged in
         setUser(null);
@@ -87,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [refreshUser]);
 
   const login = useCallback((userData: any) => {
+    lastLoginTimestamp.current = Date.now();
     const user: User = {
       id: userData.userId,
       email: userData.email,
