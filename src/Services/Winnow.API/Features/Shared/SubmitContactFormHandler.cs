@@ -11,7 +11,7 @@ public class SubmitContactFormHandler(IEmailService emailService, IConfiguration
 {
     public async Task<SubmitContactFormResult> Handle(SubmitContactFormCommand request, CancellationToken cancellationToken)
     {
-        var supportEmail = config["EmailSettings:SupportEmail"] ?? "support@winnow-triage.com";
+        var supportEmail = config["EmailSettings:SupportEmail"] ?? "support@winnowtriage.com";
 
         var emailBody = $@"
             <h3>New Contact Form Submission</h3>
