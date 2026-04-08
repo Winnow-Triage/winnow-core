@@ -13,8 +13,14 @@ import { useAuth } from "@/context/AuthContext";
 export default function AuthPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated, isInitialLoading } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated && !isInitialLoading) {
+      navigate("/dashboard");
+    }
+  }, [isAuthenticated, isInitialLoading, navigate]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requiresOrgSelection, setRequiresOrgSelection] = useState(false);
