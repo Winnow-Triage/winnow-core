@@ -16,7 +16,15 @@ vi.mock("@/lib/api", () => ({
 }));
 
 vi.mock("react-markdown", () => ({
-  default: ({ children }: any) => <div>{children}</div>,
+  default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock("react-router-dom", () => ({
+  Link: ({ children, to, className }: { children: React.ReactNode; to: string; className?: string }) => (
+    <a href={to} className={className}>
+      {children}
+    </a>
+  ),
 }));
 
 vi.mock("react-router-dom", async () => {

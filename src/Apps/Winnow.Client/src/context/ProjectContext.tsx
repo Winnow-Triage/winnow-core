@@ -1,90 +1,48 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
-
-export interface NotificationSettings {
-  volumeThreshold?: number | null;
-  criticalityThreshold?: number | null;
-}
-
-export interface Project {
-  id: string;
-  name: string;
-  apiKey: string;
-  teamId?: string | null;
-  hasSecondaryKey?: boolean;
-  secondaryApiKeyExpiresAt?: string | null;
-  notifications: NotificationSettings;
-}
-
-interface ProjectContextType {
-  projects: Project[];
-  currentProject: Project | null;
-  isLoading: boolean;
-  orgWide: boolean;
-  setOrgWide: (value: boolean) => void;
-  selectProject: (projectId: string) => void;
-  refreshProjects: () => Promise<void>;
-  createProject: (name: string) => Promise<Project>;
-  renameProject: (id: string, newName: string) => Promise<void>;
-  updateProjectSettings: (id: string, data: Partial<Project>) => Promise<void>;
-  deleteProject: (id: string) => Promise<void>;
-}
-
-const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
+import type { Project } from "@/types";
+import { ProjectContext } from "@/hooks/use-project";
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
-  const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [orgWide, setOrgWide] = useState(false);
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ["projects", orgWide],
     queryFn: async ({ queryKey }) => {
-      const [_, isOrgWide] = queryKey;
+      const [, isOrgWide] = queryKey;
       const { data } = await api.get("/projects", {
         params: { orgWide: isOrgWide },
       });
       return data;
     },
-    meta: {
-      onSuccess: (data: Project[]) => {
-        if (!currentProject && data.length > 0) {
-          const savedProjectId = localStorage.getItem("lastProjectId");
-          const matchedProject =
-            data.find((p: Project) => p.id === savedProjectId) || data[0];
-          if (matchedProject) {
-            setCurrentProject(matchedProject);
-            localStorage.setItem("lastProjectId", matchedProject.id);
-          }
-        }
-      },
-    },
   });
 
-  useEffect(() => {
-    if (!isLoading && projects.length > 0 && !currentProject) {
-      const savedProjectId = localStorage.getItem("lastProjectId");
-      const matchedProject =
-        projects.find((p: Project) => p.id === savedProjectId) || projects[0];
-      if (matchedProject) {
-        setCurrentProject(matchedProject);
-        localStorage.setItem("lastProjectId", matchedProject.id);
-      }
+  const currentProject = React.useMemo(() => {
+    if (projects.length === 0) return null;
+    const saved = localStorage.getItem("lastProjectId");
+    const targetId = selectedProjectId || saved;
+    const match = projects.find((p) => p.id === targetId);
+    const project = match || projects[0];
+    
+    // Set storage if it's the first derivation without a saved id
+    if (!localStorage.getItem("lastProjectId")) {
+      localStorage.setItem("lastProjectId", project.id);
     }
-  }, [projects, isLoading, currentProject]);
+    
+    return project;
+  }, [projects, selectedProjectId]);
 
   const refreshProjects = async () => {
     await queryClient.invalidateQueries({ queryKey: ["projects"] });
   };
 
   const selectProject = (projectId: string) => {
-    const project = projects.find((p: Project) => p.id === projectId);
-    if (project) {
-      setCurrentProject(project);
-      localStorage.setItem("lastProjectId", project.id);
-      queryClient.invalidateQueries();
-    }
+    setSelectedProjectId(projectId);
+    localStorage.setItem("lastProjectId", projectId);
+    queryClient.invalidateQueries();
   };
 
   const createProject = async (name: string): Promise<Project> => {
@@ -93,11 +51,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       await refreshProjects();
       selectProject(newProject.id);
       return newProject;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Create project error", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to create project",
-      );
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(message);
     }
   };
 
@@ -105,14 +62,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     try {
       await api.put(`/projects/${id}`, { name: newName });
       await refreshProjects();
-      if (currentProject?.id === id) {
-        setCurrentProject((prev) => (prev ? { ...prev, name: newName } : null));
-      }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Rename project error", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to rename project",
-      );
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(message);
     }
   };
 
@@ -128,14 +81,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       
       await api.put(`/projects/${id}`, payload);
       await refreshProjects();
-      if (currentProject?.id === id) {
-        setCurrentProject((prev) => (prev ? { ...prev, ...updateData } : null));
-      }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Update project error", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to update project settings",
-      );
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(message);
     }
   };
 
@@ -149,16 +98,15 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         if (nextProject) {
           selectProject(nextProject.id);
         } else {
-          setCurrentProject(null);
+          setSelectedProjectId(null);
           localStorage.removeItem("lastProjectId");
           queryClient.invalidateQueries();
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Delete project error", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to delete project",
-      );
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(message);
     }
   };
 
@@ -181,12 +129,4 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       {children}
     </ProjectContext.Provider>
   );
-}
-
-export function useProject() {
-  const context = useContext(ProjectContext);
-  if (context === undefined) {
-    throw new Error("useProject must be used within a ProjectProvider");
-  }
-  return context;
 }

@@ -32,11 +32,12 @@ export default function VerificationBanner() {
 
       // Re-enable after 60 seconds to match rate limit
       setTimeout(() => setIsSent(false), 60000);
-    } catch (error: any) {
-      console.error("Failed to resend verification:", error);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string, message?: string, errors?: { description: string }[] } } };
       const message =
-        error.response?.data?.errors?.[0]?.description ||
-        error.response?.data?.message ||
+        e.response?.data?.errors?.[0]?.description ||
+        e.response?.data?.message ||
+        e.response?.data?.error ||
         "Failed to resend verification email.";
       toast.error(message);
     } finally {

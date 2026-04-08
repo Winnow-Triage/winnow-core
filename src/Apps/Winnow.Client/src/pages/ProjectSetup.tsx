@@ -142,7 +142,7 @@ export default function ProjectSetup() {
                 {Object.entries(codeSnippets).map(([key, snippet]) => (
                   <button
                     key={key}
-                    onClick={() => setActiveTab(key as any)}
+                    onClick={() => setActiveTab(key as keyof typeof codeSnippets)}
                     className={cn(
                       "px-4 py-3 text-xs font-medium transition-all relative outline-none",
                       activeTab === key

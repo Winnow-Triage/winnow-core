@@ -10,8 +10,14 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity } from "lucide-react";
 
+interface TriageData {
+  timestamp: string;
+  newUniqueCount: number;
+  duplicateCount: number;
+}
+
 interface TriageFunnelChartProps {
-  data: any[];
+  data: TriageData[];
   noiseColor: string;
   signalColor: string;
 }

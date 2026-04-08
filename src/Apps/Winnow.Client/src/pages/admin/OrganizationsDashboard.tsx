@@ -223,10 +223,14 @@ export default function OrganizationsDashboard() {
 
       <div className="flex flex-col sm:flex-row gap-4 items-end">
         <div className="flex-1 w-full space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <label
+            htmlFor="org-search"
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Search
           </label>
           <Input
+            id="org-search"
             placeholder="Search organizations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -234,11 +238,17 @@ export default function OrganizationsDashboard() {
           />
         </div>
         <div className="w-full sm:w-[200px] space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <label
+            htmlFor="tier-filter"
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Tier
           </label>
           <Select value={tierFilter} onValueChange={setTierFilter}>
-            <SelectTrigger className="w-full bg-background/50 border-red-900/50 focus:ring-red-500">
+            <SelectTrigger
+              id="tier-filter"
+              className="w-full bg-background/50 border-red-900/50 focus:ring-red-500"
+            >
               <SelectValue placeholder="Filter by Tier" />
             </SelectTrigger>
             <SelectContent className="border-red-900/50">
@@ -499,8 +509,11 @@ export default function OrganizationsDashboard() {
 
           <div className="my-4 space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Organization Name</label>
+              <label htmlFor="new-org-name" className="text-sm font-medium">
+                Organization Name
+              </label>
               <Input
+                id="new-org-name"
                 value={newOrgName}
                 onChange={(e) => setNewOrgName(e.target.value)}
                 className="bg-background border-red-900/50 focus-visible:ring-red-500"
@@ -508,9 +521,14 @@ export default function OrganizationsDashboard() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Subscription Tier</label>
+              <label htmlFor="new-org-tier" className="text-sm font-medium">
+                Subscription Tier
+              </label>
               <Select value={newOrgTier} onValueChange={setNewOrgTier}>
-                <SelectTrigger className="bg-background border-red-900/50 focus:ring-red-500">
+                <SelectTrigger
+                  id="new-org-tier"
+                  className="bg-background border-red-900/50 focus:ring-red-500"
+                >
                   <SelectValue placeholder="Select Tier" />
                 </SelectTrigger>
                 <SelectContent className="border-red-900/50">

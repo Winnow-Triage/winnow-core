@@ -15,7 +15,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PasswordRules, validatePassword } from "@/components/PasswordRules";
+import { PasswordRules } from "@/components/PasswordRules";
+import { validatePassword } from "@/lib/auth-utils";
 
 export default function AcceptInvitationPage() {
   const [searchParams] = useSearchParams();
@@ -78,12 +79,11 @@ export default function AcceptInvitationPage() {
       });
       toast.success("Account created! You can now log in.");
       navigate("/login");
-    } catch (error: any) {
-      console.error("Failed to accept invitation:", error);
-
-      const serverErrors = error.response?.data?.errors;
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { errors?: Record<string, string[]> } } };
+      const serverErrors = e.response?.data?.errors;
       if (serverErrors) {
-        const messages = Object.values(serverErrors).flat() as string[];
+        const messages = Object.values(serverErrors).flat();
         setBackendErrors(messages);
         messages.forEach((msg) => toast.error(msg));
       } else {

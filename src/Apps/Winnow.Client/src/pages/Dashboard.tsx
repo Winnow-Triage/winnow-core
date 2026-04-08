@@ -1,13 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
-import { useProject } from "@/context/ProjectContext";
+import { useProject } from "@/hooks/use-project";
 
 import { WinnowGauge } from "@/components/dashboard/WinnowGauge";
 import { TriageFunnelChart } from "@/components/dashboard/TriageFunnelChart";
 import { HottestClustersList } from "@/components/dashboard/HottestClustersList";
-import { PageTitle } from "@/components/ui/page-title";
 import { PendingDecisionsCard } from "@/components/dashboard/PendingDecisionsCard";
+import { LoadingState, ErrorState, PageHeader } from "@/components/layout/PageState";
 
 // DTO types matching backend
 interface DashboardMetrics {
@@ -36,7 +35,7 @@ interface DashboardMetrics {
 export default function Dashboard() {
   const { currentProject } = useProject();
 
-  const { data, isLoading, error } = useQuery<DashboardMetrics>({
+  const { data, isLoading, error, refetch } = useQuery<DashboardMetrics>({
     queryKey: ["dashboardMetrics", currentProject?.id],
     queryFn: async () => {
       const { data } = await api.get("/dashboard/metrics");
@@ -46,27 +45,18 @@ export default function Dashboard() {
     enabled: !!currentProject, // Only fetch if we have a project selected
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingState message="Calculating metrics..." />;
 
   if (error) {
     return (
-      <div className="p-8">
-        <div className="bg-destructive/15 text-destructive p-4 rounded-md border border-destructive/20 flex gap-2 items-center">
-          <AlertCircle className="h-4 w-4" />
-          <div>
-            <p className="font-semibold">Error</p>
-            <p className="text-sm">
-              Failed to load dashboard metrics. {(error as Error).message}
-            </p>
-          </div>
-        </div>
-      </div>
+      <ErrorState 
+        title="Dashboard Error"
+        message={
+          (error as { response?: { data?: { message?: string } } }).response?.data?.message || 
+          (error as Error).message
+        }
+        onRetry={() => refetch()}
+      />
     );
   }
 
@@ -74,12 +64,10 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <PageTitle>Dashboard</PageTitle>
-        <p className="text-muted-foreground">
-          Real-time triage overview and actionable insights.
-        </p>
-      </div>
+      <PageHeader 
+        title="Dashboard" 
+        description="Real-time triage overview and actionable insights." 
+      />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {/* Winnow Gauge (Hero Metric) */}

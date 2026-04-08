@@ -21,7 +21,7 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { useProject } from "@/context/ProjectContext";
+import { useProject } from "@/hooks/use-project";
 import { ChevronsUpDown, Plus } from "lucide-react";
 import {
   DropdownMenu,

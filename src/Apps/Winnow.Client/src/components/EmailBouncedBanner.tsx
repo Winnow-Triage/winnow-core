@@ -1,4 +1,4 @@
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/use-auth";
 import { AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 

@@ -75,7 +75,7 @@ test.describe('Marketing Screenshots', () => {
           // We use a 15s timeout to be safe, but allow the test to continue if a tiny spinner is stuck
           try {
             await page.waitForFunction(() => document.querySelectorAll('.animate-spin').length === 0, { timeout: 15000 });
-          } catch (e) {
+          } catch {
             console.log("Warning: Spinner(s) still present after 15s. Proceeding to verify content.");
           }
 

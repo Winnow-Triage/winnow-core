@@ -23,12 +23,9 @@ export default function ForgotPasswordPage() {
     try {
       await api.post("/auth/forgot-password", { email });
       setSuccess(true);
-    } catch (err: any) {
-      console.error("Forgot Password Error:", err);
-      setError(
-        err.response?.data?.message ||
-          "Something went wrong. Please try again.",
-      );
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setError(e.response?.data?.message || "Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }

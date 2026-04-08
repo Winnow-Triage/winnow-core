@@ -1,3 +1,4 @@
+import type { IncomingMessage } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
 import { defineConfig } from "vitest/config";
@@ -25,7 +26,7 @@ export default defineConfig({
           // Let browser page navigations (Accept: text/html) fall through to
           // Vite's SPA fallback so index.html is served instead of proxying
           // to the API backend.
-          bypass(req: import("http").IncomingMessage) {
+          bypass(req: IncomingMessage) {
             if (req.headers.accept?.includes("text/html")) {
               return "/index.html";
             }

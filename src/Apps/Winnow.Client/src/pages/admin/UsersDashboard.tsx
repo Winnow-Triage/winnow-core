@@ -58,6 +58,7 @@ import {
 import { formatTimeAgo } from "@/lib/utils";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function UsersDashboard() {
   const [users, setUsers] = useState<UserSummary[]>([]);
@@ -262,10 +263,14 @@ export default function UsersDashboard() {
 
       <div className="flex flex-col sm:flex-row gap-4 items-end">
         <div className="flex-1 w-full space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Label
+            htmlFor="search-users"
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Search
-          </label>
+          </Label>
           <Input
+            id="search-users"
             placeholder="Search users..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -274,11 +279,14 @@ export default function UsersDashboard() {
         </div>
 
         <div className="w-full sm:w-[200px] space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Label
+            htmlFor="org-filter"
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Organization
-          </label>
+          </Label>
           <Select value={selectedOrg} onValueChange={setSelectedOrg}>
-            <SelectTrigger className="bg-background/50 border-red-900/50">
+            <SelectTrigger id="org-filter" className="bg-background/50 border-red-900/50">
               <SelectValue placeholder="All Organizations" />
             </SelectTrigger>
             <SelectContent className="border-red-900/50">
@@ -293,11 +301,14 @@ export default function UsersDashboard() {
         </div>
 
         <div className="w-full sm:w-[150px] space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Label
+            htmlFor="role-filter"
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Role
-          </label>
+          </Label>
           <Select value={selectedRole} onValueChange={setSelectedRole}>
-            <SelectTrigger className="bg-background/50 border-red-900/50">
+            <SelectTrigger id="role-filter" className="bg-background/50 border-red-900/50">
               <SelectValue placeholder="All Roles" />
             </SelectTrigger>
             <SelectContent className="border-red-900/50">
@@ -309,11 +320,14 @@ export default function UsersDashboard() {
         </div>
 
         <div className="w-full sm:w-[150px] space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Label
+            htmlFor="status-filter"
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Status
-          </label>
+          </Label>
           <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-            <SelectTrigger className="bg-background/50 border-red-900/50">
+            <SelectTrigger id="status-filter" className="bg-background/50 border-red-900/50">
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent className="border-red-900/50">
@@ -507,8 +521,9 @@ export default function UsersDashboard() {
           </AlertDialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Full Name</label>
+              <Label htmlFor="full-name" className="text-sm font-medium">Full Name</Label>
               <Input
+                id="full-name"
                 placeholder="John Doe"
                 value={newUser.fullName}
                 onChange={(e) =>
@@ -518,8 +533,9 @@ export default function UsersDashboard() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email Address</label>
+              <Label htmlFor="create-email" className="text-sm font-medium">Email Address</Label>
               <Input
+                id="create-email"
                 type="email"
                 placeholder="john@example.com"
                 value={newUser.email}
@@ -530,8 +546,9 @@ export default function UsersDashboard() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Temporary Password</label>
+              <Label htmlFor="temp-password" className="text-sm font-medium">Temporary Password</Label>
               <Input
+                id="temp-password"
                 type="password"
                 value={newUser.password}
                 onChange={(e) =>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   getMyTeams,
@@ -6,7 +6,7 @@ import {
   type TeamDashboardMetrics,
 } from "@/lib/api";
 import { AlertCircle, Loader2, Users, LayoutDashboard } from "lucide-react";
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@/hooks/use-theme";
 
 import {
   Card,
@@ -58,12 +58,8 @@ export default function TeamDashboard() {
     retry: 0, // Fail immediately on permission errors
   });
 
-  // Automatically select the first team when teams load
-  useEffect(() => {
-    if (teams && teams.length > 0 && !selectedTeamId) {
-      setSelectedTeamId(teams[0].id);
-    }
-  }, [teams, selectedTeamId]);
+  // Derive active team ID instead of using an effect
+  const activeTeamId = selectedTeamId || (teams && teams.length > 0 ? teams[0].id : "");
 
   // Fetch metrics for the selected team
   const {
@@ -71,9 +67,9 @@ export default function TeamDashboard() {
     isLoading: isLoadingMetrics,
     error,
   } = useQuery<TeamDashboardMetrics>({
-    queryKey: ["teamDashboardMetrics", selectedTeamId],
-    queryFn: () => getTeamMetrics(selectedTeamId),
-    enabled: selectedTeamId !== "", // Only run query if a team is selected
+    queryKey: ["teamDashboardMetrics", activeTeamId],
+    queryFn: () => getTeamMetrics(activeTeamId),
+    enabled: activeTeamId !== "", // Only run query if a team is selected
     refetchInterval: 30000,
     retry: 0,
   });
@@ -92,8 +88,8 @@ export default function TeamDashboard() {
         <AlertCircle className="h-12 w-12 text-destructive mb-4" />
         <h3 className="text-xl font-bold">Access Denied</h3>
         <p className="text-muted-foreground mt-2 max-w-md">
-          {(teamsError as any).response?.data?.detail || 
-           (teamsError as any).response?.data?.message || 
+          {(teamsError as { response?: { data?: { detail?: string; message?: string } } }).response?.data?.detail || 
+           (teamsError as { response?: { data?: { detail?: string; message?: string } } }).response?.data?.message || 
            "You don't have permission to view teams in this organization."}
         </p>
       </div>
@@ -126,7 +122,7 @@ export default function TeamDashboard() {
 
         <div className="w-full sm:w-[250px]">
           <Select
-            value={selectedTeamId || ""}
+            value={activeTeamId}
             onValueChange={(value) => setSelectedTeamId(value)}
           >
             <SelectTrigger>
@@ -149,7 +145,9 @@ export default function TeamDashboard() {
           <div>
             <p className="font-semibold text-sm">Access Denied</p>
             <p className="text-xs opacity-90">
-              {(error as any).response?.data?.detail || (error as any).response?.data?.message || (error as Error).message}
+              {(error as { response?: { data?: { detail?: string; message?: string } } }).response?.data?.detail || 
+               (error as { response?: { data?: { detail?: string; message?: string } } }).response?.data?.message || 
+               (error as Error).message}
             </p>
           </div>
         </div>

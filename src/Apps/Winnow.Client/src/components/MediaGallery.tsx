@@ -80,10 +80,18 @@ export function MediaGallery({ attachments }: MediaGalleryProps) {
       {/* Lightbox Modal */}
       {current && lightboxIndex !== null && (
         <div
+          role="button"
+          tabIndex={-1}
           className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-200"
           onClick={() => {
             setLightboxIndex(null);
             setZoomed(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setLightboxIndex(null);
+              setZoomed(false);
+            }
           }}
         >
           {/* Close button */}
@@ -140,19 +148,31 @@ export function MediaGallery({ attachments }: MediaGalleryProps) {
           {/* Content */}
           <div
             className="max-w-[90vw] max-h-[85vh] flex items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
           >
             {isImage(current.type) ? (
-              <img
-                src={current.url}
-                alt={current.filename}
-                onClick={() => setZoomed(!zoomed)}
-                className={`max-h-[85vh] max-w-[90vw] object-contain rounded-lg shadow-2xl cursor-zoom-in transition-transform duration-300 ${
-                  zoomed ? "scale-150 cursor-zoom-out" : ""
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomed(!zoomed);
+                }}
+                className={`flex items-center justify-center border-none bg-transparent p-0 transition-transform duration-300 ${
+                  zoomed ? "scale-150 cursor-zoom-out" : "cursor-zoom-in"
                 }`}
-              />
+                aria-label={zoomed ? "Zoom out" : "Zoom in"}
+              >
+                <img
+                  src={current.url}
+                  alt={current.filename}
+                  className="max-h-[85vh] max-w-[90vw] object-contain rounded-lg shadow-2xl"
+                />
+              </button>
             ) : isVideo(current.type) ? (
-              <div className="w-[80vw] max-w-4xl aspect-video rounded-lg overflow-hidden bg-black shadow-2xl">
+              <div
+                className="w-[80vw] max-w-4xl aspect-video rounded-lg overflow-hidden bg-black shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+                role="presentation"
+              >
                 <video
                   src={current.url}
                   controls
@@ -162,6 +182,7 @@ export function MediaGallery({ attachments }: MediaGalleryProps) {
                     colorScheme: "dark",
                   }}
                 >
+                  <track kind="captions" />
                   Your browser does not support the video tag.
                 </video>
               </div>
