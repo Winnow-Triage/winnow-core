@@ -296,6 +296,11 @@ export function initUI(config: WinnowConfig) {
                                 <input type="file" accept="image/*" id="winnow-replace-input" style="display: none;" />
                             </label>
                         </div>
+                        </div>
+                    </div>
+                    <div id="winnow-error-message" style="display: none; background: #fee2e2; color: #dc2626; padding: 0.75rem; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 500; margin-top: 1rem; border: 1px solid #fca5a5;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: text-bottom; margin-right: 0.25rem;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        <span id="winnow-error-text">Failed to send report. Please try again.</span>
                     </div>
                     <div class="winnow-actions">
                         <button type="button" class="winnow-btn winnow-btn-secondary" id="winnow-cancel">Cancel</button>
@@ -347,6 +352,9 @@ export function initUI(config: WinnowConfig) {
         screenshotPreview.classList.remove('removed');
         screenshotPreview.style.display = 'none';
         screenshotLoading.style.display = 'block';
+
+        const errDiv = overlay.querySelector('#winnow-error-message') as HTMLDivElement;
+        if (errDiv) errDiv.style.display = 'none';
     };
 
     fab.addEventListener('click', async () => {
@@ -436,6 +444,9 @@ export function initUI(config: WinnowConfig) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<div class="winnow-spinner"></div>';
 
+        const errDiv = form.querySelector('#winnow-error-message') as HTMLDivElement;
+        if (errDiv) errDiv.style.display = 'none';
+
         const formData = new FormData(form);
         const title = formData.get('title') as string;
         const description = formData.get('description') as string;
@@ -465,7 +476,9 @@ export function initUI(config: WinnowConfig) {
             viewForm.style.display = 'none';
             viewSuccess.style.display = 'block';
         } catch (error) {
-            alert('Failed to send report. Please try again.');
+            const errText = form.querySelector('#winnow-error-text') as HTMLSpanElement;
+            if (errText) errText.textContent = error instanceof Error ? error.message : 'Failed to send report. Please try again.';
+            if (errDiv) errDiv.style.display = 'block';
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;

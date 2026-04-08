@@ -32,6 +32,9 @@ export class WinnowClient {
     async sendReport(payload: ReportPayload, screenshotBlob?: Blob): Promise<void> {
         let finalPayload: any = { ...payload };
 
+        // 0. Generate Proof-of-Work once for the session (bound to /reports)
+        const pow = await this.generatePoW('POST', '/reports');
+
         // 1. Handle Screenshot Upload (Pre-signed URL flow)
         if (screenshotBlob) {
             try {
@@ -43,7 +46,9 @@ export class WinnowClient {
 
                 const presignHeaders: Record<string, string> = {
                     'Content-Type': 'application/json',
-                    'X-Winnow-Key': this.config.apiKey
+                    'X-Winnow-Key': this.config.apiKey,
+                    'X-Winnow-PoW-Nonce': pow.nonce,
+                    'X-Winnow-PoW-Timestamp': pow.timestamp
                 };
                 if (this.config.tenantId) {
                     presignHeaders['X-Tenant-Id'] = this.config.tenantId;
@@ -104,17 +109,14 @@ export class WinnowClient {
         try {
             const headers: Record<string, string> = {
                 'Content-Type': 'application/json',
-                'X-Winnow-Key': this.config.apiKey
+                'X-Winnow-Key': this.config.apiKey,
+                'X-Winnow-PoW-Nonce': pow.nonce,
+                'X-Winnow-PoW-Timestamp': pow.timestamp
             };
 
             if (this.config.tenantId) {
                 headers['X-Tenant-Id'] = this.config.tenantId;
             }
-
-            const path = '/api/reports';
-            const pow = await this.generatePoW('POST', path);
-            headers['X-Winnow-PoW-Nonce'] = pow.nonce;
-            headers['X-Winnow-PoW-Timestamp'] = pow.timestamp;
 
             const response = await fetch(`${this.config.apiUrl}/reports`, {
                 method: 'POST',

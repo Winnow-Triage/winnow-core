@@ -37,6 +37,7 @@ public sealed class GetUploadUrlEndpoint(IMediator mediator) : Endpoint<GetUploa
     {
         Post("/storage/upload-url");
         AuthSchemes("ApiKey", Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme);
+        PreProcessor<Winnow.API.Infrastructure.Security.PoW.PoWPreProcessor<GetUploadUrlRequest>>();
         Description(x => x.WithName("GetUploadUrl"));
     }
 
