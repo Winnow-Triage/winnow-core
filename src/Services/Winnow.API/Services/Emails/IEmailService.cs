@@ -5,7 +5,7 @@ namespace Winnow.API.Services.Emails;
 
 public interface IEmailService
 {
-    Task SendEmailAsync(string to, string subject, string htmlBody);
+    Task SendEmailAsync(string to, string subject, string htmlBody, string? fromAddress = null, string? fromName = null);
 
     // Template helpers
     Task SendWelcomeEmailAsync(string to, string userName);

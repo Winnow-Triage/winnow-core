@@ -15,11 +15,14 @@ public class AwsSesEmailService : IEmailService
         _settings = settings;
     }
 
-    public async Task SendEmailAsync(string to, string subject, string htmlBody)
+    public async Task SendEmailAsync(string to, string subject, string htmlBody, string? fromAddress = null, string? fromName = null)
     {
-        var source = string.IsNullOrWhiteSpace(_settings.FromName)
-            ? _settings.FromAddress
-            : $"{_settings.FromName} <{_settings.FromAddress}>";
+        var finalFromAddress = fromAddress ?? _settings.FromAddress;
+        var finalFromName = fromName ?? _settings.FromName;
+
+        var source = string.IsNullOrWhiteSpace(finalFromName)
+            ? finalFromAddress
+            : $"{finalFromName} <{finalFromAddress}>";
 
         var sendRequest = new SendEmailRequest
         {
@@ -45,7 +48,7 @@ public class AwsSesEmailService : IEmailService
     {
         var body = await LoadTemplateAsync("Welcome.html");
         body = body.Replace("{{UserName}}", userName);
-        await SendEmailAsync(to, "Welcome to Winnow", body);
+        await SendEmailAsync(to, "Welcome to Winnow! (Here's what to do next)", body, "james@winnowtriage.com", "James from Winnow");
     }
 
     public async Task SendEmailVerificationAsync(string to, Uri actionUrl)
