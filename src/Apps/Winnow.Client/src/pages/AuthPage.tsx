@@ -4,6 +4,7 @@ import { Github } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ModeToggle } from "@/components/mode-toggle";
 import { api } from "@/lib/api";
 import { PasswordRules, validatePassword } from "@/components/PasswordRules";
@@ -15,12 +16,13 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const { login, isAuthenticated, isInitialLoading } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
+  const [justSubmitted, setJustSubmitted] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated && !isInitialLoading) {
+    if (isAuthenticated && !isInitialLoading && !justSubmitted) {
       navigate("/dashboard");
     }
-  }, [isAuthenticated, isInitialLoading, navigate]);
+  }, [isAuthenticated, isInitialLoading, navigate, justSubmitted]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requiresOrgSelection, setRequiresOrgSelection] = useState(false);
@@ -30,6 +32,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [email, setEmail] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   useEffect(() => {
     if (import.meta.env.VITE_DEMO_MODE === "true" && !isSignUp) {
@@ -69,6 +72,11 @@ export default function AuthPage() {
     const fullName = nameInput ? nameInput.value : "";
 
     if (isSignUp) {
+      if (!agreedToTerms) {
+        setError("You must agree to the Terms of Service to create an account.");
+        setIsLoading(false);
+        return;
+      }
       if (!validatePassword(password)) {
         setError("Please ensure your password meets all requirements.");
         setIsLoading(false);
@@ -115,6 +123,8 @@ export default function AuthPage() {
         setAuthPayload({ email, password }); // Save for the next call
         return;
       }
+
+      setJustSubmitted(true);
 
       // Use the login function from AuthContext to update global state
       login(data);
@@ -346,6 +356,22 @@ export default function AuthPage() {
                           onChange={(e) => setConfirmPassword(e.target.value)}
                         />
                       </div>
+                    </div>
+                  )}
+
+                  {isSignUp && (
+                    <div className="flex items-center space-x-2 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <Checkbox 
+                        id="terms" 
+                        checked={agreedToTerms} 
+                        onCheckedChange={(checked) => setAgreedToTerms(checked === true)} 
+                      />
+                      <label 
+                        htmlFor="terms" 
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        I agree to the <a href="https://winnowtriage.com/terms" target="_blank" className="text-primary hover:underline">Terms of Service</a> & <a href="https://winnowtriage.com/privacy" target="_blank" className="text-primary hover:underline">Privacy Policy</a>
+                      </label>
                     </div>
                   )}
                 </div>
