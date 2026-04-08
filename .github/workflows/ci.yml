@@ -416,4 +416,4 @@ jobs:
           token: ${{ secrets.INFRA_REPO_PAT }}
           repository: winnow-triage/winnow-infra
           event-type: deploy_trigger
-          client-payload: '{"image_tag": "${{ github.sha }}"}'
+          client-payload: '{"core_image_tag": "${{ github.sha }}"}'
