@@ -43,11 +43,21 @@ public class PoWPreProcessor<TRequest>(
         // Extract API key if present (used in the hash calculation as requested)
         request.Headers.TryGetValue("X-Winnow-Key", out var apiKey);
 
+        var expectedMethod = request.Method;
+        var expectedPath = request.Path.Value ?? "";
+
+        // Hack: Allow /storage/upload-url to accept PoW meant for /reports
+        if (expectedPath.EndsWith("/storage/upload-url", StringComparison.OrdinalIgnoreCase))
+        {
+            expectedMethod = "POST";
+            expectedPath = "/reports";
+        }
+
         // Verify PoW hash
         var isValid = validator.Verify(
             apiKey,
-            request.Method,
-            request.Path,
+            expectedMethod,
+            expectedPath,
             timestampStr!,
             nonce!,
             s.Difficulty);
@@ -58,9 +68,10 @@ public class PoWPreProcessor<TRequest>(
             return;
         }
 
-        // Replay protection: Check and mark nonce as used
-        var isNewNonce = await validator.CheckAndMarkNonceUsedAsync(
+        // Replay protection: Check and mark nonce as used for this specific endpoint
+        var isNewNonce = await validator.CheckAndMarkNonceUsedPathScopedAsync(
             nonce!,
+            request.Path.Value ?? "",
             TimeSpan.FromMinutes(s.MaxTimestampAgeMinutes));
 
         if (!isNewNonce)

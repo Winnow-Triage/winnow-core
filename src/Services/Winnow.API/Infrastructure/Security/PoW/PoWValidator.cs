@@ -36,4 +36,17 @@ public class PoWValidator(ICacheService cache) : IPoWValidator
         await cache.SetAsync(key, true, ttl);
         return true;
     }
+
+    public async Task<bool> CheckAndMarkNonceUsedPathScopedAsync(string nonce, string scope, TimeSpan ttl)
+    {
+        var key = $"PoW:Nonce:{nonce}:{scope.ToLowerInvariant()}";
+
+        if (await cache.ExistsAsync(key))
+        {
+            return false; // Already used for this scope
+        }
+
+        await cache.SetAsync(key, true, ttl);
+        return true;
+    }
 }
