@@ -32,11 +32,16 @@ export const setupMocks = (api: AxiosInstance) => {
       // Robust check for various URL formats (absolute vs relative)
       const isAuthUrl = url.includes("/auth/login") || 
                         url.includes("/auth/register") || 
-                        url.includes("/auth/logout") || 
                         url.includes("/auth/switch");
 
       if (isAuthUrl) {
+        localStorage.setItem("demo_authenticated", "true");
         mockData = MOCK_USER_DTO;
+      }
+      
+      if (url.includes("/auth/logout")) {
+        localStorage.removeItem("demo_authenticated");
+        mockData = { success: true };
       }
 
       config.adapter = async (mockConfig) => ({
@@ -54,6 +59,15 @@ export const setupMocks = (api: AxiosInstance) => {
 
     // Core Auth & Profile
     if (matches("/auth/me") || matches("/account/me")) {
+      if (localStorage.getItem("demo_authenticated") !== "true") {
+        config.adapter = async () => {
+          const error: any = new Error("Request failed with status code 401");
+          error.isAxiosError = true;
+          error.response = { status: 401, data: null, statusText: "Unauthorized" };
+          return Promise.reject(error);
+        };
+        return config;
+      }
       responseData = MOCK_USER_DTO;
     }
     // Organizations

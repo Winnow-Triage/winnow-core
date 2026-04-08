@@ -15,6 +15,9 @@ test.describe('Sign Up & Onboarding', () => {
     await page.fill('#password', password);
     await page.fill('#confirmPassword', password);
 
+    // Agree to Terms
+    await page.click('#terms');
+
     // Click "Get Started"
     await page.click('button:has-text("Get Started")');
 
