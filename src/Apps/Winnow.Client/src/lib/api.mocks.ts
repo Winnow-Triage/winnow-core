@@ -25,7 +25,7 @@ export const setupMocks = (api: AxiosInstance) => {
     if (method !== "get" && method !== "head") {
       let mockData = config.data;
       if (typeof mockData === "string") {
-        try { mockData = JSON.parse(mockData); } catch (e) { /* ignore */ }
+        try { mockData = JSON.parse(mockData); } catch { /* ignore */ }
       }
 
       // Special handling for auth mutations to ensure the demo session can be simulated
@@ -55,13 +55,16 @@ export const setupMocks = (api: AxiosInstance) => {
     }
 
     // --- GET HANDLERS ---
-    let responseData: any = null;
+    let responseData: unknown = null;
 
     // Core Auth & Profile
     if (matches("/auth/me") || matches("/account/me")) {
       if (localStorage.getItem("demo_authenticated") !== "true") {
         config.adapter = async () => {
-          const error: any = new Error("Request failed with status code 401");
+          const error = new Error("Request failed with status code 401") as Error & { 
+            isAxiosError: boolean; 
+            response: { status: number; data: null; statusText: string } 
+          };
           error.isAxiosError = true;
           error.response = { status: 401, data: null, statusText: "Unauthorized" };
           return Promise.reject(error);
@@ -103,7 +106,7 @@ export const setupMocks = (api: AxiosInstance) => {
     // Admin Panels
     else if (matches("/admin/organizations")) {
       responseData = MOCK_ADMIN_ORGS;
-    } else if (url.match(/\/admin\/organizations\/[^\/]+$/)) {
+    } else if (url.match(/\/admin\/organizations\/[^/]+$/)) {
       responseData = MOCK_ORG_DETAILS_ADMIN;
     } else if (matches("/admin/users")) {
       responseData = MOCK_ADMIN_USERS;
@@ -113,12 +116,12 @@ export const setupMocks = (api: AxiosInstance) => {
       responseData = MOCK_REVIEW_QUEUE;
     } else if (matches("/reports/search")) {
       responseData = generateMockReports(config.params);
-    } else if (url.match(/\/reports\/[^\/]+$/)) {
+    } else if (url.match(/\/reports\/[^/]+$/)) {
       const id = url.split("/").pop()!;
       responseData = generateMockReportDetail(id);
     } else if (matches("/clusters/search")) {
       responseData = generateMockClusters(config.params);
-    } else if (url.match(/\/clusters\/[^\/]+$/)) {
+    } else if (url.match(/\/clusters\/[^/]+$/)) {
       const id = url.split("/").pop()!;
       responseData = generateMockClusterDetail(id);
     }
@@ -335,7 +338,7 @@ const MOCK_HEALTH = {
   ],
 };
 
-function generateMockReports(params: any) {
+function generateMockReports(params: Record<string, string | undefined>) {
   const query = params?.q || params?.query || params?.search || "";
   const items = [
     { id: "rep-1", title: "Unhandled Exception: InvalidOperationException", description: "Sequence contains no elements at AuthProvider.GetSession.", status: "Open", createdAt: "2024-03-25T08:00:00Z", updatedAt: "2024-03-25T08:00:00Z", clusterId: "c-1", criticalityScore: 10, projectId: "demo-proj-main" },
@@ -378,7 +381,7 @@ const MOCK_REVIEW_QUEUE = [
   { sourceId: "rep-18", sourceTitle: "Access Denied to Assets", sourceMessage: "The user does not have permission to view asset xyz.", sourceStackTrace: "at Asset.Provider.Authorize()", sourceAssignedTo: "Truman Burbank", sourceCreatedAt: "2024-03-25T01:00:00Z", targetId: "c-1", targetTitle: "Authentication Failures", targetSummary: "Multiple failures in auth middleware.", confidenceScore: 0.85, type: "Report" },
 ];
 
-function generateMockClusters(params: any) {
+function generateMockClusters(params: Record<string, string | undefined>) {
   const query = params?.q || params?.query || params?.search || "";
   const items = [
     { id: "c-1", title: "Authentication Failures", summary: "Multiple NullReference and InvalidOperation exceptions in the auth middleware.", status: "Active", createdAt: "2024-03-21T10:00:00Z", criticalityScore: 9, reportCount: 452, isLocked: false, isOverage: false, isSummarizing: false, projectId: "demo-proj-main", velocity1h: 5, velocity24h: 42, firstSeen: "2024-03-21T10:00:00Z", lastSeen: "2024-03-25T08:00:00Z" },
@@ -406,7 +409,7 @@ function generateMockReportDetail(id: string) {
   const base = generateMockReports({}).items.find(r => r.id === id) || generateMockReports({}).items[0];
   return {
     ...base,
-    message: (base as any).message || base.description,
+    message: (base as { message?: string }).message || base.description,
     stackTrace: `Winnow.Auth.Provider.GetSession(String token) in AuthProvider.cs:line 42\nWinnow.Auth.Middleware.Invoke(HttpContext context) in Middleware.cs:line 104\nSystem.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)`,
     fullDescription: `${base.description}\n\nThis issue appears to be caused by an unexpected null token being passed to the auth provider.`,
     metadata: JSON.stringify({

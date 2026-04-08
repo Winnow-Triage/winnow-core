@@ -105,8 +105,9 @@ export function RolesManager({ organizationId }: { organizationId?: string }) {
       await api.delete(`/organizations/${organizationId}/roles/${roleId}`);
       toast.success("Role deleted successfully");
       await refetchRoles();
-    } catch (error: any) {
-      if (error.response?.status === 400 && error.response?.data?.errors?.find((e: any) => e.code === "RoleInUse")) {
+    } catch (error: unknown) {
+      const e = error as { response?: { status?: number; data?: { errors?: Array<{ code: string }> } } };
+      if (e.response?.status === 400 && e.response?.data?.errors?.find((err) => err.code === "RoleInUse")) {
         toast.error("Cannot delete role because it is assigned to one or more members.");
       } else {
         toast.error("Failed to delete role");
@@ -130,7 +131,7 @@ export function RolesManager({ organizationId }: { organizationId?: string }) {
         <AlertCircle className="h-8 w-8 text-destructive mb-2" />
         <h4 className="font-semibold">Access Denied</h4>
         <p className="text-sm text-muted-foreground">
-          {(error as any).response?.data?.detail || "You don't have permission to manage roles."}
+          {(error as { response?: { data?: { detail?: string } } }).response?.data?.detail || "You don't have permission to manage roles."}
         </p>
       </div>
     );
@@ -322,7 +323,7 @@ function RoleModal({
         toast.success("Role created successfully");
       }
       onSuccess();
-    } catch (error) {
+    } catch {
       toast.error(`Failed to ${isEditing ? "update" : "create"} role`);
     } finally {
       setIsSubmitting(false);

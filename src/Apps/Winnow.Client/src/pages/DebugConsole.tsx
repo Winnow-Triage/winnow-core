@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
-import { useProject } from "@/context/ProjectContext";
+import { useProject } from "@/hooks/use-project";
 import {
   Card,
   CardContent,

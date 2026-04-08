@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Clock, AlertTriangle, ShieldCheck, Timer } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useProject } from "@/context/ProjectContext";
+import { useProject } from "@/hooks/use-project";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -333,8 +333,9 @@ export default function ProjectSettings() {
           
           await api.post(`/projects/${currentProject.id}/integrations/${verifyIntegration}/verify?token=${encodeURIComponent(token)}`);
           toast.success("Email verification successful! The integration is now active.");
-        } catch (err: any) {
-          toast.error("Email verification failed: " + (err.response?.data?.message || err.message));
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          toast.error("Email verification failed: " + message);
         }
       };
       verify();
@@ -354,8 +355,9 @@ export default function ProjectSettings() {
         }
       });
       toast.success("Project settings updated");
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }
@@ -369,7 +371,7 @@ export default function ProjectSettings() {
       await deleteProject(currentProject.id);
       toast.success("Project deleted successfully");
       navigate("/"); // Redirect to dashboard to prevent accidental double-deletes
-    } catch (error) {
+    } catch {
       toast.error("Failed to delete project");
     } finally {
       setIsDeleting(false);
@@ -745,7 +747,12 @@ function AddIntegrationDialog({
   const queryClient = useQueryClient();
   const { currentProject } = useProject();
   const [provider, setProvider] = useState<string>("");
-  const [formData, setFormData] = useState<any>({});
+  
+  interface IntegrationSettings {
+    [key: string]: string | number | boolean | undefined;
+  }
+  
+  const [formData, setFormData] = useState<IntegrationSettings>({});
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(true);
   const [integrationName, setIntegrationName] = useState<string>("");
   const [step, setStep] = useState(editId ? 1 : 0); // 0: Selection, 1: Configuration
@@ -781,7 +788,9 @@ function AddIntegrationDialog({
   });
 
   // Reset form when opening in 'add' mode
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open && !editId) {
       setProvider("");
       setFormData({});
@@ -789,10 +798,10 @@ function AddIntegrationDialog({
       setIntegrationName("");
       setStep(0);
     }
-  }, [open, editId]);
+  }
 
   const saveMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: IntegrationSettings) => {
       if (!currentProject?.id) return;
       await api.post(`/projects/${currentProject.id}/integrations`, {
         id: editId,
@@ -880,7 +889,7 @@ function AddIntegrationDialog({
                 <div className="grid gap-2">
                   <Label>Owner (User/Org)</Label>
                   <Input
-                    value={formData.owner || ""}
+                    value={(formData.owner as string) || ""}
                     onChange={(e) =>
                       setFormData({ ...formData, owner: e.target.value })
                     }
@@ -890,7 +899,7 @@ function AddIntegrationDialog({
                 <div className="grid gap-2">
                   <Label>Repository</Label>
                   <Input
-                    value={formData.repo || ""}
+                    value={(formData["repo"] as string) || ""}
                     onChange={(e) =>
                       setFormData({ ...formData, repo: e.target.value })
                     }
@@ -901,7 +910,7 @@ function AddIntegrationDialog({
                   <Label>Personal Access Token</Label>
                   <Input
                     type="password"
-                    value={formData.apiKey || ""}
+                    value={(formData.apiKey as string) || ""}
                     onChange={(e) =>
                       setFormData({ ...formData, apiKey: e.target.value })
                     }
@@ -917,7 +926,7 @@ function AddIntegrationDialog({
                   <Label>API Key</Label>
                   <Input
                     type="password"
-                    value={formData.apiKey || ""}
+                    value={(formData.apiKey as string) || ""}
                     onChange={(e) =>
                       setFormData({ ...formData, apiKey: e.target.value })
                     }
@@ -928,7 +937,7 @@ function AddIntegrationDialog({
                   <Label>Token</Label>
                   <Input
                     type="password"
-                    value={formData.token || ""}
+                    value={(formData.token as string) || ""}
                     onChange={(e) =>
                       setFormData({ ...formData, token: e.target.value })
                     }
@@ -938,7 +947,7 @@ function AddIntegrationDialog({
                 <div className="grid gap-2">
                   <Label>List ID</Label>
                   <Input
-                    value={formData.listId || ""}
+                    value={(formData.listId as string) || ""}
                     onChange={(e) =>
                       setFormData({ ...formData, listId: e.target.value })
                     }
@@ -953,7 +962,7 @@ function AddIntegrationDialog({
                 <div className="grid gap-2">
                   <Label>Jira Base URL</Label>
                   <Input
-                    value={formData.baseUrl || ""}
+                    value={(formData.baseUrl as string) || ""}
                     onChange={(e) =>
                       setFormData({ ...formData, baseUrl: e.target.value })
                     }
@@ -963,7 +972,7 @@ function AddIntegrationDialog({
                 <div className="grid gap-2">
                   <Label>User Email</Label>
                   <Input
-                    value={formData.userEmail || ""}
+                    value={(formData.userEmail as string) || ""}
                     onChange={(e) =>
                       setFormData({ ...formData, userEmail: e.target.value })
                     }
@@ -974,7 +983,7 @@ function AddIntegrationDialog({
                   <Label>API Token</Label>
                   <Input
                     type="password"
-                    value={formData.apiToken || ""}
+                    value={(formData.apiToken as string) || ""}
                     onChange={(e) =>
                       setFormData({ ...formData, apiToken: e.target.value })
                     }
@@ -984,7 +993,7 @@ function AddIntegrationDialog({
                 <div className="grid gap-2">
                   <Label>Project Key</Label>
                   <Input
-                    value={formData.projectKey || ""}
+                    value={(formData.projectKey as string) || ""}
                     onChange={(e) =>
                       setFormData({ ...formData, projectKey: e.target.value })
                     }
@@ -998,7 +1007,7 @@ function AddIntegrationDialog({
               <div className="grid gap-2">
                 <Label>Webhook URL</Label>
                 <Input
-                  value={formData.webhookUrl || ""}
+                  value={(formData.webhookUrl as string) || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, webhookUrl: e.target.value })
                   }
@@ -1015,7 +1024,7 @@ function AddIntegrationDialog({
                 <Label>Recipient Email Address</Label>
                 <Input
                   type="email"
-                  value={formData.recipientEmail || ""}
+                  value={(formData.recipientEmail as string) || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, recipientEmail: e.target.value })
                   }

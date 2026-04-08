@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { formatTimeAgo, cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -327,8 +328,9 @@ export default function ReportDetail() {
                     {},
                   );
                   queryClient.invalidateQueries({ queryKey: ["report", id] });
-                } catch (e) {
-                  console.error("Failed to dismiss suggestion", e);
+                } catch (e: unknown) {
+                  const err = e as { response?: { data?: { message?: string } } };
+                  toast.error(err.response?.data?.message || "Failed to update suggestion");
                 }
               }}
             >
@@ -482,7 +484,7 @@ export default function ReportDetail() {
                                 </span>
                               </React.Fragment>
                             ));
-                        } catch (e) {
+                        } catch {
                           return (
                             <span className="text-xs text-red-500">
                               Error parsing metadata

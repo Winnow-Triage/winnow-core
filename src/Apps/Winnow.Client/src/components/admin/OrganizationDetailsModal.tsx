@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getOrganizationDetails, type ProjectQuotaSummary } from "@/lib/api";
+import { getOrganizationDetails, type ProjectQuotaSummary, type OrganizationDetailsResponse, type AiUsageSummary } from "@/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -36,7 +36,7 @@ export function OrganizationDetailsModal({
   onOpenChange,
 }: OrganizationDetailsModalProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [details, setDetails] = useState<any>(null);
+  const [details, setDetails] = useState<OrganizationDetailsResponse | null>(null);
   const { ref, dimensions } = useChartDimensions();
 
   useEffect(() => {
@@ -256,7 +256,7 @@ export function OrganizationDetailsModal({
 
                       {details.quota.aiUsageBreakdown && details.quota.aiUsageBreakdown.length > 0 ? (
                         <div className="space-y-2">
-                          {details.quota.aiUsageBreakdown.map((usage: any, idx: number) => (
+                          {details.quota.aiUsageBreakdown.map((usage: AiUsageSummary, idx: number) => (
                             <div key={idx} className="bg-red-950/20 p-2.5 rounded-lg border border-red-900/20 flex items-center justify-between shadow-sm">
                               <div className="flex items-center gap-2.5">
                                 <div className="w-7 h-7 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">

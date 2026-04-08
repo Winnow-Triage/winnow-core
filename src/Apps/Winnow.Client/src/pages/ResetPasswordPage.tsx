@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ModeToggle } from "@/components/mode-toggle";
 import { api } from "@/lib/api";
-import { PasswordRules, validatePassword } from "@/components/PasswordRules";
+import { PasswordRules } from "@/components/PasswordRules";
+import { validatePassword } from "@/lib/auth-utils";
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -45,9 +46,10 @@ export default function ResetPasswordPage() {
     try {
       await api.post("/auth/reset-password", { email, token, newPassword });
       setSuccess(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Reset Password Error:", err);
-      const errorData = err.response?.data || {};
+      const e = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } };
+      const errorData = e.response?.data || {};
       let errorMessage = errorData.message || "Failed to reset password.";
 
       if (errorData.errors) {

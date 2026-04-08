@@ -131,9 +131,10 @@ export default function ClusterDetail() {
       await api.post(`/clusters/${cluster.id}/generate-summary`, {});
       await queryClient.invalidateQueries({ queryKey: ["cluster", id] });
       await queryClient.invalidateQueries({ queryKey: ["billing-status"] });
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("Failed to generate summary", e);
-      if (e.response?.status === 402 || e.response?.status === 403) {
+      const axiosError = e as { response?: { status?: number } };
+      if (axiosError.response?.status === 402 || axiosError.response?.status === 403) {
         setIsUpgradeModalOpen(true);
       } else {
         toast.error("Failed to generate summary");
@@ -441,22 +442,22 @@ export default function ClusterDetail() {
                   <div className="prose prose-lg dark:prose-invert max-w-none leading-relaxed text-foreground/80 font-medium">
                     <ReactMarkdown
                       components={{
-                        h3: ({ node, ...props }) => (
+                        h3: ({ ...props }) => (
                           <h3
                             className="text-xl font-bold mt-6 mb-3 text-foreground"
                             {...props}
                           />
                         ),
-                        p: ({ node, ...props }) => (
+                        p: ({ ...props }) => (
                           <p className="mb-4 last:mb-0" {...props} />
                         ),
-                        strong: ({ node, ...props }) => (
+                        strong: ({ ...props }) => (
                           <strong
                             className="text-foreground font-black bg-purple-500/5 px-1 rounded"
                             {...props}
                           />
                         ),
-                        ul: ({ node, ...props }) => (
+                        ul: ({ ...props }) => (
                           <ul
                             className="space-y-2 list-disc list-inside marker:text-purple-500"
                             {...props}
@@ -661,16 +662,17 @@ function ClusterExportMenu({
       });
       return data;
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: { externalUrl?: string }) => {
       toast.success("Cluster exported successfully");
       onExport();
       if (data?.externalUrl) {
         window.open(data.externalUrl, "_blank");
       }
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const axiosError = error as { response?: { data?: { error?: string } }; message?: string };
       const displayMsg =
-        error.response?.data?.error || error.message || "Unknown error";
+        axiosError.response?.data?.error || axiosError.message || "Unknown error";
       toast.error("Export Failed", { description: displayMsg });
     },
   });

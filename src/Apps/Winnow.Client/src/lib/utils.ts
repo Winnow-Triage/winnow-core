@@ -34,7 +34,7 @@ export function parseJwt(token: string) {
     );
 
     return JSON.parse(jsonPayload);
-  } catch (e) {
+  } catch {
     return null;
   }
 }

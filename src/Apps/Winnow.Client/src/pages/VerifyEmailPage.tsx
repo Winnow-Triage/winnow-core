@@ -47,9 +47,10 @@ export default function VerifyEmailPage() {
         }
 
         setStatus("success");
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Email Verification Error:", err);
-        const errorData = err.response?.data || {};
+        const axiosError = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } };
+        const errorData = axiosError.response?.data || {};
         let message = errorData.message || "Email verification failed.";
 
         if (errorData.errors) {

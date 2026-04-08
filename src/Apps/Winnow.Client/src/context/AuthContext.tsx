@@ -1,38 +1,14 @@
-import React, {
-  createContext,
-  useContext,
+import {
   useEffect,
   useState,
   useCallback,
-  useRef,
+  useRef
 } from "react";
 import { getMe, logoutUser as apiLogout } from "../lib/api";
 import { isAxiosError } from "axios";
 
-interface User {
-  id: string;
-  email: string;
-  fullName: string;
-  isEmailVerified: boolean;
-  roles: string[];
-  permissions?: string[];
-  activeOrganizationId?: string;
-  defaultProjectId?: string;
-  emailBounced?: boolean;
-}
-
-interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  isInitialLoading: boolean;
-  error: any;
-  login: (userData: any) => void;
-  logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import type { User, LoginResponse } from "@/types";
+import { AuthContext } from "@/hooks/use-auth";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -43,7 +19,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [error, setError] = useState<any>(null);
+  const [error, setError] = useState<Error | null>(null);
 
   const lastLoginTimestamp = useRef<number>(0);
 
@@ -66,7 +42,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(userData);
       localStorage.setItem("user", JSON.stringify(userData));
       setError(null);
-    } catch (err) {
+    } catch (err: unknown) {
+      // If a login occurred after this request started, safely ignore the error
+      // from the initial (now obsolete) /auth/me call to avoid logging the user out.
       if (lastLoginTimestamp.current > fetchStartTime) {
         return;
       }
@@ -82,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         console.error("Failed to fetch user:", err);
         setUser(null);
         localStorage.removeItem("user");
-        setError(err);
+        setError(err instanceof Error ? err : new Error(String(err)));
       }
     } finally {
       setIsLoading(false);
@@ -94,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     refreshUser();
   }, [refreshUser]);
 
-  const login = useCallback((userData: any) => {
+  const login = useCallback((userData: LoginResponse) => {
     lastLoginTimestamp.current = Date.now();
     const user: User = {
       id: userData.userId,
@@ -137,12 +115,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
 };

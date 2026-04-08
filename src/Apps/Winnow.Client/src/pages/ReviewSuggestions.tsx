@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useProject } from "@/context/ProjectContext";
+import { useProject } from "@/hooks/use-project";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,8 +52,9 @@ export default function ReviewSuggestions() {
     onSuccess: () => {
       handleNext();
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to dismiss suggestion");
+    onError: (error: unknown) => {
+      const e = error as { response?: { data?: { message?: string } } };
+      toast.error(e.response?.data?.message || "Failed to dismiss suggestion");
     },
   });
 
@@ -68,8 +69,9 @@ export default function ReviewSuggestions() {
       toast.success(variables.type === "Report" ? "Merged into cluster" : "Clusters merged successfully");
       handleNext();
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to accept suggestion");
+    onError: (error: unknown) => {
+      const e = error as { response?: { data?: { message?: string } } };
+      toast.error(e.response?.data?.message || "Failed to accept suggestion");
     },
   });
 

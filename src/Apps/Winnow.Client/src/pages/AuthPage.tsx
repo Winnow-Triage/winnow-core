@@ -7,9 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ModeToggle } from "@/components/mode-toggle";
 import { api } from "@/lib/api";
-import { PasswordRules, validatePassword } from "@/components/PasswordRules";
+import { PasswordRules } from "@/components/PasswordRules";
+import { validatePassword } from "@/lib/auth-utils";
 import { WinnowLogo } from "@/components/WinnowLogo";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/use-auth";
+import type { Organization } from "@/types";
+
+interface AuthPayload {
+  email: string;
+  password?: string;
+}
 
 export default function AuthPage() {
   const location = useLocation();
@@ -26,9 +33,9 @@ export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requiresOrgSelection, setRequiresOrgSelection] = useState(false);
-  const [availableOrgs, setAvailableOrgs] = useState<any[]>([]);
+  const [availableOrgs, setAvailableOrgs] = useState<Pick<Organization, "id" | "name">[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
-  const [authPayload, setAuthPayload] = useState<any>(null);
+  const [authPayload, setAuthPayload] = useState<AuthPayload | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [email, setEmail] = useState("");
@@ -52,7 +59,7 @@ export default function AuthPage() {
       });
       login(response.data);
       navigate("/");
-    } catch (err: any) {
+    } catch {
       setError("Demo login failed.");
       setIsLoading(false);
     }
@@ -99,11 +106,12 @@ export default function AuthPage() {
       try {
         const response = await api.post(endpoint, payload);
         data = response.data;
-      } catch (error: any) {
-        const errorData = error.response?.data || {};
+      } catch (err: unknown) {
+        const e = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } };
+        const errorData = e.response?.data || {};
         let errorMessage =
           errorData.message ||
-          `Authentication failed: ${error.response?.statusText || error.message}`;
+          "Authentication failed";
 
         // Parse ValidationProblemDetails 'errors' object
         if (errorData.errors) {
@@ -131,14 +139,14 @@ export default function AuthPage() {
 
       // Navigation
       if (isSignUp) {
-        navigate("/setup", { state: { apiKey: data.apiKey } });
+        navigate("/setup", { state: { apiKey: data?.apiKey || "fake-key" } });
       } else {
         // Hard redirect to dashboard to ensure cookies/headers are fully settled and AuthContext re-initializes
         window.location.href = "/dashboard";
       }
-    } catch (err: any) {
-      console.error("Auth Error:", err);
-      setError(err.message || "Something went wrong. Please try again.");
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(e.response?.data?.message || e.message || "Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -456,7 +464,7 @@ function QuoteRotator() {
     }, 4000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [quotes.length]);
 
   return (
     <div className="h-32 flex items-center">

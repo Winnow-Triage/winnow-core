@@ -18,11 +18,22 @@ import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Check, Building2 } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function UserNav() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+
+  const [isSwitching, setIsSwitching] = useState<string | null>(null);
+
+  const { data: orgs } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["user-organizations"],
+    queryFn: async () => {
+      const { data } = await api.get("/organizations");
+      return data;
+    },
+    enabled: !!user,
+  });
 
   if (!user) return null;
 
@@ -33,16 +44,6 @@ export default function UserNav() {
     .join("")
     .toUpperCase()
     .substring(0, 2);
-
-  const { data: orgs } = useQuery<{ id: string; name: string }[]>({
-    queryKey: ["user-organizations"],
-    queryFn: async () => {
-      const { data } = await api.get("/organizations");
-      return data;
-    },
-  });
-
-  const [isSwitching, setIsSwitching] = useState<string | null>(null);
 
   const handleSwitch = async (orgId: string) => {
     if (isSwitching || orgId === user.activeOrganizationId) return;

@@ -4,16 +4,21 @@ import AuthPage from "../AuthPage";
 import { vi } from "vitest";
 import { BrowserRouter } from "react-router-dom";
 import { api } from "@/lib/api";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/use-auth";
 
 // Mock dependencies
+vi.mock("react-markdown", () => ({
+  default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
 vi.mock("@/lib/api", () => ({
   api: {
     post: vi.fn(),
+    get: vi.fn(),
   },
 }));
 
-vi.mock("@/context/AuthContext", () => ({
+vi.mock("@/hooks/use-auth", () => ({
   useAuth: vi.fn(),
 }));
 
@@ -32,8 +37,15 @@ describe("AuthPage Component", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useAuth as any).mockReturnValue({
+    vi.mocked(useAuth).mockReturnValue({
       login: mockLogin,
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      isInitialLoading: false,
+      error: null,
+      logout: vi.fn(),
+      refreshUser: vi.fn(),
     });
   });
 
@@ -53,8 +65,10 @@ describe("AuthPage Component", () => {
     
     // Switch window.location behavior for test
     const originalLocation = window.location;
-    delete (window as any).location;
-    (window as any).location = { ...originalLocation, href: "" };
+    // Using a more structured approach than 'as any'
+    const windowSpy = window as unknown as { location: Partial<Location> };
+    delete (windowSpy as unknown as { location: unknown }).location;
+    windowSpy.location = { ...originalLocation, href: "" };
 
     render(
       <BrowserRouter>
@@ -75,7 +89,7 @@ describe("AuthPage Component", () => {
       expect(window.location.href).toBe("/dashboard");
     });
 
-    (window as any).location = originalLocation;
+    (window as unknown as { location: Location }).location = originalLocation;
   });
 
   it("shows error message on failed login", async () => {

@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useProject } from "@/context/ProjectContext";
+import { useProject } from "@/hooks/use-project";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@/hooks/use-theme";
 
 import { WinnowGauge } from "@/components/dashboard/WinnowGauge";
 import { TriageFunnelChart } from "@/components/dashboard/TriageFunnelChart";

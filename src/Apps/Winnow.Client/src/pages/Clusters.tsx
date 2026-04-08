@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { api, searchClusters, type PaginatedSearchList, type ClusterSearchDto } from "@/lib/api";
-import { useProject } from "@/context/ProjectContext";
+import { useProject } from "@/hooks/use-project";
 import {
   Table,
   TableBody,
@@ -207,11 +207,11 @@ export default function Clusters() {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
         <AlertCircle className="h-12 w-12 text-destructive mb-4" />
-        <h3 className="text-xl font-bold">Access Denied</h3>
+        <h3 className="text-xl font-bold">Error Displaying Clusters</h3>
         <p className="text-muted-foreground mt-2 max-w-md">
-          {(error as any).response?.data?.detail || 
-           (error as any).response?.data?.message || 
-           "You don't have permission to view clusters in this project."}
+          {(error as { response?: { data?: { detail?: string; message?: string } } }).response?.data?.detail ||
+            (error as { response?: { data?: { message?: string } } }).response?.data?.message ||
+            "Failed to load clusters for this project."}
         </p>
       </div>
     );

@@ -16,7 +16,7 @@ vi.mock("@/lib/api", () => ({
 }));
 
 // Mock the ProjectContext
-vi.mock("@/context/ProjectContext", () => ({
+vi.mock("@/hooks/use-project", () => ({
   useProject: () => ({
     currentProject: { id: "test-project" },
   }),
@@ -24,7 +24,7 @@ vi.mock("@/context/ProjectContext", () => ({
 
 // Mock react-router-dom
 vi.mock("react-router-dom", () => ({
-  Link: ({ children, to, className }: any) => (
+  Link: ({ children, to, className }: { children: React.ReactNode; to: string; className?: string }) => (
     <a href={to} className={className}>
       {children}
     </a>

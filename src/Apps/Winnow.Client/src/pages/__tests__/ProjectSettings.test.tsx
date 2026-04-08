@@ -5,7 +5,7 @@ import ProjectSettings from "../ProjectSettings";
 import { vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { api, rotateProjectApiKey } from "@/lib/api";
-import { useProject } from "@/context/ProjectContext";
+import { useProject, type ProjectContextType } from "@/hooks/use-project";
 import { BrowserRouter } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -21,7 +21,7 @@ vi.mock("@/lib/api", () => ({
   revokeProjectSecondaryApiKey: vi.fn(),
 }));
 
-vi.mock("@/context/ProjectContext", () => ({
+vi.mock("@/hooks/use-project", () => ({
   useProject: vi.fn(),
 }));
 
@@ -54,12 +54,12 @@ describe("ProjectSettings Component", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useProject as any).mockReturnValue({
+    vi.mocked(useProject).mockReturnValue({
       currentProject: { id: "p1", name: "Project One", hasSecondaryKey: false },
       updateProjectSettings: mockUpdateProjectSettings,
       deleteProject: mockDeleteProject,
       refreshProjects: mockRefreshProjects,
-    });
+    } as unknown as ProjectContextType);
     vi.mocked(api.get).mockResolvedValue({ data: [] }); // Integrations list
   });
 
