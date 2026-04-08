@@ -21,7 +21,7 @@ public sealed class VerifyEmailEndpoint(IMediator mediator)
     {
         Get("/auth/verify-email");
         AllowAnonymous();
-        Options(x => x.RequireRateLimiting("email_dispatch"));
+        Options(x => x.RequireRateLimiting("strict"));
         Summary(s =>
         {
             s.Summary = "Verify user email";
