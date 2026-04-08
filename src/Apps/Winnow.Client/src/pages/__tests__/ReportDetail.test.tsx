@@ -96,7 +96,7 @@ describe("ReportDetail Component", () => {
     expect(screen.getByText(/Ungroup Report\?/i)).toBeInTheDocument();
     
     // Confirm
-    fireEvent.click(screen.getByRole("button", { name: /Confirm/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Proceed/i }));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith("/reports/r1/ungroup", {});

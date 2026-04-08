@@ -32,18 +32,16 @@ import { useState, useEffect } from "react";
 import { 
   Merge, 
   RefreshCw, 
-  AlertCircle, 
   ShieldAlert,
   ChevronLeft,
   ChevronRight,
-  Filter,
   ListFilter,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
   X
 } from "lucide-react";
-import { PageTitle } from "@/components/ui/page-title";
+import { PageHeader, LoadingState, ErrorState } from "@/components/layout/PageState";
 
 const CLUSTER_STATUSES = ["Open", "Exported", "Dismissed", "Merged"];
 
@@ -95,6 +93,7 @@ export default function Clusters() {
     isLoading,
     isPlaceholderData,
     error,
+    refetch,
   } = useQuery<PaginatedSearchList<ClusterSearchDto>>({
     queryKey: [
       "clusters", 
@@ -108,7 +107,6 @@ export default function Clusters() {
       sortConfig
     ],
     queryFn: async () => {
-      // Map frontend sort keys to backend fields
       const sortByMap: Record<string, string> = {
         title: "title",
         status: "status",
@@ -148,12 +146,9 @@ export default function Clusters() {
     };
     
     setSortConfig(newConfig);
-    
-    // Only capture as manual preference if not currently searching
     if (!search) {
       setLastNonSearchSort(newConfig);
     }
-    
     setPage(1);
   };
 
@@ -173,7 +168,6 @@ export default function Clusters() {
 
   const handleMerge = async () => {
     if (selectedIds.length < 2) return;
-
     setIsMerging(true);
     try {
       const [targetId, ...sourceIds] = selectedIds;
@@ -182,7 +176,6 @@ export default function Clusters() {
       setSelectedIds([]);
     } catch (e) {
       console.error("Failed to merge clusters", e);
-      alert("Merge failed. Check the console for details.");
     } finally {
       setIsMerging(false);
     }
@@ -203,17 +196,19 @@ export default function Clusters() {
     );
   };
 
+  if (isLoading && !isPlaceholderData) return <LoadingState message="Fetching your clusters..." />;
+
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
-        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
-        <h3 className="text-xl font-bold">Error Displaying Clusters</h3>
-        <p className="text-muted-foreground mt-2 max-w-md">
-          {(error as { response?: { data?: { detail?: string; message?: string } } }).response?.data?.detail ||
-            (error as { response?: { data?: { message?: string } } }).response?.data?.message ||
-            "Failed to load clusters for this project."}
-        </p>
-      </div>
+      <ErrorState 
+        title="Error Displaying Clusters"
+        message={
+          (error as { response?: { data?: { detail?: string; message?: string } } }).response?.data?.detail ||
+          (error as { response?: { data?: { message?: string } } }).response?.data?.message ||
+          "Failed to load clusters for this project."
+        }
+        onRetry={() => refetch()}
+      />
     );
   }
 
@@ -221,13 +216,10 @@ export default function Clusters() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div className="flex flex-col gap-1">
-          <PageTitle>Active Clusters</PageTitle>
-          <p className="text-muted-foreground">
-            Aggregated alerts for rapid triaging and response.
-          </p>
-        </div>
+      <PageHeader 
+        title="Active Clusters" 
+        description="Aggregated alerts for rapid triaging and response."
+      >
         <div className="flex flex-col items-end gap-3">
           <div className="flex items-center gap-3 w-full justify-end">
             {selectedIds.length >= 2 && (
@@ -344,7 +336,7 @@ export default function Clusters() {
             </div>
           )}
         </div>
-      </div>
+      </PageHeader>
 
       <div className="border rounded-md overflow-hidden bg-card shadow-sm">
         <Table>
@@ -402,29 +394,15 @@ export default function Clusters() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && !isPlaceholderData ? (
+            {clusters.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-64 text-center">
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-                    <p className="text-muted-foreground font-medium">Loading clusters...</p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : clusters.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-64 text-center">
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <Filter className="h-8 w-8 text-muted-foreground opacity-50" />
-                    <h3 className="font-semibold text-lg">No clusters found</h3>
-                    <p className="text-muted-foreground text-sm max-w-xs mx-auto">
-                      Try adjusting your search filters to find what you're looking for.
-                    </p>
-                    {hasActiveFilters && (
-                      <Button variant="outline" size="sm" onClick={clearFilters} className="mt-2">
-                        Reset all filters
-                      </Button>
-                    )}
+                <TableCell colSpan={7} className="p-0">
+                  <div className="py-12">
+                    <ErrorState 
+                      title="No clusters found"
+                      message="Try adjusting your search filters to find what you're looking for."
+                      onRetry={hasActiveFilters ? clearFilters : undefined}
+                    />
                   </div>
                 </TableCell>
               </TableRow>
@@ -453,7 +431,7 @@ export default function Clusters() {
                           <ShieldAlert className="h-4 w-4 text-red-500 shrink-0" />
                         )}
                         {!cluster.isLocked && cluster.isOverage && (
-                          <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+                          <X className="h-4 w-4 text-amber-500 shrink-0" />
                         )}
                         <Link
                           to={`/clusters/${cluster.id}`}
@@ -475,8 +453,8 @@ export default function Clusters() {
                       <Badge
                         variant={
                           cluster.status === "Exported" || cluster.status === "Dismissed" || cluster.status === "Merged"
-                            ? "success"
-                            : "neutral"
+                            ? "default"
+                            : "secondary"
                         }
                         className="rounded-full"
                       >
@@ -488,10 +466,10 @@ export default function Clusters() {
                         <Badge
                           variant={
                             cluster.criticalityScore >= 8
-                              ? "critical"
+                              ? "destructive"
                               : cluster.criticalityScore >= 5
-                                ? "warning"
-                                : "success"
+                                ? "outline"
+                                : "secondary"
                           }
                         >
                           {cluster.criticalityScore}
