@@ -177,12 +177,16 @@ export default function TicketsDashboard() {
 
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1 w-full space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <label
+            htmlFor="ticket-search"
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Search
           </label>
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
+              id="ticket-search"
               placeholder="Search by ID or Title..."
               className="pl-8 bg-background/50 border-red-900/50 focus-visible:ring-red-500"
               value={searchTerm}
@@ -194,7 +198,10 @@ export default function TicketsDashboard() {
           </div>
         </div>
         <div className="w-full sm:w-[180px] space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <label
+            htmlFor="status-filter"
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Status
           </label>
           <Select
@@ -204,7 +211,10 @@ export default function TicketsDashboard() {
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-full bg-background/50 border-red-900/50">
+            <SelectTrigger
+              id="status-filter"
+              className="w-full bg-background/50 border-red-900/50"
+            >
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -218,7 +228,10 @@ export default function TicketsDashboard() {
           </Select>
         </div>
         <div className="w-full sm:w-[180px] space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <label
+            htmlFor="lock-filter"
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Lock Status
           </label>
           <Select
@@ -228,7 +241,10 @@ export default function TicketsDashboard() {
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-full bg-background/50 border-red-900/50">
+            <SelectTrigger
+              id="lock-filter"
+              className="w-full bg-background/50 border-red-900/50"
+            >
               <SelectValue placeholder="Lock Status" />
             </SelectTrigger>
             <SelectContent>
@@ -239,7 +255,10 @@ export default function TicketsDashboard() {
           </Select>
         </div>
         <div className="w-full sm:w-[200px] space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <label
+            htmlFor="org-filter"
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Organization
           </label>
           <Select
@@ -249,7 +268,10 @@ export default function TicketsDashboard() {
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-full bg-background/50 border-red-900/50">
+            <SelectTrigger
+              id="org-filter"
+              className="w-full bg-background/50 border-red-900/50"
+            >
               <SelectValue placeholder="Organization" />
             </SelectTrigger>
             <SelectContent>
@@ -263,7 +285,10 @@ export default function TicketsDashboard() {
           </Select>
         </div>
         <div className="w-full sm:w-[180px] space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <label
+            htmlFor="project-filter"
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Project
           </label>
           <Select
@@ -274,7 +299,10 @@ export default function TicketsDashboard() {
             }}
             disabled={organizationIdFilter === "all"}
           >
-            <SelectTrigger className="w-full bg-background/50 border-red-900/50">
+            <SelectTrigger
+              id="project-filter"
+              className="w-full bg-background/50 border-red-900/50"
+            >
               <SelectValue placeholder="Project" />
             </SelectTrigger>
             <SelectContent>

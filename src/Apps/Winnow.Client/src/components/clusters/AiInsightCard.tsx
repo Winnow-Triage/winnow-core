@@ -170,11 +170,13 @@ export function AiInsightCard({
             <div className="prose prose-lg dark:prose-invert max-w-none leading-relaxed text-foreground/80 font-medium">
               <ReactMarkdown
                 components={{
-                  h3: ({ ...props }) => (
+                  h3: ({ children, ...props }) => (
                     <h3
                       className="text-xl font-bold mt-6 mb-3 text-foreground"
                       {...props}
-                    />
+                    >
+                      {children}
+                    </h3>
                   ),
                   p: ({ ...props }) => (
                     <p className="mb-4 last:mb-0" {...props} />

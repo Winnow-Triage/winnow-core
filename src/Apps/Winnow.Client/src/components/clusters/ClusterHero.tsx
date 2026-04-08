@@ -103,11 +103,15 @@ export function ClusterHero({ cluster, onCloseCluster }: ClusterHeroProps) {
 
         <div className="flex items-center gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest opacity-50 ml-1">
+            <label
+              htmlFor="assigned-to"
+              className="text-[10px] font-black uppercase tracking-widest opacity-50 ml-1"
+            >
               Assigned To
             </label>
             <div className="flex items-center gap-2">
               <input
+                id="assigned-to"
                 type="text"
                 placeholder="Unassigned"
                 className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 w-40 transition-all"
