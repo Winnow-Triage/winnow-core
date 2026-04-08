@@ -36,15 +36,12 @@ async function captureWithMasking(): Promise<string> {
     // Inject privacy masking styles directly into the clone
     const style = document.createElement('style');
     style.innerHTML = `
-        /* ANIMATION KILLER */
         * { 
             transition: none !important; 
             animation: none !important; 
             scroll-behavior: auto !important; 
         }
         
-        /* PRIVACY MASKING */
-        /* Cover elements explicitly marked as sensitive */
         .winnow-mask, [data-winnow-mask="true"], .winnow-sensitive {
             color: #0f172a !important;
             background-color: #0f172a !important;

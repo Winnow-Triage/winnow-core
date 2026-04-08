@@ -130,7 +130,6 @@ export function initUI(config: WinnowConfig) {
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Screenshot Preview */
         .winnow-screenshot-section {
             margin-bottom: 1rem;
         }
@@ -210,7 +209,6 @@ export function initUI(config: WinnowConfig) {
             object-fit: contain;
             border-radius: 8px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-            /* --- ASPECT RATIO FIX --- */
             background-color: white;
         }
         @keyframes winnow-fade-in { from { opacity: 0; } to { opacity: 1; } }
