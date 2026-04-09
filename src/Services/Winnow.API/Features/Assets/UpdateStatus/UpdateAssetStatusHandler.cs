@@ -20,7 +20,9 @@ public class UpdateAssetStatusHandler(
 {
     public async Task Handle(UpdateAssetStatusCommand request, CancellationToken cancellationToken)
     {
-        var asset = await dbContext.Assets.FirstOrDefaultAsync(a => a.S3Key == request.S3Key, cancellationToken);
+        var asset = await dbContext.Assets
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(a => a.S3Key == request.S3Key, cancellationToken);
         if (asset == null)
         {
             logger.LogWarning("Asset not found for S3Key: {S3Key}", request.S3Key);

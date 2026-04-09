@@ -99,6 +99,7 @@ public class CreateReportHandler(
                 "image/png"
             );
             dbContext.Assets.Add(screenshotAsset);
+            report.AddAsset(screenshotAsset.Id);
         }
 
         await dbContext.SaveChangesAsync(ct);

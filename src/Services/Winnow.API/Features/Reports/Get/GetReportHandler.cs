@@ -146,6 +146,7 @@ public class GetReportHandler(WinnowDbContext db, IStorageService storageService
             IsOverage = report.IsOverage,
             IsLocked = report.IsLocked,
             ExternalUrl = report.ExternalUrl,
+            Screenshot = report.Screenshot,
             Assets = assetDtos,
             Evidence = evidence
         };
