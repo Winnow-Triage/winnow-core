@@ -40,6 +40,9 @@ catch (InvalidOperationException)
     // Resolver already set for this assembly — safe to ignore
 }
 
+// Ensure Infrastructure Prerequisites (SSL Certificates, etc.)
+builder.Configuration.EnsureRdsSslCertificate();
+
 // Register all Winnow services
 builder.Services.AddWinnowServices(builder.Configuration, builder.Environment);
 

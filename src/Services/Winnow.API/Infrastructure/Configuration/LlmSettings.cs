@@ -34,5 +34,6 @@ public class AmazonBedrockSettings
 
 public class PresidioSettings
 {
-    public string AnalyzerEndpoint { get; set; } = "http://localhost:5002";
+    public string AnalyzerEndpoint { get; set; } = "http://localhost:5001";
+    public string AnonymizerEndpoint { get; set; } = "http://localhost:5002";
 }

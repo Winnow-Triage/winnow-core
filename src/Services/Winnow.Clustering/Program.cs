@@ -29,6 +29,9 @@ NativeLibrary.SetDllImportResolver(typeof(Microsoft.ML.OnnxRuntime.SessionOption
 // Add Health Checks
 builder.Services.AddHealthChecks();
 
+// Ensure Infrastructure Prerequisites (SSL Certificates, etc.)
+builder.Configuration.EnsureRdsSslCertificate();
+
 // Bind only needed infrastructure (Database, Shared Core, and Clustering Services)
 builder.Services.AddWinnowBaseInfrastructure(builder.Configuration);
 builder.Services.AddWinnowClusteringInfrastructure(builder.Configuration);
