@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http.Headers;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Connectors.Amazon;
 using Winnow.API.Infrastructure.Analysis;
 using Winnow.API.Infrastructure.Configuration;
 using Winnow.API.Infrastructure.Integrations;
@@ -230,6 +231,15 @@ public static class WorkerServiceExtensions
                 modelId: llmSettings.OpenAI.ModelId,
                 apiKey: llmSettings.OpenAI.ApiKey);
         }
+        else if (llmSettings.Provider == "Bedrock")
+        {
+            services.AddBedrockChatCompletionService(
+                modelId: llmSettings.Bedrock.ModelId);
+
+            services.AddBedrockChatCompletionService(
+                serviceId: "Gatekeeper",
+                modelId: llmSettings.Bedrock.GatekeeperModelId);
+        }
 
         return services;
     }
@@ -282,7 +292,7 @@ public static class WorkerServiceExtensions
         var llmSettings = new LlmSettings();
         config.GetSection("LlmSettings").Bind(llmSettings);
 
-        if (llmSettings.Provider == "Ollama" || llmSettings.Provider == "OpenAI")
+        if (llmSettings.Provider == "Ollama" || llmSettings.Provider == "OpenAI" || llmSettings.Provider == "Bedrock")
         {
             services.AddScoped<IClusterSummaryService, SemanticKernelClusterSummaryService>();
         }

@@ -4,10 +4,11 @@ using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Winnow.API.Domain.Reports;
 using Winnow.API.Domain.Ai;
+using Winnow.API.Infrastructure.Configuration;
 
 namespace Winnow.API.Features.Clusters.GenerateSummary;
 
-public class SemanticKernelClusterSummaryService(Kernel kernel, ILogger<SemanticKernelClusterSummaryService> logger) : IClusterSummaryService
+public class SemanticKernelClusterSummaryService(Kernel kernel, LlmSettings llmSettings, ILogger<SemanticKernelClusterSummaryService> logger) : IClusterSummaryService
 {
     public async Task<ClusterSummaryResult> GenerateSummaryAsync(IEnumerable<Report> reports, CancellationToken ct)
     {
@@ -76,7 +77,15 @@ public class SemanticKernelClusterSummaryService(Kernel kernel, ILogger<Semantic
         var history = new ChatHistory();
         history.AddUserMessage(prompt);
 
-        var executionSettings = new OpenAIPromptExecutionSettings { ResponseFormat = "json_object" };
+        PromptExecutionSettings? executionSettings = null;
+        if (llmSettings.Provider == "OpenAI")
+        {
+            executionSettings = new OpenAIPromptExecutionSettings { ResponseFormat = "json_object" };
+        }
+        else if (llmSettings.Provider == "Bedrock")
+        {
+            executionSettings = new PromptExecutionSettings { ExtensionData = new Dictionary<string, object> { { "ResponseFormat", "json_object" } } };
+        }
 
         try
         {
@@ -137,7 +146,7 @@ public class SemanticKernelClusterSummaryService(Kernel kernel, ILogger<Semantic
 
                 var modelId = metadata.TryGetValue("ModelId", out var m) ? m?.ToString() : null;
 
-                return new AiUsageInfo((int)promptTokens, (int)completionTokens, modelId ?? "unknown", "OpenAI");
+                return new AiUsageInfo((int)promptTokens, (int)completionTokens, modelId ?? "unknown", llmSettings.Provider);
             }
             catch { return null; }
         }
