@@ -298,7 +298,7 @@ public static class WorkerServiceExtensions
         }
         else
         {
-            services.AddScoped<IClusterSummaryService, PlaceholderSummaryService>();
+            services.AddScoped<IClusterSummaryService, PlaceholderClusterSummaryService>();
         }
 
         services.AddScoped<IDashboardService, DashboardService>();

@@ -6,7 +6,7 @@ using Winnow.API.Domain.Reports;
 using Winnow.API.Domain.Ai;
 using Winnow.API.Infrastructure.Configuration;
 
-namespace Winnow.API.Features.Clusters.GenerateSummary;
+namespace Winnow.API.Services.Ai;
 
 public class SemanticKernelClusterSummaryService(Kernel kernel, LlmSettings llmSettings, ILogger<SemanticKernelClusterSummaryService> logger) : IClusterSummaryService
 {

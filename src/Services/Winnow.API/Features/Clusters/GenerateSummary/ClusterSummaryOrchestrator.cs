@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Winnow.API.Infrastructure.Persistence;
+using Winnow.API.Services.Ai;
 
 namespace Winnow.API.Features.Clusters.GenerateSummary;
 

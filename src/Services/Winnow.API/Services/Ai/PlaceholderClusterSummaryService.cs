@@ -2,9 +2,9 @@ using Winnow.API.Domain.Ai;
 using Winnow.API.Domain.Clusters;
 using Winnow.API.Domain.Reports;
 
-namespace Winnow.API.Features.Clusters.GenerateSummary;
+namespace Winnow.API.Services.Ai;
 
-public class PlaceholderSummaryService : IClusterSummaryService
+public class PlaceholderClusterSummaryService : IClusterSummaryService
 {
     public async Task<ClusterSummaryResult> GenerateSummaryAsync(IEnumerable<Report> reports, CancellationToken ct)
     {
