@@ -9,7 +9,7 @@
   <ItemGroup>
     <PackageReference Include="WolverineFx" Version="5.28.0" />
     <PackageReference Include="WolverineFx.RabbitMQ" Version="5.28.0" />
-    <PackageReference Include="Microsoft.SemanticKernel" Version="1.71.0" />
+    <PackageReference Include="Microsoft.SemanticKernel" Version="1.74.0" />
     </ItemGroup>
 
   <ItemGroup>
