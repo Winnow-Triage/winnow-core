@@ -268,7 +268,7 @@ internal static class ServiceExtensions
         }
         else
         {
-            services.AddScoped<IClusterSummaryService, PlaceholderSummaryService>();
+            services.AddScoped<IClusterSummaryService, PlaceholderClusterSummaryService>();
         }
 
         // Repositories

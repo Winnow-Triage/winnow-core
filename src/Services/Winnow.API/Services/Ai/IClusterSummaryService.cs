@@ -3,7 +3,7 @@ using Winnow.API.Domain.Reports;
 
 using Winnow.API.Domain.Ai;
 
-namespace Winnow.API.Features.Clusters.GenerateSummary;
+namespace Winnow.API.Services.Ai;
 
 public record ClusterSummaryResult(string Title, string Summary, int? CriticalityScore, string? CriticalityReasoning, AiUsageInfo? Usage = null, bool IsError = false);
 
