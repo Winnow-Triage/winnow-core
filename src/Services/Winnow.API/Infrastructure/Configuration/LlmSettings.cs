@@ -28,8 +28,8 @@ public class OpenAiSettings
 
 public class AmazonBedrockSettings
 {
-    public string ModelId { get; set; } = "us.meta.llama4-scout-17b-instruct-v1:0";
-    public string GatekeeperModelId { get; set; } = "us.meta.llama3-1-8b-instruct-v1:0";
+    public string ModelId { get; set; } = "meta.llama4-scout-17b-instruct-v1:0";
+    public string GatekeeperModelId { get; set; } = "meta.llama3-1-8b-instruct-v1:0";
 }
 
 public class PresidioSettings
