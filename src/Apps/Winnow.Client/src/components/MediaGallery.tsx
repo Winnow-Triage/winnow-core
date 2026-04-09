@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Play, X, ZoomIn, Download, FileText, Film } from "lucide-react";
 
 interface Attachment {
@@ -78,123 +79,126 @@ export function MediaGallery({ attachments }: MediaGalleryProps) {
       </div>
 
       {/* Lightbox Modal */}
-      {current && lightboxIndex !== null && (
-        <div
-          className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-200"
-          onClick={() => {
-            setLightboxIndex(null);
-            setZoomed(false);
-          }}
-        >
-          {/* Close button */}
-          <button
+      {current &&
+        lightboxIndex !== null &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-200"
             onClick={() => {
               setLightboxIndex(null);
               setZoomed(false);
             }}
-            className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
           >
-            <X className="w-5 h-5 text-white" />
-          </button>
+            {/* Close button */}
+            <button
+              onClick={() => {
+                setLightboxIndex(null);
+                setZoomed(false);
+              }}
+              className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
 
-          {/* Download button */}
-          <a
-            href={current.url}
-            download={current.filename}
-            onClick={(e) => e.stopPropagation()}
-            className="absolute top-4 right-16 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-            title="Download"
-          >
-            <Download className="w-5 h-5 text-white" />
-          </a>
+            {/* Download button */}
+            <a
+              href={current.url}
+              download={current.filename}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute top-4 right-16 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+              title="Download"
+            >
+              <Download className="w-5 h-5 text-white" />
+            </a>
 
-          {/* Navigation */}
-          {attachments.length > 1 && (
-            <>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLightboxIndex(
-                    (lightboxIndex - 1 + attachments.length) %
-                      attachments.length,
-                  );
-                  setZoomed(false);
-                }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white text-xl font-light"
-              >
-                ‹
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLightboxIndex((lightboxIndex + 1) % attachments.length);
-                  setZoomed(false);
-                }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white text-xl font-light"
-              >
-                ›
-              </button>
-            </>
-          )}
-
-          {/* Content */}
-          <div
-            className="max-w-[90vw] max-h-[85vh] flex items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {isImage(current.type) ? (
-              <img
-                src={current.url}
-                alt={current.filename}
-                onClick={() => setZoomed(!zoomed)}
-                className={`max-h-[85vh] max-w-[90vw] object-contain rounded-lg shadow-2xl cursor-zoom-in transition-transform duration-300 ${
-                  zoomed ? "scale-150 cursor-zoom-out" : ""
-                }`}
-              />
-            ) : isVideo(current.type) ? (
-              <div className="w-[80vw] max-w-4xl aspect-video rounded-lg overflow-hidden bg-black shadow-2xl">
-                <video
-                  src={current.url}
-                  controls
-                  autoPlay
-                  className="w-full h-full"
-                  style={{
-                    colorScheme: "dark",
+            {/* Navigation */}
+            {attachments.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightboxIndex(
+                      (lightboxIndex - 1 + attachments.length) %
+                        attachments.length,
+                    );
+                    setZoomed(false);
                   }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white text-xl font-light"
                 >
-                  Your browser does not support the video tag.
-                </video>
-              </div>
-            ) : (
-              <div className="bg-card rounded-lg p-8 max-w-md text-center shadow-2xl">
-                <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <p className="text-foreground font-medium mb-2">
-                  {current.filename}
-                </p>
-                <a
-                  href={current.url}
-                  download={current.filename}
-                  className="text-sm text-primary hover:underline"
+                  ‹
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightboxIndex((lightboxIndex + 1) % attachments.length);
+                    setZoomed(false);
+                  }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white text-xl font-light"
                 >
-                  Download File
-                </a>
-              </div>
+                  ›
+                </button>
+              </>
             )}
-          </div>
 
-          {/* Filename bar */}
-          <div className="absolute bottom-4 text-center">
-            <span className="text-sm text-white/70 bg-black/50 px-3 py-1.5 rounded-full">
-              {current.filename}
-              {attachments.length > 1 && (
-                <span className="ml-2 text-white/50">
-                  {lightboxIndex + 1} / {attachments.length}
-                </span>
+            {/* Content */}
+            <div
+              className="max-w-[90vw] max-h-[85vh] flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {isImage(current.type) ? (
+                <img
+                  src={current.url}
+                  alt={current.filename}
+                  onClick={() => setZoomed(!zoomed)}
+                  className={`max-h-[85vh] max-w-[90vw] object-contain rounded-lg shadow-2xl cursor-zoom-in transition-transform duration-300 ${
+                    zoomed ? "scale-150 cursor-zoom-out" : ""
+                  }`}
+                />
+              ) : isVideo(current.type) ? (
+                <div className="w-[80vw] max-w-4xl aspect-video rounded-lg overflow-hidden bg-black shadow-2xl">
+                  <video
+                    src={current.url}
+                    controls
+                    autoPlay
+                    className="w-full h-full"
+                    style={{
+                      colorScheme: "dark",
+                    }}
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+              ) : (
+                <div className="bg-card rounded-lg p-8 max-w-md text-center shadow-2xl">
+                  <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-foreground font-medium mb-2">
+                    {current.filename}
+                  </p>
+                  <a
+                    href={current.url}
+                    download={current.filename}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Download File
+                  </a>
+                </div>
               )}
-            </span>
-          </div>
-        </div>
-      )}
+            </div>
+
+            {/* Filename bar */}
+            <div className="absolute bottom-4 text-center">
+              <span className="text-sm text-white/70 bg-black/50 px-3 py-1.5 rounded-full">
+                {current.filename}
+                {attachments.length > 1 && (
+                  <span className="ml-2 text-white/50">
+                    {lightboxIndex + 1} / {attachments.length}
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>,
+          document.body,
+        )}
     </>
   );
 }
