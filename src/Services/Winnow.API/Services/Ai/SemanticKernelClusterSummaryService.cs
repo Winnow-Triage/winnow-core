@@ -5,6 +5,7 @@ using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Winnow.API.Domain.Reports;
 using Winnow.API.Domain.Ai;
 using Winnow.API.Infrastructure.Configuration;
+using Microsoft.SemanticKernel.Connectors.Amazon;
 
 namespace Winnow.API.Services.Ai;
 
@@ -80,11 +81,19 @@ public class SemanticKernelClusterSummaryService(Kernel kernel, LlmSettings llmS
         PromptExecutionSettings? executionSettings = null;
         if (llmSettings.Provider == "OpenAI")
         {
-            executionSettings = new OpenAIPromptExecutionSettings { ResponseFormat = "json_object" };
+            executionSettings = new OpenAIPromptExecutionSettings
+            {
+                ResponseFormat = "json_object",
+                MaxTokens = 2000
+            };
         }
         else if (llmSettings.Provider == "Bedrock")
         {
-            executionSettings = new PromptExecutionSettings { ExtensionData = new Dictionary<string, object> { { "ResponseFormat", "json_object" } } };
+            executionSettings = new AmazonClaudeExecutionSettings
+            {
+                MaxTokensToSample = 2000,
+                ExtensionData = new Dictionary<string, object> { { "ResponseFormat", "json_object" } }
+            };
         }
 
         try
