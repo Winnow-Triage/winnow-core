@@ -260,4 +260,15 @@ public class Report : IAggregateRoot
     {
         Screenshot = screenshotKey;
     }
+
+    public void AddAsset(Guid assetId)
+    {
+        if (assetId == Guid.Empty)
+            throw new ArgumentException("Asset ID must not be empty.", nameof(assetId));
+
+        if (!_assetIds.Contains(assetId))
+        {
+            _assetIds.Add(assetId);
+        }
+    }
 }
