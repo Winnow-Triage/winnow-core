@@ -104,28 +104,7 @@ public static class WorkerServiceExtensions
             }
 
             // Bridge for SSL Certificate Download (Optional/Portability)
-            var certUrl = config["DB_SSL_CERT_URL"];
-            if (!string.IsNullOrEmpty(certUrl) && connStr.Contains("Root Certificate="))
-            {
-                var match = System.Text.RegularExpressions.Regex.Match(connStr, @"Root Certificate=([^;]+)");
-                if (match.Success)
-                {
-                    var certPath = match.Groups[1].Value.Trim();
-                    if (!File.Exists(certPath))
-                    {
-                        try
-                        {
-                            using var client = new HttpClient();
-                            var certData = client.GetByteArrayAsync(certUrl).GetAwaiter().GetResult();
-                            var directory = Path.GetDirectoryName(certPath);
-                            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                                Directory.CreateDirectory(directory);
-                            File.WriteAllBytes(certPath, certData);
-                        }
-                        catch { /* Fallback to standard connection if download fails */ }
-                    }
-                }
-            }
+            config.EnsureRdsSslCertificate();
 
             var dataSourceBuilder = new NpgsqlDataSourceBuilder(connStr);
             dataSourceBuilder.UseVector();

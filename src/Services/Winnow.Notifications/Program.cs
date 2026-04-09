@@ -7,6 +7,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add Health Checks
 builder.Services.AddHealthChecks();
 
+// Ensure Infrastructure Prerequisites (SSL Certificates, etc.)
+builder.Configuration.EnsureRdsSslCertificate();
+
 // Bind common infrastructure (Shared Core, Database, and Webhook Formatters)
 builder.Services.AddWinnowBaseInfrastructure(builder.Configuration);
 
