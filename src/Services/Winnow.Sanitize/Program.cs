@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Winnow.API.Extensions;
 using Wolverine.AmazonSqs;
+using Wolverine.RabbitMQ;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +16,7 @@ builder.Services.AddHealthChecks();
 builder.Configuration.EnsureRdsSslCertificate();
 
 // Bind only needed infrastructure (Database, Shared Core, and Sanitize Services)
+Console.WriteLine("ENTRY ASSEMBLY: " + System.Reflection.Assembly.GetEntryAssembly()?.FullName);
 builder.Services.AddWinnowBaseInfrastructure(builder.Configuration);
 builder.Services.AddWinnowSanitizeInfrastructure(builder.Configuration);
 
@@ -24,7 +26,15 @@ builder.Host.UseWinnowWolverine(builder.Configuration, builder.Environment, enab
     opts.Discovery.IncludeAssembly(typeof(Winnow.Sanitize.AnalyzeReportHandler).Assembly);
 
     var projectName = builder.Configuration["ProjectName"] ?? "winnow";
-    opts.ListenToSqsQueue($"{projectName}-sanitize-queue");
+
+    if (Environment.GetEnvironmentVariable("MESSAGE_BROKER")?.Equals("AmazonSqs", StringComparison.OrdinalIgnoreCase) == true)
+    {
+        opts.ListenToSqsQueue($"{projectName}-sanitize-queue");
+    }
+    else
+    {
+        opts.ListenToRabbitQueue($"{projectName}-sanitize-queue");
+    }
 });
 
 var app = builder.Build();

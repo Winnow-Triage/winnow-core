@@ -72,12 +72,19 @@ public static class WolverineExtensions
             else
             {
                 var rmqHost = Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "localhost";
+                var projectName = config["ProjectName"] ?? "winnow";
+
                 opts.UseRabbitMq(x =>
                 {
                     x.HostName = rmqHost;
                     x.UserName = "guest";
                     x.Password = "guest";
-                });
+                }).AutoProvision();
+
+                opts.PublishMessage<GenerateClusterSummaryEvent>().ToRabbitQueue($"{projectName}-summary-queue");
+                opts.PublishMessage<ReportCreatedEvent>().ToRabbitQueue($"{projectName}-sanitize-queue");
+                opts.PublishMessage<ReportSanitizedEvent>().ToRabbitQueue($"{projectName}-clustering-queue");
+                opts.PublishMessage<SendWebhookNotificationCommand>().ToRabbitQueue($"{projectName}-notifications-queue");
             }
         });
 
