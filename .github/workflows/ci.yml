@@ -218,6 +218,7 @@ jobs:
           LlmSettings__Presidio__AnalyzerEndpoint: "http://localhost:5002"
           LlmSettings__Provider: "None"
           EmailSettings__Provider: "None"
+          Encryption__MasterKey: "NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg="
         run: |
           ASPNETCORE_URLS="http://localhost:5295" dotnet run --project src/Services/Winnow.Sanitize/Winnow.Sanitize.csproj --configuration Release --no-build &
           dotnet run --project src/Services/Winnow.API/Winnow.API.csproj --configuration Release --no-build &
