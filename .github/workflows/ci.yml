@@ -196,10 +196,11 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Restore & Build API
+      - name: Restore & Build Backend Services
         run: |
           dotnet restore Winnow.sln
           dotnet build src/Services/Winnow.API/Winnow.API.csproj --configuration Release
+          dotnet build src/Services/Winnow.Sanitize/Winnow.Sanitize.csproj --configuration Release
 
       - name: Setup Ministack Buckets
         run: |
@@ -207,7 +208,7 @@ jobs:
           docker run --network host amazon/aws-cli:latest --endpoint-url=http://localhost:4566 s3 mb s3://winnow-clean || true
           docker run --network host amazon/aws-cli:latest --endpoint-url=http://localhost:4566 s3 mb s3://winnow-security-defs || true
 
-      - name: Start Winnow API
+      - name: Start Winnow Backend Services
         env:
           ASPNETCORE_ENVIRONMENT: Development
           ASPNETCORE_URLS: "http://localhost:5294"
@@ -217,7 +218,9 @@ jobs:
           LlmSettings__Presidio__AnalyzerEndpoint: "http://localhost:5002"
           LlmSettings__Provider: "None"
           EmailSettings__Provider: "None"
+          Encryption__MasterKey: "NF9Jh9TwWEbOgVCkKiEwbXcRHhyKPVHhIMeUzDn0zYg="
         run: |
+          ASPNETCORE_URLS="http://localhost:5295" dotnet run --project src/Services/Winnow.Sanitize/Winnow.Sanitize.csproj --configuration Release --no-build &
           dotnet run --project src/Services/Winnow.API/Winnow.API.csproj --configuration Release --no-build &
           echo "Waiting for API to start on port 5294..."
           for i in $(seq 1 60); do

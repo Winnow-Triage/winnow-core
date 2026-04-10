@@ -85,7 +85,19 @@ public static class WorkerServiceExtensions
         services.AddScoped<DomainEventInterceptor>();
         services.AddMediatR(cfg =>
         {
-            cfg.RegisterServicesFromAssembly(typeof(WinnowDbContext).Assembly);
+            // Resolve MediatR handlers from the host/entry assembly (e.g., Winnow.Sanitize, Winnow.Summary)
+            // INSTEAD of blindly scanning the entire API assembly. This prevents micro-workers
+            // from crashing during DI validation due to missing API-specific features (like IStripePlanMapper).
+            var entryAssembly = System.Reflection.Assembly.GetEntryAssembly();
+            if (entryAssembly != null && !entryAssembly.FullName!.StartsWith("testhost", StringComparison.OrdinalIgnoreCase))
+            {
+                cfg.RegisterServicesFromAssembly(entryAssembly);
+            }
+            else
+            {
+                // Fallback for tests or explicit API booting. Winnow.API already registers its own handlers via AddWinnowServices.
+                cfg.RegisterServicesFromAssembly(typeof(WinnowDbContext).Assembly);
+            }
         });
 
         // Register NpgsqlDataSource as a Singleton to ensure connection pooling works correctly

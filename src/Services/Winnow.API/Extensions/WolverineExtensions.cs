@@ -40,13 +40,18 @@ public static class WolverineExtensions
                 // Bridge for SSL Certificate Download (Optional/Portability)
                 config.EnsureRdsSslCertificate();
 
-                // Wolverine uses Weasel to manage schema for outbox
-                opts.PersistMessagesWithPostgresql(connString);
+                // Wolverine uses Weasel to manage schema for outbox.
+                // We MUST use a distinct schema for each application to prevent node control overlaps and timeouts
+                var schemaName = $"wolverine_{env.ApplicationName.Replace(".", "_").ToLowerInvariant()}";
+                opts.PersistMessagesWithPostgresql(connString, schemaName);
                 opts.UseEntityFrameworkCoreTransactions();
 
                 // Ensures Wolverine creates envelope and node tables idempotently on startup.
                 // This is required because Wolverine tables are not mapped in the EF DbContext model.
                 opts.AutoBuildMessageStorageOnStartup = JasperFx.AutoCreate.CreateOrUpdate;
+
+                // Enforce durability agent on sender-only applications so the Outbox is actually swept
+                opts.Durability.Mode = DurabilityMode.Balanced;
             }
 
             if (env.IsEnvironment("Testing") || config["USE_IN_MEMORY_TRANSPORT"] == "true")
@@ -72,12 +77,19 @@ public static class WolverineExtensions
             else
             {
                 var rmqHost = Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "localhost";
+                var projectName = config["ProjectName"] ?? "winnow";
+
                 opts.UseRabbitMq(x =>
                 {
                     x.HostName = rmqHost;
                     x.UserName = "guest";
                     x.Password = "guest";
-                });
+                }).AutoProvision();
+
+                opts.PublishMessage<GenerateClusterSummaryEvent>().ToRabbitQueue($"{projectName}-summary-queue");
+                opts.PublishMessage<ReportCreatedEvent>().ToRabbitQueue($"{projectName}-sanitize-queue");
+                opts.PublishMessage<ReportSanitizedEvent>().ToRabbitQueue($"{projectName}-clustering-queue");
+                opts.PublishMessage<SendWebhookNotificationCommand>().ToRabbitQueue($"{projectName}-notifications-queue");
             }
         });
 

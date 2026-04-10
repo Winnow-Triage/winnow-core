@@ -159,7 +159,7 @@ public class ReportSearchRepository : IReportSearchRepository
 
     private (string WhereClause, DynamicParameters Parameters) BuildFilterClause(Guid projectId, ReportSearchFilters filters)
     {
-        var conditions = new List<string> { "\"ProjectId\" = @ProjectId" };
+        var conditions = new List<string> { "\"ProjectId\" = @ProjectId", "\"IsSanitized\" = true" };
         var parameters = new DynamicParameters();
         parameters.Add("ProjectId", projectId);
 

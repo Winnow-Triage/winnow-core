@@ -77,9 +77,12 @@ test.describe('Triage Flow & Data Ingestion', () => {
     await page.waitForLoadState('networkidle');
 
     // 6. Verify in UI — navigate to All Reports via sidebar link
-    await page.waitForTimeout(3000);
     await page.getByRole('link', { name: 'All Reports' }).click();
-    await page.waitForLoadState('networkidle');
-    await expect(page.getByText('E2E Error').first()).toBeVisible({ timeout: 15000 });
+    
+    await expect(async () => {
+      await page.reload();
+      await page.waitForLoadState('networkidle');
+      await expect(page.getByText('E2E Error').first()).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 30000 });
   });
 });

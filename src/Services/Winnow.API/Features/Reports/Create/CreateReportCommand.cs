@@ -8,6 +8,7 @@ using Winnow.API.Infrastructure.Persistence;
 using Winnow.API.Services.Ai;
 using Winnow.API.Services.Quota;
 using Winnow.API.Domain.Ai;
+using Wolverine.EntityFrameworkCore;
 
 namespace Winnow.API.Features.Reports.Create;
 
@@ -25,7 +26,7 @@ public class CreateReportHandler(
     WinnowDbContext dbContext,
     IQuotaService quotaService,
     IEmbeddingService embeddingService,
-    IMessageBus bus,
+    IDbContextOutbox<WinnowDbContext> outbox,
     ILogger<CreateReportHandler> logger) : IRequestHandler<CreateReportCommand, Guid>
 {
     public async Task<Guid> Handle(CreateReportCommand request, CancellationToken ct)
@@ -102,13 +103,11 @@ public class CreateReportHandler(
             report.AddAsset(screenshotAsset.Id);
         }
 
-        await dbContext.SaveChangesAsync(ct);
-
         logger.LogInformation("CreateReportHandler: Publishing ReportCreatedEvent for report {Id} (Org: {OrgId})",
             report.Id, request.OrganizationId);
 
-        // 5. Publish Event to trigger analysis chain
-        await bus.PublishAsync(new ReportCreatedEvent
+        // Publish Event to trigger analysis chain (enlists automatically in this EF Core Outbox)
+        await outbox.PublishAsync(new ReportCreatedEvent
         {
             ReportId = report.Id,
             CurrentOrganizationId = request.OrganizationId,
@@ -119,6 +118,9 @@ public class CreateReportHandler(
             CreatedAt = report.CreatedAt,
             Metadata = report.Metadata
         });
+
+        // 6. Commit Database changes AND the Wolverine Outbox Envelope atomically
+        await outbox.SaveChangesAndFlushMessagesAsync(ct);
 
         return report.Id;
     }
