@@ -185,6 +185,7 @@ internal static class ServiceExtensions
 
         services.AddHostedService<AdminSeeder>();
         services.AddHostedService<InvitationCleanupJob>();
+        services.AddHostedService<ApiKeyCleanupJob>();
         services.AddHostedService<DatabaseSweeper>();
 
         // Storage (S3/MinIO)

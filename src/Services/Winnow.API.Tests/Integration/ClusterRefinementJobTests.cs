@@ -56,6 +56,8 @@ public class ClusterRefinementJobTests : IAsyncLifetime
         return v;
     }
 
+    private static void AddSanitized(WinnowDbContext db, Report r) { r.MarkAsSanitized(); db.Reports.Add(r); }
+
     public async Task InitializeAsync()
     {
         await _app.ResetDatabaseAsync();
@@ -126,7 +128,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
         var report = new Report(_projectId, _organizationId, "No Embedding Report", "Needs embedding");
-        db.Reports.Add(report);
+        AddSanitized(db, report);
         await db.SaveChangesAsync();
 
         var job = CreateJob(scope);
@@ -140,7 +142,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
             CancellationToken.None);
 
         db.ChangeTracker.Clear();
-        var updatedReport = await db.Reports.FindAsync(report.Id);
+        var updatedReport = await db.Reports.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == report.Id);
         Assert.NotNull(updatedReport);
         Assert.NotNull(updatedReport.Embedding);
         Assert.NotNull(updatedReport.ClusterId); // It also creates a cluster for orphans!
@@ -153,13 +155,13 @@ public class ClusterRefinementJobTests : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
         var dummyReport = new Report(_projectId, _organizationId, "Dummy", "Dummy", embedding: MakeVector(1.0f, 0.0f));
-        db.Reports.Add(dummyReport);
+        AddSanitized(db, dummyReport);
         var cluster = new Cluster(_projectId, _organizationId, dummyReport.Id);
         cluster.UpdateCentroid(MakeVector(1.0f, 0.0f));
         db.Clusters.Add(cluster);
 
         var report = new Report(_projectId, _organizationId, "Matched Report", "Matches cluster exactly", embedding: MakeVector(1.0f, 0.0f));
-        db.Reports.Add(report);
+        AddSanitized(db, report);
         await db.SaveChangesAsync();
 
         var job = CreateJob(scope);
@@ -173,7 +175,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
             CancellationToken.None);
 
         db.ChangeTracker.Clear();
-        var updatedReport = await db.Reports.FindAsync(report.Id);
+        var updatedReport = await db.Reports.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == report.Id);
         Assert.Equal(cluster.Id, updatedReport?.ClusterId);
         Assert.Equal(ReportStatus.Duplicate, updatedReport?.Status);
     }
@@ -185,13 +187,13 @@ public class ClusterRefinementJobTests : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
         var dummyReport = new Report(_projectId, _organizationId, "Dummy", "Dummy", embedding: MakeVector(1.0f, 0.0f, 0.0f));
-        db.Reports.Add(dummyReport);
+        AddSanitized(db, dummyReport);
         var cluster = new Cluster(_projectId, _organizationId, dummyReport.Id);
         cluster.UpdateCentroid(MakeVector(1.0f, 0.0f, 0.0f));
         db.Clusters.Add(cluster);
 
         var report = new Report(_projectId, _organizationId, "Similar Report", "Matches cluster contextually", embedding: MakeVector(1.0f, 1.732f, 0.0f));
-        db.Reports.Add(report);
+        AddSanitized(db, report);
         await db.SaveChangesAsync();
 
         var job = CreateJob(scope);
@@ -205,7 +207,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
             CancellationToken.None);
 
         db.ChangeTracker.Clear();
-        var updatedReport = await db.Reports.FindAsync(report.Id);
+        var updatedReport = await db.Reports.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == report.Id);
 
         // Should not be hard-merged
         Assert.Null(updatedReport?.ClusterId);
@@ -229,7 +231,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
         var dummyReport = new Report(_projectId, _organizationId, "Dummy", "Dummy", embedding: MakeVector(1.0f, 0.0f, 0.0f));
-        db.Reports.Add(dummyReport);
+        AddSanitized(db, dummyReport);
         var cluster = new Cluster(_projectId, _organizationId, dummyReport.Id);
         cluster.UpdateCentroid(MakeVector(1.0f, 0.0f, 0.0f));
         db.Clusters.Add(cluster);
@@ -237,10 +239,10 @@ public class ClusterRefinementJobTests : IAsyncLifetime
         // Need a representative report in the cluster for duplicate checking
         var repReport = new Report(_projectId, _organizationId, "Rep Report", "Rep Message", embedding: MakeVector(1.0f, 0.0f, 0.0f));
         repReport.AssignToCluster(cluster.Id);
-        db.Reports.Add(repReport);
+        AddSanitized(db, repReport);
 
         var report = new Report(_projectId, _organizationId, "Duplicate Report", "Matches cluster", embedding: MakeVector(1.0f, 1.0f, 0.0f));
-        db.Reports.Add(report);
+        AddSanitized(db, report);
         await db.SaveChangesAsync();
 
         var job = CreateJob(scope);
@@ -254,7 +256,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
             CancellationToken.None);
 
         db.ChangeTracker.Clear();
-        var updatedReport = await db.Reports.FindAsync(report.Id);
+        var updatedReport = await db.Reports.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == report.Id);
 
         Assert.Equal(cluster.Id, updatedReport?.ClusterId);
         Assert.Equal(ReportStatus.Duplicate, updatedReport?.Status);
@@ -267,17 +269,17 @@ public class ClusterRefinementJobTests : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
         var dummyReport = new Report(_projectId, _organizationId, "Dummy", "Dummy", embedding: MakeVector(1.0f, 0.0f, 0.0f));
-        db.Reports.Add(dummyReport);
+        AddSanitized(db, dummyReport);
         var cluster = new Cluster(_projectId, _organizationId, dummyReport.Id);
         cluster.UpdateCentroid(MakeVector(1.0f, 0.0f, 0.0f));
         db.Clusters.Add(cluster);
 
         var repReport = new Report(_projectId, _organizationId, "Rep Report", "Rep Message", embedding: MakeVector(1.0f, 0.0f, 0.0f));
         repReport.AssignToCluster(cluster.Id);
-        db.Reports.Add(repReport);
+        AddSanitized(db, repReport);
 
         var report = new Report(_projectId, _organizationId, "Rejected Report", "Matches cluster vectors but AI says no", embedding: MakeVector(1.0f, 1.0f, 0.0f));
-        db.Reports.Add(report);
+        AddSanitized(db, report);
         await db.SaveChangesAsync();
 
         var job = CreateJob(scope);
@@ -291,7 +293,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
             CancellationToken.None);
 
         db.ChangeTracker.Clear();
-        var updatedReport = await db.Reports.FindAsync(report.Id);
+        var updatedReport = await db.Reports.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == report.Id);
 
         // Should not be hard-merged because AI rejected
         Assert.NotEqual(cluster.Id, updatedReport?.ClusterId);
@@ -307,13 +309,13 @@ public class ClusterRefinementJobTests : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
         var dummyReport1 = new Report(_projectId, _organizationId, "Dummy 1", "Dummy 1", embedding: MakeVector(1.0f, 0.0f, 0.0f));
-        db.Reports.Add(dummyReport1);
+        AddSanitized(db, dummyReport1);
         var cluster1 = new Cluster(_projectId, _organizationId, dummyReport1.Id);
         cluster1.UpdateCentroid(MakeVector(1.0f, 0.0f, 0.0f));
         db.Clusters.Add(cluster1);
 
         var dummyReport2 = new Report(_projectId, _organizationId, "Dummy 2", "Dummy 2", embedding: MakeVector(1.0f, 0.0f, 0.0f));
-        db.Reports.Add(dummyReport2);
+        AddSanitized(db, dummyReport2);
         var cluster2 = new Cluster(_projectId, _organizationId, dummyReport2.Id);
         cluster2.UpdateCentroid(MakeVector(1.0f, 0.0f, 0.0f)); // Exact same centroid => distance 0
         db.Clusters.Add(cluster2);
@@ -343,13 +345,13 @@ public class ClusterRefinementJobTests : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
         var dummyReport1 = new Report(_projectId, _organizationId, "Dummy 1", "Dummy 1", embedding: MakeVector(1.0f, 0.0f, 0.0f));
-        db.Reports.Add(dummyReport1);
+        AddSanitized(db, dummyReport1);
         var cluster1 = new Cluster(_projectId, _organizationId, dummyReport1.Id);
         cluster1.UpdateCentroid(MakeVector(1.0f, 0.0f, 0.0f));
         db.Clusters.Add(cluster1);
 
         var dummyReport2 = new Report(_projectId, _organizationId, "Dummy 2", "Dummy 2", embedding: MakeVector(1.0f, 1.0f, 0.0f));
-        db.Reports.Add(dummyReport2);
+        AddSanitized(db, dummyReport2);
         var cluster2 = new Cluster(_projectId, _organizationId, dummyReport2.Id);
         // Sim ~0.707 => Dist ~0.293 (between 0.25 and 0.45) => Suggested merge
         cluster2.UpdateCentroid(MakeVector(1.0f, 1.0f, 0.0f));
@@ -385,17 +387,17 @@ public class ClusterRefinementJobTests : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
         var dummyReport = new Report(_projectId, _organizationId, "Dummy", "Dummy", embedding: MakeVector(1.0f, 0.0f, 0.0f));
-        db.Reports.Add(dummyReport);
+        AddSanitized(db, dummyReport);
         var cluster = new Cluster(_projectId, _organizationId, dummyReport.Id);
         cluster.UpdateCentroid(MakeVector(1.0f, 0.0f, 0.0f));
         db.Clusters.Add(cluster);
 
         var repReport = new Report(_projectId, _organizationId, "Rep Report", "Rep Message", embedding: MakeVector(1.0f, 0.0f, 0.0f));
         repReport.AssignToCluster(cluster.Id);
-        db.Reports.Add(repReport);
+        AddSanitized(db, repReport);
 
         var report = new Report(_projectId, _organizationId, "Duplicate Report", "Matches cluster, but previously marked as not a duplicate by user", embedding: MakeVector(1.0f, 1.0f, 0.0f));
-        db.Reports.Add(report);
+        AddSanitized(db, report);
         await db.SaveChangesAsync();
 
         // Mock negative cache to return true for this pair
@@ -413,7 +415,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
             CancellationToken.None);
 
         db.ChangeTracker.Clear();
-        var updatedReport = await db.Reports.FindAsync(report.Id);
+        var updatedReport = await db.Reports.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == report.Id);
 
         // Should not be hard-merged due to cache
         Assert.NotEqual(cluster.Id, updatedReport?.ClusterId);
@@ -429,7 +431,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
         var dummyReport = new Report(_projectId, _organizationId, "Dummy", "Dummy", embedding: MakeVector(1.0f, 0.0f, 0.0f));
-        db.Reports.Add(dummyReport);
+        AddSanitized(db, dummyReport);
         var cluster = new Cluster(_projectId, _organizationId, dummyReport.Id);
         cluster.UpdateCentroid(MakeVector(1.0f, 0.0f, 0.0f));
         db.Clusters.Add(cluster);
@@ -438,7 +440,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
         // I'll keep the invariant: cluster has dummyReport.
 
         var report = new Report(_projectId, _organizationId, "Duplicate Report", "Matches cluster", embedding: MakeVector(1.0f, 1.0f, 0.0f));
-        db.Reports.Add(report);
+        AddSanitized(db, report);
         await db.SaveChangesAsync();
 
         var job = CreateJob(scope);
@@ -452,7 +454,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
             CancellationToken.None);
 
         db.ChangeTracker.Clear();
-        var updatedReport = await db.Reports.FindAsync(report.Id);
+        var updatedReport = await db.Reports.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == report.Id);
 
         Assert.Equal(cluster.Id, updatedReport?.ClusterId);
         Assert.Equal(ReportStatus.Duplicate, updatedReport?.Status);
@@ -467,7 +469,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
         var report = new Report(_projectId, _organizationId, "Orphan Exec", "Test Exec");
-        db.Reports.Add(report);
+        AddSanitized(db, report);
         await db.SaveChangesAsync();
 
         using var cts = new CancellationTokenSource();
@@ -488,7 +490,7 @@ public class ClusterRefinementJobTests : IAsyncLifetime
         catch (OperationCanceledException) { /* Ignored */ }
 
         db.ChangeTracker.Clear();
-        var updatedReport = await db.Reports.FindAsync(report.Id);
+        var updatedReport = await db.Reports.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == report.Id);
 
         Assert.NotNull(updatedReport?.Embedding);
         Assert.NotNull(updatedReport?.ClusterId);

@@ -60,7 +60,7 @@ export default function AuthPage() {
   };
 
   useEffect(() => {
-    setIsSignUp(location.pathname === "/signup");
+    setIsSignUp(location.pathname === "/signup" || location.pathname === "/signup/");
   }, [location.pathname]);
 
   const handleSubmit = async (e: React.FormEvent) => {

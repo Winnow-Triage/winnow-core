@@ -154,8 +154,18 @@ public class SemanticKernelClusterSummaryService(Kernel kernel, LlmSettings llmS
                                        ?? type.GetProperty("CompletionTokens")?.GetValue(usageObj) ?? 0;
 
                 var modelId = metadata.TryGetValue("ModelId", out var m) ? m?.ToString() : null;
+                if (string.IsNullOrEmpty(modelId))
+                {
+                    modelId = llmSettings.Provider switch
+                    {
+                        "OpenAI" => llmSettings.OpenAI.ModelId,
+                        "Bedrock" => llmSettings.Bedrock.ModelId,
+                        "Ollama" => llmSettings.Ollama.ModelId,
+                        _ => "unknown"
+                    };
+                }
 
-                return new AiUsageInfo((int)promptTokens, (int)completionTokens, modelId ?? "unknown", llmSettings.Provider);
+                return new AiUsageInfo((int)promptTokens, (int)completionTokens, modelId, llmSettings.Provider);
             }
             catch { return null; }
         }

@@ -176,7 +176,7 @@ public class ReportTests : IAsyncLifetime
         // Verify the report was created in the database
         using var scope = _app.Services.CreateScope();
         using var db = scope.ServiceProvider.GetRequiredService<Winnow.API.Infrastructure.Persistence.WinnowDbContext>();
-        var report = await db.Reports.FindAsync(result.Id);
+        var report = await db.Reports.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == result.Id);
         Assert.NotNull(report);
         Assert.Equal(request.Title, report.Title);
         Assert.Equal(request.Message, report.Message);
