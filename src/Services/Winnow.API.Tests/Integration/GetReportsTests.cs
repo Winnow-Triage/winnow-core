@@ -158,7 +158,7 @@ public class GetReportsTests : IAsyncLifetime
         // We verify data retrieval logic by checking the database directly
         using var scope = _app.Services.CreateScope();
         using var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
-        var reportsInDb = await db.Reports.Where(r => r.ProjectId == _projectId).ToListAsync();
+        var reportsInDb = await db.Reports.IgnoreQueryFilters().Where(r => r.ProjectId == _projectId).ToListAsync();
         Assert.Equal(3, reportsInDb.Count);
 
         // Verify each report has expected fields populated
@@ -257,19 +257,19 @@ public class GetReportsTests : IAsyncLifetime
         using var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
         // Check Project A's reports
-        var projectAReports = await db.Reports.Where(r => r.ProjectId == projectAId).ToListAsync();
+        var projectAReports = await db.Reports.IgnoreQueryFilters().Where(r => r.ProjectId == projectAId).ToListAsync();
         Assert.Single(projectAReports);
         Assert.Equal(reportAId, projectAReports[0].Id);
         Assert.Equal("Project A Report", projectAReports[0].Title);
 
         // Check Project B's reports  
-        var projectBReports = await db.Reports.Where(r => r.ProjectId == projectBId).ToListAsync();
+        var projectBReports = await db.Reports.IgnoreQueryFilters().Where(r => r.ProjectId == projectBId).ToListAsync();
         Assert.Single(projectBReports);
         Assert.Equal(reportBId, projectBReports[0].Id);
         Assert.Equal("Project B Report", projectBReports[0].Title);
 
         // Verify reports are not mixed between projects
-        var allReports = await db.Reports.Where(r => r.ProjectId == projectAId || r.ProjectId == projectBId).ToListAsync();
+        var allReports = await db.Reports.IgnoreQueryFilters().Where(r => r.ProjectId == projectAId || r.ProjectId == projectBId).ToListAsync();
         Assert.Equal(2, allReports.Count);
 
         var projectAReportIds = projectAReports.Select(r => r.Id).ToHashSet();

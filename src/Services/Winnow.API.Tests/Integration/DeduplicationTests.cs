@@ -154,14 +154,14 @@ public class DeduplicationTests : IAsyncLifetime
         // Wait up to 5 seconds for any processing to occur
         for (int i = 0; i < 10; i++)
         {
-            var allReports = await db.Reports.Where(r => r.ProjectId == _projectId).ToListAsync();
+            var allReports = await db.Reports.IgnoreQueryFilters().Where(r => r.ProjectId == _projectId).ToListAsync();
             // Check if both reports exist
             if (allReports.Count >= 2) break;
             await Task.Delay(500);
         }
 
         // Get final state
-        var finalReports = await db.Reports.Where(r => r.ProjectId == _projectId).ToListAsync();
+        var finalReports = await db.Reports.IgnoreQueryFilters().Where(r => r.ProjectId == _projectId).ToListAsync();
 
         // Since vec0 extension is not available in test environment, 
         // vector search will be disabled and deduplication won't occur.
@@ -171,8 +171,8 @@ public class DeduplicationTests : IAsyncLifetime
         Assert.Equal(2, finalReports.Count);
 
         // Verify both reports were created
-        var reportA = await db.Reports.FindAsync(reportAId);
-        var reportB = await db.Reports.FindAsync(reportBId);
+        var reportA = await db.Reports.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == reportAId);
+        var reportB = await db.Reports.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == reportBId);
 
         Assert.NotNull(reportA);
         Assert.NotNull(reportB);
@@ -224,8 +224,8 @@ public class DeduplicationTests : IAsyncLifetime
         using var scope = _app.Services.CreateScope();
         using var db = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
 
-        var reportA = await db.Reports.FindAsync(reportAId);
-        var reportB = await db.Reports.FindAsync(reportBId);
+        var reportA = await db.Reports.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == reportAId);
+        var reportB = await db.Reports.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == reportBId);
 
         // Assert: Both should be standalone reports (not duplicates, in their own clusters or unclustered)
         Assert.NotNull(reportA);

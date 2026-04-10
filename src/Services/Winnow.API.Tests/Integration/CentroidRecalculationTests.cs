@@ -33,6 +33,8 @@ public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetim
         return v;
     }
 
+    private static void AddSanitized(WinnowDbContext db, Report r) { r.MarkAsSanitized(); db.Reports.Add(r); }
+
     public async Task InitializeAsync()
     {
         await _app.ResetDatabaseAsync();
@@ -94,6 +96,8 @@ public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetim
         report2.SetEmbedding(MakeVector(0.0f, 1.0f));
         report2.ChangeStatus(ReportStatus.Duplicate);
 
+        report1.MarkAsSanitized();
+        report2.MarkAsSanitized();
         db.Reports.AddRange(report1, report2);
         await db.SaveChangesAsync();
 
@@ -121,8 +125,8 @@ public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetim
         Assert.Equal(0.5f, updatedCluster.Centroid![1], 3);
 
         // Verify confidence scores are updated
-        var r1 = await db.Reports.FindAsync(report1.Id);
-        var r2 = await db.Reports.FindAsync(report2.Id);
+        var r1 = await db.Reports.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == report1.Id);
+        var r2 = await db.Reports.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == report2.Id);
         Assert.NotNull(r1?.ConfidenceScore);
         Assert.NotNull(r2?.ConfidenceScore);
         Assert.Equal(0.707f, r1.ConfidenceScore.Value.Score, 3);
@@ -148,7 +152,7 @@ public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetim
 
         // 6. Verify report 1 is ungrouped
         db.ChangeTracker.Clear();
-        var ungroupedReport = await db.Reports.FindAsync(report1.Id);
+        var ungroupedReport = await db.Reports.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == report1.Id);
         Assert.NotNull(ungroupedReport);
         Assert.Null(ungroupedReport.ClusterId);
         Assert.Null(ungroupedReport.ConfidenceScore);
@@ -162,7 +166,7 @@ public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetim
         Assert.Equal(1.0f, finalCluster.Centroid![1], 3);
 
         // Verify remaining report confidence is now 1.0 (it IS the centroid)
-        var remainingReport = await db.Reports.FindAsync(report2.Id);
+        var remainingReport = await db.Reports.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == report2.Id);
         Assert.Equal(1.0f, remainingReport!.ConfidenceScore!.Value.Score, 3);
     }
 
@@ -176,7 +180,7 @@ public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetim
         var report1 = new Report(_projectId, _organizationId, "First Report", "Message 1");
         report1.SetEmbedding(MakeVector(1.0f, 0.0f));
         report1.ChangeStatus(ReportStatus.Duplicate);
-        db.Reports.Add(report1);
+        AddSanitized(db, report1);
         await db.SaveChangesAsync();
 
         var cluster = new Cluster(_projectId, _organizationId, report1.Id);
@@ -193,7 +197,7 @@ public class CentroidRecalculationTests(PostgresFixture fixture) : IAsyncLifetim
         var report2 = new Report(_projectId, _organizationId, "Second Report", "Message 2");
         report2.SetEmbedding(MakeVector(0.0f, 1.0f));
         report2.ChangeStatus(ReportStatus.Duplicate);
-        db.Reports.Add(report2);
+        AddSanitized(db, report2);
         await db.SaveChangesAsync();
 
         // Manually assign to cluster (simulating clustering logic)

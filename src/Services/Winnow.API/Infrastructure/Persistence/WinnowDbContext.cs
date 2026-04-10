@@ -60,6 +60,9 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                 // Dashboard performance (Project + Status + Date DESC)
                 entity.HasIndex(r => new { r.ProjectId, r.Status, r.CreatedAt })
                     .IsDescending(false, false, true);
+
+                // Global query filter to ensure un-sanitized reports are completely hidden from UI
+                entity.HasQueryFilter(r => r.IsSanitized);
             });
 
             modelBuilder.Entity<Domain.Clusters.Cluster>(entity =>

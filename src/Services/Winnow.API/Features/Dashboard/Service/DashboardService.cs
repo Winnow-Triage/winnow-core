@@ -15,7 +15,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
     {
         // 1. Build Base Query
         var baseQuery = db.Reports
-            .Where(r => r.OrganizationId == organizationId && r.IsSanitized);
+            .Where(r => r.OrganizationId == organizationId);
 
         if (projectId.HasValue)
         {

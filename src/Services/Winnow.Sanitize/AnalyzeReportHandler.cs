@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Wolverine;
 using Winnow.Contracts;
 using Winnow.API.Extensions;
@@ -21,7 +22,9 @@ public sealed class AnalyzeReportHandler(
         logger.LogInformation("AnalyzeReportConsumer: Starting analysis for report {Id} (Org: {OrgId})",
             message.ReportId, message.CurrentOrganizationId);
 
-        var report = await dbContext.Reports.FindAsync([message.ReportId], cancellationToken);
+        var report = await dbContext.Reports
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(r => r.Id == message.ReportId, cancellationToken);
 
         if (report == null || string.IsNullOrWhiteSpace(report.Message))
         {
