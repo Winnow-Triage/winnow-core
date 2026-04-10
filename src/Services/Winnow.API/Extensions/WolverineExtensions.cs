@@ -49,6 +49,9 @@ public static class WolverineExtensions
                 // Ensures Wolverine creates envelope and node tables idempotently on startup.
                 // This is required because Wolverine tables are not mapped in the EF DbContext model.
                 opts.AutoBuildMessageStorageOnStartup = JasperFx.AutoCreate.CreateOrUpdate;
+
+                // Enforce durability agent on sender-only applications so the Outbox is actually swept
+                opts.Durability.Mode = DurabilityMode.Balanced;
             }
 
             if (env.IsEnvironment("Testing") || config["USE_IN_MEMORY_TRANSPORT"] == "true")
