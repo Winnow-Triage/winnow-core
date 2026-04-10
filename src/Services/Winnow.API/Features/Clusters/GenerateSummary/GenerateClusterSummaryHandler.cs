@@ -6,6 +6,7 @@ using Winnow.API.Features.Shared;
 
 using Microsoft.EntityFrameworkCore;
 using Winnow.API.Infrastructure.Persistence;
+using Wolverine.EntityFrameworkCore;
 
 namespace Winnow.API.Features.Clusters.GenerateSummary;
 
@@ -14,7 +15,7 @@ public record GenerateClusterSummaryCommand(Guid CurrentOrganizationId, Guid Id,
 
 public record GenerateClusterSummaryResult(bool IsSuccess, string? ErrorMessage = null, int? StatusCode = null);
 
-public class GenerateClusterSummaryHandler(IMessageBus bus, WinnowDbContext db) : IRequestHandler<GenerateClusterSummaryCommand, GenerateClusterSummaryResult>
+public class GenerateClusterSummaryHandler(IDbContextOutbox<WinnowDbContext> outbox, WinnowDbContext db) : IRequestHandler<GenerateClusterSummaryCommand, GenerateClusterSummaryResult>
 {
     public async Task<GenerateClusterSummaryResult> Handle(GenerateClusterSummaryCommand request, CancellationToken cancellationToken)
     {
@@ -26,13 +27,13 @@ public class GenerateClusterSummaryHandler(IMessageBus bus, WinnowDbContext db) 
 
         cluster.StartSummarizing();
 
-        await bus.PublishAsync(new GenerateClusterSummaryEvent(
+        await outbox.PublishAsync(new GenerateClusterSummaryEvent(
             request.Id,
             request.CurrentOrganizationId,
             request.ProjectId
         ));
 
-        await db.SaveChangesAsync(cancellationToken);
+        await outbox.SaveChangesAndFlushMessagesAsync(cancellationToken);
 
         return new GenerateClusterSummaryResult(true);
     }
