@@ -35,7 +35,7 @@ public class ClusterSearchRepository(WinnowDbContext dbContext) : IClusterSearch
             };
 
             orderByClause = sortColumn == "ReportCount"
-                ? $"ORDER BY (SELECT COUNT(*) FROM \"Reports\" r WHERE r.\"ClusterId\" = c.\"Id\") {sortOrder}"
+                ? $"ORDER BY (SELECT COUNT(*) FROM \"Reports\" r WHERE r.\"ClusterId\" = c.\"Id\" AND r.\"IsSanitized\" = TRUE) {sortOrder}"
                 : $"ORDER BY c.\"{sortColumn}\" {sortOrder}";
         }
 
@@ -48,9 +48,9 @@ public class ClusterSearchRepository(WinnowDbContext dbContext) : IClusterSearch
                 c.""CreatedAt"",
                 c.""CriticalityScore"",
                 (c.""IsSummarizing"" = TRUE AND (c.""SummarizationStartedAt"" IS NULL OR c.""SummarizationStartedAt"" > NOW() - INTERVAL '10 minutes')) AS IsSummarizing,
-                (SELECT COUNT(*) FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"") AS ReportCount,
-                EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsLocked"" = TRUE) AS IsLocked,
-                EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsOverage"" = TRUE) AS IsOverage
+                (SELECT COUNT(*) FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsSanitized"" = TRUE) AS ReportCount,
+                EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsLocked"" = TRUE AND r.""IsSanitized"" = TRUE) AS IsLocked,
+                EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsOverage"" = TRUE AND r.""IsSanitized"" = TRUE) AS IsOverage
             FROM ""Clusters"" c
             WHERE {whereClause}
             {orderByClause}
@@ -92,7 +92,7 @@ public class ClusterSearchRepository(WinnowDbContext dbContext) : IClusterSearch
             if (sortColumn != null)
             {
                 orderByClause = sortColumn == "ReportCount"
-                    ? $"ORDER BY (SELECT COUNT(*) FROM \"Reports\" r WHERE r.\"ClusterId\" = c.\"Id\") {sortOrder}"
+                    ? $"ORDER BY (SELECT COUNT(*) FROM \"Reports\" r WHERE r.\"ClusterId\" = c.\"Id\" AND r.\"IsSanitized\" = TRUE) {sortOrder}"
                     : $"ORDER BY c.\"{sortColumn}\" {sortOrder}";
             }
         }
@@ -137,9 +137,9 @@ public class ClusterSearchRepository(WinnowDbContext dbContext) : IClusterSearch
                 c.""CreatedAt"",
                 c.""CriticalityScore"",
                 (c.""IsSummarizing"" = TRUE AND (c.""SummarizationStartedAt"" IS NULL OR c.""SummarizationStartedAt"" > NOW() - INTERVAL '10 minutes')) AS IsSummarizing,
-                (SELECT COUNT(*) FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"") AS ReportCount,
-                EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsLocked"" = TRUE) AS IsLocked,
-                EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsOverage"" = TRUE) AS IsOverage,
+                (SELECT COUNT(*) FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsSanitized"" = TRUE) AS ReportCount,
+                EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsLocked"" = TRUE AND r.""IsSanitized"" = TRUE) AS IsLocked,
+                EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsOverage"" = TRUE AND r.""IsSanitized"" = TRUE) AS IsOverage,
                 rrf.relevance_score AS RelevanceScore
             FROM rrf
             JOIN ""Clusters"" c ON rrf.cluster_id = c.""Id""
@@ -177,17 +177,17 @@ public class ClusterSearchRepository(WinnowDbContext dbContext) : IClusterSearch
         if (filters.IsOverage.HasValue)
         {
             if (filters.IsOverage.Value)
-                conditions.Add("EXISTS (SELECT 1 FROM \"Reports\" r WHERE r.\"ClusterId\" = c.\"Id\" AND r.\"IsOverage\" = TRUE)");
+                conditions.Add("EXISTS (SELECT 1 FROM \"Reports\" r WHERE r.\"ClusterId\" = c.\"Id\" AND r.\"IsOverage\" = TRUE AND r.\"IsSanitized\" = TRUE)");
             else
-                conditions.Add("NOT EXISTS (SELECT 1 FROM \"Reports\" r WHERE r.\"ClusterId\" = c.\"Id\" AND r.\"IsOverage\" = TRUE)");
+                conditions.Add("NOT EXISTS (SELECT 1 FROM \"Reports\" r WHERE r.\"ClusterId\" = c.\"Id\" AND r.\"IsOverage\" = TRUE AND r.\"IsSanitized\" = TRUE)");
         }
 
         if (filters.IsLocked.HasValue)
         {
             if (filters.IsLocked.Value)
-                conditions.Add("EXISTS (SELECT 1 FROM \"Reports\" r WHERE r.\"ClusterId\" = c.\"Id\" AND r.\"IsLocked\" = TRUE)");
+                conditions.Add("EXISTS (SELECT 1 FROM \"Reports\" r WHERE r.\"ClusterId\" = c.\"Id\" AND r.\"IsLocked\" = TRUE AND r.\"IsSanitized\" = TRUE)");
             else
-                conditions.Add("NOT EXISTS (SELECT 1 FROM \"Reports\" r WHERE r.\"ClusterId\" = c.\"Id\" AND r.\"IsLocked\" = TRUE)");
+                conditions.Add("NOT EXISTS (SELECT 1 FROM \"Reports\" r WHERE r.\"ClusterId\" = c.\"Id\" AND r.\"IsLocked\" = TRUE AND r.\"IsSanitized\" = TRUE)");
         }
 
         return (string.Join(" AND ", conditions), parameters);
