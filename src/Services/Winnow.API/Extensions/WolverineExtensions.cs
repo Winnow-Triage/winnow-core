@@ -40,8 +40,10 @@ public static class WolverineExtensions
                 // Bridge for SSL Certificate Download (Optional/Portability)
                 config.EnsureRdsSslCertificate();
 
-                // Wolverine uses Weasel to manage schema for outbox
-                opts.PersistMessagesWithPostgresql(connString);
+                // Wolverine uses Weasel to manage schema for outbox.
+                // We MUST use a distinct schema for each application to prevent node control overlaps and timeouts
+                var schemaName = $"wolverine_{env.ApplicationName.Replace(".", "_").ToLowerInvariant()}";
+                opts.PersistMessagesWithPostgresql(connString, schemaName);
                 opts.UseEntityFrameworkCoreTransactions();
 
                 // Ensures Wolverine creates envelope and node tables idempotently on startup.
