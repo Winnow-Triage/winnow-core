@@ -108,9 +108,6 @@ public class Project : IAggregateRoot
         if (string.IsNullOrWhiteSpace(newKeyHash))
             throw new ArgumentException("New key hash is required.", nameof(newKeyHash));
 
-        if (fallbackExpiration.HasValue && fallbackExpiration <= DateTimeOffset.UtcNow)
-            throw new ArgumentException("Fallback expiration must be in the future.", nameof(fallbackExpiration));
-
         // 1. Demote the current primary key to the secondary slot with a ticking clock
         SecondaryApiKeyHash = ApiKeyHash;
         SecondaryApiKeyExpiresAt = fallbackExpiration;

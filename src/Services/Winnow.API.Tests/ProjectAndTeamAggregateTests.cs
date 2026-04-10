@@ -56,12 +56,15 @@ public class ProjectAggregateTests
     }
 
     [Fact]
-    public void RotateApiKey_WithPastExpiry_Throws()
+    public void RotateApiKey_WithPastExpiry_IsAllowed()
     {
         var project = CreateProject();
 
-        Assert.Throws<ArgumentException>(() =>
-            project.RotateApiKey("hash-new-1", DateTimeOffset.UtcNow.AddMinutes(-1)));
+        var expiry = DateTimeOffset.UtcNow.AddMinutes(-1);
+        project.RotateApiKey("hash-new-1", expiry);
+
+        Assert.Equal("hash-new-1", project.ApiKeyHash);
+        Assert.Equal(expiry, project.SecondaryApiKeyExpiresAt);
     }
 
     [Fact]
