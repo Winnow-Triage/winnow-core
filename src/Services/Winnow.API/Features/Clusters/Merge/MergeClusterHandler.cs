@@ -49,7 +49,7 @@ public class MergeClusterHandler(WinnowDbContext db, IClusterService clusterServ
             foreach (var report in sourceReports)
             {
                 report.AssignToCluster(targetCluster.Id);
-                report.ChangeStatus(ReportStatus.Dismissed);
+                report.ChangeStatus(ReportStatus.Duplicate);
             }
 
             db.Clusters.Remove(sourceCluster);
