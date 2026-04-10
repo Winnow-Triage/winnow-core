@@ -267,9 +267,12 @@ export function OrganizationDetailsModal({
                                   <div className="text-[9px] text-muted-foreground uppercase tracking-widest leading-none mt-0.5">{usage.provider}</div>
                                 </div>
                               </div>
-                              <div className="text-right">
-                                <div className="text-xs font-mono font-bold text-foreground">{(usage.inputTokens + usage.outputTokens).toLocaleString()} <span className="text-[9px] font-normal text-muted-foreground opacity-70">tokens</span></div>
-                                <div className="text-[9px] text-muted-foreground font-medium">{usage.callCount} calls</div>
+                              <div className="text-right flex flex-col items-end">
+                                <div className="flex gap-2 text-[10px] font-mono font-bold">
+                                  <span className="text-blue-500/80">{usage.inputTokens.toLocaleString()} in</span>
+                                  <span className="text-purple-500/80">{usage.outputTokens.toLocaleString()} out</span>
+                                </div>
+                                <div className="text-[9px] text-muted-foreground font-medium mt-0.5">{usage.callCount} calls</div>
                               </div>
                             </div>
                           ))}

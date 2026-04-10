@@ -1269,9 +1269,12 @@ export default function Settings() {
                             <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{usage.provider}</div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm font-semibold">{(usage.inputTokens + usage.outputTokens).toLocaleString()} <span className="text-[10px] font-normal text-muted-foreground">tokens</span></div>
-                          <div className="text-[10px] text-muted-foreground">{usage.callCount} calls</div>
+                        <div className="text-right flex flex-col items-end">
+                          <div className="flex gap-2 text-xs font-medium">
+                            <span className="text-blue-500/80">{usage.inputTokens.toLocaleString()} in</span>
+                            <span className="text-purple-500/80">{usage.outputTokens.toLocaleString()} out</span>
+                          </div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5">{usage.callCount} calls</div>
                         </div>
                       </div>
                     ))}
