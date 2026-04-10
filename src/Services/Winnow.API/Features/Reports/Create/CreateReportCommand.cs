@@ -102,12 +102,10 @@ public class CreateReportHandler(
             report.AddAsset(screenshotAsset.Id);
         }
 
-        await dbContext.SaveChangesAsync(ct);
-
         logger.LogInformation("CreateReportHandler: Publishing ReportCreatedEvent for report {Id} (Org: {OrgId})",
             report.Id, request.OrganizationId);
 
-        // 5. Publish Event to trigger analysis chain
+        // 5. Publish Event to trigger analysis chain (enlists in EF Core Outbox)
         await bus.PublishAsync(new ReportCreatedEvent
         {
             ReportId = report.Id,
@@ -119,6 +117,9 @@ public class CreateReportHandler(
             CreatedAt = report.CreatedAt,
             Metadata = report.Metadata
         });
+
+        // 6. Commit Database changes AND the Wolverine Outbox Envelope atomically
+        await dbContext.SaveChangesAsync(ct);
 
         return report.Id;
     }
