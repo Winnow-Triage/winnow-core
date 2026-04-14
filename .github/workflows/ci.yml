@@ -59,6 +59,93 @@ jobs:
           name: test-results-dotnet
           path: "**/test-results.trx"
 
+  # ── SonarQube Analysis (Backend) ───────────────────────────────────────────
+  sonarqube-dotnet:
+    name: SonarQube Analysis (.NET Backend)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: winnow
+          POSTGRES_PASSWORD: winnow_test
+          POSTGRES_DB: winnow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U winnow"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: 'temurin'
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install SonarScanner
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Begin Sonar Analysis
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner begin /k:"winnow-triage_winnow-core-api" /o:"winnow-triage" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
+
+      - name: Restore
+        run: dotnet restore Winnow.sln
+
+      - name: Build
+        run: dotnet build Winnow.sln --no-restore
+
+      - name: Test
+        run: dotnet test Winnow.sln --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx" --logger "GitHubActions" /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
+        env:
+          ConnectionStrings__Postgres: "Host=localhost;Port=5432;Database=winnow_test;Username=winnow;Password=winnow_test"
+
+      - name: End Sonar Analysis
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+
+  # ── SonarQube Analysis (Frontend) ──────────────────────────────────────────
+  sonarqube-ui:
+    name: SonarQube Analysis (JS/UI)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectBaseDir: src/Apps/Winnow.Client
+          args: >
+            -Dsonar.projectKey=winnow-triage_winnow-core-ui
+            -Dsonar.organization=winnow-triage
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.sources=src
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+
   # ── Job 2: Build & Test (UI/JS) ────────────────────────────────────────────
   test-ui:
     name: Build & Test JS/UI Projects
@@ -335,7 +422,7 @@ jobs:
     name: Build, Scan and Push to AWS ECR
     runs-on: ubuntu-latest
     environment: production
-    needs: [test-dotnet, test-ui, drift-detection, e2e, security]
+    needs: [test-dotnet, test-ui, drift-detection, e2e, security, sonarqube-dotnet, sonarqube-ui]
     if: github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
