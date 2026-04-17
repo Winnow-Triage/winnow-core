@@ -1,139 +1,27 @@
-using System.Net.Http.Headers;
-using Amazon;
-using Amazon.Comprehend;
-using Amazon.Extensions.NETCore.Setup;
-using Amazon.S3;
-using Amazon.SimpleEmail;
-using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.Connectors.Amazon;
-using Npgsql;
-using Resend;
-using Winnow.API.Domain.Services; // For IVectorCalculator
-using Winnow.API.Features.Clusters.GenerateSummary;
-using Winnow.API.Features.Dashboard.IService;
-using Winnow.API.Features.Dashboard.Service;
-using Winnow.API.Infrastructure.Analysis;
-using Winnow.API.Infrastructure.Configuration;
-using Winnow.API.Infrastructure.Integrations;
-using Winnow.API.Infrastructure.MultiTenancy;
 using Winnow.API.Infrastructure.Persistence;
-using Winnow.API.Services.Ai;
 using Winnow.API.Services.Ai.Strategies;
-using Winnow.API.Services.Caching;
-using Winnow.API.Services.Emails;
-using Winnow.API.Services.Storage;
+using Npgsql;
+using Winnow.API.Infrastructure.Configuration;
+using Winnow.API.Services.Ai;
+using Winnow.API.Features.Dashboard.Service;
+using Winnow.API.Features.Dashboard.IService;
+using Winnow.API.Infrastructure.Analysis;
+using Winnow.API.Domain.Services;
+using Winnow.API.Features.Clusters.GenerateSummary;
+
 namespace Winnow.API.Extensions;
 
 public static class WorkerServiceExtensions
 {
     public static IServiceCollection AddWinnowBaseInfrastructure(this IServiceCollection services, IConfiguration config)
     {
-        services.AddWorkerInfrastructureCore(config);
-        services.AddWorkerDatabase(config);
+        services.AddInfrastructureServices(config);
         services.AddWorkerMessaging();
-        services.AddWorkerEmail(config);
+        services.AddEmailAndNotifications(config);
 
         return services;
-    }
-
-    private static void AddWorkerInfrastructureCore(this IServiceCollection services, IConfiguration config)
-    {
-        services.AddScoped<ITenantContext, TenantContext>();
-
-        // Caching
-        var redisConn = config.GetConnectionString("Redis");
-        if (!string.IsNullOrEmpty(redisConn))
-        {
-            services.AddStackExchangeRedisCache(options =>
-            {
-                options.Configuration = redisConn;
-                options.InstanceName = "Winnow:";
-            });
-        }
-        else
-        {
-            services.AddDistributedMemoryCache();
-        }
-        services.AddSingleton<ICacheService, DistributedCacheService>();
-
-        // LLM Configuration
-        var llmSettings = new LlmSettings();
-        config.GetSection("LlmSettings").Bind(llmSettings);
-        services.AddSingleton(llmSettings);
-
-        // Storage (S3/MinIO)
-        var s3Settings = new S3Settings();
-        config.GetSection("S3Settings").Bind(s3Settings);
-        services.AddSingleton(s3Settings);
-
-        services.AddSingleton<IAmazonS3>(_ =>
-        {
-            var s3Config = new AmazonS3Config
-            {
-                ServiceURL = string.IsNullOrWhiteSpace(s3Settings.Endpoint) ? null : s3Settings.Endpoint,
-                RegionEndpoint = string.IsNullOrWhiteSpace(s3Settings.Region) ? null : Amazon.RegionEndpoint.GetBySystemName(s3Settings.Region),
-                ForcePathStyle = s3Settings.ForcePathStyle,
-                UseHttp = !string.IsNullOrWhiteSpace(s3Settings.Endpoint) && s3Settings.Endpoint.StartsWith("http://")
-            };
-
-            if (string.IsNullOrWhiteSpace(s3Settings.AccessKey))
-            {
-                return new AmazonS3Client(s3Config);
-            }
-
-            return new AmazonS3Client(s3Settings.AccessKey, s3Settings.SecretKey, s3Config);
-        });
-        services.AddSingleton<IStorageService, S3StorageService>();
-    }
-
-    private static void AddWorkerDatabase(this IServiceCollection services, IConfiguration config)
-    {
-        services.AddScoped<DomainEventInterceptor>();
-        services.AddMediatR(cfg =>
-        {
-            var entryAssembly = System.Reflection.Assembly.GetEntryAssembly();
-            if (entryAssembly != null && !entryAssembly.FullName!.StartsWith("testhost", StringComparison.OrdinalIgnoreCase))
-            {
-                cfg.RegisterServicesFromAssembly(entryAssembly);
-            }
-            else
-            {
-                cfg.RegisterServicesFromAssembly(typeof(WinnowDbContext).Assembly);
-            }
-        });
-
-        services.AddSingleton<NpgsqlDataSource>(sp =>
-        {
-            var connStr = config.GetConnectionString("Postgres")
-                ?? throw new InvalidOperationException("Postgres connection string missing.");
-
-            var dbPassword = config["DB_PASSWORD"];
-            if (!string.IsNullOrEmpty(dbPassword) && connStr.Contains("{password}"))
-            {
-                connStr = connStr.Replace("{password}", dbPassword);
-            }
-
-            config.EnsureRdsSslCertificate();
-
-            var dataSourceBuilder = new NpgsqlDataSourceBuilder(connStr);
-            dataSourceBuilder.UseVector();
-            return dataSourceBuilder.Build();
-        });
-
-        services.AddDbContext<WinnowDbContext>((sp, options) =>
-        {
-            var dataSource = sp.GetRequiredService<NpgsqlDataSource>();
-            options.UseNpgsql(dataSource, npgsql =>
-            {
-                npgsql.UseVector();
-                npgsql.MigrationsAssembly("Winnow.API");
-            });
-            options.AddInterceptors(sp.GetRequiredService<DomainEventInterceptor>());
-        });
     }
 
     private static void AddWorkerMessaging(this IServiceCollection services)
@@ -145,46 +33,17 @@ public static class WorkerServiceExtensions
         }
     }
 
-    private static void AddWorkerEmail(this IServiceCollection services, IConfiguration config)
-    {
-        var emailSettings = new Winnow.API.Infrastructure.Configuration.EmailSettings();
-        config.GetSection("EmailSettings").Bind(emailSettings);
-        services.AddSingleton(emailSettings);
-
-        services.Configure<DiscordOps>(config.GetSection("DiscordOps"));
-
-        if (emailSettings.Provider == "AwsSes")
-        {
-            services.AddAWSService<IAmazonSimpleEmailService>();
-            services.AddScoped<IEmailService, Winnow.API.Services.Emails.AwsSesEmailService>();
-        }
-        else if (emailSettings.Provider == "Resend")
-        {
-            services.AddHttpClient<IResend, ResendClient>(client =>
-            {
-                client.BaseAddress = new Uri("https://api.resend.com/");
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", emailSettings.Resend.ApiKey);
-            });
-            services.AddScoped<IEmailService, ResendEmailService>();
-        }
-        else
-        {
-            services.AddScoped<IEmailService, Winnow.API.Services.Emails.SmtpEmailService>();
-        }
-    }
-
     public static IServiceCollection AddWinnowSanitizeInfrastructure(this IServiceCollection services, IConfiguration config)
     {
         var llmSettings = new LlmSettings();
         config.GetSection("LlmSettings").Bind(llmSettings);
 
-        services.AddHttpClient<LocalPiiRedactionProvider>().AddStandardResilienceHandler();
         services.AddSingleton<LocalPiiRedactionProvider>();
         services.AddSingleton<IPiiRedactionProvider>(sp => sp.GetRequiredService<LocalPiiRedactionProvider>());
 
         if (llmSettings.PiiRedactionProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true)
         {
-            services.AddAWSService<IAmazonComprehend>();
+            services.AddAWSService<Amazon.Comprehend.IAmazonComprehend>();
             services.AddSingleton<IPiiRedactionProvider, AwsComprehendPiiRedactionProvider>();
         }
 
@@ -195,51 +54,12 @@ public static class WorkerServiceExtensions
         return services;
     }
 
-    private static IServiceCollection AddWinnowKernel(this IServiceCollection services, IConfiguration config)
-    {
-        var llmSettings = new LlmSettings();
-        config.GetSection("LlmSettings").Bind(llmSettings);
-
-        services.AddKernel();
-
-        if (llmSettings.Provider == "Ollama" && !string.IsNullOrEmpty(llmSettings.Ollama?.Endpoint))
-        {
-            // Default model
-            services.AddOllamaChatCompletion(
-                modelId: llmSettings.Ollama.ModelId,
-                endpoint: new Uri(llmSettings.Ollama.Endpoint));
-
-            // Specialized Gatekeeper model for duplicates
-            services.AddOllamaChatCompletion(
-                serviceId: "Gatekeeper",
-                modelId: llmSettings.Ollama.GatekeeperModelId,
-                endpoint: new Uri(llmSettings.Ollama.Endpoint));
-        }
-        else if (llmSettings.Provider == "OpenAI")
-        {
-            services.AddOpenAIChatCompletion(
-                modelId: llmSettings.OpenAI.ModelId,
-                apiKey: llmSettings.OpenAI.ApiKey);
-        }
-        else if (llmSettings.Provider == "Bedrock")
-        {
-            services.AddBedrockChatCompletionService(
-                modelId: llmSettings.Bedrock.ModelId);
-
-            services.AddBedrockChatCompletionService(
-                serviceId: "Gatekeeper",
-                modelId: llmSettings.Bedrock.GatekeeperModelId);
-        }
-
-        return services;
-    }
-
     public static IServiceCollection AddWinnowClusteringInfrastructure(this IServiceCollection services, IConfiguration config)
     {
-        services.AddWinnowKernel(config);
-
         var llmSettings = new LlmSettings();
         config.GetSection("LlmSettings").Bind(llmSettings);
+
+        services.AddWinnowKernel(llmSettings);
 
         // Register embedding providers as Singleton so ONNX models stay in memory
         services.AddSingleton<IEmbeddingProvider, OpenAiEmbeddingProvider>();
@@ -255,14 +75,12 @@ public static class WorkerServiceExtensions
         services.AddSingleton<IEmbeddingProvider, PlaceholderEmbeddingProvider>();
 
         // Register typed HTTP clients for embedding providers with resilience handlers
-        services.AddHttpClient<OpenAiEmbeddingProvider>()
-            .AddStandardResilienceHandler();
-
-        services.AddHttpClient<LocalEmbeddingProvider>()
-            .AddStandardResilienceHandler();
+        services.AddHttpClient<OpenAiEmbeddingProvider>().AddStandardResilienceHandler();
+        services.AddHttpClient<LocalEmbeddingProvider>().AddStandardResilienceHandler();
 
         services.AddSingleton<IEmbeddingService, EmbeddingService>();
         services.AddSingleton<IVectorCalculator, VectorCalculator>();
+
         if (llmSettings.Provider == "Ollama")
         {
             services.AddScoped<IDuplicateChecker, OllamaDuplicateChecker>();
@@ -271,16 +89,19 @@ public static class WorkerServiceExtensions
         {
             services.AddScoped<IDuplicateChecker, PlaceholderDuplicateChecker>();
         }
+
         services.AddSingleton<INegativeMatchCache, NegativeMatchCache>();
         services.AddScoped<IClusterService, ClusterService>();
+
         return services;
     }
 
     public static IServiceCollection AddWinnowSummaryInfrastructure(this IServiceCollection services, IConfiguration config)
     {
-        services.AddWinnowKernel(config);
         var llmSettings = new LlmSettings();
         config.GetSection("LlmSettings").Bind(llmSettings);
+
+        services.AddWinnowKernel(llmSettings);
 
         if (llmSettings.Provider == "Ollama" || llmSettings.Provider == "OpenAI" || llmSettings.Provider == "Bedrock")
         {

@@ -54,6 +54,24 @@ internal static class MiddlewareExtensions
         app.UseCors();
         app.UseAuthentication();
         app.UseMiddleware<TenantMiddleware>();
+
+        object? marker = null;
+        try
+        {
+            var markerType = Type.GetType("Microsoft.AspNetCore.Authorization.Policy.AuthorizationPolicyMarkerService, Microsoft.AspNetCore.Authorization.Policy");
+            if (markerType != null)
+            {
+                marker = app.Services.GetService(markerType);
+            }
+        }
+        catch { }
+
+        if (marker == null)
+        {
+            Console.WriteLine("CRIT: MARKKKKKKERRR IS NULllll");
+        }
+
+        var iAppBuilder = (IApplicationBuilder)app;
         app.UseAuthorization();
         app.UseStaticFiles();
 

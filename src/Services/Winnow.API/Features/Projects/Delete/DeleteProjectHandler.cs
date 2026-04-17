@@ -61,7 +61,7 @@ public class DeleteProjectHandler(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task TryDeletePrefixAsync(string bucketName, string prefix, CancellationToken cancellationToken)
+    private async Task TryDeletePrefixAsync(string bucketName, string prefix, CancellationToken ct)
     {
         try
         {
@@ -74,7 +74,7 @@ public class DeleteProjectHandler(
             ListObjectsV2Response listResponse;
             do
             {
-                listResponse = await s3.ListObjectsV2Async(listRequest, cancellationToken);
+                listResponse = await s3.ListObjectsV2Async(listRequest, ct);
 
                 if (listResponse.S3Objects.Count > 0)
                 {
@@ -83,7 +83,7 @@ public class DeleteProjectHandler(
                         BucketName = bucketName,
                         Objects = [.. listResponse.S3Objects.Select(o => new KeyVersion { Key = o.Key })]
                     };
-                    await s3.DeleteObjectsAsync(deleteRequest, cancellationToken);
+                    await s3.DeleteObjectsAsync(deleteRequest, ct);
                     logger.LogInformation("Deleted {Count} objects from bucket {Bucket} for prefix {Prefix}", listResponse.S3Objects.Count, bucketName, prefix);
                 }
 

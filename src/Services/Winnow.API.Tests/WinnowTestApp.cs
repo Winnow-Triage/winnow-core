@@ -1,3 +1,4 @@
+using FastEndpoints;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -15,7 +16,7 @@ using Winnow.API.Infrastructure.Persistence;
 
 namespace Winnow.API.Tests;
 
-public class WinnowTestApp : WebApplicationFactory<WinnowDbContext>, IAsyncLifetime
+public class WinnowTestApp : WebApplicationFactory<Winnow.API.IApiMarker>, IAsyncLifetime
 {
     private readonly bool _enablePoW;
     private readonly Action<IServiceCollection>? _configureTestServices;
@@ -73,6 +74,20 @@ public class WinnowTestApp : WebApplicationFactory<WinnowDbContext>, IAsyncLifet
         {
             _configureTestServices?.Invoke(services);
 
+            var markerType = Type.GetType("Microsoft.AspNetCore.Authorization.Policy.AuthorizationPolicyMarkerService, Microsoft.AspNetCore.Authorization.Policy");
+            if (markerType != null)
+            {
+                var markerInstance = Activator.CreateInstance(markerType, nonPublic: true);
+                if (markerInstance != null)
+                {
+                    services.AddSingleton(markerType, markerInstance);
+                }
+            }
+
+            services.AddAuthorization();
+            services.AddFastEndpoints();
+
+            /*
             // Remove existing DbContext registrations
             var descriptors = services.Where(d =>
                 d.ServiceType == typeof(DbContextOptions<WinnowDbContext>) ||
@@ -80,6 +95,7 @@ public class WinnowTestApp : WebApplicationFactory<WinnowDbContext>, IAsyncLifet
                 d.ServiceType == typeof(ITenantContext)).ToList();
 
             foreach (var d in descriptors) services.Remove(d);
+            */
 
             // Remove hosted services to prevent background interference during tests
             // except for vital framework services like Wolverine which is needed for IMessageBus
@@ -125,19 +141,6 @@ public class WinnowTestApp : WebApplicationFactory<WinnowDbContext>, IAsyncLifet
 
             // Register test tenant context
             services.AddSingleton<ITenantContext>(new TestTenantContext(_tenantId, connString));
-
-            // Register DbContext with Npgsql
-            services.AddDbContext<WinnowDbContext>(options =>
-            {
-                options.UseNpgsql(connString, npgsql =>
-                {
-                    npgsql.UseVector();
-                    npgsql.MigrationsAssembly("Winnow.API");
-                });
-
-                options.ConfigureWarnings(w =>
-                    w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
-            });
         });
     }
 

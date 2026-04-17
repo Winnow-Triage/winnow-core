@@ -68,6 +68,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Winnow.API.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- ONNX Runtime native libraries (from NuGet) -->
     <Content Condition="$([MSBuild]::IsOSPlatform('Linux'))" Include="$(NuGetPackageRoot)microsoft.ml.onnxruntime/1.24.1/runtimes/linux-x64/native/libonnxruntime.so" Link="libonnxruntime.so" CopyToOutputDirectory="PreserveNewest" />
     <Content Condition="$([MSBuild]::IsOSPlatform('Linux'))" Include="$(NuGetPackageRoot)microsoft.ml.onnxruntime/1.24.1/runtimes/linux-x64/native/libonnxruntime_providers_shared.so" Link="libonnxruntime_providers_shared.so" CopyToOutputDirectory="PreserveNewest" />

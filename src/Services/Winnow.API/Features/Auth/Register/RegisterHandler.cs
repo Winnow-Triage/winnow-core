@@ -25,6 +25,7 @@ public class RegisterHandler(
     WinnowDbContext dbContext,
     Winnow.API.Infrastructure.MultiTenancy.ITenantContext tenantContext,
     IConfiguration config,
+    JwtSettings jwtSettings,
     Winnow.API.Infrastructure.Security.IApiKeyService apiKeyService,
     IEmailService emailService,
     Winnow.API.Services.Discord.IInternalOpsNotifier internalOpsNotifier) : IRequestHandler<RegisterCommand, AuthResult>
@@ -112,8 +113,7 @@ public class RegisterHandler(
             Console.WriteLine($"[REGISTER] FAILED to send emails to {user.Email}: {ex.Message}");
         }
 
-        var jwtSettings = config.GetSection("JwtSettings");
-        var key = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey configuration is missing"));
+        var key = Encoding.UTF8.GetBytes(jwtSettings.SecretKey);
 
         var claims = new List<Claim>
         {
@@ -133,8 +133,8 @@ public class RegisterHandler(
             Subject = new ClaimsIdentity(claims),
             Expires = DateTime.UtcNow.AddDays(7),
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
-            Issuer = jwtSettings["Issuer"],
-            Audience = jwtSettings["Audience"]
+            Issuer = jwtSettings.Issuer,
+            Audience = jwtSettings.Audience
         };
 
         var tokenHandler = new JwtSecurityTokenHandler();

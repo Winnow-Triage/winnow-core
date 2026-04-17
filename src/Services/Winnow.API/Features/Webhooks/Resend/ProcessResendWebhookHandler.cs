@@ -35,7 +35,7 @@ public class ProcessResendWebhookHandler(
         }
     }
 
-    private async Task HandleBounceAsync(JsonElement data, CancellationToken ct)
+    private async Task HandleBounceAsync(JsonElement data, CancellationToken cancellationToken)
     {
         // Resend payload for email.bounced contains the recipient
         if (!data.TryGetProperty("to", out var toArr) || toArr.ValueKind != JsonValueKind.Array || toArr.GetArrayLength() == 0)
@@ -49,11 +49,11 @@ public class ProcessResendWebhookHandler(
             if (string.IsNullOrEmpty(email)) continue;
 
             logger.LogWarning("Email bounced: {Email}", email);
-            await MarkEmailAsFailedAsync(email, "Permanent Bounce", ct);
+            await MarkEmailAsFailedAsync(email, "Permanent Bounce", cancellationToken);
         }
     }
 
-    private async Task HandleComplaintAsync(JsonElement data, CancellationToken ct)
+    private async Task HandleComplaintAsync(JsonElement data, CancellationToken cancellationToken)
     {
         if (!data.TryGetProperty("to", out var toArr) || toArr.ValueKind != JsonValueKind.Array || toArr.GetArrayLength() == 0)
         {
@@ -66,11 +66,11 @@ public class ProcessResendWebhookHandler(
             if (string.IsNullOrEmpty(email)) continue;
 
             logger.LogCritical("Email complaint received: {Email}", email);
-            await MarkEmailAsFailedAsync(email, "Spam Complaint", ct);
+            await MarkEmailAsFailedAsync(email, "Spam Complaint", cancellationToken);
         }
     }
 
-    private async Task MarkEmailAsFailedAsync(string email, string reason, CancellationToken ct)
+    private async Task MarkEmailAsFailedAsync(string email, string reason, CancellationToken cancellationToken)
     {
         // 1. Check if it's an ApplicationUser
         var user = await userManager.FindByEmailAsync(email);
@@ -87,7 +87,7 @@ public class ProcessResendWebhookHandler(
         // For simplicity and compatibility, we'll fetch integrations with Provider == "email"
         var emailIntegrations = await dbContext.Integrations
             .Where(i => i.Provider == "email" && i.IsActive)
-            .ToListAsync(ct);
+            .ToListAsync(cancellationToken);
 
         foreach (var integration in emailIntegrations)
         {
@@ -104,7 +104,7 @@ public class ProcessResendWebhookHandler(
 
         if (dbContext.ChangeTracker.HasChanges())
         {
-            await dbContext.SaveChangesAsync(ct);
+            await dbContext.SaveChangesAsync(cancellationToken);
         }
     }
 }

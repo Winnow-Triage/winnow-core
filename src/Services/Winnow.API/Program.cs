@@ -8,6 +8,7 @@ using Winnow.API.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
+Console.WriteLine("DEBUG: Program.cs is executing!");
 // --- THE .NET 10.0.3 LINUX BYPASS ---
 // Intercept the broken DllImport and force it to load the correct Linux library
 // Wrapped in try-catch because SetDllImportResolver can only be called once per assembly.
@@ -44,12 +45,17 @@ catch (InvalidOperationException)
 builder.Configuration.EnsureRdsSslCertificate();
 
 // Register all Winnow services
+builder.Services.AddAuthorization();
 builder.Services.AddWinnowServices(builder.Configuration, builder.Environment);
 
 builder.Host.UseWinnowWolverine(builder.Configuration, builder.Environment, enableOutbox: true);
 
 var app = builder.Build();
 
+if (app.Services.GetService(typeof(Microsoft.AspNetCore.Authorization.IAuthorizationService)) == null)
+{
+    throw new Exception("CRIT: IAuthorizationService IS NULL IN LAMAR CONTAINER");
+}
 // Configure global exception handling with custom middleware
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
@@ -57,5 +63,3 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 await app.UseWinnowMiddleware();
 
 app.Run();
-
-public partial class Program { }

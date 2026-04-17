@@ -27,7 +27,7 @@ public record ImpersonateUserCommand : IRequest<ImpersonateUserResult>
 
 public class ImpersonateUserHandler(
     UserManager<ApplicationUser> userManager,
-    IConfiguration config,
+    JwtSettings jwtSettings,
     WinnowDbContext dbContext,
     ILogger<ImpersonateUserHandler> logger) : IRequestHandler<ImpersonateUserCommand, ImpersonateUserResult>
 {
@@ -48,8 +48,7 @@ public class ImpersonateUserHandler(
             .FirstOrDefaultAsync(cancellationToken);
 
         // 2. Build Claims
-        var jwtSettings = config.GetSection("JwtSettings");
-        var key = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey configuration is missing"));
+        var key = Encoding.UTF8.GetBytes(jwtSettings.SecretKey);
 
         var claims = new List<Claim>
         {
@@ -77,8 +76,8 @@ public class ImpersonateUserHandler(
             Subject = new ClaimsIdentity(claims),
             Expires = DateTime.UtcNow.AddHours(2),
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
-            Issuer = jwtSettings["Issuer"],
-            Audience = jwtSettings["Audience"]
+            Issuer = jwtSettings.Issuer,
+            Audience = jwtSettings.Audience
         };
 
         var tokenHandler = new JwtSecurityTokenHandler();

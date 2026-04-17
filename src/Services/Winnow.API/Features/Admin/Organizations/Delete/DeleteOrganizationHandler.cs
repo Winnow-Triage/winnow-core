@@ -70,7 +70,7 @@ public class DeleteOrganizationHandler(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task TryDeletePrefixAsync(string bucketName, string prefix, CancellationToken ct)
+    private async Task TryDeletePrefixAsync(string bucketName, string prefix, CancellationToken cancellationToken)
     {
         try
         {
@@ -83,7 +83,7 @@ public class DeleteOrganizationHandler(
             ListObjectsV2Response listResponse;
             do
             {
-                listResponse = await s3.ListObjectsV2Async(listRequest, ct);
+                listResponse = await s3.ListObjectsV2Async(listRequest, cancellationToken);
 
                 if (listResponse.S3Objects.Count > 0)
                 {
@@ -92,7 +92,7 @@ public class DeleteOrganizationHandler(
                         BucketName = bucketName,
                         Objects = [.. listResponse.S3Objects.Select(o => new KeyVersion { Key = o.Key })]
                     };
-                    await s3.DeleteObjectsAsync(deleteRequest, ct);
+                    await s3.DeleteObjectsAsync(deleteRequest, cancellationToken);
                     logger.LogInformation("Deleted {Count} objects from bucket {Bucket} for prefix {Prefix}", listResponse.S3Objects.Count, bucketName, prefix);
                 }
 

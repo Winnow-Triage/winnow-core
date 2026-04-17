@@ -24,7 +24,7 @@ public class LoginHandler(
     UserManager<ApplicationUser> userManager,
     WinnowDbContext dbContext,
     Winnow.API.Infrastructure.MultiTenancy.ITenantContext tenantContext,
-    IConfiguration config,
+    JwtSettings jwtSettings,
     Winnow.API.Infrastructure.Security.IApiKeyService apiKeyService) : IRequestHandler<LoginCommand, AuthResult>
 {
     public async Task<AuthResult> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -131,8 +131,7 @@ public class LoginHandler(
             throw new InvalidOperationException("Your organization has no projects. Please contact an administrator.");
         }
 
-        var jwtSettings = config.GetSection("JwtSettings");
-        var key = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey configuration is missing"));
+        var key = Encoding.UTF8.GetBytes(jwtSettings.SecretKey);
 
         var claims = new List<Claim>
         {
@@ -159,8 +158,8 @@ public class LoginHandler(
             Subject = new ClaimsIdentity(claims),
             Expires = DateTime.UtcNow.AddDays(7),
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
-            Issuer = jwtSettings["Issuer"],
-            Audience = jwtSettings["Audience"]
+            Issuer = jwtSettings.Issuer,
+            Audience = jwtSettings.Audience
         };
 
         var tokenHandler = new JwtSecurityTokenHandler();

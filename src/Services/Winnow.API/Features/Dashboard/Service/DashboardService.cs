@@ -13,20 +13,25 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
 {
     public async Task<DashboardMetricsDto> GetDashboardMetricsAsync(Guid organizationId, Guid? projectId = null, Guid? teamId = null, CancellationToken ct = default)
     {
-        // 1. Build Base Query
-        var baseQuery = db.Reports
-            .Where(r => r.OrganizationId == organizationId);
+        var baseQuery = await BuildBaseQueryAsync(organizationId, projectId, teamId, ct);
+
+        var triageMetrics = await CalculateTriageMetricsAsync(organizationId, projectId, baseQuery, ct);
+        var trendingClusters = await GetTrendingClustersAsync(baseQuery, ct);
+        var volumeHistory = await GetVolumeHistoryAsync(baseQuery, ct);
+
+        return new DashboardMetricsDto(triageMetrics, trendingClusters, volumeHistory);
+    }
+
+    private async Task<IQueryable<Domain.Reports.Report>> BuildBaseQueryAsync(Guid organizationId, Guid? projectId, Guid? teamId, CancellationToken ct)
+    {
+        var baseQuery = db.Reports.Where(r => r.OrganizationId == organizationId);
 
         if (projectId.HasValue)
         {
-            // Verify project belongs to organization
             var project = await db.Projects
-                .FirstOrDefaultAsync(p => p.Id == projectId && p.OrganizationId == organizationId, ct);
+                .FirstOrDefaultAsync(p => p.Id == projectId && p.OrganizationId == organizationId, ct)
+                ?? throw new InvalidOperationException($"Project {projectId} not found in organization {organizationId}");
 
-            if (project == null)
-            {
-                throw new InvalidOperationException($"Project {projectId} not found in organization {organizationId}");
-            }
             if (teamId.HasValue && project.TeamId != teamId.Value)
             {
                 throw new InvalidOperationException($"Project {projectId} does not belong to team {teamId}");
@@ -36,7 +41,6 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
         }
         else if (teamId.HasValue)
         {
-            // Verify team belongs to organization
             var teamExists = await db.Teams.AnyAsync(t => t.Id == teamId && t.OrganizationId == organizationId, ct);
             if (!teamExists)
             {
@@ -51,7 +55,11 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
             baseQuery = baseQuery.Where(r => projectIds.Contains(r.ProjectId));
         }
 
-        // 2. Triage Metrics — use Clusters table for active cluster count
+        return baseQuery;
+    }
+
+    private async Task<TriageMetricsDto> CalculateTriageMetricsAsync(Guid organizationId, Guid? projectId, IQueryable<Domain.Reports.Report> baseQuery, CancellationToken ct)
+    {
         var totalReports = await baseQuery.CountAsync(ct);
 
         var clusterQuery = db.Clusters.Where(c => c.OrganizationId == organizationId);
@@ -60,19 +68,10 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
             clusterQuery = clusterQuery.Where(c => c.ProjectId == projectId.Value);
         }
 
-        var activeClusters = await clusterQuery
-            .CountAsync(c => c.Status == ClusterStatus.Open, ct);
-
-        // A report is "Unique" if it is the one that initiated a cluster (oldest in its group)
-        // or if it hasn't been clustered yet. 
-        var unassignedReports = await baseQuery
-            .CountAsync(r => r.ClusterId == null, ct);
-
-        // Current unique issues = open clusters + solo (unclustered) reports.
+        var activeClusters = await clusterQuery.CountAsync(c => c.Status == ClusterStatus.Open, ct);
+        var unassignedReports = await baseQuery.CountAsync(r => r.ClusterId == null, ct);
         var uniqueIssues = activeClusters + unassignedReports;
 
-        // Use joins to match exactly what the review queue returns — only count suggestions
-        // where the target cluster still exists (deleted clusters would inflate the count otherwise).
         var pendingReportReviews = await baseQuery
             .Where(r => r.SuggestedClusterId != null && r.Status == ReportStatus.Open)
             .Join(db.Clusters.Where(c => c.ProjectId == projectId),
@@ -90,21 +89,14 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
             .CountAsync(ct);
 
         var pendingReviews = pendingReportReviews + pendingClusterMerges;
-
-        double noiseRatio = totalReports > 0
-            ? 1.0 - ((double)uniqueIssues / totalReports)
-            : 0;
-
+        double noiseRatio = totalReports > 0 ? 1.0 - ((double)uniqueIssues / totalReports) : 0;
         int hoursSaved = (int)((totalReports - uniqueIssues) * 5.0 / 60.0);
 
-        var triageMetrics = new TriageMetricsDto(
-            totalReports,
-            activeClusters,
-            noiseRatio,
-            pendingReviews,
-            hoursSaved);
+        return new TriageMetricsDto(totalReports, activeClusters, noiseRatio, pendingReviews, hoursSaved);
+    }
 
-        // 3. Trending Clusters (Last 24 hours) — query Clusters directly
+    private async Task<List<TrendingClusterDto>> GetTrendingClustersAsync(IQueryable<Domain.Reports.Report> baseQuery, CancellationToken ct)
+    {
         var yesterday = DateTime.UtcNow.AddHours(-24);
 
         var trending = await baseQuery
@@ -152,16 +144,20 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
             }
         }
 
-        // 4. Volume History (Bucketed by Hour)
+        return trendingDtos;
+    }
+
+    private async Task<List<VolumeMetricDto>> GetVolumeHistoryAsync(IQueryable<Domain.Reports.Report> baseQuery, CancellationToken ct)
+    {
+        var yesterday = DateTime.UtcNow.AddHours(-24);
+
         var historyRaw = await baseQuery
             .AsNoTracking()
             .Where(r => r.CreatedAt >= yesterday)
             .Select(r => new
             {
-#pragma warning disable EF1001 // Internal EF Core API usage.
+#pragma warning disable EF1001
                 r.CreatedAt,
-                // A report is a duplicate if it's explicitly dismissed OR if it belongs to a cluster
-                // and there is another report in that same cluster that was created earlier.
                 IsDuplicate = r.Status == ReportStatus.Dismissed ||
                               (r.ClusterId != null && db.Reports.Any(r2 => r2.ClusterId == r.ClusterId && r2.CreatedAt < r.CreatedAt))
 #pragma warning restore EF1001
@@ -192,7 +188,7 @@ public class DashboardService(WinnowDbContext db) : IDashboardService
             }
         }
 
-        return new DashboardMetricsDto(triageMetrics, trendingDtos, history);
+        return history;
     }
 
     public async Task<OrganizationDashboardDto> GetOrganizationDashboardAsync(Guid organizationId, CancellationToken ct = default)

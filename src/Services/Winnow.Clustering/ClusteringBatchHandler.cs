@@ -23,7 +23,11 @@ public sealed class ClusteringBatchHandler(
     IEmbeddingService embeddingService,
     IMessageBus bus)
 {
-    public async Task Handle(IReadOnlyList<ReportSanitizedEvent> messages, CancellationToken cancellationToken)
+    private const double ExactMatchThreshold = 0.15;
+    private const double NearMatchThreshold = 0.35;
+    private const double SuggestionThreshold = 0.55;
+
+    public async Task Handle(IReadOnlyList<ReportSanitizedEvent> messages, CancellationToken ct)
     {
         logger.LogInformation("Received a batch of {Count} sanitized reports for clustering.", messages.Count);
 
@@ -31,81 +35,79 @@ public sealed class ClusteringBatchHandler(
 
         foreach (var orgGroup in groupsByOrg)
         {
-            await ProcessOrganizationBatchAsync(orgGroup.Key, orgGroup.ToList(), cancellationToken);
+            await ProcessOrganizationBatchAsync(orgGroup.Key, orgGroup.ToList(), ct);
         }
     }
 
-    private async Task ProcessOrganizationBatchAsync(Guid organizationId, List<ReportSanitizedEvent> messages, CancellationToken cancellationToken)
+    private async Task ProcessOrganizationBatchAsync(Guid organizationId, List<ReportSanitizedEvent> messages, CancellationToken ct)
     {
-        // Set tenant context for this group
-        if (tenantContext is TenantContext concreteContext)
-        {
-            concreteContext.TenantId = organizationId.ToString();
-        }
+        SetTenantContext(organizationId);
 
         var reportIdsInOrg = messages.Select(m => m.ReportId).ToList();
-
-        // 1. Load all reports for this organization in this batch
-        var reportsInOrg = await dbContext.Reports
-            .Where(r => reportIdsInOrg.Contains(r.Id))
-            .ToListAsync(cancellationToken);
-
-        // Group by Project within the Organization
+        var reportsInOrg = await LoadReportsAsync(reportIdsInOrg, ct);
         var groupsByProject = reportsInOrg.GroupBy(r => r.ProjectId);
 
         foreach (var projectGroup in groupsByProject)
         {
-            await ProcessProjectBatchAsync(projectGroup.Key, projectGroup.ToList(), cancellationToken);
+            await ProcessProjectBatchAsync(projectGroup.Key, projectGroup.ToList(), ct);
         }
     }
 
-    private async Task ProcessProjectBatchAsync(Guid projectId, List<Winnow.API.Domain.Reports.Report> reports, CancellationToken cancellationToken)
+    private void SetTenantContext(Guid organizationId)
+    {
+        if (tenantContext is TenantContext concreteContext)
+        {
+            concreteContext.TenantId = organizationId.ToString();
+        }
+    }
+
+    private async Task<List<Winnow.API.Domain.Reports.Report>> LoadReportsAsync(List<Guid> reportIds, CancellationToken ct)
+    {
+        return await dbContext.Reports
+            .Where(r => reportIds.Contains(r.Id))
+            .ToListAsync(ct);
+    }
+
+    private async Task ProcessProjectBatchAsync(Guid projectId, List<Winnow.API.Domain.Reports.Report> reports, CancellationToken ct)
     {
         var modifiedClusterIds = new HashSet<Guid>();
-
-        // 2. Load all active clusters for this project once
-        var projectClusters = await dbContext.Clusters
-            .Where(c => c.ProjectId == projectId && c.Status != ClusterStatus.Dismissed && c.Centroid != null)
-            .ToListAsync(cancellationToken);
+        var projectClusters = await LoadProjectClustersAsync(projectId, ct);
 
         foreach (var report in reports)
         {
-            await ProcessReportAsync(report, projectClusters, modifiedClusterIds, cancellationToken);
+            await AnalyzeAndAssignReportAsync(report, projectClusters, modifiedClusterIds, ct);
         }
 
-        // 6. Save report assignments and new clusters for this project
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        // 7. Recalculate centroids & Trigger Summaries
-        await FinalizeBatchAsync(modifiedClusterIds, cancellationToken);
+        await dbContext.SaveChangesAsync(ct);
+        await FinalizeProjectBatchAsync(modifiedClusterIds, ct);
     }
 
-    private async Task ProcessReportAsync(
+    private async Task<List<Cluster>> LoadProjectClustersAsync(Guid projectId, CancellationToken ct)
+    {
+        return await dbContext.Clusters
+            .Where(c => c.ProjectId == projectId && c.Status != ClusterStatus.Dismissed && c.Centroid != null)
+            .ToListAsync(ct);
+    }
+
+    private async Task AnalyzeAndAssignReportAsync(
         Winnow.API.Domain.Reports.Report report,
         List<Cluster> projectClusters,
         HashSet<Guid> modifiedClusterIds,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
-        logger.LogInformation("ClusteringBatchConsumer: Processing report {Id} (Project: {Project})",
-            report.Id, report.ProjectId);
-
-        // 3. Generate embedding if missing
         await EnsureEmbeddingAsync(report);
 
-        if (report.Embedding != null && report.Status != ReportStatus.Dismissed)
+        if (report.Embedding == null || report.Status == ReportStatus.Dismissed) return;
+
+        var bestMatch = FindBestClusterMatch(report, projectClusters);
+        if (bestMatch != null)
         {
-            // 4. Cluster Matching
-            var bestMatch = FindBestClusterMatch(report, projectClusters);
+            await HandleMatchAsync(report, bestMatch, modifiedClusterIds, ct);
+        }
 
-            if (bestMatch != null)
-            {
-                await AssignToClusterAsync(report, bestMatch, modifiedClusterIds, cancellationToken);
-            }
-
-            if (report.ClusterId == null && report.SuggestedClusterId == null)
-            {
-                CreateNewCluster(report, projectClusters, modifiedClusterIds);
-            }
+        if (report.ClusterId == null && report.SuggestedClusterId == null)
+        {
+            CreateNewCluster(report, projectClusters, modifiedClusterIds);
         }
     }
 
@@ -148,60 +150,58 @@ public sealed class ClusteringBatchHandler(
         return bestMatch;
     }
 
-    private async Task AssignToClusterAsync(
+    private async Task HandleMatchAsync(
         Winnow.API.Domain.Reports.Report report,
         ClusterCandidate bestMatch,
         HashSet<Guid> modifiedClusterIds,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
-        if (bestMatch.Distance <= 0.15)
+        if (bestMatch.Distance <= ExactMatchThreshold)
         {
             ApplyClusterAssignment(report, bestMatch.Cluster, bestMatch.Distance, modifiedClusterIds);
         }
-        else if (bestMatch.Distance <= 0.35)
+        else if (bestMatch.Distance <= NearMatchThreshold)
         {
-            await HandleNearMatchAsync(report, bestMatch, modifiedClusterIds, cancellationToken);
+            await ResolveNearMatchAsync(report, bestMatch, modifiedClusterIds, ct);
         }
-        else if (bestMatch.Distance <= 0.55)
+        else if (bestMatch.Distance <= SuggestionThreshold)
         {
             report.SetSuggestedCluster(bestMatch.Cluster.Id, new ConfidenceScore(Math.Max(0, 1.0 - bestMatch.Distance)));
         }
     }
 
-    private async Task HandleNearMatchAsync(
+    private async Task ResolveNearMatchAsync(
         Winnow.API.Domain.Reports.Report report,
         ClusterCandidate bestMatch,
         HashSet<Guid> modifiedClusterIds,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
-        var clusterReports = await dbContext.Reports
-            .AsNoTracking()
-            .Where(r => r.ClusterId == bestMatch.Cluster.Id && r.ProjectId == report.ProjectId)
-            .OrderBy(r => r.CreatedAt)
-            .Take(1)
-            .ToListAsync(cancellationToken);
+        var areDuplicates = await CheckIfDuplicateAsync(report, bestMatch.Cluster, ct);
 
-        if (clusterReports.Count > 0)
-        {
-            var representative = clusterReports[0];
-            var areDuplicates = await duplicateChecker.AreDuplicatesAsync(
-                report.Title, report.Message,
-                representative.Title, representative.Message,
-                cancellationToken);
-
-            if (areDuplicates)
-            {
-                ApplyClusterAssignment(report, bestMatch.Cluster, bestMatch.Distance, modifiedClusterIds);
-            }
-            else
-            {
-                report.SetSuggestedCluster(bestMatch.Cluster.Id, new ConfidenceScore(Math.Max(0, 1.0 - bestMatch.Distance)));
-            }
-        }
-        else
+        if (areDuplicates)
         {
             ApplyClusterAssignment(report, bestMatch.Cluster, bestMatch.Distance, modifiedClusterIds);
         }
+        else
+        {
+            report.SetSuggestedCluster(bestMatch.Cluster.Id, new ConfidenceScore(Math.Max(0, 1.0 - bestMatch.Distance)));
+        }
+    }
+
+    private async Task<bool> CheckIfDuplicateAsync(Winnow.API.Domain.Reports.Report report, Cluster cluster, CancellationToken ct)
+    {
+        var representative = await dbContext.Reports
+            .AsNoTracking()
+            .Where(r => r.ClusterId == cluster.Id && r.ProjectId == report.ProjectId)
+            .OrderBy(r => r.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (representative == null) return true;
+
+        return await duplicateChecker.AreDuplicatesAsync(
+            report.Title, report.Message,
+            representative.Title, representative.Message,
+            ct);
     }
 
     private static void ApplyClusterAssignment(Winnow.API.Domain.Reports.Report report, Cluster cluster, double distance, HashSet<Guid> modifiedClusterIds)
@@ -210,7 +210,6 @@ public sealed class ClusteringBatchHandler(
         report.ChangeStatus(ReportStatus.Duplicate);
         report.SetConfidenceScore(new ConfidenceScore(Math.Max(0, 1.0 - distance)));
 
-        // Maintain domain bidirectional relationship
         cluster.AddReport(report.Id);
         modifiedClusterIds.Add(cluster.Id);
     }
@@ -225,35 +224,32 @@ public sealed class ClusteringBatchHandler(
         dbContext.Clusters.Add(newCluster);
         report.AssignToCluster(newCluster.Id);
 
-        // Important: Add to projectClusters so other reports in THIS batch can join it!
         projectClusters.Add(newCluster);
         modifiedClusterIds.Add(newCluster.Id);
     }
 
-    private async Task FinalizeBatchAsync(HashSet<Guid> modifiedClusterIds, CancellationToken cancellationToken)
+    private async Task FinalizeProjectBatchAsync(HashSet<Guid> modifiedClusterIds, CancellationToken ct)
     {
         foreach (var clusterId in modifiedClusterIds)
         {
-            await clusterService.RecalculateCentroidAsync(clusterId, cancellationToken);
-            await CheckForSummaryTriggerAsync(clusterId, cancellationToken);
+            await clusterService.RecalculateCentroidAsync(clusterId, ct);
+            await TriggerSummaryIfNecessaryAsync(clusterId, ct);
         }
     }
 
-    private async Task CheckForSummaryTriggerAsync(Guid clusterId, CancellationToken cancellationToken)
+    private async Task TriggerSummaryIfNecessaryAsync(Guid clusterId, CancellationToken ct)
     {
-        var cluster = await dbContext.Clusters.FindAsync([clusterId], cancellationToken);
+        var cluster = await dbContext.Clusters.FindAsync([clusterId], ct);
         if (cluster == null || cluster.ReportCount < 5) return;
 
         var tenMinutesAgo = DateTime.UtcNow.AddMinutes(-10);
         if (cluster.LastSummarizedAt == null || cluster.LastSummarizedAt <= tenMinutesAgo)
         {
-            logger.LogInformation("ClusteringBatchConsumer: Cluster {ClusterId} reached critical mass ({Count} reports). Requesting summary.",
+            logger.LogInformation("ClusteringBatchConsumer: Cluster {ClusterId} reached mass ({Count}). Triggering summary.",
                 cluster.Id, cluster.ReportCount);
 
             await bus.PublishAsync(new GenerateClusterSummaryEvent(
-                cluster.Id,
-                cluster.OrganizationId,
-                cluster.ProjectId));
+                cluster.Id, cluster.OrganizationId, cluster.ProjectId));
         }
     }
 }

@@ -12,10 +12,10 @@ public class ProcessSesBounceHandler(UserManager<ApplicationUser> userManager, I
 {
     public async Task Handle(ProcessSesBounceCommand request, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.SesMessageJson)) return;
+
         try
         {
-            if (string.IsNullOrWhiteSpace(request.SesMessageJson)) return;
-
             using var document = JsonDocument.Parse(request.SesMessageJson);
             var root = document.RootElement;
 
@@ -23,6 +23,10 @@ public class ProcessSesBounceHandler(UserManager<ApplicationUser> userManager, I
 
             var recipients = GetBouncedRecipients(root);
             await ProcessRecipientsAsync(recipients);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogError(ex, "Failed to parse SES bounce message JSON.");
         }
         catch (Exception ex)
         {

@@ -34,7 +34,7 @@ internal sealed class DatabaseSweeper(
         }
     }
 
-    private async Task SweepOrphanedReportsAsync(CancellationToken stoppingToken)
+    private async Task SweepOrphanedReportsAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
@@ -48,7 +48,7 @@ internal sealed class DatabaseSweeper(
             .Where(a => a.Status == AssetStatus.Pending && a.CreatedAt < cutoffTime)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(a => a.Status, AssetStatus.Failed),
-            stoppingToken);
+            ct);
 
         if (updatedCount > 0)
         {

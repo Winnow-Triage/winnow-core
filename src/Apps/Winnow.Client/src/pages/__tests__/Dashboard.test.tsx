@@ -47,6 +47,7 @@ describe("Dashboard Component", () => {
     render(<Dashboard />, { wrapper: createWrapper() });
     
     expect(api.get).toHaveBeenCalled();
+    expect(screen.getByTestId("dashboard-loading")).toBeInTheDocument();
   });
 
   it("renders error state when API fails", async () => {
