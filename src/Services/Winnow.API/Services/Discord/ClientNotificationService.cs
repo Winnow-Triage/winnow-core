@@ -15,6 +15,7 @@ public interface IClientNotificationService
 public class ClientNotificationService(
     WinnowDbContext dbContext,
     Wolverine.IMessageBus messageBus,
+    Microsoft.Extensions.Configuration.IConfiguration config,
     ILogger<ClientNotificationService> logger)
     : IClientNotificationService
 {
@@ -74,7 +75,7 @@ public class ClientNotificationService(
                 Title = $"⚠️ Critical Cluster Detected: {clusterTitle}",
                 Message = clusterSummary,
                 Color = "#FFA500", // Orange
-                DetailUrl = new Uri($"https://app.winnowtriage.com/projects/{projectId}/clusters")
+                DetailUrl = new Uri($"{config["AppUrl"] ?? throw new InvalidOperationException("AppUrl configuration is missing.")}/projects/{projectId}/clusters")
             });
         }
 
@@ -102,7 +103,7 @@ public class ClientNotificationService(
                 Title = $"📈 High Volume Cluster: {title}",
                 Message = $"Cluster {clusterId} has reached {count} reports. This may indicate a widespread issue.",
                 Color = "#3498db", // Blue
-                DetailUrl = new Uri($"https://app.winnowtriage.com/projects/{projectId}/clusters/{clusterId}")
+                DetailUrl = new Uri($"{config["AppUrl"] ?? throw new InvalidOperationException("AppUrl configuration is missing.")}/projects/{projectId}/clusters/{clusterId}")
             });
         }
 

@@ -13,6 +13,7 @@ namespace Winnow.API.Features.Clusters.Events;
 public sealed class AutoExportConsumer(
     WinnowDbContext dbContext,
     IExporterFactory exporterFactory,
+    Microsoft.Extensions.Configuration.IConfiguration config,
     ILogger<AutoExportConsumer> logger)
 {
     public async Task Handle(ClusterAutoExportIntegrationEvent msg, CancellationToken ct)
@@ -37,7 +38,7 @@ public sealed class AutoExportConsumer(
                 {
                     var exportUrl = await exporter.ExportReportAsync(
                         $"[WINNOW] {msg.Title}",
-                        $"{msg.Description}\n\n---\nView in Winnow: https://app.winnowtriage.com/clusters/{msg.ClusterId}",
+                        $"{msg.Description}\n\n---\nView in Winnow: {config["AppUrl"] ?? throw new InvalidOperationException("AppUrl configuration is missing.")}/clusters/{msg.ClusterId}",
                         ct);
 
                     logger.LogInformation("Automated export successful: {ExportUrl}", exportUrl);

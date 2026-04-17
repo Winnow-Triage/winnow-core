@@ -36,7 +36,7 @@ public class UserRegisteredNotificationHandler(
             Console.WriteLine($"[REGISTER] Welcome email sent to {user.Email}");
 
             var emailToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
-            var appUrl = config["AppUrl"] ?? "https://app.winnowtriage.com";
+            var appUrl = config["AppUrl"] ?? throw new InvalidOperationException("AppUrl configuration is missing.");
             var verificationUrl = $"{appUrl.TrimEnd('/')}/verify-email?userId={user.Id}&token={Uri.EscapeDataString(emailToken)}";
 
             Console.WriteLine($"[REGISTER] Sending verification email to {user.Email}");

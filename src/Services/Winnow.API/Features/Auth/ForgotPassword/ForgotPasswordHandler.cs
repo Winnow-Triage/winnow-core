@@ -21,7 +21,7 @@ public class ForgotPasswordHandler(
         {
             var token = await userManager.GeneratePasswordResetTokenAsync(user);
 
-            var appUrl = config["AppUrl"] ?? "https://app.winnowtriage.com";
+            var appUrl = config["AppUrl"] ?? throw new InvalidOperationException("AppUrl configuration is missing.");
             var resetUrl = $"{appUrl.TrimEnd('/')}/reset-password?token={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(user.Email!)}";
 
             await emailService.SendPasswordResetAsync(user.Email!, new Uri(resetUrl));
