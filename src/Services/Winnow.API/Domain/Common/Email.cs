@@ -7,7 +7,8 @@ public readonly record struct Email
 #pragma warning disable SYSLIB1045 //Disable the warning for the regex compilation since we're not matching thousands of strings per second
     private static readonly Regex EmailRegex = new(
         @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        RegexOptions.Compiled | RegexOptions.IgnoreCase,
+        TimeSpan.FromMilliseconds(250));
 #pragma warning restore SYSLIB1045
 
     public string Value { get; }
