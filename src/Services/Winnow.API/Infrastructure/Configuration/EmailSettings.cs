@@ -14,6 +14,8 @@ public class EmailSettings
 public class ResendSettings
 {
     public string ApiKey { get; set; } = string.Empty;
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1056:Uri properties should not be strings")]
+    public string BaseUrl { get; set; } = "https://api.resend.com/";
     public string WebhookSecret { get; set; } = string.Empty;
 }
 public class SmtpSettings

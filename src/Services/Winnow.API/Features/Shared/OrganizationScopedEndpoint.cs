@@ -10,7 +10,7 @@ public abstract class OrganizationScopedEndpoint<TRequest, TResponse> : Endpoint
     where TRequest : OrganizationScopedRequest, new()
     where TResponse : notnull
 {
-    public override async Task OnBeforeHandleAsync(TRequest req, CancellationToken cancellationToken)
+    public override async Task OnBeforeHandleAsync(TRequest req, CancellationToken ct)
     {
         var tenantContext = Resolve<ITenantContext>();
 
@@ -28,7 +28,7 @@ public abstract class OrganizationScopedEndpoint<TRequest, TResponse> : Endpoint
         var membership = await db.OrganizationMembers
             .AsNoTracking()
             .Select(om => new { om.OrganizationId, om.UserId, Role = om.Role.Name })
-            .FirstOrDefaultAsync(om => om.OrganizationId == req.CurrentOrganizationId && om.UserId == req.CurrentUserId, cancellationToken);
+            .FirstOrDefaultAsync(om => om.OrganizationId == req.CurrentOrganizationId && om.UserId == req.CurrentUserId, ct);
 
         if (membership == null)
         {
@@ -54,7 +54,7 @@ public abstract class OrganizationScopedEndpoint<TRequest, TResponse> : Endpoint
 public abstract class OrganizationScopedEndpoint<TRequest> : Endpoint<TRequest>
     where TRequest : OrganizationScopedRequest, new()
 {
-    public override async Task OnBeforeHandleAsync(TRequest req, CancellationToken cancellationToken)
+    public override async Task OnBeforeHandleAsync(TRequest req, CancellationToken ct)
     {
         var tenantContext = Resolve<ITenantContext>();
 
@@ -72,7 +72,7 @@ public abstract class OrganizationScopedEndpoint<TRequest> : Endpoint<TRequest>
         var membership = await db.OrganizationMembers
             .AsNoTracking()
             .Select(om => new { om.OrganizationId, om.UserId, Role = om.Role.Name })
-            .FirstOrDefaultAsync(om => om.OrganizationId == req.CurrentOrganizationId && om.UserId == req.CurrentUserId, cancellationToken);
+            .FirstOrDefaultAsync(om => om.OrganizationId == req.CurrentOrganizationId && om.UserId == req.CurrentUserId, ct);
 
         if (membership == null)
         {

@@ -52,7 +52,6 @@ internal static class ServiceExtensions
 {
     private static readonly string[] HealthCheckReadyTags = ["ready"];
     private const string AmazonComprehend = "AmazonComprehend";
-    private const string ResendBaseUrl = "https://api.resend.com/";
 
     public static IServiceCollection AddWinnowServices(this IServiceCollection services, IConfiguration config, IHostEnvironment hostEnv)
     {
@@ -357,7 +356,8 @@ internal static class ServiceExtensions
                 Console.WriteLine("[WARNING] Resend API Key is missing or empty. Emails will likely fail.");
 
             services.Configure<ResendClientOptions>(options => options.ApiToken = emailSettings.Resend.ApiKey);
-            services.AddHttpClient<IResend, ResendClient>(client => client.BaseAddress = new Uri(ResendBaseUrl));
+            services.AddHttpClient<IResend, ResendClient>(client =>
+                client.BaseAddress = new Uri(emailSettings.Resend.BaseUrl));
             services.AddScoped<IEmailService, ResendEmailService>();
         }
         else

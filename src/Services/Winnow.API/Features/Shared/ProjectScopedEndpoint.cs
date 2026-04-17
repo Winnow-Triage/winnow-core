@@ -7,10 +7,10 @@ public abstract class ProjectScopedEndpoint<TRequest, TResponse> : OrganizationS
     where TRequest : ProjectScopedRequest, new()
     where TResponse : notnull
 {
-    public override async Task OnBeforeHandleAsync(TRequest req, CancellationToken cancellationToken)
+    public override async Task OnBeforeHandleAsync(TRequest req, CancellationToken ct)
     {
         // This populates req.OrganizationId and ensures the tenant context is valid.
-        await base.OnBeforeHandleAsync(req, cancellationToken);
+        await base.OnBeforeHandleAsync(req, ct);
 
         // Admins and Owners can see everything in the Org
         if (req.HasAnyRole("Admin", "SuperAdmin", "Owner")) return;
@@ -33,7 +33,7 @@ public abstract class ProjectScopedEndpoint<TRequest, TResponse> : OrganizationS
                 p.OwnerId == req.CurrentUserId ||
                 db.ProjectMembers.Any(pm => pm.ProjectId == p.Id && pm.UserId == req.CurrentUserId) ||
                 (p.TeamId != null && db.TeamMembers.Any(tm => tm.TeamId == p.TeamId && tm.UserId == req.CurrentUserId)),
-                cancellationToken);
+                ct);
 
         if (!hasAccess)
         {
@@ -45,9 +45,9 @@ public abstract class ProjectScopedEndpoint<TRequest, TResponse> : OrganizationS
 public abstract class ProjectScopedEndpoint<TRequest> : OrganizationScopedEndpoint<TRequest>
     where TRequest : ProjectScopedRequest, new()
 {
-    public override async Task OnBeforeHandleAsync(TRequest req, CancellationToken cancellationToken)
+    public override async Task OnBeforeHandleAsync(TRequest req, CancellationToken ct)
     {
-        await base.OnBeforeHandleAsync(req, cancellationToken);
+        await base.OnBeforeHandleAsync(req, ct);
 
         // Admins and Owners can see everything in the Org
         if (req.HasAnyRole("Admin", "SuperAdmin", "Owner")) return;
@@ -67,7 +67,7 @@ public abstract class ProjectScopedEndpoint<TRequest> : OrganizationScopedEndpoi
             .AnyAsync(p =>
                 p.Id == targetProjectId &&
                 p.OrganizationId == req.CurrentOrganizationId &&
-                p.OwnerId == req.CurrentUserId, cancellationToken);
+                p.OwnerId == req.CurrentUserId, ct);
 
         if (!userOwnsProject) ThrowError("Project not found or access denied", 404);
     }

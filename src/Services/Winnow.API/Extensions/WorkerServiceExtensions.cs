@@ -1,16 +1,21 @@
-using Npgsql;
+using System.Net.Http.Headers;
 using Amazon;
 using Amazon.Comprehend;
 using Amazon.Extensions.NETCore.Setup;
+using Amazon.S3;
 using Amazon.SimpleEmail;
-using Resend;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System.Net.Http.Headers;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.Amazon;
+using Npgsql;
+using Resend;
+using Winnow.API.Domain.Services; // For IVectorCalculator
+using Winnow.API.Features.Clusters.GenerateSummary;
+using Winnow.API.Features.Dashboard.IService;
+using Winnow.API.Features.Dashboard.Service;
 using Winnow.API.Infrastructure.Analysis;
 using Winnow.API.Infrastructure.Configuration;
 using Winnow.API.Infrastructure.Integrations;
@@ -19,13 +24,8 @@ using Winnow.API.Infrastructure.Persistence;
 using Winnow.API.Services.Ai;
 using Winnow.API.Services.Ai.Strategies;
 using Winnow.API.Services.Caching;
-using Winnow.API.Services.Storage;
-using Winnow.API.Features.Dashboard.IService;
-using Winnow.API.Features.Dashboard.Service;
-using Winnow.API.Features.Clusters.GenerateSummary;
-using Winnow.API.Domain.Services; // For IVectorCalculator
-using Amazon.S3;
 using Winnow.API.Services.Emails;
+using Winnow.API.Services.Storage;
 namespace Winnow.API.Extensions;
 
 public static class WorkerServiceExtensions
@@ -34,7 +34,7 @@ public static class WorkerServiceExtensions
     {
         services.AddWorkerInfrastructureCore(config);
         services.AddWorkerDatabase(config);
-        services.AddWorkerMessaging(config);
+        services.AddWorkerMessaging();
         services.AddWorkerEmail(config);
 
         return services;
@@ -136,7 +136,7 @@ public static class WorkerServiceExtensions
         });
     }
 
-    private static void AddWorkerMessaging(this IServiceCollection services, IConfiguration _)
+    private static void AddWorkerMessaging(this IServiceCollection services)
     {
         if (Environment.GetEnvironmentVariable("MESSAGE_BROKER")?.Equals("AmazonSqs", StringComparison.OrdinalIgnoreCase) == true)
         {
