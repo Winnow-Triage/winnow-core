@@ -104,7 +104,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: dotnet sonarscanner begin /k:"winnow-triage_winnow-core-api" /o:"winnow-triage" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
+        run: dotnet sonarscanner begin /k:"winnow-triage_winnow-core-api" /o:"winnow-triage" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.exclusions="**/*.js,**/*.jsx,**/*.ts,**/*.tsx,**/*.html,**/*.css"
 
       - name: Restore
         run: dotnet restore Winnow.sln
