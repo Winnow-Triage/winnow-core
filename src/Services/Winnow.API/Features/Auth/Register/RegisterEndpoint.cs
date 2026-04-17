@@ -86,7 +86,7 @@ public sealed class RegisterEndpoint(IMediator mediator) : Endpoint<RegisterRequ
             var cookieOptions = new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,
+                Secure = HttpContext.Request.IsHttps,
                 SameSite = SameSiteMode.Strict,
                 Expires = DateTimeOffset.UtcNow.AddDays(7)
             };

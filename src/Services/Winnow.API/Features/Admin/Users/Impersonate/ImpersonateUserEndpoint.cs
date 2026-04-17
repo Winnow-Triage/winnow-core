@@ -50,7 +50,7 @@ public sealed class ImpersonateUserEndpoint(IMediator mediator) : Endpoint<Imper
             var cookieOptions = new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,
+                Secure = HttpContext.Request.IsHttps,
                 SameSite = SameSiteMode.Strict,
                 Expires = DateTimeOffset.UtcNow.AddHours(2)
             };
