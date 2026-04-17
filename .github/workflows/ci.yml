@@ -35,54 +35,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
-
-      - name: Restore
-        run: dotnet restore Winnow.sln
-
-      - name: Build
-        run: dotnet build Winnow.sln --no-restore
-
-      - name: Test
-        run: dotnet test Winnow.sln --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx" --logger "GitHubActions"
-        env:
-          ConnectionStrings__Postgres: "Host=localhost;Port=5432;Database=winnow_test;Username=winnow;Password=winnow_test"
-
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-dotnet
-          path: "**/test-results.trx"
-
-  # ── SonarQube Analysis (Backend) ───────────────────────────────────────────
-  sonarqube-dotnet:
-    name: SonarQube Analysis (.NET Backend)
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: winnow
-          POSTGRES_PASSWORD: winnow_test
-          POSTGRES_DB: winnow_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U winnow"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=5
-
-    steps:
-      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -96,6 +48,14 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+
+      - name: Set up NuGet Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', 'Winnow.sln') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
 
       - name: Install SonarScanner
         run: dotnet tool install --global dotnet-sonarscanner
@@ -123,14 +83,43 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
 
-  # ── SonarQube Analysis (Frontend) ──────────────────────────────────────────
-  sonarqube-ui:
-    name: SonarQube Analysis (JS/UI)
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-dotnet
+          path: "**/test-results.trx"
+  # ── Job 2: Build & Test (UI/JS) ────────────────────────────────────────────
+  test-ui:
+    name: Build & Test JS/UI Projects
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: 'src/Apps/Winnow.Client/package-lock.json'
+
+      - name: Install JS Dependencies (Client)
+        run: npm ci
+        working-directory: src/Apps/Winnow.Client
+
+      - name: Test UI Client
+        run: npm test -- --coverage
+        working-directory: src/Apps/Winnow.Client
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-ui
+          path: src/Apps/Winnow.Client/test-results.xml
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v6
@@ -145,42 +134,6 @@ jobs:
             -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.sources=src
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-
-  # ── Job 2: Build & Test (UI/JS) ────────────────────────────────────────────
-  test-ui:
-    name: Build & Test JS/UI Projects
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install JS Dependencies (Client)
-        run: npm ci
-        working-directory: src/Apps/Winnow.Client
-
-#      - name: Install JS Dependencies (SDK)
-#        run: npm ci
-#        working-directory: src/Sdks/Winnow.Sdk.Js
-
-      - name: Test UI Client
-        run: npm test
-        working-directory: src/Apps/Winnow.Client
-
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-ui
-          path: src/Apps/Winnow.Client/test-results.xml
-
-#      - name: Test SDK
-#        run: npm test
-#        working-directory: src/Sdks/Winnow.Sdk.Js
 
   # ── Job 3: Migration Drift Detection ───────────────────────────────────────
   drift-detection:
@@ -282,6 +235,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: 'src/Apps/Winnow.Client/package-lock.json'
 
       - name: Restore & Build Backend Services
         run: |
@@ -324,6 +279,14 @@ jobs:
       - name: Install JS Dependencies
         run: npm ci
         working-directory: src/Apps/Winnow.Client
+
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('src/Apps/Winnow.Client/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
@@ -402,6 +365,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: 'src/Apps/Winnow.Client/package-lock.json'
 
       - name: Install JS Dependencies
         run: |
@@ -423,7 +388,7 @@ jobs:
     name: Build, Scan and Push to AWS ECR
     runs-on: ubuntu-latest
     environment: production
-    needs: [test-dotnet, test-ui, drift-detection, e2e, security, sonarqube-dotnet, sonarqube-ui]
+    needs: [test-dotnet, test-ui, drift-detection, e2e, security]
     if: github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
