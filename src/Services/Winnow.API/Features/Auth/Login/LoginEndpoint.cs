@@ -77,7 +77,7 @@ public sealed class LoginEndpoint(
                 var cookieOptions = new CookieOptions
                 {
                     HttpOnly = true,
-                    Secure = HttpContext.Request.IsHttps,
+                    Secure = true,
                     SameSite = SameSiteMode.Strict,
                     Expires = DateTimeOffset.UtcNow.AddDays(7)
                 };
