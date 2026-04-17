@@ -60,7 +60,7 @@ describe("Clusters Component", () => {
   it("renders no clusters found message when there are no clusters", async () => {
     vi.mocked(searchClusters).mockResolvedValue({ items: [], totalCount: 0, pageNumber: 1, pageSize: 20 });
     render(<Clusters />, { wrapper: createWrapper() });
-    await screen.findByText(/No clusters found/i);
+    expect(await screen.findByText(/No clusters found/i)).toBeInTheDocument();
   });
 
   it("displays clusters correctly", async () => {
