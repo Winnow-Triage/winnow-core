@@ -49,7 +49,7 @@ public class ImpersonateUserHandler(
 
         // 2. Build Claims
         var jwtSettings = config.GetSection("JwtSettings");
-        var key = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? "super_secret_key_at_least_32_chars_long_for_safety");
+        var key = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey configuration is missing"));
 
         var claims = new List<Claim>
         {
