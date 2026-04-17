@@ -11,7 +11,6 @@ public class CachedHealthReportService
 {
     private readonly object _lock = new();
     private HealthReport? _report;
-    private DateTime? _lastUpdatedUtc;
 
     public HealthReport? Report
     {
@@ -29,7 +28,6 @@ public class CachedHealthReportService
         lock (_lock)
         {
             _report = report;
-            _lastUpdatedUtc = DateTime.UtcNow;
         }
     }
 }

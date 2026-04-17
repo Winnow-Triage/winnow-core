@@ -15,17 +15,17 @@ internal sealed class DatabaseSweeper(
     private readonly TimeSpan _pollInterval = TimeSpan.FromMinutes(5);
     private readonly TimeSpan _timeoutThreshold = TimeSpan.FromMinutes(15);
 
-    protected override async Task ExecuteAsync(CancellationToken ct)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         logger.LogInformation("DatabaseSweeper: Starting background sweep process.");
 
         using var timer = new PeriodicTimer(_pollInterval);
 
-        while (!ct.IsCancellationRequested && await timer.WaitForNextTickAsync(ct))
+        while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
         {
             try
             {
-                await SweepOrphanedReportsAsync(ct);
+                await SweepOrphanedReportsAsync(stoppingToken);
             }
             catch (Exception ex)
             {
@@ -34,7 +34,7 @@ internal sealed class DatabaseSweeper(
         }
     }
 
-    private async Task SweepOrphanedReportsAsync(CancellationToken ct)
+    private async Task SweepOrphanedReportsAsync(CancellationToken stoppingToken)
     {
         using var scope = scopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<WinnowDbContext>();
@@ -48,7 +48,7 @@ internal sealed class DatabaseSweeper(
             .Where(a => a.Status == AssetStatus.Pending && a.CreatedAt < cutoffTime)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(a => a.Status, AssetStatus.Failed),
-            ct);
+            stoppingToken);
 
         if (updatedCount > 0)
         {

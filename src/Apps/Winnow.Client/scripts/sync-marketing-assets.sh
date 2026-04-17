@@ -15,7 +15,7 @@ mkdir -p "$TARGET_DIR"
 
 echo "🚀 Syncing marketing screenshots..."
 
-if [ ! -d "$SOURCE_DIR" ]; then echo "❌ Error: Source directory $SOURCE_DIR not found. Run 'npm run screenshots' first."; exit 1; fi
+if [[ ! -d "$SOURCE_DIR" ]]; then echo "❌ Error: Source directory $SOURCE_DIR not found. Run 'npm run screenshots' first."; exit 1; fi
 
 # Copy PNG files (and WebP if we ever get it working)
 cp "$SOURCE_DIR"/*.png "$SOURCE_DIR"/*.webp "$TARGET_DIR"/ 2>/dev/null || true

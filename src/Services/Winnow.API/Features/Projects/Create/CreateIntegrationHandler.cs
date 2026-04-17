@@ -33,7 +33,7 @@ public class CreateIntegrationHandler(
     IEnumerable<IIntegrationConfigDeserializationStrategy> deserializationStrategies)
     : IRequestHandler<CreateIntegrationCommand, Integration>
 {
-    public async Task<Integration> Handle(CreateIntegrationCommand request, CancellationToken ct)
+    public async Task<Integration> Handle(CreateIntegrationCommand request, CancellationToken cancellationToken)
     {
         var strategy = deserializationStrategies.FirstOrDefault(s => s.CanHandle(request.Provider))
             ?? throw new ArgumentException($"Unsupported provider: {request.Provider}");
@@ -45,13 +45,13 @@ public class CreateIntegrationHandler(
         var projectName = await db.Projects
             .Where(p => p.Id == request.ProjectId)
             .Select(p => p.Name)
-            .FirstOrDefaultAsync(ct) ?? "Your Project";
+            .FirstOrDefaultAsync(cancellationToken) ?? "Your Project";
 
         Integration? integration;
 
         if (request.Id.HasValue)
         {
-            integration = await db.Integrations.FindAsync([request.Id.Value], ct);
+            integration = await db.Integrations.FindAsync([request.Id.Value], cancellationToken);
             if (integration == null)
             {
                 throw new InvalidOperationException("Integration not found.");
@@ -95,10 +95,10 @@ public class CreateIntegrationHandler(
             if (!request.IsActive) integration.Deactivate();
             integration.UpdateNotificationState(request.NotificationsEnabled);
 
-            await db.Integrations.AddAsync(integration, ct);
+            await db.Integrations.AddAsync(integration, cancellationToken);
         }
 
-        await db.SaveChangesAsync(ct);
+        await db.SaveChangesAsync(cancellationToken);
 
         if (requiresEmailVerification && newConfig is EmailConfig finalEmailConfig && generatedVerificationToken != null)
         {

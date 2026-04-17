@@ -29,13 +29,13 @@ public class CreateReportHandler(
     IDbContextOutbox<WinnowDbContext> outbox,
     ILogger<CreateReportHandler> logger) : IRequestHandler<CreateReportCommand, Guid>
 {
-    public async Task<Guid> Handle(CreateReportCommand request, CancellationToken ct)
+    public async Task<Guid> Handle(CreateReportCommand request, CancellationToken cancellationToken)
     {
         // 1. Quota check
-        var quotaStatus = await quotaService.GetIngestionQuotaStatusAsync(request.OrganizationId, ct);
+        var quotaStatus = await quotaService.GetIngestionQuotaStatusAsync(request.OrganizationId, cancellationToken);
         if (quotaStatus.isLocked)
         {
-            await quotaService.EnforceRetroactiveRansomAsync(request.OrganizationId, ct);
+            await quotaService.EnforceRetroactiveRansomAsync(request.OrganizationId, cancellationToken);
         }
 
         // 2. Embedding generation
@@ -120,7 +120,7 @@ public class CreateReportHandler(
         });
 
         // 6. Commit Database changes AND the Wolverine Outbox Envelope atomically
-        await outbox.SaveChangesAndFlushMessagesAsync(ct);
+        await outbox.SaveChangesAndFlushMessagesAsync(cancellationToken);
 
         return report.Id;
     }

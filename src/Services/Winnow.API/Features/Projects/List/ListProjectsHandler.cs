@@ -18,7 +18,7 @@ public record ListProjectsQuery : IRequest<List<ProjectDto>>, IOrganizationScope
 
 public class ListProjectsHandler(WinnowDbContext dbContext) : IRequestHandler<ListProjectsQuery, List<ProjectDto>>
 {
-    public async Task<List<ProjectDto>> Handle(ListProjectsQuery request, CancellationToken ct)
+    public async Task<List<ProjectDto>> Handle(ListProjectsQuery request, CancellationToken cancellationToken)
     {
         var query = dbContext.Projects
             .AsNoTracking()
@@ -32,12 +32,12 @@ public class ListProjectsHandler(WinnowDbContext dbContext) : IRequestHandler<Li
             var userTeamIds = await dbContext.TeamMembers
                 .Where(tm => tm.UserId == request.CurrentUserId)
                 .Select(tm => tm.TeamId)
-                .ToListAsync(ct);
+                .ToListAsync(cancellationToken);
 
             var directProjectIds = await dbContext.ProjectMembers
                 .Where(pm => pm.UserId == request.CurrentUserId)
                 .Select(pm => pm.ProjectId)
-                .ToListAsync(ct);
+                .ToListAsync(cancellationToken);
 
             query = query.Where(p => p.TeamId == null || userTeamIds.Contains(p.TeamId.Value) || directProjectIds.Contains(p.Id));
         }
@@ -55,7 +55,7 @@ public class ListProjectsHandler(WinnowDbContext dbContext) : IRequestHandler<Li
                 },
                 !string.IsNullOrEmpty(p.SecondaryApiKeyHash),
                 p.SecondaryApiKeyExpiresAt))
-            .ToListAsync(ct);
+            .ToListAsync(cancellationToken);
 
         return projects;
     }

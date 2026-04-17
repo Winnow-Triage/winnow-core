@@ -29,7 +29,7 @@ public sealed class VerifyIntegrationEmailEndpoint(IMediator mediator)
         Options(x => x.RequireAuthorization());
     }
 
-    public override async Task HandleAsync(VerifyIntegrationEmailRequest req, CancellationToken ct)
+    public override async Task HandleAsync(VerifyIntegrationEmailRequest req, CancellationToken cancellationToken)
     {
         var command = new VerifyIntegrationEmailCommand
         {
@@ -44,8 +44,8 @@ public sealed class VerifyIntegrationEmailEndpoint(IMediator mediator)
 
         try
         {
-            await mediator.Send(command, ct);
-            await Send.OkAsync(new object(), cancellation: ct);
+            await mediator.Send(command, cancellationToken);
+            await Send.OkAsync(new object(), cancellation: cancellationToken);
         }
         catch (InvalidOperationException ex)
         {
@@ -68,9 +68,9 @@ public class VerifyIntegrationEmailCommand : IRequest, IProjectScopedRequest
 
 public class VerifyIntegrationEmailHandler(WinnowDbContext db) : IRequestHandler<VerifyIntegrationEmailCommand>
 {
-    public async Task Handle(VerifyIntegrationEmailCommand request, CancellationToken ct)
+    public async Task Handle(VerifyIntegrationEmailCommand request, CancellationToken cancellationToken)
     {
-        var integration = await db.Integrations.FindAsync([request.IntegrationId], ct)
+        var integration = await db.Integrations.FindAsync([request.IntegrationId], cancellationToken)
             ?? throw new InvalidOperationException("Integration not found.");
 
         if (integration.ProjectId != request.ProjectId)
@@ -97,6 +97,6 @@ public class VerifyIntegrationEmailHandler(WinnowDbContext db) : IRequestHandler
         var newConfig = emailConfig with { IsVerified = true, VerificationToken = null };
         integration.UpdateConfig(newConfig);
 
-        await db.SaveChangesAsync(ct);
+        await db.SaveChangesAsync(cancellationToken);
     }
 }
