@@ -90,7 +90,7 @@ public sealed class ClusteringBatchHandler(
             report.Id, report.ProjectId);
 
         // 3. Generate embedding if missing
-        await EnsureEmbeddingAsync(report, cancellationToken);
+        await EnsureEmbeddingAsync(report);
 
         if (report.Embedding != null && report.Status != ReportStatus.Dismissed)
         {
@@ -109,7 +109,7 @@ public sealed class ClusteringBatchHandler(
         }
     }
 
-    private async Task EnsureEmbeddingAsync(Winnow.API.Domain.Reports.Report report, CancellationToken cancellationToken)
+    private async Task EnsureEmbeddingAsync(Winnow.API.Domain.Reports.Report report)
     {
         if (report.Embedding != null) return;
 

@@ -69,13 +69,12 @@ public class CreateIntegrationHandler(
 
     private static (IntegrationConfig Config, string? Token) PrepareConfigWithVerification(IntegrationConfig newConfig, string? existingEmail)
     {
-        if (newConfig is EmailConfig newEmailConfig && !string.IsNullOrWhiteSpace(newEmailConfig.RecipientEmail))
+        if (newConfig is EmailConfig newEmailConfig &&
+            !string.IsNullOrWhiteSpace(newEmailConfig.RecipientEmail) &&
+            existingEmail != newEmailConfig.RecipientEmail)
         {
-            if (existingEmail != newEmailConfig.RecipientEmail)
-            {
-                var token = Guid.NewGuid().ToString("N");
-                return (newEmailConfig with { IsVerified = false, VerificationToken = token }, token);
-            }
+            var token = Guid.NewGuid().ToString("N")[..8];
+            return (newEmailConfig with { IsVerified = false, VerificationToken = token }, token);
         }
         return (newConfig, null);
     }

@@ -136,7 +136,7 @@ public static class WorkerServiceExtensions
         });
     }
 
-    private static void AddWorkerMessaging(this IServiceCollection services, IConfiguration config)
+    private static void AddWorkerMessaging(this IServiceCollection services, IConfiguration _)
     {
         if (Environment.GetEnvironmentVariable("MESSAGE_BROKER")?.Equals("AmazonSqs", StringComparison.OrdinalIgnoreCase) == true)
         {

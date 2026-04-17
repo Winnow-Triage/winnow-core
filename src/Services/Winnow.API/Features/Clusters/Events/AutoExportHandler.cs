@@ -43,7 +43,7 @@ public sealed class AutoExportHandler(
         if (cluster == null || cluster.ReportCount != threshold) return;
 
         // 4. Trigger auto-exports for active integrations
-        await TriggerAutoExportsAsync(project.Id, cluster.Id, cluster.Title ?? "Untitled Cluster", cluster.Summary ?? "Automatic export due to volume milestone.", cancellationToken);
+        await TriggerAutoExportsAsync(project.Id, cluster.Id, cluster.Title ?? "Untitled Cluster", cluster.Summary ?? "Automatic export due to volume milestone.");
     }
 
     public async Task Handle(ClusterSummarizedEvent notification, CancellationToken cancellationToken)
@@ -69,10 +69,10 @@ public sealed class AutoExportHandler(
         if (notification.CriticalityScore < threshold) return;
 
         // 5. Trigger auto-exports
-        await TriggerAutoExportsAsync(project.Id, notification.ClusterId, notification.Title, notification.Summary, cancellationToken);
+        await TriggerAutoExportsAsync(project.Id, notification.ClusterId, notification.Title, notification.Summary);
     }
 
-    private async Task TriggerAutoExportsAsync(Guid projectId, Guid clusterId, string title, string description, CancellationToken cancellationToken)
+    private async Task TriggerAutoExportsAsync(Guid projectId, Guid clusterId, string title, string description)
     {
         // Offload the cross-boundary export logic to the API "Hub" using Wolverine
         logger.LogInformation("Enqueuing auto-export integration event for Cluster {ClusterId}.", clusterId);

@@ -51,6 +51,8 @@ namespace Winnow.API.Extensions;
 internal static class ServiceExtensions
 {
     private static readonly string[] HealthCheckReadyTags = ["ready"];
+    private const string AmazonComprehend = "AmazonComprehend";
+    private const string ResendBaseUrl = "https://api.resend.com/";
 
     public static IServiceCollection AddWinnowServices(this IServiceCollection services, IConfiguration config, IHostEnvironment hostEnv)
     {
@@ -212,12 +214,12 @@ internal static class ServiceExtensions
         services.AddSingleton<IPiiRedactionProvider>(sp => sp.GetRequiredService<LocalPiiRedactionProvider>());
         services.AddSingleton<IPiiRedactionService, PiiRedactionService>();
 
-        if (llmSettings.ToxicityProvider == "AmazonComprehend" || llmSettings.PiiRedactionProvider == "AmazonComprehend")
+        if (llmSettings.ToxicityProvider == AmazonComprehend || llmSettings.PiiRedactionProvider == AmazonComprehend)
         {
             services.AddAWSService<Amazon.Comprehend.IAmazonComprehend>();
-            if (llmSettings.ToxicityProvider == "AmazonComprehend")
+            if (llmSettings.ToxicityProvider == AmazonComprehend)
                 services.AddSingleton<IToxicityDetectionProvider, AwsComprehendToxicityDetectionProvider>();
-            if (llmSettings.PiiRedactionProvider == "AmazonComprehend")
+            if (llmSettings.PiiRedactionProvider == AmazonComprehend)
                 services.AddSingleton<IPiiRedactionProvider, AwsComprehendPiiRedactionProvider>();
         }
     }
@@ -355,7 +357,7 @@ internal static class ServiceExtensions
                 Console.WriteLine("[WARNING] Resend API Key is missing or empty. Emails will likely fail.");
 
             services.Configure<ResendClientOptions>(options => options.ApiToken = emailSettings.Resend.ApiKey);
-            services.AddHttpClient<IResend, ResendClient>(client => client.BaseAddress = new Uri("https://api.resend.com/"));
+            services.AddHttpClient<IResend, ResendClient>(client => client.BaseAddress = new Uri(ResendBaseUrl));
             services.AddScoped<IEmailService, ResendEmailService>();
         }
         else

@@ -22,7 +22,7 @@ public class ProcessSesBounceHandler(UserManager<ApplicationUser> userManager, I
             if (!IsBounceNotification(root)) return;
 
             var recipients = GetBouncedRecipients(root);
-            await ProcessRecipientsAsync(recipients, cancellationToken);
+            await ProcessRecipientsAsync(recipients);
         }
         catch (Exception ex)
         {
@@ -44,7 +44,7 @@ public class ProcessSesBounceHandler(UserManager<ApplicationUser> userManager, I
         return Enumerable.Empty<JsonElement>();
     }
 
-    private async Task ProcessRecipientsAsync(IEnumerable<JsonElement> recipients, CancellationToken cancellationToken)
+    private async Task ProcessRecipientsAsync(IEnumerable<JsonElement> recipients)
     {
         foreach (var recipient in recipients)
         {
