@@ -53,7 +53,7 @@ public sealed class ClusterNotificationHandler(
                 project.Id,
                 cluster.Id,
                 cluster.ReportCount,
-                cluster.Title ?? "Untitled Cluster"), cancellation: cancellationToken);
+                cluster.Title ?? "Untitled Cluster"));
         }
     }
 
@@ -85,7 +85,7 @@ public sealed class ClusterNotificationHandler(
             await messageBus.PublishAsync(new ClusterCriticalityThresholdReachedIntegrationEvent(
                 project.Id,
                 notification.Title,
-                notification.Summary), cancellation: cancellationToken);
+                notification.Summary));
         }
     }
 }

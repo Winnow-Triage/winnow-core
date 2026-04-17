@@ -82,6 +82,6 @@ public sealed class AutoExportHandler(
             clusterId,
             title,
             description
-        ), cancellation: cancellationToken);
+        ));
     }
 }

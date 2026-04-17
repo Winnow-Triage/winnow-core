@@ -54,17 +54,20 @@ internal static class ServiceExtensions
 
     public static IServiceCollection AddWinnowServices(this IServiceCollection services, IConfiguration config, IHostEnvironment hostEnv)
     {
+        services.AddInfrastructureServices(config);
+        services.AddAiAndLlmServices(config);
+        services.AddSecurityAndIdentity(config);
+        services.AddEmailAndNotifications(config);
+        services.AddMiddlewareAndPolicies(config);
+
+        return services;
+    }
+
+    private static void AddInfrastructureServices(this IServiceCollection services, IConfiguration config)
+    {
         // Multi-tenancy
         services.AddScoped<ITenantContext, TenantContext>();
         services.AddScoped<IExporterFactory, ExporterFactory>();
-
-        // Security
-        services.AddSingleton<IApiKeyService, ApiKeyService>();
-        services.AddScoped<Winnow.API.Services.Quota.IQuotaService, Winnow.API.Services.Quota.QuotaService>();
-
-        // Proof-of-Work
-        services.Configure<PoWSettings>(config.GetSection("PoWSettings"));
-        services.AddSingleton<IPoWValidator, PoWValidator>();
 
         // Caching
         var redisConn = config.GetConnectionString("Redis");
@@ -81,112 +84,7 @@ internal static class ServiceExtensions
             services.AddDistributedMemoryCache();
         }
         services.AddSingleton<ICacheService, DistributedCacheService>();
-
-        // Stripe API Key Configuration
-        Stripe.StripeConfiguration.ApiKey = config["Stripe:SecretKey"];
-        services.AddSingleton<IStripePlanMapper, StripePlanMapper>();
-
-        // Assembly scanning for all strategy implementations
-        services.Scan(scan => scan
-            .FromAssemblyOf<IExporterCreationStrategy>()
-            .AddClasses(classes => classes.AssignableTo<IExporterCreationStrategy>())
-            .As<IExporterCreationStrategy>()
-            .WithScopedLifetime()
-        );
-
-        services.Scan(scan => scan
-            .FromAssemblyOf<IIntegrationConfigDeserializationStrategy>()
-            .AddClasses(classes => classes.AssignableTo<IIntegrationConfigDeserializationStrategy>())
-            .As<IIntegrationConfigDeserializationStrategy>()
-            .WithScopedLifetime()
-        );
-
-        // Register embedding providers as Singleton so ONNX models stay in memory
-        services.Scan(scan => scan
-            .FromAssemblyOf<IEmbeddingProvider>()
-            .AddClasses(classes => classes.AssignableTo<IEmbeddingProvider>())
-            .As<IEmbeddingProvider>()
-            .WithSingletonLifetime()
-        );
-
-        // Core HTTP & caching with resilience pipelines
-        // Add typed HTTP clients with standard resilience handlers for external services
-
-        // Configure resilience options
-        // Using standard resilience handler with default settings:
-        // - Retry: Max 3 retries, exponential backoff starting at 2 seconds
-        // - Circuit Breaker: Break for 30 seconds after 5 consecutive failures  
-        // - Attempt Timeout: 15 seconds per request
-
-        // Register named HTTP client for exporters with resilience handlers
-        // Register the tracker singleton before the HttpClient so it can be injected into the handler
-        services.AddSingleton<ExternalIntegrationHealthTracker>();
-        services.AddTransient<ExternalIntegrationTrackerHandler>();
-
-        services.AddHttpClient("ExternalIntegrations")
-            .RemoveAllLoggers() // Prevent health check polling from spamming logs on failure
-            .AddHttpMessageHandler<ExternalIntegrationTrackerHandler>()
-            .AddStandardResilienceHandler();
-
-        // Register typed HTTP clients for embedding providers with resilience handlers
-        services.AddHttpClient<OpenAiEmbeddingProvider>()
-            .AddStandardResilienceHandler();
-
-        services.AddHttpClient<LocalEmbeddingProvider>()
-            .AddStandardResilienceHandler();
-
-        services.AddHttpClient<LocalPiiRedactionProvider>()
-            .AddStandardResilienceHandler();
-
-        // Default fallback client
-        services.AddHttpClient();
         services.AddMemoryCache();
-
-        // LLM Configuration
-        var llmSettings = new LlmSettings();
-        config.GetSection("LlmSettings").Bind(llmSettings);
-        services.AddSingleton(llmSettings);
-
-        // Email Configuration
-        var emailSettings = new Winnow.API.Infrastructure.Configuration.EmailSettings();
-        config.GetSection("EmailSettings").Bind(emailSettings);
-        services.AddSingleton(emailSettings);
-
-        // Discord Configuration
-        services.Configure<DiscordOps>(config.GetSection("DiscordOps"));
-        services.AddScoped<IInternalOpsNotifier, InternalOpsNotifier>();
-        services.AddScoped<IClientNotificationService, ClientNotificationService>();
-
-        // AWS Configuration (Shared)
-        services.AddDefaultAWSOptions(config.GetAWSOptions());
-
-        if (llmSettings.ToxicityProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true ||
-            llmSettings.PiiRedactionProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            services.AddAWSService<Amazon.Comprehend.IAmazonComprehend>();
-        }
-
-        // Toxicity Detection
-        services.AddSingleton<IToxicityDetectionProvider, LocalToxicityDetectionProvider>();
-        if (llmSettings.ToxicityProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            services.AddSingleton<IToxicityDetectionProvider, AwsComprehendToxicityDetectionProvider>();
-        }
-        services.AddSingleton<IToxicityDetectionService, ToxicityDetectionService>();
-
-        // PII Redaction
-        services.AddSingleton<LocalPiiRedactionProvider>();
-        services.AddSingleton<IPiiRedactionProvider>(sp => sp.GetRequiredService<LocalPiiRedactionProvider>());
-        if (llmSettings.PiiRedactionProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            services.AddSingleton<IPiiRedactionProvider, AwsComprehendPiiRedactionProvider>();
-        }
-        services.AddSingleton<IPiiRedactionService, PiiRedactionService>();
-
-        services.AddHostedService<AdminSeeder>();
-        services.AddHostedService<InvitationCleanupJob>();
-        services.AddHostedService<ApiKeyCleanupJob>();
-        services.AddHostedService<DatabaseSweeper>();
 
         // Storage (S3/MinIO)
         var s3Settings = new S3Settings();
@@ -202,10 +100,8 @@ internal static class ServiceExtensions
                 UseHttp = !string.IsNullOrWhiteSpace(s3Settings.Endpoint) && s3Settings.Endpoint.StartsWith("http://")
             };
 
-
             if (string.IsNullOrWhiteSpace(s3Settings.AccessKey))
             {
-                // Fallback to Default Credential Chain (IAM Role) if no keys are provided
                 return new Amazon.S3.AmazonS3Client(s3Config);
             }
 
@@ -213,26 +109,121 @@ internal static class ServiceExtensions
         });
         services.AddSingleton<IStorageService, S3StorageService>();
 
-        // AI Services
+        // Database
+        services.AddDbConfiguration(config);
+
+        // Repositories
+        services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
+        services.AddScoped<IOrganizationRepository, EfOrganizationRepository>();
+        services.AddScoped<IProjectRepository, EfProjectRepository>();
+        services.AddScoped<IReportRepository, EfReportRepository>();
+        services.AddScoped<ITeamRepository, EfTeamRepository>();
+        services.AddScoped<Winnow.API.Features.Reports.Search.IReportSearchRepository, Winnow.API.Features.Reports.Search.ReportSearchRepository>();
+        services.AddScoped<Winnow.API.Features.Clusters.Search.IClusterSearchRepository, Winnow.API.Features.Clusters.Search.ClusterSearchRepository>();
+
+        // Health Checks
+        services.AddWinnowHealthChecks();
+
+        // Hosted Services
+        services.AddHostedService<AdminSeeder>();
+        services.AddHostedService<InvitationCleanupJob>();
+        services.AddHostedService<ApiKeyCleanupJob>();
+        services.AddHostedService<DatabaseSweeper>();
+    }
+
+    private static void AddDbConfiguration(this IServiceCollection services, IConfiguration config)
+    {
+        services.AddSingleton<NpgsqlDataSource>(sp =>
+        {
+            var connStr = config.GetConnectionString("Postgres")
+                ?? throw new InvalidOperationException("Postgres connection string missing.");
+
+            var dbPassword = config["DB_PASSWORD"];
+            if (!string.IsNullOrEmpty(dbPassword) && connStr.Contains("{password}"))
+            {
+                connStr = connStr.Replace("{password}", dbPassword);
+            }
+
+            config.EnsureRdsSslCertificate();
+
+            var dataSourceBuilder = new NpgsqlDataSourceBuilder(connStr);
+            dataSourceBuilder.UseVector();
+            return dataSourceBuilder.Build();
+        });
+
+        services.AddDbContext<WinnowDbContext>((sp, options) =>
+        {
+            var dataSource = sp.GetRequiredService<NpgsqlDataSource>();
+            options.UseNpgsql(dataSource, npgsql =>
+            {
+                npgsql.UseVector();
+                npgsql.MigrationsAssembly("Winnow.API");
+            });
+            options.AddInterceptors(sp.GetRequiredService<DomainEventInterceptor>());
+        });
+    }
+
+    private static void AddAiAndLlmServices(this IServiceCollection services, IConfiguration config)
+    {
+        var llmSettings = new LlmSettings();
+        config.GetSection("LlmSettings").Bind(llmSettings);
+        services.AddSingleton(llmSettings);
+
+        // LLM Strategy scanning
+        services.Scan(scan => scan
+            .FromAssemblyOf<IEmbeddingProvider>()
+            .AddClasses(classes => classes.AssignableTo<IEmbeddingProvider>())
+            .As<IEmbeddingProvider>()
+            .WithSingletonLifetime()
+        );
+
+        // Toxicity & PII
+        services.AddToxicityAndPiiServices(llmSettings);
+
+        // AI Core
         services.AddScoped<ClusterSummaryOrchestrator>();
         services.AddSingleton<IEmbeddingService, EmbeddingService>();
-
-
-        services.AddSingleton<IEmbeddingProvider, OpenAiEmbeddingProvider>();
-        services.AddSingleton<IEmbeddingProvider, LocalEmbeddingProvider>();
-        try
-        {
-            services.AddSingleton<IEmbeddingProvider, OnnxEmbeddingProvider>();
-        }
-        catch (TypeInitializationException)
-        {
-            // Allowed to fail if ONNX runtime is completely missing
-        }
-        services.AddSingleton<IEmbeddingProvider, PlaceholderEmbeddingProvider>();
-
         services.AddSingleton<IVectorCalculator, VectorCalculator>();
 
-        // Semantic Kernel setup based on provider
+        // Semantic Kernel
+        services.AddWinnowKernel(llmSettings);
+
+        // Duplicate Checkers
+        if (llmSettings.Provider == "Ollama")
+        {
+            services.AddScoped<IDuplicateChecker, OllamaDuplicateChecker>();
+        }
+        else
+        {
+            services.AddScoped<IDuplicateChecker, PlaceholderDuplicateChecker>();
+        }
+        services.AddSingleton<INegativeMatchCache, NegativeMatchCache>();
+
+        services.AddScoped<IDashboardService, DashboardService>();
+        services.AddScoped<IClusterService, ClusterService>();
+    }
+
+    private static void AddToxicityAndPiiServices(this IServiceCollection services, LlmSettings llmSettings)
+    {
+        services.AddSingleton<IToxicityDetectionProvider, LocalToxicityDetectionProvider>();
+        services.AddSingleton<IToxicityDetectionService, ToxicityDetectionService>();
+
+        services.AddSingleton<LocalPiiRedactionProvider>();
+        services.AddSingleton<IPiiRedactionProvider>(sp => sp.GetRequiredService<LocalPiiRedactionProvider>());
+        services.AddSingleton<IPiiRedactionService, PiiRedactionService>();
+
+        if (llmSettings.ToxicityProvider == "AmazonComprehend" || llmSettings.PiiRedactionProvider == "AmazonComprehend")
+        {
+            services.AddAWSService<Amazon.Comprehend.IAmazonComprehend>();
+            if (llmSettings.ToxicityProvider == "AmazonComprehend")
+                services.AddSingleton<IToxicityDetectionProvider, AwsComprehendToxicityDetectionProvider>();
+            if (llmSettings.PiiRedactionProvider == "AmazonComprehend")
+                services.AddSingleton<IPiiRedactionProvider, AwsComprehendPiiRedactionProvider>();
+        }
+    }
+
+    private static void AddWinnowKernel(this IServiceCollection services, LlmSettings llmSettings)
+    {
         var kernelBuilder = services.AddKernel();
 
         if (llmSettings.Provider == "Ollama")
@@ -241,7 +232,6 @@ internal static class ServiceExtensions
                 modelId: llmSettings.Ollama.ModelId,
                 endpoint: new Uri(llmSettings.Ollama.Endpoint));
 
-            // Secondary model for fast gatekeeping (phi3/gemma)
             kernelBuilder.AddOllamaChatCompletion(
                 serviceId: "Gatekeeper",
                 modelId: llmSettings.Ollama.GatekeeperModelId,
@@ -251,9 +241,7 @@ internal static class ServiceExtensions
         }
         else if (llmSettings.Provider == "OpenAI")
         {
-            kernelBuilder.AddOpenAIChatCompletion(
-                modelId: llmSettings.OpenAI.ModelId,
-                apiKey: llmSettings.OpenAI.ApiKey);
+            kernelBuilder.AddOpenAIChatCompletion(llmSettings.OpenAI.ModelId, llmSettings.OpenAI.ApiKey);
             services.AddScoped<IClusterSummaryService, SemanticKernelClusterSummaryService>();
         }
         else if (llmSettings.Provider == "Bedrock")
@@ -271,136 +259,42 @@ internal static class ServiceExtensions
         {
             services.AddScoped<IClusterSummaryService, PlaceholderClusterSummaryService>();
         }
+    }
 
-        // Repositories
-        services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
-        services.AddScoped<IOrganizationRepository, EfOrganizationRepository>();
-        services.AddScoped<IProjectRepository, EfProjectRepository>();
-        services.AddScoped<IReportRepository, EfReportRepository>();
-        services.AddScoped<ITeamRepository, EfTeamRepository>();
+    private static void AddSecurityAndIdentity(this IServiceCollection services, IConfiguration config)
+    {
+        services.AddSingleton<IApiKeyService, ApiKeyService>();
+        services.AddScoped<Winnow.API.Services.Quota.IQuotaService, Winnow.API.Services.Quota.QuotaService>();
 
-        // Register new ReportSearchRepository for raw SQL Hybrid semantic queries
-        services.AddScoped<Winnow.API.Features.Reports.Search.IReportSearchRepository, Winnow.API.Features.Reports.Search.ReportSearchRepository>();
-        services.AddScoped<Winnow.API.Features.Clusters.Search.IClusterSearchRepository, Winnow.API.Features.Clusters.Search.ClusterSearchRepository>();
+        // Proof-of-Work
+        services.Configure<PoWSettings>(config.GetSection("PoWSettings"));
+        services.AddSingleton<IPoWValidator, PoWValidator>();
 
-        // Register the duplicate checker based on provider
-        if (llmSettings.Provider == "Ollama")
-        {
-            services.AddScoped<IDuplicateChecker, OllamaDuplicateChecker>();
-        }
-        else
-        {
-            services.AddScoped<IDuplicateChecker, PlaceholderDuplicateChecker>();
-        }
-        services.AddSingleton<INegativeMatchCache, NegativeMatchCache>();
-
-        // Dashboard service
-        services.AddScoped<IDashboardService, DashboardService>();
-        services.AddScoped<IClusterService, ClusterService>();
-
-        if (emailSettings.Provider == "AwsSes")
-        {
-            services.AddAWSService<IAmazonSimpleEmailService>();
-            services.AddScoped<IEmailService, AwsSesEmailService>();
-        }
-        else if (emailSettings.Provider == "Resend")
-        {
-            if (string.IsNullOrWhiteSpace(emailSettings.Resend.ApiKey))
-            {
-                Console.WriteLine("[WARNING] Resend API Key is missing or empty. Emails will likely fail.");
-            }
-
-            services.Configure<ResendClientOptions>(options =>
-            {
-                options.ApiToken = emailSettings.Resend.ApiKey;
-            });
-
-            services.AddHttpClient<IResend, ResendClient>(client =>
-            {
-                client.BaseAddress = new Uri("https://api.resend.com/");
-            });
-
-            services.AddScoped<IEmailService, ResendEmailService>();
-        }
-        else
-        {
-            services.AddScoped<IEmailService, SmtpEmailService>();
-        }
-
-        // Register NpgsqlDataSource as a Singleton to ensure connection pooling works correctly
-        services.AddSingleton<NpgsqlDataSource>(sp =>
-        {
-            var config = sp.GetRequiredService<IConfiguration>();
-            var connStr = config.GetConnectionString("Postgres")
-                ?? throw new InvalidOperationException("Postgres connection string missing.");
-
-            // Bridge for AWS-managed passwords or GitHub secrets
-            var dbPassword = config["DB_PASSWORD"];
-            if (!string.IsNullOrEmpty(dbPassword) && connStr.Contains("{password}"))
-            {
-                connStr = connStr.Replace("{password}", dbPassword);
-            }
-
-            // Bridge for SSL Certificate Download (Optional/Portability)
-            var certUrl = config["DB_SSL_CERT_URL"];
-            if (!string.IsNullOrEmpty(certUrl) && connStr.Contains("Root Certificate="))
-            {
-                var match = System.Text.RegularExpressions.Regex.Match(connStr, @"Root Certificate=([^;]+)");
-                if (match.Success)
-                {
-                    var certPath = match.Groups[1].Value.Trim();
-                    if (!File.Exists(certPath))
-                    {
-                        try
-                        {
-                            using var client = new HttpClient();
-                            var certData = client.GetByteArrayAsync(certUrl).GetAwaiter().GetResult();
-                            var directory = Path.GetDirectoryName(certPath);
-                            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                                Directory.CreateDirectory(directory);
-                            File.WriteAllBytes(certPath, certData);
-                        }
-                        catch { /* Fallback to standard connection if download fails */ }
-                    }
-                }
-            }
-
-            var dataSourceBuilder = new NpgsqlDataSourceBuilder(connStr);
-            dataSourceBuilder.UseVector();
-            return dataSourceBuilder.Build();
-        });
-
-        services.AddDbContext<WinnowDbContext>((sp, options) =>
-        {
-            var dataSource = sp.GetRequiredService<NpgsqlDataSource>();
-            options.UseNpgsql(dataSource,
-                npgsql =>
-                {
-                    npgsql.UseVector();
-                    npgsql.MigrationsAssembly("Winnow.API");
-                });
-            options.AddInterceptors(sp.GetRequiredService<DomainEventInterceptor>());
-        });
+        // Stripe
+        Stripe.StripeConfiguration.ApiKey = config["Stripe:SecretKey"];
+        services.AddSingleton<IStripePlanMapper, StripePlanMapper>();
 
         // Identity
         services.AddIdentity<ApplicationUser, IdentityRole>(options =>
         {
-            // Password settings
             options.Password.RequireDigit = true;
             options.Password.RequireLowercase = true;
             options.Password.RequireNonAlphanumeric = true;
             options.Password.RequireUppercase = true;
             options.Password.RequiredLength = 8;
             options.Password.RequiredUniqueChars = 1;
-
-            // User settings
             options.User.RequireUniqueEmail = true;
         })
-            .AddRoles<IdentityRole>()
-            .AddEntityFrameworkStores<WinnowDbContext>()
-            .AddDefaultTokenProviders();
+        .AddRoles<IdentityRole>()
+        .AddEntityFrameworkStores<WinnowDbContext>()
+        .AddDefaultTokenProviders();
 
         // Authentication
+        services.AddWinnowAuthentication(config);
+    }
+
+    private static void AddWinnowAuthentication(this IServiceCollection services, IConfiguration config)
+    {
         services.AddAuthentication(options =>
         {
             options.DefaultAuthenticateScheme = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
@@ -426,181 +320,97 @@ internal static class ServiceExtensions
                 OnMessageReceived = context =>
                 {
                     if (context.Request.Cookies.TryGetValue("winnow_auth", out var token))
-                    {
                         context.Token = token;
-                    }
                     return Task.CompletedTask;
                 }
             };
         })
         .AddScheme<Winnow.API.Infrastructure.Security.ApiKeyAuthenticationOptions, Winnow.API.Infrastructure.Security.ApiKeyAuthenticationHandler>(Winnow.API.Infrastructure.Security.ApiKeyAuthenticationOptions.DefaultScheme, null);
 
-        // Health Checks
-        services.AddHealthChecks()
-            .AddDbContextCheck<WinnowDbContext>("Database", tags: HealthCheckReadyTags)
-            .AddCheck<LlmHealthCheck>("LLM", tags: HealthCheckReadyTags)
-            .AddCheck<EmailHealthCheck>("Email", tags: HealthCheckReadyTags)
-            .AddCheck<TenantIntegrationsHealthCheck>("TenantIntegrations", tags: HealthCheckReadyTags)
-            .AddCheck<S3StorageHealthCheck>("S3Storage", tags: HealthCheckReadyTags);
-
-        // Register custom health check services
-        services.AddSingleton<LlmHealthCheck>();
-        services.AddSingleton<EmailHealthCheck>();
-        services.AddSingleton<TenantIntegrationsHealthCheck>();
-        services.AddSingleton<S3StorageHealthCheck>();
-
-        // Register caching and publisher for fast UI loading
-        services.AddSingleton<CachedHealthReportService>();
-        services.AddSingleton<Microsoft.Extensions.Diagnostics.HealthChecks.IHealthCheckPublisher, HealthReportPublisher>();
-
-        services.Configure<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckPublisherOptions>(options =>
-        {
-            options.Delay = TimeSpan.Zero; // Start immediately on boot
-            options.Period = TimeSpan.FromSeconds(5); // Poll every 5 seconds
-        });
-
-        // FastEndpoints
-        services.AddFastEndpoints();
-        services.SwaggerDocument(o =>
-        {
-            o.ShortSchemaNames = true;
-            o.DocumentSettings = s =>
-            {
-                s.AddAuth("Bearer", new()
-                {
-                    Name = "Authorization",
-                    In = NSwag.OpenApiSecurityApiKeyLocation.Header,
-                    Type = NSwag.OpenApiSecuritySchemeType.Http,
-                    Scheme = "Bearer",
-                    Description = "JWT Authorization header using the Bearer scheme."
-                });
-
-                s.AddAuth("ApiKey", new()
-                {
-                    Name = "X-API-Key",
-                    In = NSwag.OpenApiSecurityApiKeyLocation.Header,
-                    Type = NSwag.OpenApiSecuritySchemeType.ApiKey,
-                    Description = "Enter the Bouncer API Key here."
-                });
-
-                s.AddAuth("ProjectApiKey", new()
-                {
-                    Name = "X-Winnow-Key",
-                    In = NSwag.OpenApiSecurityApiKeyLocation.Header,
-                    Type = NSwag.OpenApiSecuritySchemeType.ApiKey,
-                    Description = "Enter the Project API Key here."
-                });
-
-                s.OperationProcessors.Add(new Winnow.API.Infrastructure.Security.Swagger.SwaggerSecurityProcessor());
-                s.OperationProcessors.Add(new Winnow.API.Infrastructure.Security.Swagger.MediatRAuthOperationProcessor());
-            };
-        });
         services.AddAuthorization(options =>
         {
-            options.AddPolicy("RequireVerifiedEmail", policy =>
-                policy.RequireClaim("email_verified", "true"));
+            options.AddPolicy("RequireVerifiedEmail", policy => policy.RequireClaim("email_verified", "true"));
         });
+    }
 
-        // Configure Forwarded Headers for Cloudflare/AWS proxy support
+    private static void AddEmailAndNotifications(this IServiceCollection services, IConfiguration config)
+    {
+        var emailSettings = new Winnow.API.Infrastructure.Configuration.EmailSettings();
+        config.GetSection("EmailSettings").Bind(emailSettings);
+        services.AddSingleton(emailSettings);
+
+        // Discord
+        services.Configure<DiscordOps>(config.GetSection("DiscordOps"));
+        services.AddScoped<IInternalOpsNotifier, InternalOpsNotifier>();
+        services.AddScoped<IClientNotificationService, ClientNotificationService>();
+
+        if (emailSettings.Provider == "AwsSes")
+        {
+            services.AddAWSService<IAmazonSimpleEmailService>();
+            services.AddScoped<IEmailService, AwsSesEmailService>();
+        }
+        else if (emailSettings.Provider == "Resend")
+        {
+            if (string.IsNullOrWhiteSpace(emailSettings.Resend.ApiKey))
+                Console.WriteLine("[WARNING] Resend API Key is missing or empty. Emails will likely fail.");
+
+            services.Configure<ResendClientOptions>(options => options.ApiToken = emailSettings.Resend.ApiKey);
+            services.AddHttpClient<IResend, ResendClient>(client => client.BaseAddress = new Uri("https://api.resend.com/"));
+            services.AddScoped<IEmailService, ResendEmailService>();
+        }
+        else
+        {
+            services.AddScoped<IEmailService, SmtpEmailService>();
+        }
+    }
+
+    private static void AddMiddlewareAndPolicies(this IServiceCollection services, IConfiguration config)
+    {
+        // Assembly scanning for strategy implementations
+        services.Scan(scan => scan
+            .FromAssemblyOf<IExporterCreationStrategy>()
+            .AddClasses(classes => classes.AssignableTo<IExporterCreationStrategy>())
+            .As<IExporterCreationStrategy>()
+            .WithScopedLifetime()
+        );
+
+        services.Scan(scan => scan
+            .FromAssemblyOf<IIntegrationConfigDeserializationStrategy>()
+            .AddClasses(classes => classes.AssignableTo<IIntegrationConfigDeserializationStrategy>())
+            .As<IIntegrationConfigDeserializationStrategy>()
+            .WithScopedLifetime()
+        );
+
+        // Core HTTP & resilience
+        services.AddSingleton<ExternalIntegrationHealthTracker>();
+        services.AddTransient<ExternalIntegrationTrackerHandler>();
+        services.AddHttpClient("ExternalIntegrations")
+            .RemoveAllLoggers()
+            .AddHttpMessageHandler<ExternalIntegrationTrackerHandler>()
+            .AddStandardResilienceHandler();
+
+        services.AddHttpClient<OpenAiEmbeddingProvider>().AddStandardResilienceHandler();
+        services.AddHttpClient<LocalEmbeddingProvider>().AddStandardResilienceHandler();
+        services.AddHttpClient<LocalPiiRedactionProvider>().AddStandardResilienceHandler();
+        services.AddHttpClient();
+
+        // AWS Shared
+        services.AddDefaultAWSOptions(config.GetAWSOptions());
+
+        // FastEndpoints & Swagger
+        services.AddWinnowOpenApi();
+
+        // Middleware Config
         services.Configure<ForwardedHeadersOptions>(options =>
         {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-            // In a cloud environment like App Runner/Cloudflare, we trust the incoming proxy
-            // clearing KnownProxies and KnownNetworks allows any X-Forwarded-For to be processed
             options.KnownIPNetworks.Clear();
             options.KnownProxies.Clear();
-            options.ForwardLimit = null; // Trust all hops
+            options.ForwardLimit = null;
         });
 
-        // Rate Limiting — Layered Defense Depth (Global Safety + Per-IP Bot Protection)
-        services.AddRateLimiter(options =>
-        {
-            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-
-            // 1. GLOBAL SAFETY VALVE (Fixed Window) & PER-IP CONCURRENCY
-            // Using CreateChained because .NET rate limiting doesn't support multiple endpoint policies natively
-            options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
-                PartitionedRateLimiter.Create<HttpContext, string>(context =>
-                    RateLimitPartition.GetFixedWindowLimiter("global", _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = 5000,
-                        Window = TimeSpan.FromMinutes(1),
-                        QueueLimit = 0
-                    })),
-                PartitionedRateLimiter.Create<HttpContext, string>(context =>
-                {
-                    var ip = context.Connection.RemoteIpAddress?.ToString()
-                             ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
-                             ?? "unknown";
-                    return RateLimitPartition.GetConcurrencyLimiter(ip, _ => new ConcurrencyLimiterOptions
-                    {
-                        PermitLimit = 5,
-                        QueueLimit = 0
-                    });
-                })
-            );
-
-            // 2. PER-IP POLICIES (Protection against targeted abuse)
-
-            // Standard API calls (100 req/min/IP)
-            options.AddPolicy("api", context =>
-            {
-                var ip = context.Connection.RemoteIpAddress?.ToString()
-                         ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
-                         ?? "unknown";
-                return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
-                {
-                    PermitLimit = 100,
-                    Window = TimeSpan.FromMinutes(1),
-                    QueueLimit = 5
-                });
-            });
-
-            options.AddPolicy("webhook", context =>
-            {
-                // Try to get IP from RemoteIpAddress (updated by ForwardedHeaders) with a manual fallback for proxies
-                var ip = context.Connection.RemoteIpAddress?.ToString()
-                         ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
-                         ?? "unknown";
-
-                return RateLimitPartition.GetTokenBucketLimiter(ip, _ => new TokenBucketRateLimiterOptions
-                {
-                    TokenLimit = 5,
-                    QueueLimit = 0,
-                    ReplenishmentPeriod = TimeSpan.FromMinutes(1),
-                    TokensPerPeriod = 5,
-                    AutoReplenishment = true
-                });
-            });
-
-            // Auth/Sensitive Ops (10 req/min/IP)
-            options.AddPolicy("strict", context =>
-            {
-                var ip = context.Connection.RemoteIpAddress?.ToString()
-                         ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
-                         ?? "unknown";
-                return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
-                {
-                    PermitLimit = 10,
-                    Window = TimeSpan.FromMinutes(1),
-                    QueueLimit = 0
-                });
-            });
-
-            // Email Dispatch (1 req/2min/IP)
-            options.AddPolicy("email_dispatch", context =>
-            {
-                var ip = context.Connection.RemoteIpAddress?.ToString()
-                         ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
-                         ?? "unknown";
-                return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
-                {
-                    PermitLimit = 1,
-                    Window = TimeSpan.FromMinutes(2),
-                    QueueLimit = 0
-                });
-            });
-        });
+        // Rate Limiting
+        services.AddWinnowRateLimiting();
 
         // CORS
         services.AddCors(options =>
@@ -608,17 +418,11 @@ internal static class ServiceExtensions
             options.AddDefaultPolicy(policy =>
             {
                 policy.WithOrigins("https://app.winnowtriage.com", "https://winnowtriage.com", "https://www.winnowtriage.com", "http://localhost:5173", "http://localhost:5174")
-                      .AllowAnyHeader()
-                      .AllowAnyMethod()
-                      .AllowCredentials()
-                      .SetPreflightMaxAge(TimeSpan.FromHours(2));
+                      .AllowAnyHeader().AllowAnyMethod().AllowCredentials().SetPreflightMaxAge(TimeSpan.FromHours(2));
             });
         });
 
-
-        // MediatR — in-process domain event dispatcher
-        // DomainEventInterceptor automatically dispatches events from all IAggregateRoot
-        // implementations after each SaveChangesAsync — no manual wiring needed.
+        // MediatR
         services.AddHttpContextAccessor();
         services.AddMediatR(cfg =>
         {
@@ -626,7 +430,71 @@ internal static class ServiceExtensions
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(Winnow.API.Infrastructure.Security.Authorization.AuthorizationBehavior<,>));
         });
         services.AddScoped<DomainEventInterceptor>();
-
-        return services;
     }
+
+    private static void AddWinnowHealthChecks(this IServiceCollection services)
+    {
+        services.AddHealthChecks()
+            .AddDbContextCheck<WinnowDbContext>("Database", tags: HealthCheckReadyTags)
+            .AddCheck<LlmHealthCheck>("LLM", tags: HealthCheckReadyTags)
+            .AddCheck<EmailHealthCheck>("Email", tags: HealthCheckReadyTags)
+            .AddCheck<TenantIntegrationsHealthCheck>("TenantIntegrations", tags: HealthCheckReadyTags)
+            .AddCheck<S3StorageHealthCheck>("S3Storage", tags: HealthCheckReadyTags);
+
+        services.AddSingleton<LlmHealthCheck>();
+        services.AddSingleton<EmailHealthCheck>();
+        services.AddSingleton<TenantIntegrationsHealthCheck>();
+        services.AddSingleton<S3StorageHealthCheck>();
+
+        services.AddSingleton<CachedHealthReportService>();
+        services.AddSingleton<Microsoft.Extensions.Diagnostics.HealthChecks.IHealthCheckPublisher, HealthReportPublisher>();
+
+        services.Configure<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckPublisherOptions>(options =>
+        {
+            options.Delay = TimeSpan.Zero;
+            options.Period = TimeSpan.FromSeconds(5);
+        });
+    }
+
+    private static void AddWinnowOpenApi(this IServiceCollection services)
+    {
+        services.AddFastEndpoints();
+        services.SwaggerDocument(o =>
+        {
+            o.ShortSchemaNames = true;
+            o.DocumentSettings = s =>
+            {
+                s.AddAuth("Bearer", new() { Name = "Authorization", In = NSwag.OpenApiSecurityApiKeyLocation.Header, Type = NSwag.OpenApiSecuritySchemeType.Http, Scheme = "Bearer", Description = "JWT Authorization header using the Bearer scheme." });
+                s.AddAuth("ApiKey", new() { Name = "X-API-Key", In = NSwag.OpenApiSecurityApiKeyLocation.Header, Type = NSwag.OpenApiSecuritySchemeType.ApiKey, Description = "Enter the Bouncer API Key here." });
+                s.AddAuth("ProjectApiKey", new() { Name = "X-Winnow-Key", In = NSwag.OpenApiSecurityApiKeyLocation.Header, Type = NSwag.OpenApiSecuritySchemeType.ApiKey, Description = "Enter the Project API Key here." });
+                s.OperationProcessors.Add(new Winnow.API.Infrastructure.Security.Swagger.SwaggerSecurityProcessor());
+                s.OperationProcessors.Add(new Winnow.API.Infrastructure.Security.Swagger.MediatRAuthOperationProcessor());
+            };
+        });
+    }
+
+    private static void AddWinnowRateLimiting(this IServiceCollection services)
+    {
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
+                PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                    RateLimitPartition.GetFixedWindowLimiter("global", _ => new FixedWindowRateLimiterOptions { PermitLimit = 5000, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 })),
+                PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                {
+                    var ip = GetIpAddress(context);
+                    return RateLimitPartition.GetConcurrencyLimiter(ip, _ => new ConcurrencyLimiterOptions { PermitLimit = 5, QueueLimit = 0 });
+                })
+            );
+
+            options.AddPolicy("api", context => RateLimitPartition.GetFixedWindowLimiter(GetIpAddress(context), _ => new FixedWindowRateLimiterOptions { PermitLimit = 100, Window = TimeSpan.FromMinutes(1), QueueLimit = 5 }));
+            options.AddPolicy("webhook", context => RateLimitPartition.GetTokenBucketLimiter(GetIpAddress(context), _ => new TokenBucketRateLimiterOptions { TokenLimit = 5, QueueLimit = 0, ReplenishmentPeriod = TimeSpan.FromMinutes(1), TokensPerPeriod = 5, AutoReplenishment = true }));
+            options.AddPolicy("strict", context => RateLimitPartition.GetFixedWindowLimiter(GetIpAddress(context), _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+            options.AddPolicy("email_dispatch", context => RateLimitPartition.GetFixedWindowLimiter(GetIpAddress(context), _ => new FixedWindowRateLimiterOptions { PermitLimit = 1, Window = TimeSpan.FromMinutes(2), QueueLimit = 0 }));
+        });
+    }
+
+    private static string GetIpAddress(HttpContext context) =>
+        context.Connection.RemoteIpAddress?.ToString() ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? "unknown";
 }

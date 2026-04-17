@@ -32,10 +32,19 @@ public static class WorkerServiceExtensions
 {
     public static IServiceCollection AddWinnowBaseInfrastructure(this IServiceCollection services, IConfiguration config)
     {
-        // Multi-tenancy context (required for resolving DB connection string)
+        services.AddWorkerInfrastructureCore(config);
+        services.AddWorkerDatabase(config);
+        services.AddWorkerMessaging(config);
+        services.AddWorkerEmail(config);
+
+        return services;
+    }
+
+    private static void AddWorkerInfrastructureCore(this IServiceCollection services, IConfiguration config)
+    {
         services.AddScoped<ITenantContext, TenantContext>();
 
-        // Caching (PoW replay protection and AI mismatch cache)
+        // Caching
         var redisConn = config.GetConnectionString("Redis");
         if (!string.IsNullOrEmpty(redisConn))
         {
@@ -73,21 +82,19 @@ public static class WorkerServiceExtensions
 
             if (string.IsNullOrWhiteSpace(s3Settings.AccessKey))
             {
-                // Fallback to Default Credential Chain (IAM Role) if no keys are provided
                 return new AmazonS3Client(s3Config);
             }
 
             return new AmazonS3Client(s3Settings.AccessKey, s3Settings.SecretKey, s3Config);
         });
         services.AddSingleton<IStorageService, S3StorageService>();
+    }
 
-        // Database
+    private static void AddWorkerDatabase(this IServiceCollection services, IConfiguration config)
+    {
         services.AddScoped<DomainEventInterceptor>();
         services.AddMediatR(cfg =>
         {
-            // Resolve MediatR handlers from the host/entry assembly (e.g., Winnow.Sanitize, Winnow.Summary)
-            // INSTEAD of blindly scanning the entire API assembly. This prevents micro-workers
-            // from crashing during DI validation due to missing API-specific features (like IStripePlanMapper).
             var entryAssembly = System.Reflection.Assembly.GetEntryAssembly();
             if (entryAssembly != null && !entryAssembly.FullName!.StartsWith("testhost", StringComparison.OrdinalIgnoreCase))
             {
@@ -95,27 +102,21 @@ public static class WorkerServiceExtensions
             }
             else
             {
-                // Fallback for tests or explicit API booting. Winnow.API already registers its own handlers via AddWinnowServices.
                 cfg.RegisterServicesFromAssembly(typeof(WinnowDbContext).Assembly);
             }
         });
 
-        // Register NpgsqlDataSource as a Singleton to ensure connection pooling works correctly
-        // and to prevent leaks caused by creating new DataSources inside shared scoped delegates.
         services.AddSingleton<NpgsqlDataSource>(sp =>
         {
-            var config = sp.GetRequiredService<IConfiguration>();
             var connStr = config.GetConnectionString("Postgres")
                 ?? throw new InvalidOperationException("Postgres connection string missing.");
 
-            // Bridge for AWS-managed passwords or GitHub secrets
             var dbPassword = config["DB_PASSWORD"];
             if (!string.IsNullOrEmpty(dbPassword) && connStr.Contains("{password}"))
             {
                 connStr = connStr.Replace("{password}", dbPassword);
             }
 
-            // Bridge for SSL Certificate Download (Optional/Portability)
             config.EnsureRdsSslCertificate();
 
             var dataSourceBuilder = new NpgsqlDataSourceBuilder(connStr);
@@ -126,30 +127,30 @@ public static class WorkerServiceExtensions
         services.AddDbContext<WinnowDbContext>((sp, options) =>
         {
             var dataSource = sp.GetRequiredService<NpgsqlDataSource>();
-
-            options.UseNpgsql(dataSource,
-                npgsql =>
-                {
-                    npgsql.UseVector();
-                    npgsql.MigrationsAssembly("Winnow.API");
-                });
+            options.UseNpgsql(dataSource, npgsql =>
+            {
+                npgsql.UseVector();
+                npgsql.MigrationsAssembly("Winnow.API");
+            });
             options.AddInterceptors(sp.GetRequiredService<DomainEventInterceptor>());
         });
+    }
 
-        // Conditionally inject Message Broker components to maintain local development without AWS credentials
-        // This MUST be in the base infrastructure so workers (winnow-summary) receive it.
+    private static void AddWorkerMessaging(this IServiceCollection services, IConfiguration config)
+    {
         if (Environment.GetEnvironmentVariable("MESSAGE_BROKER")?.Equals("AmazonSqs", StringComparison.OrdinalIgnoreCase) == true)
         {
             services.AddAWSService<Amazon.SQS.IAmazonSQS>();
             services.AddAWSService<Amazon.SimpleNotificationService.IAmazonSimpleNotificationService>();
         }
+    }
 
-        // Email Service
+    private static void AddWorkerEmail(this IServiceCollection services, IConfiguration config)
+    {
         var emailSettings = new Winnow.API.Infrastructure.Configuration.EmailSettings();
         config.GetSection("EmailSettings").Bind(emailSettings);
         services.AddSingleton(emailSettings);
 
-        // Discord Configuration
         services.Configure<DiscordOps>(config.GetSection("DiscordOps"));
 
         if (emailSettings.Provider == "AwsSes")
@@ -170,8 +171,6 @@ public static class WorkerServiceExtensions
         {
             services.AddScoped<IEmailService, Winnow.API.Services.Emails.SmtpEmailService>();
         }
-
-        return services;
     }
 
     public static IServiceCollection AddWinnowSanitizeInfrastructure(this IServiceCollection services, IConfiguration config)

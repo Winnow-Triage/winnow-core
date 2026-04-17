@@ -19,38 +19,62 @@ public class ProcessSesBounceHandler(UserManager<ApplicationUser> userManager, I
             using var document = JsonDocument.Parse(request.SesMessageJson);
             var root = document.RootElement;
 
-            if (root.TryGetProperty("notificationType", out var notificationType) && notificationType.GetString() == "Bounce")
-            {
-                if (root.TryGetProperty("bounce", out var bounceObj))
-                {
-                    if (bounceObj.TryGetProperty("bouncedRecipients", out var bouncedRecipients) && bouncedRecipients.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var recipient in bouncedRecipients.EnumerateArray())
-                        {
-                            if (recipient.TryGetProperty("emailAddress", out var emailAddressElem))
-                            {
-                                var email = emailAddressElem.GetString();
-                                if (!string.IsNullOrEmpty(email))
-                                {
-                                    var user = await userManager.FindByEmailAsync(email);
-                                    if (user != null)
-                                    {
-                                        user.EmailBounced = true;
-                                        user.BouncedAt = DateTime.UtcNow;
-                                        await userManager.UpdateAsync(user);
-                                        logger.LogInformation("Marked email as bounced for user {UserId} ({Email})", user.Id, email);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            if (!IsBounceNotification(root)) return;
+
+            var recipients = GetBouncedRecipients(root);
+            await ProcessRecipientsAsync(recipients, cancellationToken);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error parsing or processing SES bounce message JSON.");
-            // Do not throw -> acknowledge SNS anyway.
+            logger.LogError(ex, "Error processing SES bounce message.");
+        }
+    }
+
+    private static bool IsBounceNotification(JsonElement root) =>
+        root.TryGetProperty("notificationType", out var type) && type.GetString() == "Bounce";
+
+    private static IEnumerable<JsonElement> GetBouncedRecipients(JsonElement root)
+    {
+        if (root.TryGetProperty("bounce", out var bounce) &&
+            bounce.TryGetProperty("bouncedRecipients", out var recipients) &&
+            recipients.ValueKind == JsonValueKind.Array)
+        {
+            return recipients.EnumerateArray();
+        }
+        return Enumerable.Empty<JsonElement>();
+    }
+
+    private async Task ProcessRecipientsAsync(IEnumerable<JsonElement> recipients, CancellationToken cancellationToken)
+    {
+        foreach (var recipient in recipients)
+        {
+            if (recipient.TryGetProperty("emailAddress", out var emailElement))
+            {
+                var email = emailElement.GetString();
+                if (!string.IsNullOrEmpty(email))
+                {
+                    await MarkEmailAsBouncedAsync(email);
+                }
+            }
+        }
+    }
+
+    private async Task MarkEmailAsBouncedAsync(string email)
+    {
+        var user = await userManager.FindByEmailAsync(email);
+        if (user != null)
+        {
+            user.EmailBounced = true;
+            user.BouncedAt = DateTime.UtcNow;
+            var result = await userManager.UpdateAsync(user);
+            if (result.Succeeded)
+            {
+                logger.LogInformation("Marked email as bounced for user {UserId} ({Email})", user.Id, email);
+            }
+            else
+            {
+                logger.LogWarning("Failed to update bounce status for user {UserId}: {Errors}", user.Id, string.Join(", ", result.Errors.Select(e => e.Description)));
+            }
         }
     }
 }
