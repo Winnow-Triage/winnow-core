@@ -64,7 +64,7 @@ internal static class SecurityExtensions
         {
             options.ForwardDefaultSelector = context =>
             {
-                string authHeader = context.Request.Headers["Authorization"]!;
+                string? authHeader = context.Request.Headers.Authorization;
                 if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
                 {
                     return Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;

@@ -34,7 +34,7 @@ internal static class PipelineExtensions
         );
 
         // Core HTTP & resilience
-        services.AddWinnowHttpClients(config);
+        services.AddWinnowHttpClients();
 
         // AWS Shared
         services.AddDefaultAWSOptions(config.GetAWSOptions());
@@ -60,7 +60,7 @@ internal static class PipelineExtensions
         return services;
     }
 
-    private static void AddWinnowHttpClients(this IServiceCollection services, IConfiguration config)
+    private static void AddWinnowHttpClients(this IServiceCollection services)
     {
         services.AddSingleton<ExternalIntegrationHealthTracker>();
         services.AddTransient<ExternalIntegrationTrackerHandler>();

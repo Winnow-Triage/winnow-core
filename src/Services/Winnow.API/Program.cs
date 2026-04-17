@@ -54,7 +54,7 @@ var app = builder.Build();
 
 if (app.Services.GetService(typeof(Microsoft.AspNetCore.Authorization.IAuthorizationService)) == null)
 {
-    throw new Exception("CRIT: IAuthorizationService IS NULL IN LAMAR CONTAINER");
+    throw new InvalidOperationException("CRIT: IAuthorizationService IS NULL IN LAMAR CONTAINER");
 }
 // Configure global exception handling with custom middleware
 app.UseMiddleware<ExceptionHandlingMiddleware>();
