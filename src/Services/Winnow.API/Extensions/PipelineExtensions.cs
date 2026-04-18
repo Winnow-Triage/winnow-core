@@ -60,7 +60,6 @@ internal static class PipelineExtensions
 
     private static void AddWinnowHttpClients(this IServiceCollection services)
     {
-        services.AddSingleton<ExternalIntegrationHealthTracker>();
         services.AddTransient<ExternalIntegrationTrackerHandler>();
         services.AddHttpClient("ExternalIntegrations")
             .RemoveAllLoggers()

@@ -144,6 +144,7 @@ internal static class InfrastructureExtensions
     {
         services.AddSingleton<Winnow.API.Infrastructure.HealthChecks.CachedHealthReportService>();
         services.AddSingleton<Microsoft.Extensions.Diagnostics.HealthChecks.IHealthCheckPublisher, Winnow.API.Infrastructure.HealthChecks.HealthReportPublisher>();
+        services.AddSingleton<Winnow.API.Infrastructure.HealthChecks.ExternalIntegrationHealthTracker>();
 
         services.AddHealthChecks()
             .AddDbContextCheck<WinnowDbContext>()
