@@ -38,7 +38,7 @@ public static class WorkerServiceExtensions
         var llmSettings = new LlmSettings();
         config.GetSection("LlmSettings").Bind(llmSettings);
 
-        services.AddSingleton<LocalPiiRedactionProvider>();
+        services.AddHttpClient<LocalPiiRedactionProvider>().AddStandardResilienceHandler();
         services.AddSingleton<IPiiRedactionProvider>(sp => sp.GetRequiredService<LocalPiiRedactionProvider>());
 
         if (llmSettings.PiiRedactionProvider?.Equals("AmazonComprehend", StringComparison.OrdinalIgnoreCase) == true)

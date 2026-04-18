@@ -45,7 +45,6 @@ internal static class InfrastructureExtensions
         services.AddWinnowHealthChecks();
 
         // Hosted Services
-        services.AddHostedService<AdminSeeder>();
         services.AddHostedService<InvitationCleanupJob>();
         services.AddHostedService<ApiKeyCleanupJob>();
         services.AddHostedService<DatabaseSweeper>();

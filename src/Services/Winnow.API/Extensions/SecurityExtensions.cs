@@ -29,6 +29,7 @@ internal static class SecurityExtensions
 
         // Identity
         services.AddWinnowIdentity();
+        services.AddHostedService<AdminSeeder>();
 
         // Authentication
         services.AddWinnowAuthentication(config);
