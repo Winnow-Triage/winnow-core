@@ -28,6 +28,7 @@ internal static class InfrastructureExtensions
         var llmSettings = new LlmSettings();
         config.GetSection("LlmSettings").Bind(llmSettings);
         services.AddSingleton(llmSettings);
+        services.Configure<LlmSettings>(config.GetSection("LlmSettings"));
         // Multi-tenancy
         services.AddScoped<ITenantContext, TenantContext>();
         services.AddScoped<IExporterFactory, ExporterFactory>();
