@@ -25,6 +25,9 @@ internal static class InfrastructureExtensions
 {
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration config)
     {
+        var llmSettings = new LlmSettings();
+        config.GetSection("LlmSettings").Bind(llmSettings);
+        services.AddSingleton(llmSettings);
         // Multi-tenancy
         services.AddScoped<ITenantContext, TenantContext>();
         services.AddScoped<IExporterFactory, ExporterFactory>();
