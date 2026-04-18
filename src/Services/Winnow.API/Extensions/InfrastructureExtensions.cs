@@ -45,9 +45,6 @@ internal static class InfrastructureExtensions
         services.AddWinnowRepositories();
         services.AddScoped<DomainEventInterceptor>();
 
-        // Health Checks
-        services.AddWinnowHealthChecks();
-
         // Hosted Services
         services.AddHostedService<InvitationCleanupJob>();
         services.AddHostedService<ApiKeyCleanupJob>();
@@ -143,7 +140,7 @@ internal static class InfrastructureExtensions
         services.AddScoped<Winnow.API.Features.Clusters.Search.IClusterSearchRepository, Winnow.API.Features.Clusters.Search.ClusterSearchRepository>();
     }
 
-    private static void AddWinnowHealthChecks(this IServiceCollection services)
+    internal static void AddWinnowHealthChecks(this IServiceCollection services)
     {
         services.AddSingleton<Winnow.API.Infrastructure.HealthChecks.CachedHealthReportService>();
         services.AddSingleton<Microsoft.Extensions.Diagnostics.HealthChecks.IHealthCheckPublisher, Winnow.API.Infrastructure.HealthChecks.HealthReportPublisher>();

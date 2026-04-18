@@ -9,6 +9,7 @@ internal static class ServiceExtensions
     public static IServiceCollection AddWinnowServices(this IServiceCollection services, IConfiguration config, IHostEnvironment hostEnv)
     {
         services.AddInfrastructureServices(config);
+        services.AddWinnowHealthChecks();
         services.AddAiAndLlmServices(config);
         services.AddSecurityAndIdentity(config);
         services.AddEmailAndNotifications(config);
