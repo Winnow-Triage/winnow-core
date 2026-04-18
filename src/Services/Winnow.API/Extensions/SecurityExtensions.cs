@@ -70,6 +70,11 @@ internal static class SecurityExtensions
                     return Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
                 }
 
+                if (context.Request.Cookies.ContainsKey("winnow_auth"))
+                {
+                    return Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
+                }
+
                 return "ApiKey";
             };
         })
@@ -88,6 +93,18 @@ internal static class SecurityExtensions
                 ValidAudience = jwtSettings.Audience,
                 IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
                     System.Text.Encoding.UTF8.GetBytes(jwtSettings.SecretKey))
+            };
+
+            options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    if (context.Request.Cookies.TryGetValue("winnow_auth", out var token))
+                    {
+                        context.Token = token;
+                    }
+                    return Task.CompletedTask;
+                }
             };
         })
         .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>("ApiKey", null);
