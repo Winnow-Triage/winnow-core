@@ -55,8 +55,6 @@ internal static class PipelineExtensions
         // MediatR
         services.AddWinnowMediatR();
 
-        services.AddScoped<DomainEventInterceptor>();
-
         return services;
     }
 

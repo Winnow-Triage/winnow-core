@@ -40,6 +40,7 @@ internal static class InfrastructureExtensions
 
         // Repositories
         services.AddWinnowRepositories();
+        services.AddScoped<DomainEventInterceptor>();
 
         // Health Checks
         services.AddWinnowHealthChecks();

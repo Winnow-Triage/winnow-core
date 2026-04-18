@@ -17,6 +17,7 @@ public static class WorkerServiceExtensions
 {
     public static IServiceCollection AddWinnowBaseInfrastructure(this IServiceCollection services, IConfiguration config)
     {
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Winnow.Contracts.ReportCreatedEvent).Assembly));
         services.AddInfrastructureServices(config);
         services.AddWorkerMessaging();
         services.AddEmailAndNotifications(config);
