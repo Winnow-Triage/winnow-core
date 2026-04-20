@@ -20,7 +20,7 @@ public class CreateProjectHandler(
     WinnowDbContext dbContext,
     IApiKeyService apiKeyService) : IRequestHandler<CreateProjectCommand, ProjectDto>
 {
-    public async Task<ProjectDto> Handle(CreateProjectCommand request, CancellationToken ct)
+    public async Task<ProjectDto> Handle(CreateProjectCommand request, CancellationToken cancellationToken)
     {
         // 1. We must generate the Project ID early so we can embed it in the key
         var projectId = Guid.NewGuid();
@@ -40,7 +40,7 @@ public class CreateProjectHandler(
         );
 
         dbContext.Projects.Add(project);
-        await dbContext.SaveChangesAsync(ct);
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         // 4. Return the PLAINTEXT key exactly once to the frontend
         return new ProjectDto(project.Id, project.Name, plaintextApiKey);

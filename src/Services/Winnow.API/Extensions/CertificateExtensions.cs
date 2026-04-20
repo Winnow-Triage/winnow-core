@@ -30,7 +30,7 @@ public static class CertificateExtensions
             return;
         }
 
-        var match = Regex.Match(connStr, @"Root Certificate=([^;]+)", RegexOptions.IgnoreCase);
+        var match = Regex.Match(connStr, @"Root Certificate=([^;]+)", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250));
         if (!match.Success)
         {
             return;

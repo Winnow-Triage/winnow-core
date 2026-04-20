@@ -15,11 +15,13 @@ public record SendIntegrationVerificationTokenCommand
 
 public class SendIntegrationVerificationTokenCommandHandler(
     IEmailService emailService,
+    Microsoft.Extensions.Configuration.IConfiguration config,
     ILogger<SendIntegrationVerificationTokenCommandHandler> logger)
 {
     public async Task Handle(SendIntegrationVerificationTokenCommand command, CancellationToken ct)
     {
-        var verifyUrl = new Uri($"https://app.winnowtriage.com/projects/{command.ProjectId}/settings?verifyIntegration={command.IntegrationId}&token={command.Token}");
+        var appUrl = config["AppUrl"] ?? throw new InvalidOperationException("AppUrl configuration is missing.");
+        var verifyUrl = new Uri($"{appUrl.TrimEnd('/')}/projects/{command.ProjectId}/settings?verifyIntegration={command.IntegrationId}&token={command.Token}");
 
         await emailService.SendIntegrationVerificationAsync(command.RecipientEmail, command.ProjectName, verifyUrl);
 

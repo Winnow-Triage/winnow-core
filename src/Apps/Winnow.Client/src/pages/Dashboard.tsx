@@ -48,7 +48,7 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex h-full items-center justify-center" data-testid="dashboard-loading">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );

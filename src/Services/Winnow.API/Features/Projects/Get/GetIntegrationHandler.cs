@@ -12,11 +12,11 @@ namespace Winnow.API.Features.Projects.Get;
 public class GetIntegrationHandler(WinnowDbContext db)
     : IRequestHandler<GetIntegrationQuery, Integration>
 {
-    public async Task<Integration> Handle(GetIntegrationQuery request, CancellationToken ct)
+    public async Task<Integration> Handle(GetIntegrationQuery request, CancellationToken cancellationToken)
     {
         var integration = await db.Integrations
             .AsNoTracking()
-            .FirstOrDefaultAsync(i => i.Id == request.Id && i.ProjectId == request.ProjectId, ct);
+            .FirstOrDefaultAsync(i => i.Id == request.Id && i.ProjectId == request.ProjectId, cancellationToken);
 
         if (integration == null)
         {

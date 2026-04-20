@@ -24,10 +24,10 @@ public record UpdateProjectCommand : IRequest<UpdateProjectResponse>, IProjectSc
 
 public class UpdateProjectHandler(WinnowDbContext dbContext) : IRequestHandler<UpdateProjectCommand, UpdateProjectResponse>
 {
-    public async Task<UpdateProjectResponse> Handle(UpdateProjectCommand request, CancellationToken ct)
+    public async Task<UpdateProjectResponse> Handle(UpdateProjectCommand request, CancellationToken cancellationToken)
     {
         var project = await dbContext.Projects
-            .FirstOrDefaultAsync(p => p.Id == request.ProjectId && p.OrganizationId == request.CurrentOrganizationId, ct);
+            .FirstOrDefaultAsync(p => p.Id == request.ProjectId && p.OrganizationId == request.CurrentOrganizationId, cancellationToken);
 
         if (project == null)
         {
@@ -45,7 +45,7 @@ public class UpdateProjectHandler(WinnowDbContext dbContext) : IRequestHandler<U
         );
         project.UpdateNotificationThresholds(notificationSettings);
 
-        await dbContext.SaveChangesAsync(ct);
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         return new UpdateProjectResponse
         {

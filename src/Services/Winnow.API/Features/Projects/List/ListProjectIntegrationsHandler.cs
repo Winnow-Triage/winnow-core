@@ -19,13 +19,13 @@ public record ListProjectIntegrationsQuery : IRequest<List<ProjectIntegrationDto
 public class ListProjectIntegrationsHandler(WinnowDbContext db)
     : IRequestHandler<ListProjectIntegrationsQuery, List<ProjectIntegrationDto>>
 {
-    public async Task<List<ProjectIntegrationDto>> Handle(ListProjectIntegrationsQuery request, CancellationToken ct)
+    public async Task<List<ProjectIntegrationDto>> Handle(ListProjectIntegrationsQuery request, CancellationToken cancellationToken)
     {
         var integrations = await db.Integrations
             .AsNoTracking()
             .Where(i => i.ProjectId == request.ProjectId)
             .Select(i => new { i.Id, i.Provider, i.Name, i.IsActive })
-            .ToListAsync(ct);
+            .ToListAsync(cancellationToken);
 
         var dtos = integrations.Select(i => new ProjectIntegrationDto(i.Id, i.Provider, i.Name, i.IsActive)).ToList();
 

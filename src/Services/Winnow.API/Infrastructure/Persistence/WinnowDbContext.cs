@@ -20,9 +20,9 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
     private readonly string _encryptionKey = configuration["Encryption:MasterKey"]
         ?? throw new InvalidOperationException("Encryption config: 'Encryption:MasterKey' is missing.");
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder builder)
     {
-        base.OnModelCreating(modelBuilder);
+        base.OnModelCreating(builder);
 
         var floatArrayComparer = new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<float[]>(
             (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == null && c2 == null,
@@ -37,9 +37,9 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
         // Configure database-specific features
         if (Database.IsNpgsql())
         {
-            modelBuilder.HasPostgresExtension("vector");
+            builder.HasPostgresExtension("vector");
 
-            modelBuilder.Entity<Domain.Reports.Report>(entity =>
+            builder.Entity<Domain.Reports.Report>(entity =>
             {
                 entity.Property(b => b.Embedding)
                     .HasColumnType("vector(384)")
@@ -65,7 +65,7 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
                 entity.HasQueryFilter(r => r.IsSanitized);
             });
 
-            modelBuilder.Entity<Domain.Clusters.Cluster>(entity =>
+            builder.Entity<Domain.Clusters.Cluster>(entity =>
             {
                 entity.Property(b => b.Centroid)
                     .HasColumnType("vector(384)")
@@ -89,29 +89,29 @@ public class WinnowDbContext(DbContextOptions<WinnowDbContext> options, ITenantC
             });
         }
 
-        modelBuilder.Ignore<Winnow.Integrations.Domain.IntegrationConfig>();
+        builder.Ignore<Winnow.Integrations.Domain.IntegrationConfig>();
 
         // Organization -> Team -> Project hierarchy
-        modelBuilder.ApplyConfiguration(new Configurations.OrganizationConfiguration());
-        modelBuilder.ApplyConfiguration(new Configurations.TeamConfiguration());
-        modelBuilder.ApplyConfiguration(new Configurations.ProjectConfiguration());
-        modelBuilder.ApplyConfiguration(new Configurations.ReportConfiguration());
-        modelBuilder.ApplyConfiguration(new Configurations.ClusterConfiguration());
-        modelBuilder.ApplyConfiguration(new Configurations.AssetConfiguration());
+        builder.ApplyConfiguration(new Configurations.OrganizationConfiguration());
+        builder.ApplyConfiguration(new Configurations.TeamConfiguration());
+        builder.ApplyConfiguration(new Configurations.ProjectConfiguration());
+        builder.ApplyConfiguration(new Configurations.ReportConfiguration());
+        builder.ApplyConfiguration(new Configurations.ClusterConfiguration());
+        builder.ApplyConfiguration(new Configurations.AssetConfiguration());
 
-        modelBuilder.ApplyConfiguration(new Configurations.OrganizationMemberConfiguration());
-        modelBuilder.ApplyConfiguration(new Configurations.TeamMemberConfiguration());
-        modelBuilder.ApplyConfiguration(new Configurations.ProjectMemberConfiguration());
-        modelBuilder.ApplyConfiguration(new Configurations.OrganizationInvitationConfiguration());
-        modelBuilder.ApplyConfiguration(new Configurations.AiUsageConfiguration());
+        builder.ApplyConfiguration(new Configurations.OrganizationMemberConfiguration());
+        builder.ApplyConfiguration(new Configurations.TeamMemberConfiguration());
+        builder.ApplyConfiguration(new Configurations.ProjectMemberConfiguration());
+        builder.ApplyConfiguration(new Configurations.OrganizationInvitationConfiguration());
+        builder.ApplyConfiguration(new Configurations.AiUsageConfiguration());
 
         // RBAC
-        modelBuilder.ApplyConfiguration(new Configurations.RoleConfiguration());
-        modelBuilder.ApplyConfiguration(new Configurations.PermissionConfiguration());
-        modelBuilder.ApplyConfiguration(new Configurations.RolePermissionConfiguration());
+        builder.ApplyConfiguration(new Configurations.RoleConfiguration());
+        builder.ApplyConfiguration(new Configurations.PermissionConfiguration());
+        builder.ApplyConfiguration(new Configurations.RolePermissionConfiguration());
 
         var encryptedConverter = new EncryptedStringConverter(_encryptionKey);
-        modelBuilder.ApplyConfiguration(new Configurations.IntegrationConfiguration(encryptedConverter));
+        builder.ApplyConfiguration(new Configurations.IntegrationConfiguration(encryptedConverter));
 
 
         // Note: Global query filters for tenant isolation are applied at runtime

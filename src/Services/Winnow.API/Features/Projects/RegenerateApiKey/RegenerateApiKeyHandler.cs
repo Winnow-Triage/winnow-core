@@ -20,12 +20,12 @@ public class RegenerateApiKeyHandler(
     WinnowDbContext dbContext,
     IApiKeyService apiKeyService) : IRequestHandler<RegenerateApiKeyCommand, RegenerateApiKeyResponse>
 {
-    public async Task<RegenerateApiKeyResponse> Handle(RegenerateApiKeyCommand request, CancellationToken ct)
+    public async Task<RegenerateApiKeyResponse> Handle(RegenerateApiKeyCommand request, CancellationToken cancellationToken)
     {
         var project = await dbContext.Projects
             .FirstOrDefaultAsync(p => p.Id == request.ProjectId
                                    && p.OwnerId == request.CurrentUserId
-                                   && p.OrganizationId == request.CurrentOrganizationId, ct);
+                                   && p.OrganizationId == request.CurrentOrganizationId, cancellationToken);
 
         if (project == null)
         {
@@ -40,7 +40,7 @@ public class RegenerateApiKeyHandler(
 
         // Update the project
         project.ForceSetPrimaryApiKey(apiKeyHash);
-        await dbContext.SaveChangesAsync(ct);
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         return new RegenerateApiKeyResponse { ApiKey = plaintextApiKey };
     }

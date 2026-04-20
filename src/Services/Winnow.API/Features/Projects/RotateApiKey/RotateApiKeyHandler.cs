@@ -21,12 +21,12 @@ public class RotateApiKeyHandler(
     WinnowDbContext dbContext,
     IApiKeyService apiKeyService) : IRequestHandler<RotateApiKeyCommand, RotateApiKeyResponse>
 {
-    public async Task<RotateApiKeyResponse> Handle(RotateApiKeyCommand request, CancellationToken ct)
+    public async Task<RotateApiKeyResponse> Handle(RotateApiKeyCommand request, CancellationToken cancellationToken)
     {
         var project = await dbContext.Projects
             .FirstOrDefaultAsync(p => p.Id == request.ProjectId
                                    && p.OwnerId == request.CurrentUserId
-                                   && p.OrganizationId == request.CurrentOrganizationId, ct);
+                                   && p.OrganizationId == request.CurrentOrganizationId, cancellationToken);
 
         if (project == null)
         {
@@ -39,7 +39,7 @@ public class RotateApiKeyHandler(
 
         project.RotateApiKey(newKeyHash, request.ExpiresAt);
 
-        await dbContext.SaveChangesAsync(ct);
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         return new RotateApiKeyResponse { ApiKey = plaintextApiKey };
     }

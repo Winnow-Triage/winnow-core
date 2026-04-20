@@ -96,7 +96,11 @@ public class VisibilityTests : IAsyncLifetime
         _client.DefaultRequestHeaders.Clear();
         _client.DefaultRequestHeaders.Add("X-Tenant-ID", "test-tenant");
         var response = await _client.PostAsJsonAsync("/auth/login", new LoginRequest { Email = email, Password = password });
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            throw new Exception($"Login failed with status {response.StatusCode}: {error}");
+        }
         var authResult = await response.Content.ReadFromJsonAsync<AuthResult>();
         return authResult?.Token ?? throw new InvalidOperationException("Token not found in login response.");
     }
@@ -109,7 +113,11 @@ public class VisibilityTests : IAsyncLifetime
         _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _adminToken);
         var response = await _client.GetAsync("/projects");
 
-        Assert.True(response.IsSuccessStatusCode);
+        if (!response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync();
+            Assert.Fail($"Status {response.StatusCode}: {content}");
+        }
         var projects = await response.Content.ReadFromJsonAsync<List<ProjectDto>>();
         Assert.Contains(projects!, p => p.Id == _projectId);
     }
@@ -122,7 +130,11 @@ public class VisibilityTests : IAsyncLifetime
         _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _memberToken);
         var response = await _client.GetAsync("/projects");
 
-        Assert.True(response.IsSuccessStatusCode);
+        if (!response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync();
+            Assert.Fail($"Status {response.StatusCode}: {content}");
+        }
         var projects = await response.Content.ReadFromJsonAsync<List<ProjectDto>>();
         Assert.DoesNotContain(projects!, p => p.Id == _projectId);
     }
@@ -137,7 +149,11 @@ public class VisibilityTests : IAsyncLifetime
 
         var response = await _client.GetAsync("/clusters");
 
-        Assert.True(response.IsSuccessStatusCode);
+        if (!response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync();
+            Assert.Fail($"Status {response.StatusCode}: {content}");
+        }
         var clusters = await response.Content.ReadFromJsonAsync<List<ClusterDto>>();
         Assert.NotEmpty(clusters!);
     }
@@ -163,7 +179,11 @@ public class VisibilityTests : IAsyncLifetime
         var response = await _client.GetAsync("/clusters");
 
         // Assert
-        Assert.True(response.IsSuccessStatusCode);
+        if (!response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync();
+            Assert.Fail($"Status {response.StatusCode}: {content}");
+        }
         var clusters = await response.Content.ReadFromJsonAsync<List<ClusterDto>>();
         Assert.NotEmpty(clusters!);
     }

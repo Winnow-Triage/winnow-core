@@ -25,10 +25,10 @@ public class DeleteProjectHandler(
     S3Settings s3Settings,
     ILogger<DeleteProjectHandler> logger) : IRequestHandler<DeleteProjectCommand>
 {
-    public async Task Handle(DeleteProjectCommand request, CancellationToken ct)
+    public async Task Handle(DeleteProjectCommand request, CancellationToken cancellationToken)
     {
         var project = await dbContext.Projects
-            .FirstOrDefaultAsync(p => p.Id == request.ProjectId && p.OrganizationId == request.CurrentOrganizationId, ct);
+            .FirstOrDefaultAsync(p => p.Id == request.ProjectId && p.OrganizationId == request.CurrentOrganizationId, cancellationToken);
 
         if (project == null)
         {
@@ -46,19 +46,19 @@ public class DeleteProjectHandler(
 
         // Clean up S3 assets for this project
         var projectPrefix = $"organizations/{request.CurrentOrganizationId}/projects/{request.ProjectId}/";
-        await TryDeletePrefixAsync(s3Settings.QuarantineBucket, projectPrefix, ct);
-        await TryDeletePrefixAsync(s3Settings.CleanBucket, projectPrefix, ct);
+        await TryDeletePrefixAsync(s3Settings.QuarantineBucket, projectPrefix, cancellationToken);
+        await TryDeletePrefixAsync(s3Settings.CleanBucket, projectPrefix, cancellationToken);
 
         // Manual cascade to satisfy Restrict constraints
         logger.LogInformation("Cleaning up relations for project {ProjectId}", request.ProjectId);
 
-        await dbContext.Assets.Where(a => a.ProjectId == request.ProjectId).ExecuteDeleteAsync(ct);
-        await dbContext.Reports.Where(r => r.ProjectId == request.ProjectId).ExecuteDeleteAsync(ct);
-        await dbContext.Integrations.Where(i => i.ProjectId == request.ProjectId).ExecuteDeleteAsync(ct);
-        await dbContext.ProjectMembers.Where(pm => pm.ProjectId == request.ProjectId).ExecuteDeleteAsync(ct);
+        await dbContext.Assets.Where(a => a.ProjectId == request.ProjectId).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.Reports.Where(r => r.ProjectId == request.ProjectId).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.Integrations.Where(i => i.ProjectId == request.ProjectId).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.ProjectMembers.Where(pm => pm.ProjectId == request.ProjectId).ExecuteDeleteAsync(cancellationToken);
 
         dbContext.Projects.Remove(project);
-        await dbContext.SaveChangesAsync(ct);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task TryDeletePrefixAsync(string bucketName, string prefix, CancellationToken ct)

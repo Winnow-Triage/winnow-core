@@ -54,6 +54,8 @@ internal static class MiddlewareExtensions
         app.UseCors();
         app.UseAuthentication();
         app.UseMiddleware<TenantMiddleware>();
+
+
         app.UseAuthorization();
         app.UseStaticFiles();
 

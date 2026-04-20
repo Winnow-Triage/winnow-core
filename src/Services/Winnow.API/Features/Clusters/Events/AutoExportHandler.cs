@@ -16,18 +16,18 @@ public sealed class AutoExportHandler(
     : INotificationHandler<ClusterReportAddedEvent>,
       INotificationHandler<ClusterSummarizedEvent>
 {
-    public async Task Handle(ClusterReportAddedEvent notification, CancellationToken ct)
+    public async Task Handle(ClusterReportAddedEvent notification, CancellationToken cancellationToken)
     {
         // 1. Fetch project and organization settings
         var project = await dbContext.Projects
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == notification.ProjectId, ct);
+            .FirstOrDefaultAsync(p => p.Id == notification.ProjectId, cancellationToken);
 
         if (project == null) return;
 
         var organization = await dbContext.Organizations
             .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.Id == notification.OrganizationId, ct);
+            .FirstOrDefaultAsync(o => o.Id == notification.OrganizationId, cancellationToken);
 
         if (organization == null) return;
 
@@ -38,26 +38,26 @@ public sealed class AutoExportHandler(
         // 3. Check if exact threshold was hit
         var cluster = await dbContext.Clusters
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == notification.ClusterId, ct);
+            .FirstOrDefaultAsync(c => c.Id == notification.ClusterId, cancellationToken);
 
         if (cluster == null || cluster.ReportCount != threshold) return;
 
         // 4. Trigger auto-exports for active integrations
-        await TriggerAutoExportsAsync(project.Id, cluster.Id, cluster.Title ?? "Untitled Cluster", cluster.Summary ?? "Automatic export due to volume milestone.", ct);
+        await TriggerAutoExportsAsync(project.Id, cluster.Id, cluster.Title ?? "Untitled Cluster", cluster.Summary ?? "Automatic export due to volume milestone.");
     }
 
-    public async Task Handle(ClusterSummarizedEvent notification, CancellationToken ct)
+    public async Task Handle(ClusterSummarizedEvent notification, CancellationToken cancellationToken)
     {
         // 1. Fetch project and organization settings
         var project = await dbContext.Projects
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == notification.ProjectId, ct);
+            .FirstOrDefaultAsync(p => p.Id == notification.ProjectId, cancellationToken);
 
         if (project == null) return;
 
         var organization = await dbContext.Organizations
             .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.Id == notification.OrganizationId, ct);
+            .FirstOrDefaultAsync(o => o.Id == notification.OrganizationId, cancellationToken);
 
         if (organization == null) return;
 
@@ -69,10 +69,10 @@ public sealed class AutoExportHandler(
         if (notification.CriticalityScore < threshold) return;
 
         // 5. Trigger auto-exports
-        await TriggerAutoExportsAsync(project.Id, notification.ClusterId, notification.Title, notification.Summary, ct);
+        await TriggerAutoExportsAsync(project.Id, notification.ClusterId, notification.Title, notification.Summary);
     }
 
-    private async Task TriggerAutoExportsAsync(Guid projectId, Guid clusterId, string title, string description, CancellationToken ct)
+    private async Task TriggerAutoExportsAsync(Guid projectId, Guid clusterId, string title, string description)
     {
         // Offload the cross-boundary export logic to the API "Hub" using Wolverine
         logger.LogInformation("Enqueuing auto-export integration event for Cluster {ClusterId}.", clusterId);

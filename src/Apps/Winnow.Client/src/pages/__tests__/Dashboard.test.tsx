@@ -45,11 +45,9 @@ describe("Dashboard Component", () => {
   it("renders loading state initially", async () => {
     vi.mocked(api.get).mockImplementation(() => new Promise(() => {}));
     render(<Dashboard />, { wrapper: createWrapper() });
-    // Lucide Loader2 doesn't have accessible name usually, but we check for the container class if needed
-    // or just the lack of other content.
-    // Based on Dashboard.tsx: <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-    // We can use a test-id if we want, or just verify it's loading.
-    // Let's check for the presence of the Loader2 icon by its class or container
+    
+    expect(api.get).toHaveBeenCalled();
+    expect(screen.getByTestId("dashboard-loading")).toBeInTheDocument();
   });
 
   it("renders error state when API fails", async () => {

@@ -55,7 +55,7 @@ public class CreateOrganizationInvitationHandler(
         db.OrganizationInvitations.Add(invitation);
         await db.SaveChangesAsync(cancellationToken);
 
-        var appUrl = config["AppUrl"] ?? "https://app.winnowtriage.com";
+        var appUrl = config["AppUrl"] ?? throw new InvalidOperationException("AppUrl configuration is missing.");
         var inviteLink = new Uri($"{appUrl.TrimEnd('/')}/accept-invite?token={token}");
         await emailService.SendOrganizationInviteAsync(request.Email, org.Name, inviteLink);
 

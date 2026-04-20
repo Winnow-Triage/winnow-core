@@ -498,7 +498,8 @@ public class ArchitectureTests
             "Winnow.API.Infrastructure.MultiTenancy",
             "Winnow.API.Infrastructure.Scheduling",
             "Winnow.API.Infrastructure.Integrations", // For ExporterFactory and deserialization strategies
-            "Winnow.API.Infrastructure.Integrations.Strategies" // For IIntegrationConfigDeserializationStrategy
+            "Winnow.API.Infrastructure.Integrations.Strategies", // For IIntegrationConfigDeserializationStrategy
+            "Winnow.API.Infrastructure.Identity"
         };
 
         // Check that Features only depend on allowed infrastructure namespaces

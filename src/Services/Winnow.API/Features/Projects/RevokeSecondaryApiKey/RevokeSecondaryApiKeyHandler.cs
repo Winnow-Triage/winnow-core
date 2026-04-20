@@ -17,12 +17,12 @@ public record RevokeSecondaryApiKeyCommand : IRequest, IOrganizationScopedReques
 
 public class RevokeSecondaryApiKeyHandler(WinnowDbContext dbContext) : IRequestHandler<RevokeSecondaryApiKeyCommand>
 {
-    public async Task Handle(RevokeSecondaryApiKeyCommand request, CancellationToken ct)
+    public async Task Handle(RevokeSecondaryApiKeyCommand request, CancellationToken cancellationToken)
     {
         var project = await dbContext.Projects
             .FirstOrDefaultAsync(p => p.Id == request.ProjectId
                                    && p.OwnerId == request.CurrentUserId
-                                   && p.OrganizationId == request.CurrentOrganizationId, ct);
+                                   && p.OrganizationId == request.CurrentOrganizationId, cancellationToken);
 
         if (project == null)
         {
@@ -30,6 +30,6 @@ public class RevokeSecondaryApiKeyHandler(WinnowDbContext dbContext) : IRequestH
         }
 
         project.RevokeSecondaryApiKey();
-        await dbContext.SaveChangesAsync(ct);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

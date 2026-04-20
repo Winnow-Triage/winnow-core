@@ -33,85 +33,99 @@ public class CreateIntegrationHandler(
     IEnumerable<IIntegrationConfigDeserializationStrategy> deserializationStrategies)
     : IRequestHandler<CreateIntegrationCommand, Integration>
 {
-    public async Task<Integration> Handle(CreateIntegrationCommand request, CancellationToken ct)
+    public async Task<Integration> Handle(CreateIntegrationCommand request, CancellationToken cancellationToken)
     {
         var strategy = deserializationStrategies.FirstOrDefault(s => s.CanHandle(request.Provider))
             ?? throw new ArgumentException($"Unsupported provider: {request.Provider}");
 
-        IntegrationConfig newConfig = strategy.Deserialize(request.SettingsJson);
-        bool requiresEmailVerification = false;
-        string? generatedVerificationToken = null;
+        var config = strategy.Deserialize(request.SettingsJson);
+        var (finalConfig, verificationToken) = PrepareConfigWithVerification(config, request.Id.HasValue ? await GetExistingRecipientEmail(request.Id.Value) : null);
 
-        var projectName = await db.Projects
-            .Where(p => p.Id == request.ProjectId)
-            .Select(p => p.Name)
-            .FirstOrDefaultAsync(ct) ?? "Your Project";
-
-        Integration? integration;
-
+        Integration integration;
         if (request.Id.HasValue)
         {
-            integration = await db.Integrations.FindAsync([request.Id.Value], ct);
-            if (integration == null)
-            {
-                throw new InvalidOperationException("Integration not found.");
-            }
-            if (integration.ProjectId != request.ProjectId)
-            {
-                throw new UnauthorizedAccessException("Access denied.");
-            }
-
-            if (newConfig is EmailConfig newEmailConfig && !string.IsNullOrWhiteSpace(newEmailConfig.RecipientEmail))
-            {
-                if (integration.Config is not EmailConfig oldEmailConfig || oldEmailConfig.RecipientEmail != newEmailConfig.RecipientEmail)
-                {
-                    generatedVerificationToken = Guid.NewGuid().ToString("N");
-                    newConfig = newEmailConfig with { IsVerified = false, VerificationToken = generatedVerificationToken };
-                    requiresEmailVerification = true;
-                }
-            }
-
-            integration.UpdateConfig(newConfig);
-            if (request.IsActive) integration.Reactivate(); else integration.Deactivate();
-            integration.UpdateNotificationState(request.NotificationsEnabled);
-            integration.UpdateName(request.Name);
+            integration = await UpdateExistingIntegrationAsync(request, finalConfig, cancellationToken);
         }
         else
         {
-            if (newConfig is EmailConfig newEmailConfig && !string.IsNullOrWhiteSpace(newEmailConfig.RecipientEmail))
-            {
-                generatedVerificationToken = Guid.NewGuid().ToString("N");
-                newConfig = newEmailConfig with { IsVerified = false, VerificationToken = generatedVerificationToken };
-                requiresEmailVerification = true;
-            }
-
-            integration = new Integration(
-                request.CurrentOrganizationId,
-                request.ProjectId,
-                request.Provider,
-                request.Name,
-                newConfig
-            );
-            if (!request.IsActive) integration.Deactivate();
-            integration.UpdateNotificationState(request.NotificationsEnabled);
-
-            await db.Integrations.AddAsync(integration, ct);
+            integration = await CreateNewIntegrationAsync(request, finalConfig, cancellationToken);
         }
 
-        await db.SaveChangesAsync(ct);
+        await db.SaveChangesAsync(cancellationToken);
 
-        if (requiresEmailVerification && newConfig is EmailConfig finalEmailConfig && generatedVerificationToken != null)
+        if (verificationToken != null && finalConfig is EmailConfig emailConfig)
         {
-            await messageBus.PublishAsync(new SendIntegrationVerificationTokenCommand
-            {
-                IntegrationId = integration.Id,
-                ProjectId = integration.ProjectId,
-                ProjectName = projectName,
-                RecipientEmail = finalEmailConfig.RecipientEmail,
-                Token = generatedVerificationToken
-            });
+            await NotifyVerificationRequiredAsync(integration, emailConfig, verificationToken, cancellationToken);
         }
 
         return integration;
+    }
+
+    private async Task<string?> GetExistingRecipientEmail(Guid id)
+    {
+        var integration = await db.Integrations.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id);
+        return integration?.Config is EmailConfig ec ? ec.RecipientEmail : null;
+    }
+
+    private static (IntegrationConfig Config, string? Token) PrepareConfigWithVerification(IntegrationConfig newConfig, string? existingEmail)
+    {
+        if (newConfig is EmailConfig newEmailConfig &&
+            !string.IsNullOrWhiteSpace(newEmailConfig.RecipientEmail) &&
+            existingEmail != newEmailConfig.RecipientEmail)
+        {
+            var token = Guid.NewGuid().ToString("N")[..8];
+            return (newEmailConfig with { IsVerified = false, VerificationToken = token }, token);
+        }
+        return (newConfig, null);
+    }
+
+    private async Task<Integration> UpdateExistingIntegrationAsync(CreateIntegrationCommand request, IntegrationConfig config, CancellationToken ct)
+    {
+        var integration = await db.Integrations.FindAsync([request.Id!.Value], ct)
+            ?? throw new InvalidOperationException("Integration not found.");
+
+        if (integration.ProjectId != request.ProjectId)
+            throw new UnauthorizedAccessException("Access denied.");
+
+        integration.UpdateConfig(config);
+        if (request.IsActive) integration.Reactivate(); else integration.Deactivate();
+        integration.UpdateNotificationState(request.NotificationsEnabled);
+        integration.UpdateName(request.Name);
+
+        return integration;
+    }
+
+    private async Task<Integration> CreateNewIntegrationAsync(CreateIntegrationCommand request, IntegrationConfig config, CancellationToken ct)
+    {
+        var integration = new Integration(
+            request.CurrentOrganizationId,
+            request.ProjectId,
+            request.Provider,
+            request.Name,
+            config
+        );
+
+        if (!request.IsActive) integration.Deactivate();
+        integration.UpdateNotificationState(request.NotificationsEnabled);
+
+        await db.Integrations.AddAsync(integration, ct);
+        return integration;
+    }
+
+    private async Task NotifyVerificationRequiredAsync(Integration integration, EmailConfig config, string token, CancellationToken ct)
+    {
+        var projectName = await db.Projects
+            .Where(p => p.Id == integration.ProjectId)
+            .Select(p => p.Name)
+            .FirstOrDefaultAsync(ct) ?? "Your Project";
+
+        await messageBus.PublishAsync(new SendIntegrationVerificationTokenCommand
+        {
+            IntegrationId = integration.Id,
+            ProjectId = integration.ProjectId,
+            ProjectName = projectName,
+            RecipientEmail = config.RecipientEmail,
+            Token = token
+        });
     }
 }

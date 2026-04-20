@@ -17,18 +17,18 @@ public sealed class ClusterNotificationHandler(
     : INotificationHandler<ClusterReportAddedEvent>,
       INotificationHandler<ClusterSummarizedEvent>
 {
-    public async Task Handle(ClusterReportAddedEvent notification, CancellationToken ct)
+    public async Task Handle(ClusterReportAddedEvent notification, CancellationToken cancellationToken)
     {
         // 1. Fetch the project and its organization's settings
         var project = await dbContext.Projects
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == notification.ProjectId, ct);
+            .FirstOrDefaultAsync(p => p.Id == notification.ProjectId, cancellationToken);
 
         if (project == null) return;
 
         var organization = await dbContext.Organizations
             .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.Id == notification.OrganizationId, ct);
+            .FirstOrDefaultAsync(o => o.Id == notification.OrganizationId, cancellationToken);
 
         if (organization == null) return;
 
@@ -39,7 +39,7 @@ public sealed class ClusterNotificationHandler(
         // 3. Fetch the current cluster to check the report count
         var cluster = await dbContext.Clusters
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == notification.ClusterId, ct);
+            .FirstOrDefaultAsync(c => c.Id == notification.ClusterId, cancellationToken);
 
         if (cluster == null) return;
 
@@ -57,18 +57,18 @@ public sealed class ClusterNotificationHandler(
         }
     }
 
-    public async Task Handle(ClusterSummarizedEvent notification, CancellationToken ct)
+    public async Task Handle(ClusterSummarizedEvent notification, CancellationToken cancellationToken)
     {
         // 1. Fetch the project and its organization's settings
         var project = await dbContext.Projects
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == notification.ProjectId, ct);
+            .FirstOrDefaultAsync(p => p.Id == notification.ProjectId, cancellationToken);
 
         if (project == null) return;
 
         var organization = await dbContext.Organizations
             .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.Id == notification.OrganizationId, ct);
+            .FirstOrDefaultAsync(o => o.Id == notification.OrganizationId, cancellationToken);
 
         if (organization == null) return;
 

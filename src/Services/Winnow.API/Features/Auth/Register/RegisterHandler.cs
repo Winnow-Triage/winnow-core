@@ -24,10 +24,9 @@ public class RegisterHandler(
     UserManager<ApplicationUser> userManager,
     WinnowDbContext dbContext,
     Winnow.API.Infrastructure.MultiTenancy.ITenantContext tenantContext,
-    IConfiguration config,
+    JwtSettings jwtSettings,
     Winnow.API.Infrastructure.Security.IApiKeyService apiKeyService,
-    IEmailService emailService,
-    Winnow.API.Services.Discord.IInternalOpsNotifier internalOpsNotifier) : IRequestHandler<RegisterCommand, AuthResult>
+    IPublisher publisher) : IRequestHandler<RegisterCommand, AuthResult>
 {
     public async Task<AuthResult> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
@@ -78,42 +77,14 @@ public class RegisterHandler(
 
         dbContext.Projects.Add(project);
 
-        // Notify internal operations of new signup - MUST happen before SaveChangesAsync for Outbox to capture it
-        try
-        {
-            await internalOpsNotifier.NotifyNewSignupAsync(request.Email);
-        }
-        catch (Exception ex)
-        {
-            // Do not block registration for notification failures
-            Console.WriteLine($"[REGISTER] Internal notification failed: {ex.Message}");
-        }
+        // Dispatch domain event for side effects (e.g. notifications, emails)
+        await publisher.Publish(new UserRegisteredEvent(user), cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
         tenantContext.CurrentOrganizationId = organization.Id;
 
-        try
-        {
-            Console.WriteLine($"[REGISTER] Sending welcome email to {user.Email}");
-            await emailService.SendWelcomeEmailAsync(user.Email!, user.FullName);
-            Console.WriteLine($"[REGISTER] Welcome email sent to {user.Email}");
-
-            var emailToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
-            var appUrl = config["AppUrl"] ?? "https://app.winnowtriage.com";
-            var verificationUrl = $"{appUrl.TrimEnd('/')}/verify-email?userId={user.Id}&token={Uri.EscapeDataString(emailToken)}";
-
-            Console.WriteLine($"[REGISTER] Sending verification email to {user.Email}");
-            await emailService.SendEmailVerificationAsync(user.Email!, new Uri(verificationUrl));
-            Console.WriteLine($"[REGISTER] Verification email sent to {user.Email}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[REGISTER] FAILED to send emails to {user.Email}: {ex.Message}");
-        }
-
-        var jwtSettings = config.GetSection("JwtSettings");
-        var key = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? "super_secret_key_at_least_32_chars_long_for_safety");
+        var key = Encoding.UTF8.GetBytes(jwtSettings.SecretKey);
 
         var claims = new List<Claim>
         {
@@ -133,8 +104,8 @@ public class RegisterHandler(
             Subject = new ClaimsIdentity(claims),
             Expires = DateTime.UtcNow.AddDays(7),
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
-            Issuer = jwtSettings["Issuer"],
-            Audience = jwtSettings["Audience"]
+            Issuer = jwtSettings.Issuer,
+            Audience = jwtSettings.Audience
         };
 
         var tokenHandler = new JwtSecurityTokenHandler();

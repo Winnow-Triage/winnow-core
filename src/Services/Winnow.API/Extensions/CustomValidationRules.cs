@@ -5,7 +5,7 @@ namespace Winnow.API.Extensions;
 
 public static class CustomValidationRules
 {
-    private static readonly Regex ModelIdRegex = new("^[a-zA-Z0-9_.-]+$", RegexOptions.Compiled);
+    private static readonly Regex ModelIdRegex = new("^[a-zA-Z0-9_.-]+$", RegexOptions.Compiled, TimeSpan.FromMilliseconds(250));
 
     public static IRuleBuilderOptions<T, string?> MustBeValidFilePath<T>(this IRuleBuilder<T, string?> ruleBuilder)
     {

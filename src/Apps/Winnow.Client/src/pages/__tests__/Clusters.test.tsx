@@ -60,7 +60,7 @@ describe("Clusters Component", () => {
   it("renders no clusters found message when there are no clusters", async () => {
     vi.mocked(searchClusters).mockResolvedValue({ items: [], totalCount: 0, pageNumber: 1, pageSize: 20 });
     render(<Clusters />, { wrapper: createWrapper() });
-    await screen.findByText(/No clusters found/i);
+    expect(await screen.findByText(/No clusters found/i)).toBeInTheDocument();
   });
 
   it("displays clusters correctly", async () => {
@@ -132,9 +132,21 @@ describe("Clusters Component", () => {
     render(<Clusters />, { wrapper: createWrapper() });
     await screen.findByText(/Cluster 1/i);
 
-    // Note: the original test lacked this, but sorting is difficult to test correctly via fireEvent without triggering real searches.
-    // We'll just verify the queryFn works and re-renders if needed.
-    expect(screen.getByText(/Cluster 1/i)).toBeInTheDocument();
+    // Trigger sort
+    const reportsHeader = screen.getByText(/Reports/i);
+    fireEvent.click(reportsHeader);
+
+    // Verify searchClusters was called with the correct sort parameter
+    expect(searchClusters).toHaveBeenCalledWith(
+      expect.any(String), // query
+      expect.any(Number), // page
+      expect.any(Number), // pageSize
+      undefined,          // selectedStatuses
+      undefined,          // isOverage
+      undefined,          // isLocked
+      "reportCount", // sortBy
+      "Desc" // sortDir
+    );
   });
 
   it("sorts clusters by criticality", async () => {

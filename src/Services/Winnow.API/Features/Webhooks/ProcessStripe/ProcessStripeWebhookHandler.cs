@@ -50,7 +50,7 @@ public class ProcessStripeWebhookHandler(
         }
     }
 
-    private async Task HandleCheckoutSessionCompletedAsync(Event stripeEvent, CancellationToken ct)
+    private async Task HandleCheckoutSessionCompletedAsync(Event stripeEvent, CancellationToken cancellationToken)
     {
         if (stripeEvent.Data.Object is not Session session) return;
 
@@ -71,7 +71,7 @@ public class ProcessStripeWebhookHandler(
 
         var organization = await db.Organizations
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(o => o.Id == organizationId, ct);
+            .FirstOrDefaultAsync(o => o.Id == organizationId, cancellationToken);
 
         if (organization == null)
         {
@@ -84,7 +84,7 @@ public class ProcessStripeWebhookHandler(
         try
         {
             var subscriptionService = new SubscriptionService();
-            var subscription = await subscriptionService.GetAsync(subscriptionId, cancellationToken: ct);
+            var subscription = await subscriptionService.GetAsync(subscriptionId, cancellationToken: cancellationToken);
             organization.ChangePlan(mapper.MapToDomainPlan(subscription));
         }
         catch (Exception ex)
@@ -106,24 +106,24 @@ public class ProcessStripeWebhookHandler(
             logger.LogWarning(ex, "Failed to send internal payment notification for Organization {OrganizationId}", organization.Id);
         }
 
-        await db.SaveChangesAsync(ct);
+        await db.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Successfully processed checkout completed for Organization {OrganizationId}. Tier set to {Tier}.", organization.Id, organization.Plan.Name);
     }
 
-    private async Task HandleSubscriptionUpdatedAsync(Event stripeEvent, CancellationToken ct)
+    private async Task HandleSubscriptionUpdatedAsync(Event stripeEvent, CancellationToken cancellationToken)
     {
         if (stripeEvent.Data.Object is not Subscription subscription) return;
 
         var organization = await db.Organizations
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(o => o.BillingIdentity.HasValue && o.BillingIdentity.Value.SubscriptionId == subscription.Id, ct);
+            .FirstOrDefaultAsync(o => o.BillingIdentity.HasValue && o.BillingIdentity.Value.SubscriptionId == subscription.Id, cancellationToken);
 
         if (organization == null)
         {
             organization = await db.Organizations
                 .IgnoreQueryFilters()
-                .FirstOrDefaultAsync(o => o.BillingIdentity.HasValue && o.BillingIdentity.Value.CustomerId == subscription.CustomerId, ct);
+                .FirstOrDefaultAsync(o => o.BillingIdentity.HasValue && o.BillingIdentity.Value.CustomerId == subscription.CustomerId, cancellationToken);
 
             organization?.LinkBillingIdentity(new BillingIdentity("Stripe", subscription.CustomerId, subscription.Id));
         }
@@ -139,16 +139,16 @@ public class ProcessStripeWebhookHandler(
         logger.LogInformation("Updated Organization {OrganizationId} tier to {Tier} due to subscription status: {Status}",
             organization.Id, organization.Plan.Name, subscription.Status);
 
-        await db.SaveChangesAsync(ct);
+        await db.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task HandleSubscriptionDeletedAsync(Event stripeEvent, CancellationToken ct)
+    private async Task HandleSubscriptionDeletedAsync(Event stripeEvent, CancellationToken cancellationToken)
     {
         if (stripeEvent.Data.Object is not Subscription subscription) return;
 
         var organization = await db.Organizations
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(o => o.BillingIdentity.HasValue && o.BillingIdentity.Value.SubscriptionId == subscription.Id, ct);
+            .FirstOrDefaultAsync(o => o.BillingIdentity.HasValue && o.BillingIdentity.Value.SubscriptionId == subscription.Id, cancellationToken);
 
         if (organization == null)
         {
@@ -158,7 +158,7 @@ public class ProcessStripeWebhookHandler(
 
         organization.CancelSubscription();
 
-        await db.SaveChangesAsync(ct);
+        await db.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Downgraded Organization {OrganizationId} tier to Free and cleared SubscriptionId due to subscription deletion.", organization.Id);
     }
 }
