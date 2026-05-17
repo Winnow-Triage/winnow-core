@@ -11,5 +11,15 @@ export default defineConfig({
         },
         outDir: 'dist',
         emptyOutDir: false, // Don't clear dist, as the main build runs first
+        minify: 'terser',
+        terserOptions: {
+            format: {
+                comments: false,
+            },
+            compress: {
+                drop_console: true,
+                drop_debugger: true
+            }
+        }
     }
 })
