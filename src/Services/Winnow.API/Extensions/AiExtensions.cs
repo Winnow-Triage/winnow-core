@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Winnow.API.Infrastructure.Configuration;
 using Winnow.API.Services.Ai;
 using Winnow.API.Services.Ai.Strategies;
@@ -7,6 +9,8 @@ using Winnow.API.Features.Dashboard.Service;
 using Winnow.API.Infrastructure.Analysis;
 using Winnow.API.Features.Dashboard.IService;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Connectors.Ollama;
+using Microsoft.SemanticKernel.Connectors.Amazon;
 using Winnow.API.Services.Ai.TypeSafe;
 
 namespace Winnow.API.Extensions;
@@ -39,8 +43,6 @@ internal static class AiExtensions
         // Semantic Kernel
         services.AddWinnowKernel(llmSettings);
 
-        // Duplicate Checkers
-        services.AddDuplicateCheckers(llmSettings);
         // AI Decision Services
         services.AddDecisionServices(llmSettings);
 
@@ -111,15 +113,14 @@ internal static class AiExtensions
 
     private static void AddDecisionServices(this IServiceCollection services, LlmSettings llmSettings)
     {
-        if (llmSettings.Provider == "Ollama")
-            // TypeSafe Jev Client Registration
-            services.AddHttpClient<ITypeSafeDecisionClient, TypeSafeDecisionClient>(client =>
-            {
-                client.BaseAddress = new Uri(llmSettings.TypeSafe.Endpoint);
-                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {llmSettings.TypeSafe.ApiKey}");
-                client.DefaultRequestHeaders.Add("HTTP-Referer", "https://winnow-secure.local");
-                client.DefaultRequestHeaders.Add("X-Title", "Winnow Framework");
-            });
+        // TypeSafe Jev Client Registration
+        services.AddHttpClient<ITypeSafeDecisionClient, TypeSafeDecisionClient>(client =>
+        {
+            client.BaseAddress = new Uri(llmSettings.TypeSafe.Endpoint);
+            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {llmSettings.TypeSafe.ApiKey}");
+            client.DefaultRequestHeaders.Add("HTTP-Referer", "https://winnow-secure.local");
+            client.DefaultRequestHeaders.Add("X-Title", "Winnow Framework");
+        });
 
         if (llmSettings.Provider == "TypeSafe")
         {
