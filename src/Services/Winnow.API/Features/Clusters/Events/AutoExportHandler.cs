@@ -66,7 +66,7 @@ public sealed class AutoExportHandler(
             ?? organization.Settings.Notifications.CriticalityThreshold;
 
         // 3. Check if threshold met
-        if (notification.CriticalityScore < threshold) return;
+        if (notification.Severity < threshold) return;
 
         // 5. Trigger auto-exports
         await TriggerAutoExportsAsync(project.Id, notification.ClusterId, notification.Title, notification.Summary);

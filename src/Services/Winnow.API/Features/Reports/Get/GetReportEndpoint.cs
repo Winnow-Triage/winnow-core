@@ -79,12 +79,12 @@ public class GetReportResponse
     /// <summary>
     /// Criticality score (1-100).
     /// </summary>
-    public int? CriticalityScore { get; set; }
+    public int? Severity { get; set; }
 
     /// <summary>
     /// Reasoning behind the criticality score.
     /// </summary>
-    public string? CriticalityReasoning { get; set; }
+    public string? IssueType { get; set; }
 
     /// <summary>
     /// AI-generated cluster title.

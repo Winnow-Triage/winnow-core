@@ -14,7 +14,7 @@ public record ClusterDto(
     Guid Id,
     string? Title,
     string? Summary,
-    int? CriticalityScore,
+    int? Severity,
     string Status,
     DateTime CreatedAt,
     int ReportCount,

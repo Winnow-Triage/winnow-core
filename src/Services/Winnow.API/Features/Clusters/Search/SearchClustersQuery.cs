@@ -14,7 +14,7 @@ public class ClusterSearchDto
     public string? Summary { get; set; }
     public string Status { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
-    public int? CriticalityScore { get; set; }
+    public int? Severity { get; set; }
     public int ReportCount { get; set; }
     public bool IsLocked { get; set; }
     public bool IsOverage { get; set; }

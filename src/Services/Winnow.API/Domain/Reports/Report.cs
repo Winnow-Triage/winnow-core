@@ -46,6 +46,7 @@ public class Report : IAggregateRoot
     public bool IsOverage { get; private set; }
     public bool IsLocked { get; private set; }
 
+
     public string? AssignedTo { get; private set; }
     public Uri? ExternalUrl { get; private set; }
 
