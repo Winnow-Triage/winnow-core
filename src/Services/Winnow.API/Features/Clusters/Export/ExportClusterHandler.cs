@@ -60,8 +60,8 @@ public class ExportClusterHandler(
                 {cluster.Summary ?? "No summary available."}
 
                 ## Criticality Analysis
-                Score: {cluster.CriticalityScore}/10
-                Reasoning: {cluster.CriticalityReasoning}
+                Score: {cluster.Severity}/10
+                Reasoning: {cluster.IssueType}
 
                 ## Impact
                 Report Count: {reportCount}

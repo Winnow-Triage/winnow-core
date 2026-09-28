@@ -11,6 +11,14 @@ public class LlmSettings
     public OpenAiSettings OpenAI { get; set; } = new();
     public AmazonBedrockSettings Bedrock { get; set; } = new();
     public PresidioSettings Presidio { get; set; } = new();
+    public TypeSafeSettings TypeSafe { get; set; } = new();
+}
+
+public class TypeSafeSettings
+{
+    public string ApiKey { get; set; } = string.Empty;
+    public string ModelId { get; set; } = "typesafe/jev-1.13";
+    public string Endpoint { get; set; } = "https://openrouter.ai/api/alpha/decisions";
 }
 
 public class OllamaSettings

@@ -15,8 +15,8 @@ public class GetClusterResponse
     public Guid ProjectId { get; set; }
     public string? Title { get; set; }
     public string? Summary { get; set; }
-    public int? CriticalityScore { get; set; }
-    public string? CriticalityReasoning { get; set; }
+    public int? Severity { get; set; }
+    public string? IssueType { get; set; }
     public string Status { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public int ReportCount { get; set; }

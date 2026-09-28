@@ -77,10 +77,10 @@ public sealed class ClusterNotificationHandler(
             ?? organization.Settings.Notifications.CriticalityThreshold;
 
         // 3. Trigger if the score meets or exceeds the threshold
-        if (notification.CriticalityScore >= threshold)
+        if (notification.Severity >= threshold)
         {
             logger.LogInformation("Cluster {ClusterId} reached criticality threshold ({Score} >= {Threshold}). Publishing integration event.",
-                notification.ClusterId, notification.CriticalityScore, threshold);
+                notification.ClusterId, notification.Severity, threshold);
 
             await messageBus.PublishAsync(new ClusterCriticalityThresholdReachedIntegrationEvent(
                 project.Id,

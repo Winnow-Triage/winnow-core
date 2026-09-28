@@ -1,0 +1,7 @@
+# Ignoring non-exploitable build-tool vulnerabilities in react-test
+CVE-2026-67213
+CVE-2026-67214
+CVE-2026-73086
+CVE-2026-45623
+CVE-2026-73646
+CVE-2026-53571

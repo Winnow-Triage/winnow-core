@@ -52,8 +52,8 @@ public class GetReportHandler(WinnowDbContext db, IStorageService storageService
         // Load cluster metadata for summary/criticality
         string? clusterTitle = null;
         string? clusterSummary = null;
-        int? criticalityScore = null;
-        string? criticalityReasoning = null;
+        int? severity = null;
+        string? issueType = null;
 
         if (report.ClusterId != null)
         {
@@ -65,8 +65,8 @@ public class GetReportHandler(WinnowDbContext db, IStorageService storageService
             {
                 clusterTitle = cluster.Title;
                 clusterSummary = cluster.Summary;
-                criticalityScore = cluster.CriticalityScore;
-                criticalityReasoning = cluster.CriticalityReasoning;
+                severity = cluster.Severity;
+                issueType = cluster.IssueType;
             }
         }
 
@@ -135,8 +135,8 @@ public class GetReportHandler(WinnowDbContext db, IStorageService storageService
             AssignedTo = report.AssignedTo,
             Summary = clusterSummary,
             ConfidenceScore = (float?)report.ConfidenceScore?.Score,
-            CriticalityScore = criticalityScore,
-            CriticalityReasoning = criticalityReasoning,
+            Severity = severity,
+            IssueType = issueType,
             ClusterTitle = clusterTitle,
             SuggestedClusterId = report.SuggestedClusterId,
             SuggestedConfidenceScore = (float?)report.SuggestedConfidenceScore?.Score,

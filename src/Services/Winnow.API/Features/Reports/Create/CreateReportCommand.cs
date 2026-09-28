@@ -119,6 +119,7 @@ public class CreateReportHandler(
             Metadata = report.Metadata
         });
 
+
         // 6. Commit Database changes AND the Wolverine Outbox Envelope atomically
         await outbox.SaveChangesAndFlushMessagesAsync(cancellationToken);
 

@@ -233,10 +233,10 @@ public class ClusterAggregateTests
         cluster.SetSummary("Payment failures", "Multiple NREs in payment path.", 8, "High user impact.");
 
         Assert.Equal("Payment failures", cluster.Title);
-        Assert.Equal(8, cluster.CriticalityScore);
+        Assert.Equal(8, cluster.Severity);
         Assert.NotNull(cluster.LastSummarizedAt);
         var evt = Assert.Single(cluster.DomainEvents.OfType<ClusterSummarizedEvent>());
-        Assert.Equal(8, evt.CriticalityScore);
+        Assert.Equal(8, evt.Severity);
     }
 
     [Fact]
