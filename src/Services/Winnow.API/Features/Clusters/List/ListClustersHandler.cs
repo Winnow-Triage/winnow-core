@@ -25,7 +25,7 @@ public class ListClustersHandler(WinnowDbContext dbContext) : IRequestHandler<Li
                 c.Id,
                 c.Title,
                 c.Summary,
-                c.CriticalityScore,
+                c.Severity,
                 c.Status.Name,
                 c.CreatedAt,
                 dbContext.Reports.Count(r => r.ClusterId == c.Id),
@@ -35,7 +35,7 @@ public class ListClustersHandler(WinnowDbContext dbContext) : IRequestHandler<Li
 
         var sortedClusters = request.Sort switch
         {
-            "criticality" => clusters.OrderByDescending(c => c.CriticalityScore ?? 0).ThenByDescending(c => c.ReportCount),
+            "criticality" => clusters.OrderByDescending(c => c.Severity ?? 0).ThenByDescending(c => c.ReportCount),
             "newest" => clusters.OrderByDescending(c => c.CreatedAt),
             _ => clusters.OrderByDescending(c => c.ReportCount)
         };

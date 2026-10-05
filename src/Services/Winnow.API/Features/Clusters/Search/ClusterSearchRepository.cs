@@ -29,7 +29,7 @@ public class ClusterSearchRepository(WinnowDbContext dbContext) : IClusterSearch
                 "title" => "Title",
                 "status" => "Status",
                 "createdAt" => "CreatedAt",
-                "criticalityScore" => "CriticalityScore",
+                "severity" => "Severity",
                 "reportCount" => "ReportCount",
                 _ => "CreatedAt"
             };
@@ -46,7 +46,7 @@ public class ClusterSearchRepository(WinnowDbContext dbContext) : IClusterSearch
                 c.""Summary"",
                 c.""Status"",
                 c.""CreatedAt"",
-                c.""CriticalityScore"",
+                c.""Severity"",
                 (c.""IsSummarizing"" = TRUE AND (c.""SummarizationStartedAt"" IS NULL OR c.""SummarizationStartedAt"" > NOW() - INTERVAL '10 minutes')) AS IsSummarizing,
                 (SELECT COUNT(*) FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsSanitized"" = TRUE) AS ReportCount,
                 EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsLocked"" = TRUE AND r.""IsSanitized"" = TRUE) AS IsLocked,
@@ -84,7 +84,7 @@ public class ClusterSearchRepository(WinnowDbContext dbContext) : IClusterSearch
                 "title" => "Title",
                 "status" => "Status",
                 "createdAt" => "CreatedAt",
-                "criticalityScore" => "CriticalityScore",
+                "severity" => "Severity",
                 "reportCount" => "ReportCount",
                 _ => null
             };
@@ -135,7 +135,7 @@ public class ClusterSearchRepository(WinnowDbContext dbContext) : IClusterSearch
                 c.""Summary"",
                 c.""Status"",
                 c.""CreatedAt"",
-                c.""CriticalityScore"",
+                c.""Severity"",
                 (c.""IsSummarizing"" = TRUE AND (c.""SummarizationStartedAt"" IS NULL OR c.""SummarizationStartedAt"" > NOW() - INTERVAL '10 minutes')) AS IsSummarizing,
                 (SELECT COUNT(*) FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsSanitized"" = TRUE) AS ReportCount,
                 EXISTS (SELECT 1 FROM ""Reports"" r WHERE r.""ClusterId"" = c.""Id"" AND r.""IsLocked"" = TRUE AND r.""IsSanitized"" = TRUE) AS IsLocked,

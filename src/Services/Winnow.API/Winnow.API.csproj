@@ -50,6 +50,9 @@
     <PackageReference Include="WolverineFx.EntityFrameworkCore" Version="5.28.0" />
     <PackageReference Include="WolverineFx.Postgresql" Version="5.28.0" />
     <PackageReference Include="WolverineFx.RabbitMQ" Version="5.28.0" />
+    
+    <!-- Explicit package overrides to fix high severity vulnerabilities in transitive dependencies -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
   </ItemGroup>
 
   <ItemGroup>

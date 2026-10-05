@@ -27,8 +27,8 @@ public class Cluster : IAggregateRoot
 
     public string? Title { get; private set; }
     public string? Summary { get; private set; }
-    public int? CriticalityScore { get; private set; }
-    public string? CriticalityReasoning { get; private set; }
+    public int? Severity { get; private set; }
+    public string? IssueType { get; private set; }
     public DateTime? LastSummarizedAt { get; private set; }
     public DateTime? SummarizationStartedAt { get; private set; }
     public bool IsSummarizing { get; private set; }
@@ -107,30 +107,30 @@ public class Cluster : IAggregateRoot
     // AI Summary
     // ──────────────────────────────────────────────────────────────
 
-    public void SetSummary(string title, string summary, int criticalityScore, string reasoning)
+    public void SetSummary(string title, string summary, int? severity, string? issueType)
     {
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("Cluster title is required.", nameof(title));
         if (string.IsNullOrWhiteSpace(summary))
             throw new ArgumentException("Cluster summary is required.", nameof(summary));
-        if (criticalityScore is < 1 or > 10)
-            throw new ArgumentOutOfRangeException(nameof(criticalityScore), "Criticality score must be between 1 and 10.");
+        if (severity is < 1 or > 10)
+            throw new ArgumentOutOfRangeException(nameof(severity), "Severity must be between 1 and 10.");
 
         Title = title;
         Summary = summary;
-        CriticalityScore = criticalityScore;
-        CriticalityReasoning = reasoning;
+        Severity = severity;
+        IssueType = issueType;
         LastSummarizedAt = DateTime.UtcNow;
 
-        _domainEvents.Add(new ClusterSummarizedEvent(Id, ProjectId, OrganizationId, criticalityScore, title, summary));
+        _domainEvents.Add(new ClusterSummarizedEvent(Id, ProjectId, OrganizationId, severity, issueType, title, summary));
     }
 
     public void ClearSummary()
     {
         Title = null;
         Summary = null;
-        CriticalityScore = null;
-        CriticalityReasoning = null;
+        Severity = null;
+        IssueType = null;
         LastSummarizedAt = null;
     }
 

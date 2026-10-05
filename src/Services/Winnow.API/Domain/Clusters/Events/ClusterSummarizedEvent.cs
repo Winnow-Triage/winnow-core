@@ -6,7 +6,7 @@ public sealed record ClusterSummarizedEvent(
     Guid ClusterId,
     Guid ProjectId,
     Guid OrganizationId,
-    int CriticalityScore,
+    int? Severity,
+    string? IssueType,
     string Title,
     string Summary) : IDomainEvent;
-
